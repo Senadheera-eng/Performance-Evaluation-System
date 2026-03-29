@@ -21,7 +21,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
-import universityLogo from "figma:asset/22c64bff020647954cd622678b6f0c3d8227d918.png";
+import universityLogo from "../../assets/logo.jpg";
 
 const navigation = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
@@ -61,10 +61,16 @@ export default function AppLayout() {
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-            <img src={universityLogo} alt="University Logo" className="w-10 h-10" />
+            <img
+              src={universityLogo}
+              alt="University Logo"
+              className="w-10 h-10 object-cover rounded-lg"
+            />
             <div>
               <h1 className="text-lg font-bold text-foreground">PES</h1>
-              <p className="text-xs text-muted-foreground">Performance System</p>
+              <p className="text-xs text-muted-foreground">
+                Performance System
+              </p>
             </div>
           </div>
 
@@ -83,7 +89,10 @@ export default function AppLayout() {
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 <span className="flex-1 text-left">{item.name}</span>
                 {item.badge && (
-                  <Badge variant="secondary" className="bg-accent text-accent-foreground text-xs px-2">
+                  <Badge
+                    variant="secondary"
+                    className="bg-accent text-accent-foreground text-xs px-2"
+                  >
                     {item.badge}
                   </Badge>
                 )}
@@ -140,10 +149,16 @@ export default function AppLayout() {
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-border">
                   <div className="flex items-center gap-3">
-                    <img src={universityLogo} alt="University Logo" className="w-10 h-10" />
+                    <img
+                      src={universityLogo}
+                      alt="University Logo"
+                      className="w-10 h-10"
+                    />
                     <div>
                       <h1 className="text-lg font-bold text-foreground">PES</h1>
-                      <p className="text-xs text-muted-foreground">Performance System</p>
+                      <p className="text-xs text-muted-foreground">
+                        Performance System
+                      </p>
                     </div>
                   </div>
                   <button
@@ -172,7 +187,10 @@ export default function AppLayout() {
                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       <span className="flex-1 text-left">{item.name}</span>
                       {item.badge && (
-                        <Badge variant="secondary" className="bg-accent text-accent-foreground text-xs px-2">
+                        <Badge
+                          variant="secondary"
+                          className="bg-accent text-accent-foreground text-xs px-2"
+                        >
                           {item.badge}
                         </Badge>
                       )}
@@ -256,7 +274,9 @@ export default function AppLayout() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground">John Doe</p>
+                  <p className="text-sm font-medium text-foreground">
+                    John Doe
+                  </p>
                   <p className="text-xs text-muted-foreground">EF/2021/001</p>
                 </div>
                 <ChevronDown className="hidden md:block h-4 w-4 text-muted-foreground" />

@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Checkbox } from "../components/ui/checkbox";
 import { motion } from "motion/react";
-import universityLogo from "figma:asset/22c64bff020647954cd622678b6f0c3d8227d918.png";
+import universityLogo from "../../assets/logo.jpg";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -42,11 +42,13 @@ export default function LoginPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-4 mb-6">
-              <img src={universityLogo} alt="University Logo" className="w-16 h-16" />
+              <img
+                src={universityLogo}
+                alt="University Logo"
+                className="w-16 h-16 object-cover rounded-lg"
+              />
               <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                  PES
-                </h1>
+                <h1 className="text-2xl font-bold text-foreground">PES</h1>
                 <p className="text-sm text-muted-foreground">
                   Performance Evaluation System
                 </p>
@@ -70,7 +72,10 @@ export default function LoginPage() {
           >
             {/* Email Field */}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="email"
+                className="text-sm font-medium text-foreground"
+              >
                 Email or Student ID
               </label>
               <div className="relative">
@@ -88,7 +93,10 @@ export default function LoginPage() {
 
             {/* Password Field */}
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-foreground">
+              <label
+                htmlFor="password"
+                className="text-sm font-medium text-foreground"
+              >
                 Password
               </label>
               <div className="relative">
@@ -106,7 +114,11 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -117,7 +129,9 @@ export default function LoginPage() {
                 <Checkbox
                   id="remember"
                   checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  onCheckedChange={(checked) =>
+                    setRememberMe(checked as boolean)
+                  }
                 />
                 <label
                   htmlFor="remember"
@@ -158,7 +172,10 @@ export default function LoginPage() {
             {/* Additional Info */}
             <p className="text-center text-sm text-muted-foreground">
               For support, contact{" "}
-              <a href="mailto:support@sjp.ac.lk" className="text-primary hover:text-primary/80 font-medium">
+              <a
+                href="mailto:support@sjp.ac.lk"
+                className="text-primary hover:text-primary/80 font-medium"
+              >
                 support@sjp.ac.lk
               </a>
             </p>
@@ -215,9 +232,10 @@ export default function LoginPage() {
               <span className="text-accent">Academic Success</span>
             </h2>
             <p className="text-xl text-white/90 max-w-lg mx-auto leading-relaxed">
-              Monitor your attendance, view results, get AI-powered insights, and manage your courses all in one place.
+              Monitor your attendance, view results, get AI-powered insights,
+              and manage your courses all in one place.
             </p>
-            
+
             {/* Feature Pills */}
             <div className="flex flex-wrap gap-3 justify-center mt-8">
               {[
@@ -243,10 +261,13 @@ export default function LoginPage() {
 
         {/* Decorative Grid */}
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px'
-          }} />
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: "50px 50px",
+            }}
+          />
         </div>
       </motion.div>
     </div>
