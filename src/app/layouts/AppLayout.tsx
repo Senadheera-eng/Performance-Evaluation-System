@@ -15,12 +15,15 @@ import {
   Bell,
   ChevronDown,
   GraduationCap,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
+import { useTheme } from "../context/ThemeContext";
 
 const universityLogo = new URL("../../assets/logo.jpg", import.meta.url).href;
 
@@ -43,6 +46,7 @@ export default function AppLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { theme, setTheme } = useTheme();
 
   const isActive = (href: string) => {
     if (href === "/app") {
@@ -53,6 +57,13 @@ export default function AppLayout() {
 
   const handleLogout = () => {
     navigate("/");
+  };
+
+  const cycleTheme = () => {
+    const themes: Array<"light" | "dark" | "auto"> = ["light", "dark", "auto"];
+    const currentIndex = themes.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    setTheme(themes[nextIndex]);
   };
 
   return (
@@ -265,6 +276,21 @@ export default function AppLayout() {
               <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
                 <Bell className="h-5 w-5 text-muted-foreground" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+              </button>
+
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={cycleTheme}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                title={`Current theme: ${theme}`}
+              >
+                {theme === "dark" ||
+                (theme === "auto" &&
+                  window.matchMedia("(prefers-color-scheme: dark)").matches) ? (
+                  <Sun className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Moon className="h-5 w-5 text-muted-foreground" />
+                )}
               </button>
 
               {/* Profile Dropdown */}
