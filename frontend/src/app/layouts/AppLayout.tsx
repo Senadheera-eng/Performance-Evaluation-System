@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -19,7 +19,6 @@ import {
   Sun,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
