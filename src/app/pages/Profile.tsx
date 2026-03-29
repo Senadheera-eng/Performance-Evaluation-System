@@ -1,6 +1,20 @@
-import { motion } from "motion/react";
-import { Mail, Phone, MapPin, Calendar, Award, Edit, BookOpen, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { motion } from "framer-motion";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Award,
+  Edit,
+  BookOpen,
+  TrendingUp,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
@@ -21,9 +35,24 @@ const studentInfo = {
 };
 
 const achievements = [
-  { title: "Dean's List", semester: "Semester 5", icon: Award, color: "text-amber-600 bg-amber-100" },
-  { title: "Perfect Attendance", semester: "Semester 4", icon: Calendar, color: "text-green-600 bg-green-100" },
-  { title: "Best Project Award", semester: "Semester 3", icon: BookOpen, color: "text-blue-600 bg-blue-100" },
+  {
+    title: "Dean's List",
+    semester: "Semester 5",
+    icon: Award,
+    color: "text-amber-600 bg-amber-100",
+  },
+  {
+    title: "Perfect Attendance",
+    semester: "Semester 4",
+    icon: Calendar,
+    color: "text-green-600 bg-green-100",
+  },
+  {
+    title: "Best Project Award",
+    semester: "Semester 3",
+    icon: BookOpen,
+    color: "text-blue-600 bg-blue-100",
+  },
 ];
 
 const semesterProgress = [
@@ -85,19 +114,27 @@ export default function Profile() {
                   <div className="w-full space-y-3 pt-4 border-t border-border">
                     <div className="flex items-center gap-3 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">{studentInfo.email}</span>
+                      <span className="text-foreground">
+                        {studentInfo.email}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">{studentInfo.phone}</span>
+                      <span className="text-foreground">
+                        {studentInfo.phone}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">Faculty of Engineering</span>
+                      <span className="text-foreground">
+                        Faculty of Engineering
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground">Batch {studentInfo.batch}</span>
+                      <span className="text-foreground">
+                        Batch {studentInfo.batch}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -117,17 +154,25 @@ export default function Profile() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Current CGPA</span>
-                  <span className="text-xl font-bold text-primary">{studentInfo.cgpa}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Current CGPA
+                  </span>
+                  <span className="text-xl font-bold text-primary">
+                    {studentInfo.cgpa}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Credits Earned</span>
+                  <span className="text-sm text-muted-foreground">
+                    Credits Earned
+                  </span>
                   <span className="text-xl font-bold text-foreground">
                     {studentInfo.totalCredits}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Courses Completed</span>
+                  <span className="text-sm text-muted-foreground">
+                    Courses Completed
+                  </span>
                   <span className="text-xl font-bold text-foreground">
                     {studentInfo.completedCourses}
                   </span>
@@ -153,30 +198,54 @@ export default function Profile() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Degree Program</p>
-                      <p className="font-medium text-foreground">{studentInfo.degree}</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Degree Program
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {studentInfo.degree}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Academic Year</p>
-                      <p className="font-medium text-foreground">{studentInfo.year}</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Academic Year
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {studentInfo.year}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Enrollment Batch</p>
-                      <p className="font-medium text-foreground">{studentInfo.batch}</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Enrollment Batch
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {studentInfo.batch}
+                      </p>
                     </div>
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Student ID</p>
-                      <p className="font-medium text-foreground">{studentInfo.studentId}</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Student ID
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {studentInfo.studentId}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Faculty</p>
-                      <p className="font-medium text-foreground">Faculty of Engineering</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Faculty
+                      </p>
+                      <p className="font-medium text-foreground">
+                        Faculty of Engineering
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Department</p>
-                      <p className="font-medium text-foreground">Computer Science</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Department
+                      </p>
+                      <p className="font-medium text-foreground">
+                        Computer Science
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -204,13 +273,17 @@ export default function Profile() {
                       transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
                       className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                     >
-                      <div className={`p-3 rounded-lg ${achievement.color} w-fit mb-3`}>
+                      <div
+                        className={`p-3 rounded-lg ${achievement.color} w-fit mb-3`}
+                      >
                         <achievement.icon className="h-6 w-6" />
                       </div>
                       <h4 className="font-semibold text-foreground mb-1">
                         {achievement.title}
                       </h4>
-                      <p className="text-sm text-muted-foreground">{achievement.semester}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {achievement.semester}
+                      </p>
                     </motion.div>
                   ))}
                 </div>
@@ -234,16 +307,24 @@ export default function Profile() {
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="font-medium text-foreground">{sem.semester}</span>
+                          <span className="font-medium text-foreground">
+                            {sem.semester}
+                          </span>
                           {sem.progress === 100 ? (
-                            <Badge className="bg-green-100 text-green-700">Completed</Badge>
+                            <Badge className="bg-green-100 text-green-700">
+                              Completed
+                            </Badge>
                           ) : (
-                            <Badge className="bg-blue-100 text-blue-700">In Progress</Badge>
+                            <Badge className="bg-blue-100 text-blue-700">
+                              In Progress
+                            </Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold text-primary">{sem.gpa}</span>
+                          <span className="font-semibold text-primary">
+                            {sem.gpa}
+                          </span>
                         </div>
                       </div>
                       <Progress value={sem.progress} className="h-2" />

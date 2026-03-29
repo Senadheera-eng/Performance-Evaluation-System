@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "../ui/card";
 
 interface AlertCardProps {
@@ -48,7 +48,14 @@ export function AlertCard({ type, title, message, action }: AlertCardProps) {
     },
   };
 
-  const { icon: Icon, bgColor, borderColor, iconColor, textColor, buttonColor } = config[type];
+  const {
+    icon: Icon,
+    bgColor,
+    borderColor,
+    iconColor,
+    textColor,
+    buttonColor,
+  } = config[type];
 
   return (
     <motion.div

@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -51,9 +51,13 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
                 <div className="p-2 rounded-lg bg-primary/10">
                   <BookOpen className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-sm font-semibold text-primary">{course.code}</p>
+                <p className="text-sm font-semibold text-primary">
+                  {course.code}
+                </p>
               </div>
-              <CardTitle className="text-base leading-tight">{course.name}</CardTitle>
+              <CardTitle className="text-base leading-tight">
+                {course.name}
+              </CardTitle>
             </div>
             <Badge className={`${statusColors[course.status]} border`}>
               {statusLabels[course.status]}
@@ -67,14 +71,18 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
                 <Clock className="h-4 w-4" />
                 Credits
               </span>
-              <span className="font-semibold text-foreground">{course.credits}</span>
+              <span className="font-semibold text-foreground">
+                {course.credits}
+              </span>
             </div>
 
             {course.attendance !== undefined && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Attendance</span>
-                  <span className={`font-semibold ${course.attendance >= 80 ? "text-green-600" : "text-red-600"}`}>
+                  <span
+                    className={`font-semibold ${course.attendance >= 80 ? "text-green-600" : "text-red-600"}`}
+                  >
                     {course.attendance}%
                   </span>
                 </div>
@@ -88,7 +96,9 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
                   <CheckCircle2 className="h-4 w-4" />
                   Grade
                 </span>
-                <span className="font-bold text-lg text-primary">{course.grade}</span>
+                <span className="font-bold text-lg text-primary">
+                  {course.grade}
+                </span>
               </div>
             )}
 
@@ -96,7 +106,9 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Progress</span>
-                  <span className="font-semibold text-foreground">{course.progress}%</span>
+                  <span className="font-semibold text-foreground">
+                    {course.progress}%
+                  </span>
                 </div>
                 <Progress value={course.progress} className="h-2" />
               </div>

@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "../ui/card";
 
 interface StatCardProps {
@@ -38,10 +38,16 @@ export function StatCard({
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-              <h3 className="text-3xl font-bold text-foreground mb-2">{value}</h3>
+              <p className="text-sm font-medium text-muted-foreground mb-1">
+                {title}
+              </p>
+              <h3 className="text-3xl font-bold text-foreground mb-2">
+                {value}
+              </h3>
               {change && (
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${changeColors[changeType]}`}>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${changeColors[changeType]}`}
+                >
                   {change}
                 </span>
               )}

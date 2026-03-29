@@ -16,12 +16,13 @@ import {
   ChevronDown,
   GraduationCap,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
-import universityLogo from "../../assets/logo.jpg";
+
+const universityLogo = new URL("../../assets/logo.jpg", import.meta.url).href;
 
 const navigation = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },

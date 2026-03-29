@@ -1,34 +1,146 @@
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
 
 // Mock data
 const allCourses = [
   // Ongoing
-  { id: "1", code: "CS301", name: "Software Engineering", credits: 3, status: "ongoing" as const, attendance: 85, progress: 65 },
-  { id: "2", code: "CS302", name: "Database Management Systems", credits: 4, status: "ongoing" as const, attendance: 92, progress: 70 },
-  { id: "3", code: "CS303", name: "Computer Networks", credits: 3, status: "ongoing" as const, attendance: 78, progress: 55 },
-  { id: "4", code: "CS304", name: "Web Technologies", credits: 3, status: "ongoing" as const, attendance: 88, progress: 60 },
-  { id: "5", code: "CS305", name: "Machine Learning", credits: 4, status: "ongoing" as const, attendance: 95, progress: 75 },
-  
+  {
+    id: "1",
+    code: "CS301",
+    name: "Software Engineering",
+    credits: 3,
+    status: "ongoing" as const,
+    attendance: 85,
+    progress: 65,
+  },
+  {
+    id: "2",
+    code: "CS302",
+    name: "Database Management Systems",
+    credits: 4,
+    status: "ongoing" as const,
+    attendance: 92,
+    progress: 70,
+  },
+  {
+    id: "3",
+    code: "CS303",
+    name: "Computer Networks",
+    credits: 3,
+    status: "ongoing" as const,
+    attendance: 78,
+    progress: 55,
+  },
+  {
+    id: "4",
+    code: "CS304",
+    name: "Web Technologies",
+    credits: 3,
+    status: "ongoing" as const,
+    attendance: 88,
+    progress: 60,
+  },
+  {
+    id: "5",
+    code: "CS305",
+    name: "Machine Learning",
+    credits: 4,
+    status: "ongoing" as const,
+    attendance: 95,
+    progress: 75,
+  },
+
   // Completed
-  { id: "6", code: "CS201", name: "Data Structures", credits: 4, status: "completed" as const, grade: "A" },
-  { id: "7", code: "CS202", name: "Algorithms", credits: 3, status: "completed" as const, grade: "A-" },
-  { id: "8", code: "CS203", name: "Operating Systems", credits: 4, status: "completed" as const, grade: "B+" },
-  { id: "9", code: "CS204", name: "Object Oriented Programming", credits: 3, status: "completed" as const, grade: "A" },
-  { id: "10", code: "CS205", name: "Computer Architecture", credits: 3, status: "completed" as const, grade: "B+" },
-  { id: "11", code: "CS101", name: "Introduction to Computing", credits: 3, status: "completed" as const, grade: "A" },
-  { id: "12", code: "CS102", name: "Programming Fundamentals", credits: 4, status: "completed" as const, grade: "A-" },
-  
+  {
+    id: "6",
+    code: "CS201",
+    name: "Data Structures",
+    credits: 4,
+    status: "completed" as const,
+    grade: "A",
+  },
+  {
+    id: "7",
+    code: "CS202",
+    name: "Algorithms",
+    credits: 3,
+    status: "completed" as const,
+    grade: "A-",
+  },
+  {
+    id: "8",
+    code: "CS203",
+    name: "Operating Systems",
+    credits: 4,
+    status: "completed" as const,
+    grade: "B+",
+  },
+  {
+    id: "9",
+    code: "CS204",
+    name: "Object Oriented Programming",
+    credits: 3,
+    status: "completed" as const,
+    grade: "A",
+  },
+  {
+    id: "10",
+    code: "CS205",
+    name: "Computer Architecture",
+    credits: 3,
+    status: "completed" as const,
+    grade: "B+",
+  },
+  {
+    id: "11",
+    code: "CS101",
+    name: "Introduction to Computing",
+    credits: 3,
+    status: "completed" as const,
+    grade: "A",
+  },
+  {
+    id: "12",
+    code: "CS102",
+    name: "Programming Fundamentals",
+    credits: 4,
+    status: "completed" as const,
+    grade: "A-",
+  },
+
   // Upcoming
-  { id: "13", code: "CS401", name: "Artificial Intelligence", credits: 4, status: "upcoming" as const },
-  { id: "14", code: "CS402", name: "Cloud Computing", credits: 3, status: "upcoming" as const },
-  { id: "15", code: "CS403", name: "Cyber Security", credits: 3, status: "upcoming" as const },
+  {
+    id: "13",
+    code: "CS401",
+    name: "Artificial Intelligence",
+    credits: 4,
+    status: "upcoming" as const,
+  },
+  {
+    id: "14",
+    code: "CS402",
+    name: "Cloud Computing",
+    credits: 3,
+    status: "upcoming" as const,
+  },
+  {
+    id: "15",
+    code: "CS403",
+    name: "Cyber Security",
+    credits: 3,
+    status: "upcoming" as const,
+  },
 ];
 
 export default function Courses() {
@@ -39,7 +151,7 @@ export default function Courses() {
     const matchesSearch =
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.code.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     if (activeTab === "all") return matchesSearch;
     return matchesSearch && course.status === activeTab;
   });
@@ -68,10 +180,30 @@ export default function Courses() {
       {/* Stats Banner */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Courses", value: stats.all, icon: BookOpen, color: "bg-primary/10 text-primary" },
-          { label: "Ongoing", value: stats.ongoing, icon: Clock, color: "bg-blue-100 text-blue-600" },
-          { label: "Completed", value: stats.completed, icon: CheckCircle2, color: "bg-green-100 text-green-600" },
-          { label: "Upcoming", value: stats.upcoming, icon: Clock, color: "bg-yellow-100 text-yellow-600" },
+          {
+            label: "Total Courses",
+            value: stats.all,
+            icon: BookOpen,
+            color: "bg-primary/10 text-primary",
+          },
+          {
+            label: "Ongoing",
+            value: stats.ongoing,
+            icon: Clock,
+            color: "bg-blue-100 text-blue-600",
+          },
+          {
+            label: "Completed",
+            value: stats.completed,
+            icon: CheckCircle2,
+            color: "bg-green-100 text-green-600",
+          },
+          {
+            label: "Upcoming",
+            value: stats.upcoming,
+            icon: Clock,
+            color: "bg-yellow-100 text-yellow-600",
+          },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -85,7 +217,9 @@ export default function Courses() {
                 <stat.icon className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {stat.value}
+                </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             </div>
@@ -153,7 +287,9 @@ export default function Courses() {
               className="text-center py-12"
             >
               <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No courses found</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                No courses found
+              </h3>
               <p className="text-muted-foreground">
                 Try adjusting your search or filter criteria.
               </p>
@@ -161,7 +297,11 @@ export default function Courses() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCourses.map((course) => (
-                <CourseCard key={course.id} course={course} onClick={() => {}} />
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  onClick={() => {}}
+                />
               ))}
             </div>
           )}

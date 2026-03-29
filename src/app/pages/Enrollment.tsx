@@ -1,11 +1,27 @@
 import { useState } from "react";
-import { motion } from "motion/react";
-import { GraduationCap, Search, CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { motion } from "framer-motion";
+import {
+  GraduationCap,
+  Search,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { Checkbox } from "../components/ui/checkbox";
 
 // Mock data
@@ -79,14 +95,14 @@ export default function Enrollment() {
   const filteredCourses = availableCourses.filter(
     (course) =>
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.code.toLowerCase().includes(searchQuery.toLowerCase())
+      course.code.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleCourseToggle = (courseId: string) => {
     setSelectedCourses((prev) =>
       prev.includes(courseId)
         ? prev.filter((id) => id !== courseId)
-        : [...prev, courseId]
+        : [...prev, courseId],
     );
   };
 
@@ -94,14 +110,26 @@ export default function Enrollment() {
     .filter((course) => selectedCourses.includes(course.id))
     .reduce((sum, course) => sum + course.credits, 0);
 
-  const getCourseStatus = (course: typeof availableCourses[0]) => {
+  const getCourseStatus = (course: (typeof availableCourses)[0]) => {
     if (course.enrolled >= course.seats) {
-      return { label: "Full", color: "bg-red-100 text-red-700", icon: AlertCircle };
+      return {
+        label: "Full",
+        color: "bg-red-100 text-red-700",
+        icon: AlertCircle,
+      };
     }
     if (course.enrolled / course.seats > 0.8) {
-      return { label: "Limited", color: "bg-yellow-100 text-yellow-700", icon: Clock };
+      return {
+        label: "Limited",
+        color: "bg-yellow-100 text-yellow-700",
+        icon: Clock,
+      };
     }
-    return { label: "Available", color: "bg-green-100 text-green-700", icon: CheckCircle };
+    return {
+      label: "Available",
+      color: "bg-green-100 text-green-700",
+      icon: CheckCircle,
+    };
   };
 
   return (
@@ -112,7 +140,9 @@ export default function Enrollment() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">Course Enrollment</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          Course Enrollment
+        </h1>
         <p className="text-muted-foreground">
           Select and enroll in courses for the upcoming semester.
         </p>
@@ -132,8 +162,12 @@ export default function Enrollment() {
                   <GraduationCap className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{selectedCourses.length}</p>
-                  <p className="text-sm text-muted-foreground">Selected Courses</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {selectedCourses.length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Selected Courses
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -152,7 +186,9 @@ export default function Enrollment() {
                   <CheckCircle className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{selectedCredits}</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {selectedCredits}
+                  </p>
                   <p className="text-sm text-muted-foreground">Total Credits</p>
                 </div>
               </div>
@@ -266,7 +302,7 @@ function CourseList({
   courses: typeof availableCourses;
   selectedCourses: string[];
   onCourseToggle: (id: string) => void;
-  getCourseStatus: (course: typeof availableCourses[0]) => {
+  getCourseStatus: (course: (typeof availableCourses)[0]) => {
     label: string;
     color: string;
     icon: any;
@@ -299,7 +335,9 @@ function CourseList({
                   <div className="pt-1">
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={() => !isFull && onCourseToggle(course.id)}
+                      onCheckedChange={() =>
+                        !isFull && onCourseToggle(course.id)
+                      }
                       disabled={isFull}
                     />
                   </div>
@@ -311,11 +349,14 @@ function CourseList({
                           <h3 className="text-lg font-semibold text-foreground">
                             {course.name}
                           </h3>
-                          <Badge className="bg-primary/10 text-primary">{course.code}</Badge>
+                          <Badge className="bg-primary/10 text-primary">
+                            {course.code}
+                          </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {course.credits} Credits •{" "}
-                          {course.category.charAt(0).toUpperCase() + course.category.slice(1)}
+                          {course.category.charAt(0).toUpperCase() +
+                            course.category.slice(1)}
                         </p>
                       </div>
                       <Badge className={status.color}>
@@ -326,10 +367,16 @@ function CourseList({
 
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted-foreground">Prerequisites:</span>
+                        <span className="text-muted-foreground">
+                          Prerequisites:
+                        </span>
                         <div className="flex gap-1">
                           {course.prerequisites.map((prereq) => (
-                            <Badge key={prereq} variant="outline" className="text-xs">
+                            <Badge
+                              key={prereq}
+                              variant="outline"
+                              className="text-xs"
+                            >
                               {prereq}
                             </Badge>
                           ))}
@@ -346,10 +393,12 @@ function CourseList({
                               course.enrolled >= course.seats
                                 ? "bg-red-500"
                                 : course.enrolled / course.seats > 0.8
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
                             }`}
-                            style={{ width: `${(course.enrolled / course.seats) * 100}%` }}
+                            style={{
+                              width: `${(course.enrolled / course.seats) * 100}%`,
+                            }}
                           />
                         </div>
                       </div>

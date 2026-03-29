@@ -1,6 +1,11 @@
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Calendar, AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { AlertCard } from "../components/dashboard/AlertCard";
@@ -89,14 +94,19 @@ const getStatusColor = (status: string) => {
 
 export default function Attendance() {
   const overallAttendance = Math.round(
-    attendanceData.reduce((sum, course) => sum + course.percentage, 0) / attendanceData.length
+    attendanceData.reduce((sum, course) => sum + course.percentage, 0) /
+      attendanceData.length,
   );
 
-  const criticalCourses = attendanceData.filter((course) => course.percentage < 80);
-  const goodCourses = attendanceData.filter(
-    (course) => course.percentage >= 80 && course.percentage < 90
+  const criticalCourses = attendanceData.filter(
+    (course) => course.percentage < 80,
   );
-  const excellentCourses = attendanceData.filter((course) => course.percentage >= 90);
+  const goodCourses = attendanceData.filter(
+    (course) => course.percentage >= 80 && course.percentage < 90,
+  );
+  const excellentCourses = attendanceData.filter(
+    (course) => course.percentage >= 90,
+  );
 
   return (
     <div className="space-y-6">
@@ -106,7 +116,9 @@ export default function Attendance() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">Attendance Tracker</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          Attendance Tracker
+        </h1>
         <p className="text-muted-foreground">
           Monitor your attendance and stay on track with the 80% requirement.
         </p>
@@ -129,7 +141,9 @@ export default function Attendance() {
                   <h3 className="text-4xl font-bold text-foreground mb-2">
                     {overallAttendance}%
                   </h3>
-                  <p className="text-xs text-green-600 font-medium">Above requirement</p>
+                  <p className="text-xs text-green-600 font-medium">
+                    Above requirement
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10">
                   <TrendingUp className="h-6 w-6 text-primary" />
@@ -173,7 +187,9 @@ export default function Attendance() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Good (80-89%)</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Good (80-89%)
+                  </p>
                   <h3 className="text-4xl font-bold text-blue-600 mb-2">
                     {goodCourses.length}
                   </h3>
@@ -224,7 +240,7 @@ export default function Attendance() {
               message={`Your attendance is ${course.percentage}%. You need ${
                 80 - course.percentage
               }% more to meet the requirement. Missing ${Math.ceil(
-                (80 * course.total - 100 * course.attended) / 20
+                (80 * course.total - 100 * course.attended) / 20,
               )} more classes will make you non-eligible.`}
               action={{
                 label: "View Details",
@@ -262,8 +278,12 @@ export default function Attendance() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <h4 className="font-semibold text-foreground">{course.name}</h4>
-                            <Badge className={colors.badge}>{course.code}</Badge>
+                            <h4 className="font-semibold text-foreground">
+                              {course.name}
+                            </h4>
+                            <Badge className={colors.badge}>
+                              {course.code}
+                            </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
                             Last attended: {course.lastClass}
@@ -295,7 +315,9 @@ export default function Attendance() {
                           <p className="text-sm text-red-900">
                             You can only miss{" "}
                             <span className="font-semibold">
-                              {Math.floor((course.attended - 0.8 * course.total) / 0.8)}
+                              {Math.floor(
+                                (course.attended - 0.8 * course.total) / 0.8,
+                              )}
                             </span>{" "}
                             more classes to maintain 80% attendance.
                           </p>

@@ -1,7 +1,19 @@
 import { useState } from "react";
-import { motion } from "motion/react";
-import { Bot, Send, Sparkles, BookOpen, Calendar, TrendingUp } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { motion } from "framer-motion";
+import {
+  Bot,
+  Send,
+  Sparkles,
+  BookOpen,
+  Calendar,
+  TrendingUp,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -50,7 +62,8 @@ export default function AIAssistant() {
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "This is a UI demo. In the full implementation, I would provide detailed academic insights and guidance based on your question.",
+        content:
+          "This is a UI demo. In the full implementation, I would provide detailed academic insights and guidance based on your question.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
@@ -97,8 +110,12 @@ export default function AIAssistant() {
                   <BookOpen className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Course Guidance</p>
-                  <p className="text-lg font-semibold text-foreground">Available</p>
+                  <p className="text-sm text-muted-foreground">
+                    Course Guidance
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    Available
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -117,8 +134,12 @@ export default function AIAssistant() {
                   <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Attendance Alerts</p>
-                  <p className="text-lg font-semibold text-foreground">Real-time</p>
+                  <p className="text-sm text-muted-foreground">
+                    Attendance Alerts
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    Real-time
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -137,8 +158,12 @@ export default function AIAssistant() {
                   <TrendingUp className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Result Prediction</p>
-                  <p className="text-lg font-semibold text-foreground">AI-Powered</p>
+                  <p className="text-sm text-muted-foreground">
+                    Result Prediction
+                  </p>
+                  <p className="text-lg font-semibold text-foreground">
+                    AI-Powered
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -156,7 +181,7 @@ export default function AIAssistant() {
                 Chat with AI Assistant
               </CardTitle>
             </CardHeader>
-            
+
             {/* Messages Container */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.map((message) => (
@@ -247,7 +272,9 @@ export default function AIAssistant() {
                   <BookOpen className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground text-sm">Course Guidance</h4>
+                  <h4 className="font-medium text-foreground text-sm">
+                    Course Guidance
+                  </h4>
                   <p className="text-xs text-muted-foreground">
                     Information about modules, credits, and prerequisites
                   </p>
@@ -259,7 +286,9 @@ export default function AIAssistant() {
                   <Calendar className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground text-sm">Smart Alerts</h4>
+                  <h4 className="font-medium text-foreground text-sm">
+                    Smart Alerts
+                  </h4>
                   <p className="text-xs text-muted-foreground">
                     Proactive warnings about attendance and deadlines
                   </p>
@@ -271,7 +300,9 @@ export default function AIAssistant() {
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground text-sm">Result Prediction</h4>
+                  <h4 className="font-medium text-foreground text-sm">
+                    Result Prediction
+                  </h4>
                   <p className="text-xs text-muted-foreground">
                     ML-based predictions of final grades
                   </p>

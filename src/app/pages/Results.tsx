@@ -1,9 +1,19 @@
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { TrendingUp, Award, FileText, Download } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -12,17 +22,55 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
+} from "recharts";
 
 // Mock data
 const semesterResults = [
   {
     semester: "Semester 1 (2021/22)",
     courses: [
-      { code: "CS101", name: "Introduction to Computing", grade: "A", gpa: 4.0, credits: 3 },
-      { code: "CS102", name: "Programming Fundamentals", grade: "A-", gpa: 3.7, credits: 4 },
-      { code: "MA101", name: "Mathematics I", grade: "B+", gpa: 3.3, credits: 3 },
-      { code: "EN101", name: "English Communication", grade: "A", gpa: 4.0, credits: 2 },
+      {
+        code: "CS101",
+        name: "Introduction to Computing",
+        grade: "A",
+        gpa: 4.0,
+        credits: 3,
+      },
+      {
+        code: "CS102",
+        name: "Programming Fundamentals",
+        grade: "A-",
+        gpa: 3.7,
+        credits: 4,
+      },
+      {
+        code: "MA101",
+        name: "Mathematics I",
+        grade: "B+",
+        gpa: 3.3,
+        credits: 3,
+      },
+      {
+        code: "EN101",
+        name: "English Communication",
+        grade: "A",
+        gpa: 4.0,
+        credits: 2,
+      },
     ],
     gpa: 3.75,
     credits: 12,
@@ -30,10 +78,28 @@ const semesterResults = [
   {
     semester: "Semester 2 (2021/22)",
     courses: [
-      { code: "CS201", name: "Data Structures", grade: "A", gpa: 4.0, credits: 4 },
+      {
+        code: "CS201",
+        name: "Data Structures",
+        grade: "A",
+        gpa: 4.0,
+        credits: 4,
+      },
       { code: "CS202", name: "Algorithms", grade: "A-", gpa: 3.7, credits: 3 },
-      { code: "CS203", name: "Operating Systems", grade: "B+", gpa: 3.3, credits: 4 },
-      { code: "MA201", name: "Mathematics II", grade: "A-", gpa: 3.7, credits: 3 },
+      {
+        code: "CS203",
+        name: "Operating Systems",
+        grade: "B+",
+        gpa: 3.3,
+        credits: 4,
+      },
+      {
+        code: "MA201",
+        name: "Mathematics II",
+        grade: "A-",
+        gpa: 3.7,
+        credits: 3,
+      },
     ],
     gpa: 3.68,
     credits: 14,
@@ -58,9 +124,11 @@ const performanceRadar = [
 ];
 
 const getGradeColor = (grade: string) => {
-  if (grade.startsWith("A")) return "bg-green-100 text-green-700 border-green-200";
+  if (grade.startsWith("A"))
+    return "bg-green-100 text-green-700 border-green-200";
   if (grade.startsWith("B")) return "bg-blue-100 text-blue-700 border-blue-200";
-  if (grade.startsWith("C")) return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  if (grade.startsWith("C"))
+    return "bg-yellow-100 text-yellow-700 border-yellow-200";
   return "bg-gray-100 text-gray-700 border-gray-200";
 };
 
@@ -79,7 +147,9 @@ export default function Results() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Academic Results</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Academic Results
+            </h1>
             <p className="text-muted-foreground">
               View your semester-wise results and overall academic performance.
             </p>
@@ -103,11 +173,17 @@ export default function Results() {
             <CardContent className="p-6 relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Current CGPA</p>
-                  <h3 className="text-5xl font-bold text-primary mb-2">{currentCGPA}</h3>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Current CGPA
+                  </p>
+                  <h3 className="text-5xl font-bold text-primary mb-2">
+                    {currentCGPA}
+                  </h3>
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-green-600" />
-                    <p className="text-sm text-green-600 font-medium">+0.07 from last sem</p>
+                    <p className="text-sm text-green-600 font-medium">
+                      +0.07 from last sem
+                    </p>
                   </div>
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10">
@@ -130,8 +206,12 @@ export default function Results() {
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Credits Earned
                   </p>
-                  <h3 className="text-5xl font-bold text-foreground mb-2">{totalCredits}</h3>
-                  <p className="text-sm text-muted-foreground">Out of 120 required</p>
+                  <h3 className="text-5xl font-bold text-foreground mb-2">
+                    {totalCredits}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Out of 120 required
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-100">
                   <FileText className="h-6 w-6 text-blue-600" />
@@ -156,7 +236,9 @@ export default function Results() {
                   <h3 className="text-5xl font-bold text-foreground mb-2">
                     {completedCourses}
                   </h3>
-                  <p className="text-sm text-muted-foreground">Across 6 semesters</p>
+                  <p className="text-sm text-muted-foreground">
+                    Across 6 semesters
+                  </p>
                 </div>
                 <div className="p-3 rounded-xl bg-green-100">
                   <Award className="h-6 w-6 text-green-600" />
@@ -214,7 +296,11 @@ export default function Results() {
                 <RadarChart data={performanceRadar}>
                   <PolarGrid stroke="#e5e7eb" />
                   <PolarAngleAxis dataKey="subject" stroke="#6b7280" />
-                  <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#6b7280" />
+                  <PolarRadiusAxis
+                    angle={90}
+                    domain={[0, 100]}
+                    stroke="#6b7280"
+                  />
                   <Radar
                     name="Current Semester"
                     dataKey="A"
@@ -263,7 +349,9 @@ export default function Results() {
                     {/* Semester Summary */}
                     <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
                       <div>
-                        <h4 className="font-semibold text-foreground">{semester.semester}</h4>
+                        <h4 className="font-semibold text-foreground">
+                          {semester.semester}
+                        </h4>
                         <p className="text-sm text-muted-foreground">
                           {semester.courses.length} courses completed
                         </p>
@@ -272,7 +360,9 @@ export default function Results() {
                         <div className="text-3xl font-bold text-primary">
                           {semester.gpa.toFixed(2)}
                         </div>
-                        <p className="text-sm text-muted-foreground">Semester GPA</p>
+                        <p className="text-sm text-muted-foreground">
+                          Semester GPA
+                        </p>
                       </div>
                     </div>
 
@@ -283,7 +373,9 @@ export default function Results() {
                           <TableRow>
                             <TableHead>Course Code</TableHead>
                             <TableHead>Course Name</TableHead>
-                            <TableHead className="text-center">Credits</TableHead>
+                            <TableHead className="text-center">
+                              Credits
+                            </TableHead>
                             <TableHead className="text-center">Grade</TableHead>
                             <TableHead className="text-center">GPA</TableHead>
                           </TableRow>
@@ -291,11 +383,17 @@ export default function Results() {
                         <TableBody>
                           {semester.courses.map((course) => (
                             <TableRow key={course.code}>
-                              <TableCell className="font-medium">{course.code}</TableCell>
+                              <TableCell className="font-medium">
+                                {course.code}
+                              </TableCell>
                               <TableCell>{course.name}</TableCell>
-                              <TableCell className="text-center">{course.credits}</TableCell>
                               <TableCell className="text-center">
-                                <Badge className={`${getGradeColor(course.grade)} border`}>
+                                {course.credits}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  className={`${getGradeColor(course.grade)} border`}
+                                >
                                   {course.grade}
                                 </Badge>
                               </TableCell>
@@ -311,17 +409,25 @@ export default function Results() {
                     {/* Semester Stats */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">Total Credits</p>
-                        <p className="text-2xl font-bold text-foreground">{semester.credits}</p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Total Credits
+                        </p>
+                        <p className="text-2xl font-bold text-foreground">
+                          {semester.credits}
+                        </p>
                       </div>
                       <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">Semester GPA</p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Semester GPA
+                        </p>
                         <p className="text-2xl font-bold text-primary">
                           {semester.gpa.toFixed(2)}
                         </p>
                       </div>
                       <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">Courses</p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Courses
+                        </p>
                         <p className="text-2xl font-bold text-foreground">
                           {semester.courses.length}
                         </p>

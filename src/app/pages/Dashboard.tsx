@@ -1,9 +1,20 @@
-import { motion } from "motion/react";
-import { GraduationCap, Calendar, TrendingUp, Award, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  GraduationCap,
+  Calendar,
+  TrendingUp,
+  Award,
+  ArrowRight,
+} from "lucide-react";
 import { StatCard } from "../components/dashboard/StatCard";
 import { CourseCard } from "../components/dashboard/CourseCard";
 import { AlertCard } from "../components/dashboard/AlertCard";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import {
   BarChart,
@@ -81,7 +92,9 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">Welcome Back, John! 👋</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">
+          Welcome Back, John! 👋
+        </h1>
         <p className="text-muted-foreground">
           Here's what's happening with your academic progress today.
         </p>
@@ -212,7 +225,11 @@ export default function Dashboard() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="attendance" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
+                  <Bar
+                    dataKey="attendance"
+                    fill="#8B5CF6"
+                    radius={[8, 8, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -223,8 +240,13 @@ export default function Dashboard() {
       {/* Ongoing Courses Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-foreground">Ongoing Courses</h2>
-          <Button variant="ghost" className="text-primary hover:text-primary/80">
+          <h2 className="text-2xl font-bold text-foreground">
+            Ongoing Courses
+          </h2>
+          <Button
+            variant="ghost"
+            className="text-primary hover:text-primary/80"
+          >
             View All
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -246,7 +268,10 @@ export default function Dashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Recent Results</CardTitle>
-              <Button variant="ghost" className="text-primary hover:text-primary/80">
+              <Button
+                variant="ghost"
+                className="text-primary hover:text-primary/80"
+              >
                 View All
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -260,12 +285,20 @@ export default function Dashboard() {
                   className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                 >
                   <div>
-                    <h4 className="font-semibold text-foreground">{result.course}</h4>
-                    <p className="text-sm text-muted-foreground">{result.code}</p>
+                    <h4 className="font-semibold text-foreground">
+                      {result.course}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {result.code}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">{result.grade}</div>
-                    <p className="text-sm text-muted-foreground">GPA: {result.gpa}</p>
+                    <div className="text-2xl font-bold text-primary">
+                      {result.grade}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      GPA: {result.gpa}
+                    </p>
                   </div>
                 </div>
               ))}
