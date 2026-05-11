@@ -5,19 +5,42 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Checkbox } from "../components/ui/checkbox";
 import { motion } from "framer-motion";
+import { useAuth } from "../context/AuthContext";
 import universityLogo from "../../assets/logo.jpg";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Navigate to dashboard (no backend logic yet)
-    navigate("/app");
+    setError(null);
+    setLoading(true);
+
+    const { error } = await signIn(email, password);
+
+    if (error) {
+      setError("Invalid email or password. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    // Small delay to allow student profile to load after signIn
+    setTimeout(() => {
+      const role = localStorage.getItem("pes_role");
+      if (role === "dept_admin") {
+        navigate("/admin");
+      } else {
+        navigate("/app");
+      }
+      setLoading(false);
+    }, 500);
   };
 
   return (
@@ -69,46 +92,40 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
               onSubmit={handleLogin}
-              className="space-y-6"
+              className="space-y-5"
             >
               {/* Email Field */}
               <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Email or Student ID
+                <label className="text-sm font-medium text-foreground">
+                  University Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="text"
-                    placeholder="Enter your email or student ID"
+                    type="email"
+                    placeholder="yourname@eng.sjp.ac.lk"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-12 bg-input-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="pl-10"
+                    required
                   />
                 </div>
               </div>
 
               {/* Password Field */}
               <div className="space-y-2">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-medium text-foreground"
-                >
+                <label className="text-sm font-medium text-foreground">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Enter your LMS password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-12 bg-input-background border-border focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    className="pl-10 pr-10"
+                    required
                   />
                   <button
                     type="button"
@@ -116,17 +133,17 @@ export default function LoginPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Remember Me and Forgot Password */}
+              {/* Remember Me */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <Checkbox
                     id="remember"
                     checked={rememberMe}
@@ -143,132 +160,101 @@ export default function LoginPage() {
                 </div>
                 <button
                   type="button"
-                  className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+                  className="text-sm text-primary hover:underline"
                 >
                   Forgot password?
                 </button>
               </div>
 
-              {/* Sign In Button */}
+              {/* Error Message */}
+              {error && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+
+              {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/30 transition-all hover:shadow-xl hover:shadow-primary/40 group"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
               >
-                Sign In
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Signing in...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    Sign In
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                )}
               </Button>
 
-              {/* Divider */}
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-muted-foreground">
-                    University of Sri Jayewardenepura
-                  </span>
-                </div>
-              </div>
-
-              {/* Additional Info */}
-              <p className="text-center text-sm text-muted-foreground">
-                For support, contact{" "}
-                <a
-                  href="mailto:support@sjp.ac.lk"
-                  className="text-primary hover:text-primary/80 font-medium"
-                >
-                  support@sjp.ac.lk
-                </a>
+              {/* Footer Note */}
+              <p className="text-center text-xs text-muted-foreground pt-2">
+                Use your university email and LMS password to sign in.
+                <br />
+                Contact the IT department if you face any issues.
               </p>
             </motion.form>
           </div>
         </motion.div>
 
-        {/* Right Side - Hero Section */}
+        {/* Right Side - Decorative Panel */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6 }}
-          className="hidden lg:flex lg:w-1/2 gradient-hero relative items-center justify-center overflow-hidden"
+          className="hidden lg:flex lg:w-1/2 bg-gradient-hero items-center justify-center p-12 relative overflow-hidden"
         >
-          {/* Animated Background Elements */}
-          <div className="absolute inset-0">
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                rotate: [0, 90, 0],
-              }}
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-              className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl"
-            />
-            <motion.div
-              animate={{
-                scale: [1.2, 1, 1.2],
-                rotate: [90, 0, 90],
-              }}
-              transition={{
-                duration: 15,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-              className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-accent/20 rounded-full blur-3xl"
-            />
-          </div>
+          {/* Background decorative circles */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2" />
 
-          {/* Content */}
-          <div className="relative z-10 text-center px-12">
+          <div className="relative z-10 text-center text-white max-w-md">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.6 }}
-              className="space-y-6"
+              transition={{ delay: 0.4, duration: 0.8 }}
             >
-              <h2 className="text-5xl font-bold text-white leading-tight">
-                Track Your
-                <br />
-                <span className="text-accent">Academic Success</span>
+              <div className="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mx-auto mb-8 backdrop-blur-sm">
+                <img
+                  src={universityLogo}
+                  alt="USJ Logo"
+                  className="w-16 h-16 object-cover rounded-2xl"
+                />
+              </div>
+              <h2 className="text-4xl font-bold mb-4 leading-tight">
+                Faculty of Engineering
               </h2>
-              <p className="text-xl text-white/90 max-w-lg mx-auto leading-relaxed">
-                Monitor your attendance, view results, get AI-powered insights,
-                and manage your courses all in one place.
+              <p className="text-lg text-white/80 mb-2">
+                University of Sri Jayewardenepura
+              </p>
+              <p className="text-white/60 text-sm mb-10">
+                Performance Evaluation System — Your complete academic companion
               </p>
 
-              {/* Feature Pills */}
-              <div className="flex flex-wrap gap-3 justify-center mt-8">
+              {/* Feature pills */}
+              <div className="flex flex-wrap gap-3 justify-center">
                 {[
-                  "Real-time Attendance",
+                  "GPA Tracking",
+                  "Attendance Monitor",
                   "AI Assistant",
-                  "Result Analytics",
-                  "Course Management",
-                  "Performance Tracking",
-                ].map((feature, index) => (
-                  <motion.div
+                  "Result Predictions",
+                  "Course Enrollment",
+                ].map((feature) => (
+                  <span
                     key={feature}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1 + index * 0.1, duration: 0.4 }}
-                    className="glass-dark px-4 py-2 rounded-full text-white text-sm font-medium"
+                    className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white/90 border border-white/20"
                   >
                     {feature}
-                  </motion.div>
+                  </span>
                 ))}
               </div>
             </motion.div>
-          </div>
-
-          {/* Decorative Grid */}
-          <div className="absolute inset-0 opacity-10">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                backgroundSize: "50px 50px",
-              }}
-            />
           </div>
         </motion.div>
       </div>
