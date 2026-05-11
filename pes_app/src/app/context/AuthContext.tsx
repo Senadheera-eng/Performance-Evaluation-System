@@ -11,7 +11,7 @@ interface AuthContextType {
   signIn: (
     email: string,
     password: string,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -24,56 +24,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchStudentProfile = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("students")
       .select("*")
       .eq("id", userId)
       .single();
-
-    if (error) {
-      console.error("Error fetching student profile:", error);
-      return null;
-    }
-    return data as Student;
+    return data as Student | null;
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const profile = await fetchStudentProfile(session.user.id);
-        setStudent(profile);
-      }
-      setLoading(false);
-    });
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Keep this synchronous — no Supabase DB calls here.
+      // Calling supabase.from() inside onAuthStateChange deadlocks
+      // because the client is still processing the auth response.
+      setSession(session ?? null);
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        const profile = await fetchStudentProfile(session.user.id);
-        setStudent(profile);
-      } else {
-        setStudent(null);
-      }
+      if (!session?.user) setStudent(null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Fetch student profile whenever the logged-in user changes
+  useEffect(() => {
+    if (!user) return;
+    fetchStudentProfile(user.id).then((profile) => setStudent(profile));
+  }, [user?.id]);
+
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) return { error: error.message };
-    return { error: null };
+
+    if (error) return { error: error.message, role: null };
+
+    if (data.user) {
+      const { data: studentData } = await supabase
+        .from("students")
+        .select("role")
+        .eq("id", data.user.id)
+        .single();
+
+      return { error: null, role: studentData?.role ?? "student" };
+    }
+
+    return { error: null, role: "student" };
   };
 
   const signOut = async () => {

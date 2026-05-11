@@ -12,6 +12,7 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, student, loading } = useAuth();
 
+  // Still checking auth — show spinner
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -23,8 +24,22 @@ export default function ProtectedRoute({
     );
   }
 
+  // Not logged in → go to login
   if (!user) return <Navigate to="/" replace />;
 
+  // Logged in but student profile not loaded yet — wait
+  if (allowedRole && !student) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-muted-foreground text-sm">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Wrong role → redirect
   if (allowedRole && student?.role !== allowedRole) {
     if (student?.role === "dept_admin") return <Navigate to="/admin" replace />;
     return <Navigate to="/app" replace />;

@@ -23,6 +23,7 @@ import { Input } from "../components/ui/input";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 const universityLogo = new URL("../../assets/logo.jpg", import.meta.url).href;
 
@@ -46,6 +47,16 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const { theme, setTheme } = useTheme();
+  const { signOut, student } = useAuth();
+
+  // Generate initials from real student name
+  const initials =
+    student?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) ?? "ST";
 
   const isActive = (href: string) => {
     if (href === "/app") {
@@ -54,7 +65,8 @@ export default function AppLayout() {
     return location.pathname.startsWith(href);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     navigate("/");
   };
 
@@ -136,6 +148,25 @@ export default function AppLayout() {
             </button>
           </div>
         </div>
+
+        {/* Sidebar Footer — student info */}
+        <div className="px-4 py-4 border-t border-border">
+          <div className="flex items-center gap-3 px-2">
+            <Avatar className="w-9 h-9">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {student?.name ?? "Student"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {student?.reg_number ?? ""}
+              </p>
+            </div>
+          </div>
+        </div>
       </aside>
 
       {/* Mobile Sidebar */}
@@ -163,7 +194,7 @@ export default function AppLayout() {
                     <img
                       src={universityLogo}
                       alt="University Logo"
-                      className="w-10 h-10"
+                      className="w-10 h-10 object-cover rounded-lg"
                     />
                     <div>
                       <h1 className="text-lg font-bold text-foreground">PES</h1>
@@ -236,6 +267,25 @@ export default function AppLayout() {
                     <span className="flex-1 text-left">Logout</span>
                   </button>
                 </div>
+
+                {/* Mobile Sidebar Footer */}
+                <div className="px-4 py-4 border-t border-border">
+                  <div className="flex items-center gap-3 px-2">
+                    <Avatar className="w-9 h-9">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {student?.name ?? "Student"}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {student?.reg_number ?? ""}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.aside>
           </>
@@ -269,7 +319,7 @@ export default function AppLayout() {
               </div>
             </div>
 
-            {/* Right: Notifications + Profile */}
+            {/* Right: Notifications + Theme + Profile */}
             <div className="flex items-center gap-3">
               {/* Notifications */}
               <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
@@ -292,18 +342,23 @@ export default function AppLayout() {
                 )}
               </button>
 
-              {/* Profile Dropdown */}
-              <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors">
+              {/* Profile */}
+              <button
+                onClick={() => navigate("/app/profile")}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+              >
                 <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    JD
+                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-medium text-foreground">
-                    John Doe
+                    {student?.name ?? "Student"}
                   </p>
-                  <p className="text-xs text-muted-foreground">EF/2021/001</p>
+                  <p className="text-xs text-muted-foreground">
+                    {student?.reg_number ?? ""}
+                  </p>
                 </div>
                 <ChevronDown className="hidden md:block h-4 w-4 text-muted-foreground" />
               </button>
