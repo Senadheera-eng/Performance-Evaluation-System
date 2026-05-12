@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   GraduationCap,
@@ -28,62 +30,255 @@ import {
   Line,
   Legend,
 } from "recharts";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
-// Mock data
-const semesterData = [
-  { semester: "Sem 1", gpa: 3.2 },
-  { semester: "Sem 2", gpa: 3.4 },
-  { semester: "Sem 3", gpa: 3.6 },
-  { semester: "Sem 4", gpa: 3.7 },
-  { semester: "Sem 5", gpa: 3.8 },
-  { semester: "Sem 6", gpa: 3.9 },
-];
+interface CourseWithAttendance {
+  id: string;
+  code: string;
+  name: string;
+  credits: number;
+  status: "ongoing" | "completed" | "upcoming";
+  attendance: number;
+  progress: number;
+}
 
-const attendanceData = [
-  { course: "CS301", attendance: 85 },
-  { course: "CS302", attendance: 92 },
-  { course: "CS303", attendance: 78 },
-  { course: "CS304", attendance: 88 },
-  { course: "CS305", attendance: 95 },
-];
+interface AttendanceAlert {
+  courseCode: string;
+  courseName: string;
+  percentage: number;
+  totalLectures: number;
+  presentCount: number;
+}
 
-const ongoingCourses = [
-  {
-    id: "1",
-    code: "CS301",
-    name: "Software Engineering",
-    credits: 3,
-    status: "ongoing" as const,
-    attendance: 85,
-    progress: 65,
-  },
-  {
-    id: "2",
-    code: "CS302",
-    name: "Database Management Systems",
-    credits: 4,
-    status: "ongoing" as const,
-    attendance: 92,
-    progress: 70,
-  },
-  {
-    id: "3",
-    code: "CS303",
-    name: "Computer Networks",
-    credits: 3,
-    status: "ongoing" as const,
-    attendance: 78,
-    progress: 55,
-  },
-];
+interface SemesterGPA {
+  semester: string;
+  gpa: number;
+}
 
-const recentResults = [
-  { course: "Data Structures", code: "CS201", grade: "A", gpa: 4.0 },
-  { course: "Algorithms", code: "CS202", grade: "A-", gpa: 3.7 },
-  { course: "Operating Systems", code: "CS203", grade: "B+", gpa: 3.3 },
-];
+interface RecentResult {
+  course: string;
+  code: string;
+  grade: string;
+  gpv: number;
+}
 
 export default function Dashboard() {
+  const { student } = useAuth();
+  const navigate = useNavigate();
+
+  const [cgpa, setCgpa] = useState<number | null>(null);
+  const [totalCredits, setTotalCredits] = useState(0);
+  const [enrolledCount, setEnrolledCount] = useState(0);
+  const [avgAttendance, setAvgAttendance] = useState(0);
+  const [ongoingCourses, setOngoingCourses] = useState<CourseWithAttendance[]>(
+    [],
+  );
+  const [attendanceData, setAttendanceData] = useState<
+    { course: string; attendance: number }[]
+  >([]);
+  const [semesterData, setSemesterData] = useState<SemesterGPA[]>([]);
+  const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
+  const [alerts, setAlerts] = useState<AttendanceAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const firstName = student?.name?.split(" ")[0] ?? "Student";
+
+  useEffect(() => {
+    if (!student?.id) return;
+    fetchDashboardData();
+  }, [student?.id]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchGPAData(),
+      fetchEnrollments(),
+      fetchAttendance(),
+      fetchRecentResults(),
+    ]);
+    setLoading(false);
+  };
+
+  const fetchGPAData = async () => {
+    // Fetch all published results with course credits
+    const { data } = await supabase
+      .from("results")
+      .select(
+        "gpv, academic_year, course_id, courses(semester, credits, contributes_to_gpa)",
+      )
+      .eq("student_id", student!.id)
+      .eq("is_published", true)
+      .not("gpv", "is", null);
+
+    if (!data || data.length === 0) return;
+
+    // Calculate CGPA
+    let totalWeighted = 0;
+    let totalCredits = 0;
+    const semesterMap: Record<string, { weighted: number; credits: number }> =
+      {};
+
+    data.forEach((r: any) => {
+      const course = r.courses;
+      if (!course?.contributes_to_gpa || !r.gpv) return;
+
+      totalWeighted += r.gpv * course.credits;
+      totalCredits += course.credits;
+
+      const semKey = `Sem ${course.semester}`;
+      if (!semesterMap[semKey])
+        semesterMap[semKey] = { weighted: 0, credits: 0 };
+      semesterMap[semKey].weighted += r.gpv * course.credits;
+      semesterMap[semKey].credits += course.credits;
+    });
+
+    const cgpaVal = totalCredits > 0 ? totalWeighted / totalCredits : 0;
+    setCgpa(Math.round(cgpaVal * 100) / 100);
+    setTotalCredits(totalCredits);
+
+    // Build semester GPA chart data
+    const semData = Object.entries(semesterMap)
+      .sort((a, b) => {
+        const numA = parseInt(a[0].replace("Sem ", ""));
+        const numB = parseInt(b[0].replace("Sem ", ""));
+        return numA - numB;
+      })
+      .map(([sem, val]) => ({
+        semester: sem,
+        gpa: Math.round((val.weighted / val.credits) * 100) / 100,
+      }));
+
+    setSemesterData(semData);
+  };
+
+  const fetchEnrollments = async () => {
+    const { data } = await supabase
+      .from("enrollments")
+      .select("status, courses(id, course_code, title, credits, semester)")
+      .eq("student_id", student!.id)
+      .eq("status", "enrolled");
+
+    if (!data) return;
+    setEnrolledCount(data.length);
+  };
+
+  const fetchAttendance = async () => {
+    // Get current enrolled courses
+    const { data: enrollments } = await supabase
+      .from("enrollments")
+      .select("course_id, courses(course_code, title, credits)")
+      .eq("student_id", student!.id)
+      .eq("status", "enrolled");
+
+    if (!enrollments || enrollments.length === 0) return;
+
+    const courseIds = enrollments.map((e: any) => e.course_id);
+
+    // Get attendance for all current courses
+    const { data: attData } = await supabase
+      .from("attendance")
+      .select("course_id, status")
+      .eq("student_id", student!.id)
+      .in("course_id", courseIds);
+
+    if (!attData) return;
+
+    // Calculate per-course attendance
+    const courseAttMap: Record<string, { present: number; total: number }> = {};
+    attData.forEach((a: any) => {
+      if (!courseAttMap[a.course_id])
+        courseAttMap[a.course_id] = { present: 0, total: 0 };
+      courseAttMap[a.course_id].total++;
+      if (a.status === "present" || a.status === "excused")
+        courseAttMap[a.course_id].present++;
+    });
+
+    // Get mid-sem progress from results
+    const { data: resultsData } = await supabase
+      .from("results")
+      .select("course_id, mid_sem_mark, ca_mark")
+      .eq("student_id", student!.id)
+      .eq("is_published", false);
+
+    const progressMap: Record<string, number> = {};
+    resultsData?.forEach((r: any) => {
+      if (r.mid_sem_mark && r.ca_mark) {
+        progressMap[r.course_id] = Math.round(
+          ((r.mid_sem_mark + r.ca_mark) / 90) * 100,
+        );
+      }
+    });
+
+    // Build ongoing courses list
+    const courses: CourseWithAttendance[] = enrollments.map((e: any) => {
+      const att = courseAttMap[e.course_id];
+      const percentage = att ? Math.round((att.present / att.total) * 100) : 0;
+      return {
+        id: e.course_id,
+        code: e.courses.course_code,
+        name: e.courses.title,
+        credits: e.courses.credits,
+        status: "ongoing" as const,
+        attendance: percentage,
+        progress: progressMap[e.course_id] ?? 50,
+      };
+    });
+
+    setOngoingCourses(courses);
+
+    // Attendance chart data
+    setAttendanceData(
+      courses.map((c) => ({ course: c.code, attendance: c.attendance })),
+    );
+
+    // Average attendance
+    const avg =
+      courses.length > 0
+        ? Math.round(
+            courses.reduce((sum, c) => sum + c.attendance, 0) / courses.length,
+          )
+        : 0;
+    setAvgAttendance(avg);
+
+    // Alerts for courses below 80%
+    const alertList: AttendanceAlert[] = courses
+      .filter((c) => c.attendance < 80)
+      .map((c) => {
+        const att = courseAttMap[c.id];
+        return {
+          courseCode: c.code,
+          courseName: c.name,
+          percentage: c.attendance,
+          totalLectures: att?.total ?? 0,
+          presentCount: att?.present ?? 0,
+        };
+      });
+    setAlerts(alertList);
+  };
+
+  const fetchRecentResults = async () => {
+    const { data } = await supabase
+      .from("results")
+      .select("grade, gpv, courses(title, course_code)")
+      .eq("student_id", student!.id)
+      .eq("is_published", true)
+      .not("grade", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (!data) return;
+
+    setRecentResults(
+      data.map((r: any) => ({
+        course: r.courses.title,
+        code: r.courses.course_code,
+        grade: r.grade,
+        gpv: r.gpv,
+      })),
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -93,7 +288,7 @@ export default function Dashboard() {
         transition={{ duration: 0.4 }}
       >
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          Welcome Back, John! 👋
+          Welcome Back, {firstName}! 👋
         </h1>
         <p className="text-muted-foreground">
           Here's what's happening with your academic progress today.
@@ -104,8 +299,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Current CGPA"
-          value="3.85"
-          change="+0.05 from last semester"
+          value={loading ? "..." : (cgpa?.toFixed(2) ?? "N/A")}
+          change="Cumulative GPA"
           changeType="positive"
           icon={TrendingUp}
           iconColor="text-primary"
@@ -113,7 +308,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Courses Enrolled"
-          value="5"
+          value={loading ? "..." : enrolledCount.toString()}
           change="Current semester"
           changeType="neutral"
           icon={GraduationCap}
@@ -122,17 +317,19 @@ export default function Dashboard() {
         />
         <StatCard
           title="Avg. Attendance"
-          value="87%"
-          change="Above required 80%"
-          changeType="positive"
+          value={loading ? "..." : `${avgAttendance}%`}
+          change={
+            avgAttendance >= 80 ? "Above required 80%" : "Below required 80%"
+          }
+          changeType={avgAttendance >= 80 ? "positive" : "negative"}
           icon={Calendar}
           iconColor="text-green-600"
           iconBgColor="bg-green-100"
         />
         <StatCard
-          title="Total Credits"
-          value="102"
-          change="Out of 120 required"
+          title="Credits Completed"
+          value={loading ? "..." : totalCredits.toString()}
+          change="Contributing to GPA"
           changeType="neutral"
           icon={Award}
           iconColor="text-amber-600"
@@ -141,26 +338,26 @@ export default function Dashboard() {
       </div>
 
       {/* Alerts Section */}
-      <div className="space-y-3">
-        <AlertCard
-          type="warning"
-          title="Low Attendance Alert"
-          message="Your attendance for CS303 (Computer Networks) is 78%. You need 2% more to meet the 80% requirement."
-          action={{
-            label: "View Details",
-            onClick: () => {},
-          }}
-        />
-        <AlertCard
-          type="info"
-          title="Upcoming Exam"
-          message="Mid-semester examination for CS301 (Software Engineering) is scheduled for April 15, 2026."
-          action={{
-            label: "View Schedule",
-            onClick: () => {},
-          }}
-        />
-      </div>
+      {alerts.length > 0 && (
+        <div className="space-y-3">
+          {alerts.map((alert) => {
+            const needed =
+              Math.ceil(alert.totalLectures * 0.8) - alert.presentCount;
+            return (
+              <AlertCard
+                key={alert.courseCode}
+                type="warning"
+                title={`Low Attendance — ${alert.courseCode} ${alert.courseName}`}
+                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the 80% CCR requirement.`}
+                action={{
+                  label: "View Attendance",
+                  onClick: () => navigate("/app/attendance"),
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -227,7 +424,7 @@ export default function Dashboard() {
                   />
                   <Bar
                     dataKey="attendance"
-                    fill="#8B5CF6"
+                    fill="#C41E3A"
                     radius={[8, 8, 0, 0]}
                   />
                 </BarChart>
@@ -237,7 +434,7 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      {/* Ongoing Courses Section */}
+      {/* Ongoing Courses */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-foreground">
@@ -246,16 +443,27 @@ export default function Dashboard() {
           <Button
             variant="ghost"
             className="text-primary hover:text-primary/80"
+            onClick={() => navigate("/app/courses")}
           >
             View All
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {ongoingCourses.map((course) => (
-            <CourseCard key={course.id} course={course} onClick={() => {}} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-muted-foreground text-sm">
+            Loading courses...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ongoingCourses.slice(0, 3).map((course) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                onClick={() => navigate("/app/courses")}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Results */}
@@ -271,6 +479,7 @@ export default function Dashboard() {
               <Button
                 variant="ghost"
                 className="text-primary hover:text-primary/80"
+                onClick={() => navigate("/app/results")}
               >
                 View All
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -278,31 +487,37 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentResults.map((result, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div>
-                    <h4 className="font-semibold text-foreground">
-                      {result.course}
-                    </h4>
-                    <p className="text-sm text-muted-foreground">
-                      {result.code}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-primary">
-                      {result.grade}
+            {loading ? (
+              <div className="text-muted-foreground text-sm">
+                Loading results...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentResults.map((result, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                  >
+                    <div>
+                      <h4 className="font-semibold text-foreground">
+                        {result.course}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {result.code}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      GPA: {result.gpa}
-                    </p>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-primary">
+                        {result.grade}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        GPV: {result.gpv}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
