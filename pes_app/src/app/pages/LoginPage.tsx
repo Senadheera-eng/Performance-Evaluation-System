@@ -355,31 +355,6 @@ export default function LoginPage() {
             >
               Performance Evaluation System — Your complete academic companion
             </p>
-
-            <div className="flex flex-wrap gap-3 justify-center mt-8">
-              {[
-                "Real-time Attendance",
-                "AI Assistant",
-                "Result Analytics",
-                "Course Management",
-                "Performance Tracking",
-              ].map((feature, index) => (
-                <motion.div
-                  key={feature}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.8 + index * 0.1, duration: 0.4 }}
-                  className="px-4 py-2 rounded-full text-sm font-medium"
-                  style={{
-                    background: "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    color: "rgba(255,255,255,0.9)",
-                  }}
-                >
-                  {feature}
-                </motion.div>
-              ))}
-            </div>
           </motion.div>
         </div>
       </motion.div>
