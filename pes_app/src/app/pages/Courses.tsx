@@ -4,13 +4,6 @@ import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
-import { Badge } from "../components/ui/badge";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
@@ -44,7 +37,6 @@ export default function Courses() {
   const fetchCourses = async () => {
     setLoading(true);
 
-    // Get all enrollments with course info
     const { data: enrollments } = await supabase
       .from("enrollments")
       .select(
@@ -70,7 +62,6 @@ export default function Courses() {
       return;
     }
 
-    // Get attendance for enrolled courses
     const enrolledIds = enrollments
       .filter((e: any) => e.status === "enrolled")
       .map((e: any) => e.course_id);
@@ -100,7 +91,6 @@ export default function Courses() {
       }
     }
 
-    // Get published results for completed courses
     const completedIds = enrollments
       .filter((e: any) => e.status === "completed")
       .map((e: any) => e.course_id);
@@ -120,7 +110,6 @@ export default function Courses() {
       });
     }
 
-    // Get mid-sem progress for enrolled courses
     const progressMap: Record<string, number> = {};
     if (enrolledIds.length > 0) {
       const { data: currentResults } = await supabase
@@ -132,7 +121,6 @@ export default function Courses() {
 
       currentResults?.forEach((r: any) => {
         if (r.mid_sem_mark !== null && r.ca_mark !== null) {
-          // Progress based on mid sem + CA out of max 50
           progressMap[r.course_id] = Math.min(
             100,
             Math.round(((r.mid_sem_mark + r.ca_mark) / 90) * 100),
@@ -141,12 +129,9 @@ export default function Courses() {
       });
     }
 
-    // Build course list
     const courses: Course[] = enrollments.map((e: any) => {
       const c = e.courses;
-      const status = e.status as "enrolled" | "completed" | "dropped";
-
-      if (status === "enrolled") {
+      if (e.status === "enrolled") {
         return {
           id: c.id,
           code: c.course_code,
@@ -176,7 +161,6 @@ export default function Courses() {
       }
     });
 
-    // Sort: ongoing first by semester, then completed by semester desc
     courses.sort((a, b) => {
       if (a.status === "ongoing" && b.status !== "ongoing") return -1;
       if (a.status !== "ongoing" && b.status === "ongoing") return 1;
@@ -206,6 +190,12 @@ export default function Courses() {
     ongoing: allCourses.filter((c) => c.status === "ongoing").length,
     completed: allCourses.filter((c) => c.status === "completed").length,
   };
+
+  const tabs = [
+    { value: "all", label: "All", count: stats.all },
+    { value: "ongoing", label: "Ongoing", count: stats.ongoing },
+    { value: "completed", label: "Completed", count: stats.completed },
+  ];
 
   return (
     <div className="space-y-6">
@@ -288,66 +278,74 @@ export default function Courses() {
         </Button>
       </motion.div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="all">
-            All
-            <Badge variant="secondary" className="ml-2 bg-muted">
-              {stats.all}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="ongoing">
-            Ongoing
-            <Badge variant="secondary" className="ml-2 bg-muted">
-              {stats.ongoing}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed
-            <Badge variant="secondary" className="ml-2 bg-muted">
-              {stats.completed}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
+      {/* Custom Tabs — theme aware, works in light and dark */}
+      <div className="w-full">
+        <div className="flex gap-1 p-1 rounded-xl w-full max-w-md mb-6 bg-muted">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                style={
+                  isActive ? { backgroundColor: "#C41E3A", color: "white" } : {}
+                }
+              >
+                <span
+                  className={isActive ? "text-white" : "text-muted-foreground"}
+                >
+                  {tab.label}
+                </span>
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: "rgba(255,255,255,0.25)",
+                          color: "white",
+                        }
+                      : {
+                          backgroundColor: "rgba(128,128,128,0.2)",
+                        }
+                  }
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        <TabsContent value={activeTab} className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="h-48 rounded-xl bg-muted animate-pulse"
-                />
-              ))}
-            </div>
-          ) : filteredCourses.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                No courses found
-              </h3>
-              <p className="text-muted-foreground">
-                Try adjusting your search or filter criteria.
-              </p>
-            </motion.div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCourses.map((course) => (
-                <CourseCard
-                  key={course.id}
-                  course={course}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        {/* Tab Content */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-48 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : filteredCourses.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              No courses found
+            </h3>
+            <p className="text-muted-foreground">
+              Try adjusting your search or filter criteria.
+            </p>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCourses.map((course) => (
+              <CourseCard key={course.id} course={course} onClick={() => {}} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
