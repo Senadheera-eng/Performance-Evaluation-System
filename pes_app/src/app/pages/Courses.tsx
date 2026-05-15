@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
@@ -11,156 +11,200 @@ import {
   TabsTrigger,
 } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
-// Mock data
-const allCourses = [
-  // Ongoing
-  {
-    id: "1",
-    code: "CS301",
-    name: "Software Engineering",
-    credits: 3,
-    status: "ongoing" as const,
-    attendance: 85,
-    progress: 65,
-  },
-  {
-    id: "2",
-    code: "CS302",
-    name: "Database Management Systems",
-    credits: 4,
-    status: "ongoing" as const,
-    attendance: 92,
-    progress: 70,
-  },
-  {
-    id: "3",
-    code: "CS303",
-    name: "Computer Networks",
-    credits: 3,
-    status: "ongoing" as const,
-    attendance: 78,
-    progress: 55,
-  },
-  {
-    id: "4",
-    code: "CS304",
-    name: "Web Technologies",
-    credits: 3,
-    status: "ongoing" as const,
-    attendance: 88,
-    progress: 60,
-  },
-  {
-    id: "5",
-    code: "CS305",
-    name: "Machine Learning",
-    credits: 4,
-    status: "ongoing" as const,
-    attendance: 95,
-    progress: 75,
-  },
-
-  // Completed
-  {
-    id: "6",
-    code: "CS201",
-    name: "Data Structures",
-    credits: 4,
-    status: "completed" as const,
-    grade: "A",
-  },
-  {
-    id: "7",
-    code: "CS202",
-    name: "Algorithms",
-    credits: 3,
-    status: "completed" as const,
-    grade: "A-",
-  },
-  {
-    id: "8",
-    code: "CS203",
-    name: "Operating Systems",
-    credits: 4,
-    status: "completed" as const,
-    grade: "B+",
-  },
-  {
-    id: "9",
-    code: "CS204",
-    name: "Object Oriented Programming",
-    credits: 3,
-    status: "completed" as const,
-    grade: "A",
-  },
-  {
-    id: "10",
-    code: "CS205",
-    name: "Computer Architecture",
-    credits: 3,
-    status: "completed" as const,
-    grade: "B+",
-  },
-  {
-    id: "11",
-    code: "CS101",
-    name: "Introduction to Computing",
-    credits: 3,
-    status: "completed" as const,
-    grade: "A",
-  },
-  {
-    id: "12",
-    code: "CS102",
-    name: "Programming Fundamentals",
-    credits: 4,
-    status: "completed" as const,
-    grade: "A-",
-  },
-
-  // Upcoming
-  {
-    id: "13",
-    code: "CS401",
-    name: "Artificial Intelligence",
-    credits: 4,
-    status: "upcoming" as const,
-  },
-  {
-    id: "14",
-    code: "CS402",
-    name: "Cloud Computing",
-    credits: 3,
-    status: "upcoming" as const,
-  },
-  {
-    id: "15",
-    code: "CS403",
-    name: "Cyber Security",
-    credits: 3,
-    status: "upcoming" as const,
-  },
-];
+interface Course {
+  id: string;
+  code: string;
+  name: string;
+  credits: number;
+  status: "ongoing" | "completed" | "upcoming";
+  attendance?: number;
+  grade?: string;
+  progress?: number;
+  category: string;
+  minor_category: string | null;
+  semester: number;
+  year: number;
+}
 
 export default function Courses() {
+  const { student } = useAuth();
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!student?.id) return;
+    fetchCourses();
+  }, [student?.id]);
+
+  const fetchCourses = async () => {
+    setLoading(true);
+
+    // Get all enrollments with course info
+    const { data: enrollments } = await supabase
+      .from("enrollments")
+      .select(
+        `
+        status,
+        course_id,
+        courses (
+          id,
+          course_code,
+          title,
+          credits,
+          semester,
+          year,
+          category,
+          minor_category
+        )
+      `,
+      )
+      .eq("student_id", student!.id);
+
+    if (!enrollments) {
+      setLoading(false);
+      return;
+    }
+
+    // Get attendance for enrolled courses
+    const enrolledIds = enrollments
+      .filter((e: any) => e.status === "enrolled")
+      .map((e: any) => e.course_id);
+
+    const attendanceMap: Record<string, number> = {};
+    if (enrolledIds.length > 0) {
+      const { data: attData } = await supabase
+        .from("attendance")
+        .select("course_id, status")
+        .eq("student_id", student!.id)
+        .in("course_id", enrolledIds);
+
+      if (attData) {
+        const courseAtt: Record<string, { present: number; total: number }> =
+          {};
+        attData.forEach((a: any) => {
+          if (!courseAtt[a.course_id])
+            courseAtt[a.course_id] = { present: 0, total: 0 };
+          courseAtt[a.course_id].total++;
+          if (a.status === "present" || a.status === "excused")
+            courseAtt[a.course_id].present++;
+        });
+        Object.entries(courseAtt).forEach(([id, val]) => {
+          attendanceMap[id] =
+            val.total > 0 ? Math.round((val.present / val.total) * 100) : 0;
+        });
+      }
+    }
+
+    // Get published results for completed courses
+    const completedIds = enrollments
+      .filter((e: any) => e.status === "completed")
+      .map((e: any) => e.course_id);
+
+    const gradeMap: Record<string, string> = {};
+    if (completedIds.length > 0) {
+      const { data: resultsData } = await supabase
+        .from("results")
+        .select("course_id, grade")
+        .eq("student_id", student!.id)
+        .eq("is_published", true)
+        .in("course_id", completedIds)
+        .not("grade", "is", null);
+
+      resultsData?.forEach((r: any) => {
+        gradeMap[r.course_id] = r.grade;
+      });
+    }
+
+    // Get mid-sem progress for enrolled courses
+    const progressMap: Record<string, number> = {};
+    if (enrolledIds.length > 0) {
+      const { data: currentResults } = await supabase
+        .from("results")
+        .select("course_id, mid_sem_mark, ca_mark")
+        .eq("student_id", student!.id)
+        .eq("is_published", false)
+        .in("course_id", enrolledIds);
+
+      currentResults?.forEach((r: any) => {
+        if (r.mid_sem_mark !== null && r.ca_mark !== null) {
+          // Progress based on mid sem + CA out of max 50
+          progressMap[r.course_id] = Math.min(
+            100,
+            Math.round(((r.mid_sem_mark + r.ca_mark) / 90) * 100),
+          );
+        }
+      });
+    }
+
+    // Build course list
+    const courses: Course[] = enrollments.map((e: any) => {
+      const c = e.courses;
+      const status = e.status as "enrolled" | "completed" | "dropped";
+
+      if (status === "enrolled") {
+        return {
+          id: c.id,
+          code: c.course_code,
+          name: c.title,
+          credits: c.credits,
+          status: "ongoing" as const,
+          attendance: attendanceMap[c.id],
+          progress: progressMap[c.id],
+          category: c.category,
+          minor_category: c.minor_category,
+          semester: c.semester,
+          year: c.year,
+        };
+      } else {
+        return {
+          id: c.id,
+          code: c.course_code,
+          name: c.title,
+          credits: c.credits,
+          status: "completed" as const,
+          grade: gradeMap[c.id],
+          category: c.category,
+          minor_category: c.minor_category,
+          semester: c.semester,
+          year: c.year,
+        };
+      }
+    });
+
+    // Sort: ongoing first by semester, then completed by semester desc
+    courses.sort((a, b) => {
+      if (a.status === "ongoing" && b.status !== "ongoing") return -1;
+      if (a.status !== "ongoing" && b.status === "ongoing") return 1;
+      if (a.status === "completed" && b.status === "completed")
+        return b.semester - a.semester;
+      return a.semester - b.semester;
+    });
+
+    setAllCourses(courses);
+    setLoading(false);
+  };
 
   const filteredCourses = allCourses.filter((course) => {
     const matchesSearch =
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.code.toLowerCase().includes(searchQuery.toLowerCase());
-
     if (activeTab === "all") return matchesSearch;
-    return matchesSearch && course.status === activeTab;
+    if (activeTab === "ongoing")
+      return matchesSearch && course.status === "ongoing";
+    if (activeTab === "completed")
+      return matchesSearch && course.status === "completed";
+    return matchesSearch;
   });
 
   const stats = {
     all: allCourses.length,
     ongoing: allCourses.filter((c) => c.status === "ongoing").length,
     completed: allCourses.filter((c) => c.status === "completed").length,
-    upcoming: allCourses.filter((c) => c.status === "upcoming").length,
   };
 
   return (
@@ -178,7 +222,7 @@ export default function Courses() {
       </motion.div>
 
       {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           {
             label: "Total Courses",
@@ -198,12 +242,6 @@ export default function Courses() {
             icon: CheckCircle2,
             color: "bg-green-100 text-green-600",
           },
-          {
-            label: "Upcoming",
-            value: stats.upcoming,
-            icon: Clock,
-            color: "bg-yellow-100 text-yellow-600",
-          },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -218,7 +256,7 @@ export default function Courses() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {stat.value}
+                  {loading ? "..." : stat.value}
                 </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
@@ -241,7 +279,7 @@ export default function Courses() {
             placeholder="Search courses by name or code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 bg-card border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="pl-10 h-12 bg-card border-border"
           />
         </div>
         <Button variant="outline" className="h-12 px-6 border-border">
@@ -252,8 +290,8 @@ export default function Courses() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-          <TabsTrigger value="all" className="relative">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsTrigger value="all">
             All
             <Badge variant="secondary" className="ml-2 bg-muted">
               {stats.all}
@@ -271,16 +309,19 @@ export default function Courses() {
               {stats.completed}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="upcoming">
-            Upcoming
-            <Badge variant="secondary" className="ml-2 bg-muted">
-              {stats.upcoming}
-            </Badge>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          {filteredCourses.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="h-48 rounded-xl bg-muted animate-pulse"
+                />
+              ))}
+            </div>
+          ) : filteredCourses.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

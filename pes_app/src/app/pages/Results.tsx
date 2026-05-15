@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, Award, FileText, Download } from "lucide-react";
 import {
@@ -37,105 +38,238 @@ import {
   Radar,
   Legend,
 } from "recharts";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 
-// Mock data
-const semesterResults = [
-  {
-    semester: "Semester 1 (2021/22)",
-    courses: [
-      {
-        code: "CS101",
-        name: "Introduction to Computing",
-        grade: "A",
-        gpa: 4.0,
-        credits: 3,
-      },
-      {
-        code: "CS102",
-        name: "Programming Fundamentals",
-        grade: "A-",
-        gpa: 3.7,
-        credits: 4,
-      },
-      {
-        code: "MA101",
-        name: "Mathematics I",
-        grade: "B+",
-        gpa: 3.3,
-        credits: 3,
-      },
-      {
-        code: "EN101",
-        name: "English Communication",
-        grade: "A",
-        gpa: 4.0,
-        credits: 2,
-      },
-    ],
-    gpa: 3.75,
-    credits: 12,
-  },
-  {
-    semester: "Semester 2 (2021/22)",
-    courses: [
-      {
-        code: "CS201",
-        name: "Data Structures",
-        grade: "A",
-        gpa: 4.0,
-        credits: 4,
-      },
-      { code: "CS202", name: "Algorithms", grade: "A-", gpa: 3.7, credits: 3 },
-      {
-        code: "CS203",
-        name: "Operating Systems",
-        grade: "B+",
-        gpa: 3.3,
-        credits: 4,
-      },
-      {
-        code: "MA201",
-        name: "Mathematics II",
-        grade: "A-",
-        gpa: 3.7,
-        credits: 3,
-      },
-    ],
-    gpa: 3.68,
-    credits: 14,
-  },
-];
+interface CourseResult {
+  code: string;
+  name: string;
+  credits: number;
+  mid_sem: number | null;
+  ca: number | null;
+  ese: number | null;
+  oa: number | null;
+  grade: string | null;
+  gpv: number | null;
+  contributes_to_gpa: boolean;
+}
 
-const gpaData = [
-  { semester: "Sem 1", gpa: 3.75 },
-  { semester: "Sem 2", gpa: 3.68 },
-  { semester: "Sem 3", gpa: 3.82 },
-  { semester: "Sem 4", gpa: 3.77 },
-  { semester: "Sem 5", gpa: 3.85 },
-  { semester: "Sem 6", gpa: 3.92 },
-];
+interface SemesterData {
+  semesterKey: string;
+  label: string;
+  academicYear: string;
+  semesterNum: number;
+  courses: CourseResult[];
+  sgpa: number;
+  totalCredits: number;
+}
 
-const performanceRadar = [
-  { subject: "Theory", A: 85, B: 75 },
-  { subject: "Practical", A: 90, B: 80 },
-  { subject: "Assignments", A: 88, B: 78 },
-  { subject: "Presentations", A: 82, B: 72 },
-  { subject: "Exams", A: 87, B: 77 },
-];
+interface GpaChartPoint {
+  semester: string;
+  gpa: number;
+}
 
-const getGradeColor = (grade: string) => {
+interface RadarPoint {
+  subject: string;
+  current: number;
+  previous: number;
+}
+
+const getGradeColor = (grade: string | null) => {
+  if (!grade) return "bg-gray-100 text-gray-500 border-gray-200";
   if (grade.startsWith("A"))
     return "bg-green-100 text-green-700 border-green-200";
   if (grade.startsWith("B")) return "bg-blue-100 text-blue-700 border-blue-200";
   if (grade.startsWith("C"))
     return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  if (grade === "F") return "bg-red-100 text-red-700 border-red-200";
   return "bg-gray-100 text-gray-700 border-gray-200";
 };
 
 export default function Results() {
-  const currentCGPA = 3.85;
-  const totalCredits = 102;
-  const completedCourses = 35;
+  const { student } = useAuth();
+  const [semesters, setSemesters] = useState<SemesterData[]>([]);
+  const [gpaChart, setGpaChart] = useState<GpaChartPoint[]>([]);
+  const [radarData, setRadarData] = useState<RadarPoint[]>([]);
+  const [cgpa, setCgpa] = useState<number>(0);
+  const [totalCredits, setTotalCredits] = useState<number>(0);
+  const [completedCourses, setCompletedCourses] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!student?.id) return;
+    fetchResults();
+  }, [student?.id]);
+
+  const fetchResults = async () => {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("results")
+      .select(
+        `
+        course_id,
+        academic_year,
+        mid_sem_mark,
+        ca_mark,
+        ese_mark,
+        oa_mark,
+        grade,
+        gpv,
+        is_published,
+        courses (
+          course_code,
+          title,
+          credits,
+          semester,
+          contributes_to_gpa
+        )
+      `,
+      )
+      .eq("student_id", student!.id)
+      .eq("is_published", true)
+      .order("academic_year", { ascending: true });
+
+    if (!data || data.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    // Group by semester number
+    const semesterMap: Record<
+      string,
+      {
+        academicYear: string;
+        semNum: number;
+        courses: CourseResult[];
+      }
+    > = {};
+
+    data.forEach((r: any) => {
+      const course = r.courses;
+      const semNum = course.semester;
+      const key = `sem_${semNum}`;
+
+      if (!semesterMap[key]) {
+        semesterMap[key] = {
+          academicYear: r.academic_year,
+          semNum,
+          courses: [],
+        };
+      }
+
+      semesterMap[key].courses.push({
+        code: course.course_code,
+        name: course.title,
+        credits: course.credits,
+        mid_sem: r.mid_sem_mark,
+        ca: r.ca_mark,
+        ese: r.ese_mark,
+        oa: r.oa_mark,
+        grade: r.grade,
+        gpv: r.gpv,
+        contributes_to_gpa: course.contributes_to_gpa,
+      });
+    });
+
+    // Build semester summaries
+    const semList: SemesterData[] = Object.entries(semesterMap)
+      .sort((a, b) => a[1].semNum - b[1].semNum)
+      .map(([key, val]) => {
+        const gpaCourses = val.courses.filter(
+          (c) => c.contributes_to_gpa && c.gpv !== null,
+        );
+        const weightedSum = gpaCourses.reduce(
+          (sum, c) => sum + (c.gpv ?? 0) * c.credits,
+          0,
+        );
+        const creditSum = gpaCourses.reduce((sum, c) => sum + c.credits, 0);
+        const sgpa =
+          creditSum > 0 ? Math.round((weightedSum / creditSum) * 100) / 100 : 0;
+
+        return {
+          semesterKey: key,
+          label: `Semester ${val.semNum}`,
+          academicYear: val.academicYear,
+          semesterNum: val.semNum,
+          courses: val.courses,
+          sgpa,
+          totalCredits: creditSum,
+        };
+      });
+
+    setSemesters(semList);
+
+    // CGPA
+    const allGpaCourses = semList.flatMap((s) =>
+      s.courses.filter((c) => c.contributes_to_gpa && c.gpv !== null),
+    );
+    const totalWeighted = allGpaCourses.reduce(
+      (sum, c) => sum + (c.gpv ?? 0) * c.credits,
+      0,
+    );
+    const totalCr = allGpaCourses.reduce((sum, c) => sum + c.credits, 0);
+    const cgpaVal =
+      totalCr > 0 ? Math.round((totalWeighted / totalCr) * 100) / 100 : 0;
+
+    setCgpa(cgpaVal);
+    setTotalCredits(totalCr);
+    setCompletedCourses(data.length);
+
+    // GPA chart
+    setGpaChart(
+      semList.map((s) => ({
+        semester: `Sem ${s.semesterNum}`,
+        gpa: s.sgpa,
+      })),
+    );
+
+    // Radar — compare last two semesters by avg marks
+    if (semList.length >= 2) {
+      const current = semList[semList.length - 1];
+      const previous = semList[semList.length - 2];
+
+      const avgMark = (courses: CourseResult[], field: keyof CourseResult) => {
+        const vals = courses
+          .map((c) => c[field] as number | null)
+          .filter((v) => v !== null) as number[];
+        return vals.length > 0
+          ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+          : 0;
+      };
+
+      setRadarData([
+        {
+          subject: "Mid Sem",
+          current: avgMark(current.courses, "mid_sem"),
+          previous: avgMark(previous.courses, "mid_sem"),
+        },
+        {
+          subject: "CA",
+          current: avgMark(current.courses, "ca"),
+          previous: avgMark(previous.courses, "ca"),
+        },
+        {
+          subject: "ESE",
+          current: avgMark(current.courses, "ese"),
+          previous: avgMark(previous.courses, "ese"),
+        },
+        {
+          subject: "Overall",
+          current: avgMark(current.courses, "oa"),
+          previous: avgMark(previous.courses, "oa"),
+        },
+      ]);
+    }
+
+    setLoading(false);
+  };
+
+  const lastTwoSems = semesters.slice(-2);
+  const cgpaChange =
+    lastTwoSems.length === 2
+      ? (lastTwoSems[1].sgpa - lastTwoSems[0].sgpa).toFixed(2)
+      : null;
 
   return (
     <div className="space-y-6">
@@ -177,14 +311,17 @@ export default function Results() {
                     Current CGPA
                   </p>
                   <h3 className="text-5xl font-bold text-primary mb-2">
-                    {currentCGPA}
+                    {loading ? "..." : cgpa.toFixed(2)}
                   </h3>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <p className="text-sm text-green-600 font-medium">
-                      +0.07 from last sem
-                    </p>
-                  </div>
+                  {cgpaChange !== null && (
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <p className="text-sm text-green-600 font-medium">
+                        {Number(cgpaChange) >= 0 ? "+" : ""}
+                        {cgpaChange} from last sem
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="p-3 rounded-xl bg-primary/10">
                   <Award className="h-6 w-6 text-primary" />
@@ -207,10 +344,10 @@ export default function Results() {
                     Credits Earned
                   </p>
                   <h3 className="text-5xl font-bold text-foreground mb-2">
-                    {totalCredits}
+                    {loading ? "..." : totalCredits}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Out of 120 required
+                    Contributing to GPA
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-100">
@@ -234,10 +371,10 @@ export default function Results() {
                     Courses Completed
                   </p>
                   <h3 className="text-5xl font-bold text-foreground mb-2">
-                    {completedCourses}
+                    {loading ? "..." : completedCourses}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Across 6 semesters
+                    Across {semesters.length} semesters
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-green-100">
@@ -251,7 +388,6 @@ export default function Results() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GPA Trend */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -263,7 +399,7 @@ export default function Results() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={gpaData}>
+                <BarChart data={gpaChart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="semester" stroke="#6b7280" />
                   <YAxis stroke="#6b7280" domain={[0, 4]} />
@@ -273,6 +409,7 @@ export default function Results() {
                       border: "1px solid #e5e7eb",
                       borderRadius: "8px",
                     }}
+                    formatter={(value: number) => [value.toFixed(2), "GPA"]}
                   />
                   <Bar dataKey="gpa" fill="#C41E3A" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -281,7 +418,6 @@ export default function Results() {
           </Card>
         </motion.div>
 
-        {/* Performance Radar */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -292,32 +428,38 @@ export default function Results() {
               <CardTitle>Performance Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <RadarChart data={performanceRadar}>
-                  <PolarGrid stroke="#e5e7eb" />
-                  <PolarAngleAxis dataKey="subject" stroke="#6b7280" />
-                  <PolarRadiusAxis
-                    angle={90}
-                    domain={[0, 100]}
-                    stroke="#6b7280"
-                  />
-                  <Radar
-                    name="Current Semester"
-                    dataKey="A"
-                    stroke="#C41E3A"
-                    fill="#C41E3A"
-                    fillOpacity={0.6}
-                  />
-                  <Radar
-                    name="Previous Semester"
-                    dataKey="B"
-                    stroke="#8B5CF6"
-                    fill="#8B5CF6"
-                    fillOpacity={0.4}
-                  />
-                  <Legend />
-                </RadarChart>
-              </ResponsiveContainer>
+              {radarData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="#e5e7eb" />
+                    <PolarAngleAxis dataKey="subject" stroke="#6b7280" />
+                    <PolarRadiusAxis
+                      angle={90}
+                      domain={[0, 50]}
+                      stroke="#6b7280"
+                    />
+                    <Radar
+                      name="Current Semester"
+                      dataKey="current"
+                      stroke="#C41E3A"
+                      fill="#C41E3A"
+                      fillOpacity={0.6}
+                    />
+                    <Radar
+                      name="Previous Semester"
+                      dataKey="previous"
+                      stroke="#8B5CF6"
+                      fill="#8B5CF6"
+                      fillOpacity={0.4}
+                    />
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
+                  Need at least 2 semesters of data
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -334,109 +476,154 @@ export default function Results() {
             <CardTitle>Semester-wise Results</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="0" className="w-full">
-              <TabsList className="grid grid-cols-2 w-full max-w-md mb-6">
-                {semesterResults.map((sem, index) => (
-                  <TabsTrigger key={index} value={index.toString()}>
-                    {sem.semester.split(" ")[0]} {sem.semester.split(" ")[1]}
-                  </TabsTrigger>
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-12 rounded-lg bg-muted animate-pulse"
+                  />
                 ))}
-              </TabsList>
+              </div>
+            ) : semesters.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                No published results yet.
+              </p>
+            ) : (
+              <Tabs defaultValue={semesters[0]?.semesterKey} className="w-full">
+                <TabsList
+                  className="mb-6 flex flex-wrap gap-1 h-auto"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${Math.min(semesters.length, 4)}, 1fr)`,
+                  }}
+                >
+                  {semesters.map((sem) => (
+                    <TabsTrigger key={sem.semesterKey} value={sem.semesterKey}>
+                      Sem {sem.semesterNum}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
 
-              {semesterResults.map((semester, index) => (
-                <TabsContent key={index} value={index.toString()}>
-                  <div className="space-y-4">
-                    {/* Semester Summary */}
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
-                      <div>
-                        <h4 className="font-semibold text-foreground">
-                          {semester.semester}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {semester.courses.length} courses completed
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-primary">
-                          {semester.gpa.toFixed(2)}
+                {semesters.map((sem) => (
+                  <TabsContent key={sem.semesterKey} value={sem.semesterKey}>
+                    <div className="space-y-4">
+                      {/* Semester Summary */}
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                        <div>
+                          <h4 className="font-semibold text-foreground">
+                            {sem.label} — {sem.academicYear}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {sem.courses.length} courses completed
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Semester GPA
-                        </p>
+                        <div className="text-right">
+                          <div className="text-3xl font-bold text-primary">
+                            {sem.sgpa.toFixed(2)}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Semester GPA
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Course Results Table */}
-                    <div className="border border-border rounded-xl overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Course Code</TableHead>
-                            <TableHead>Course Name</TableHead>
-                            <TableHead className="text-center">
-                              Credits
-                            </TableHead>
-                            <TableHead className="text-center">Grade</TableHead>
-                            <TableHead className="text-center">GPA</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {semester.courses.map((course) => (
-                            <TableRow key={course.code}>
-                              <TableCell className="font-medium">
-                                {course.code}
-                              </TableCell>
-                              <TableCell>{course.name}</TableCell>
-                              <TableCell className="text-center">
-                                {course.credits}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge
-                                  className={`${getGradeColor(course.grade)} border`}
-                                >
-                                  {course.grade}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-center font-semibold">
-                                {course.gpa.toFixed(1)}
-                              </TableCell>
+                      {/* Course Results Table */}
+                      <div className="border border-border rounded-xl overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Code</TableHead>
+                              <TableHead>Course Name</TableHead>
+                              <TableHead className="text-center">
+                                Credits
+                              </TableHead>
+                              <TableHead className="text-center">
+                                Mid Sem
+                              </TableHead>
+                              <TableHead className="text-center">CA</TableHead>
+                              <TableHead className="text-center">ESE</TableHead>
+                              <TableHead className="text-center">
+                                Grade
+                              </TableHead>
+                              <TableHead className="text-center">GPV</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {sem.courses.map((course) => (
+                              <TableRow key={course.code}>
+                                <TableCell className="font-medium text-primary">
+                                  {course.code}
+                                </TableCell>
+                                <TableCell>{course.name}</TableCell>
+                                <TableCell className="text-center">
+                                  {course.credits}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {course.mid_sem ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {course.ca ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {course.ese ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {course.grade ? (
+                                    <Badge
+                                      className={`${getGradeColor(course.grade)} border`}
+                                    >
+                                      {course.grade}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">
+                                      Pending
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center font-semibold">
+                                  {course.gpv !== null
+                                    ? course.gpv.toFixed(1)
+                                    : "—"}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
 
-                    {/* Semester Stats */}
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Total Credits
-                        </p>
-                        <p className="text-2xl font-bold text-foreground">
-                          {semester.credits}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Semester GPA
-                        </p>
-                        <p className="text-2xl font-bold text-primary">
-                          {semester.gpa.toFixed(2)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-muted/30 rounded-lg text-center">
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Courses
-                        </p>
-                        <p className="text-2xl font-bold text-foreground">
-                          {semester.courses.length}
-                        </p>
+                      {/* Semester Stats */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground mb-1">
+                            GPA Credits
+                          </p>
+                          <p className="text-2xl font-bold text-foreground">
+                            {sem.totalCredits}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Semester GPA
+                          </p>
+                          <p className="text-2xl font-bold text-primary">
+                            {sem.sgpa.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Courses
+                          </p>
+                          <p className="text-2xl font-bold text-foreground">
+                            {sem.courses.length}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
           </CardContent>
         </Card>
       </motion.div>
