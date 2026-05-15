@@ -2,13 +2,14 @@ export type Role = 'student' | 'dept_admin'
 
 export interface Student {
   id: string
-  reg_number: string
+  reg_number: string | null
   name: string
   email: string
   department: string
-  batch_year: number
+  batch_year: number | null
   role: Role
   created_at: string
+  avatar_url?: string | null
 }
 
 export interface Course {

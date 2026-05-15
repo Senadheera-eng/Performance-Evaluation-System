@@ -11,6 +11,14 @@ import Settings from "./pages/Settings";
 import Enrollment from "./pages/Enrollment";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+// Admin imports
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAttendance from "./pages/admin/AdminAttendance";
+import AdminResults from "./pages/admin/AdminResults";
+import AdminStudents from "./pages/admin/AdminStudents";
+import AdminCourses from "./pages/admin/AdminCourses";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -38,11 +46,16 @@ export const router = createBrowserRouter([
     path: "/admin",
     element: (
       <ProtectedRoute allowedRole="dept_admin">
-        <div className="min-h-screen flex items-center justify-center">
-          <p className="text-xl font-semibold">Admin Panel — Coming Soon</p>
-        </div>
+        <AdminLayout />
       </ProtectedRoute>
     ),
+    children: [
+      { index: true, element: <AdminDashboard /> },
+      { path: "attendance", element: <AdminAttendance /> },
+      { path: "results", element: <AdminResults /> },
+      { path: "students", element: <AdminStudents /> },
+      { path: "courses", element: <AdminCourses /> },
+    ],
   },
   {
     path: "*",
