@@ -27,7 +27,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
   Line,
 } from "recharts";
 import { supabase } from "../../../lib/supabase";
