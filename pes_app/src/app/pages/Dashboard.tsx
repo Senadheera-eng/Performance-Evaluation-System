@@ -290,9 +290,17 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-foreground mb-2">
           Welcome Back, {firstName}! 👋
         </h1>
-        <p className="text-muted-foreground">
-          Here's what's happening with your academic progress today.
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-muted-foreground">
+            Here's what's happening with your academic progress today.
+          </p>
+          {student?.department && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+              <GraduationCap className="h-4 w-4" />
+              {student.department}
+            </span>
+          )}
+        </div>
       </motion.div>
 
       {/* Stats Grid */}
