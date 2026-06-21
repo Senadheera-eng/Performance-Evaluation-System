@@ -2,14 +2,16 @@
 
 > An Intelligent Academic Management Platform with AI-Powered Insights
 
-**Data Management Project (CO3554) — Faculty of Engineering, University of Sri Jayewardenepura**  
-**Developer:** K.M.L.N. Senadheera | Index: 22/ENG/079 | Department of Computer Engineering
+**Data Management Project (CO3554) — Faculty of Engineering, University of Sri Jayewardenepura**
+**Developer:** K.M.L.N. Senadheera | Index: 22/ENG/079 | Reg: EN108953 | Department of Computer Engineering
 
 ---
 
 ## What is PES?
 
-PES is a web-based academic management platform built specifically for students of the Faculty of Engineering at USJ. Unlike existing systems that are purely administrative, PES is designed from the student's perspective — giving undergraduates real-time visibility into their academic performance, proactive warnings before problems occur, and an AI assistant that understands faculty regulations.
+PES is a web-based academic management platform built specifically for students of the Faculty of Engineering at USJ. Unlike existing systems that are purely administrative, PES is designed from the student's perspective — giving undergraduates real-time visibility into their academic performance, proactive warnings before problems occur, and (soon) an AI assistant that understands faculty regulations.
+
+The system currently runs on **real Batch 7 student data** — 163 students from the developer's own batch, covering Year 1 (Semester 1 & 2) results and course enrollments.
 
 ---
 
@@ -22,8 +24,8 @@ PES is a web-based academic management platform built specifically for students 
 - **Results Viewer** — Published grades, GPV, and semester GPA across all completed semesters
 - **Course Management** — View ongoing, completed, and available courses with minor category mapping
 - **Course Enrollment** — Enroll in upcoming semester courses with seat availability tracking
-- **AI Academic Assistant** — Ask academic questions in natural language; get answers grounded in the Faculty Handbook and your personal records
-- **Result Prediction** — CART Decision Tree model predicts likely final grades from mid-semester and CA marks
+- **AI Academic Assistant** _(UI built, API integration pending)_ — Ask academic questions in natural language; get answers grounded in the Faculty Handbook and personal records
+- **Result Prediction** _(planned)_ — CART Decision Tree model to predict likely final grades from mid-semester and CA marks
 - **Medical Certificate Submission** — Upload and track submissions within the 14-day policy window
 - **Student Feedback** — Submit anonymous or non-anonymous course and lecturer feedback
 
@@ -39,17 +41,17 @@ PES is a web-based academic management platform built specifically for students 
 
 ## Tech Stack
 
-| Layer              | Technology                                 |
-| ------------------ | ------------------------------------------ |
-| Frontend           | React 19 + TypeScript + Vite               |
-| UI                 | Tailwind CSS + shadcn/ui + Framer Motion   |
-| Charts             | Recharts                                   |
-| Backend / Database | Supabase (PostgreSQL)                      |
-| Authentication     | Supabase Auth (email + password)           |
-| Security           | Row Level Security (RLS) policies          |
-| AI Assistant       | Claude API (Anthropic) + RAG pipeline      |
-| ML Prediction      | Python + Scikit-learn (CART Decision Tree) |
-| Deployment         | Vercel (frontend) + Supabase (backend)     |
+| Layer              | Technology                                             |
+| ------------------ | ------------------------------------------------------ |
+| Frontend           | React 19 + TypeScript + Vite                           |
+| UI                 | Tailwind CSS + shadcn/ui + Framer Motion               |
+| Charts             | Recharts                                               |
+| Backend / Database | Supabase (PostgreSQL)                                  |
+| Authentication     | Supabase Auth (email + password)                       |
+| Security           | Row Level Security (RLS) policies                      |
+| AI Assistant       | Claude API (Anthropic) + RAG — _planned_               |
+| ML Prediction      | Python + Scikit-learn (CART Decision Tree) — _planned_ |
+| Deployment         | Vercel (frontend) + Supabase (backend) — _planned_     |
 
 ---
 
@@ -66,7 +68,8 @@ pes_app/
 │   │   │   ├── AuthContext.tsx
 │   │   │   └── ThemeContext.tsx
 │   │   ├── layouts/
-│   │   │   └── AppLayout.tsx
+│   │   │   ├── AppLayout.tsx
+│   │   │   └── AdminLayout.tsx
 │   │   ├── pages/
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Attendance.tsx
@@ -76,7 +79,13 @@ pes_app/
 │   │   │   ├── AIAssistant.tsx
 │   │   │   ├── Profile.tsx
 │   │   │   ├── Settings.tsx
-│   │   │   └── LoginPage.tsx
+│   │   │   ├── LoginPage.tsx
+│   │   │   └── admin/
+│   │   │       ├── AdminDashboard.tsx
+│   │   │       ├── AdminAttendance.tsx
+│   │   │       ├── AdminResults.tsx
+│   │   │       ├── AdminStudents.tsx
+│   │   │       └── AdminCourses.tsx
 │   │   ├── App.tsx
 │   │   └── routes.tsx
 │   ├── lib/
@@ -94,20 +103,32 @@ pes_app/
 
 10 tables in PostgreSQL via Supabase:
 
-| Table                 | Purpose                                |
-| --------------------- | -------------------------------------- |
-| `students`            | Student profiles and authentication    |
-| `courses`             | Course catalogue with minor categories |
-| `enrollments`         | Student-course enrollment records      |
-| `attendance`          | Per-lecture attendance logs            |
-| `results`             | Marks, grades, GPV per course          |
-| `lecturers`           | Academic staff profiles                |
-| `course_lecturers`    | Lecturer-course assignments            |
-| `feedback`            | Student course/lecturer feedback       |
-| `medical_submissions` | Medical certificate uploads            |
-| `timetables`          | Semester timetable per course          |
+| Table                 | Purpose                                         |
+| --------------------- | ----------------------------------------------- |
+| `students`            | Student profiles and authentication             |
+| `courses`             | Course catalogue with department + GPA flag     |
+| `enrollments`         | Student ↔ course registration per academic year |
+| `results`             | Marks, grades, GPV per enrollment               |
+| `attendance`          | Per-lecture attendance records                  |
+| `lecturers`           | Lecturer profiles                               |
+| `course_lecturers`    | Course ↔ lecturer mapping per year              |
+| `feedback`            | Student feedback on courses/lecturers           |
+| `medical_submissions` | Medical certificate uploads + status            |
+| `timetables`          | Weekly lecture schedule per course              |
 
-Row Level Security (RLS) enforces that students can only access their own data.
+All tables have Row Level Security (RLS) enabled — students can only access their own records; admins have elevated access via the `dept_admin` role.
+
+---
+
+## Current Data
+
+The database is seeded with **real Batch 7 data** (not dummy data):
+
+- **163 students** — Index numbers `22/ENG/001`–`172` and 10 repeater students (`21/ENG/xxx`) studying with Batch 7
+- **16 Year 1 courses** — 9 in Semester 1, 7 in Semester 2, correctly mapped to departments by course code prefix (`CE`→Civil, `CO`→Computer, `EE`→Electrical & Electronic, `ME`→Mechanical, `IS`→Interdisciplinary Studies)
+- **Enrollments & Results** — Full Year 1 (Semester 1 & 2) grades and GPV for all students, sourced from the official results sheet
+- **Department** — All Year 1 students are recorded as `Inter-departmental` since department selection happens after Year 1 GPA ranking
+- Year 2 & 3 department-wise data (Civil / Electrical / Mechanical / Computer) is **pending upload**
 
 ---
 
@@ -116,21 +137,17 @@ Row Level Security (RLS) enforces that students can only access their own data.
 ### Prerequisites
 
 - Node.js 18+
-- A Supabase project
+- A Supabase project (PostgreSQL + Auth)
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/performance-evaluation-system.git
-cd performance-evaluation-system/pes_app
-
 # Install dependencies
 npm install
 
 # Set up environment variables
 cp .env.example .env.local
-# Add your Supabase URL and anon key to .env.local
+# Add your Supabase URL, anon/publishable key, and service role key to .env.local
 ```
 
 ### Environment Variables
@@ -139,17 +156,35 @@ Create `.env.local` in the project root:
 
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_ANON_KEY=your_supabase_publishable_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key   # server-side scripts only, never expose to client
 ```
+
+> **Note:** Supabase has migrated to new `sb_publishable_...` / `sb_secret_...` key formats. If your project shows these in **Project Settings → API Keys**, use them instead of the legacy `eyJ...` JWT keys. Double-check for accidental trailing characters (e.g. a stray `/`) when copy-pasting — a single extra character will cause silent 401 authentication failures.
 
 ### Database Setup
 
-Run the SQL scripts in Supabase SQL Editor in this order:
+Run the SQL scripts in the Supabase SQL Editor in this order:
 
 1. `sql/01_create_tables.sql` — Creates all 10 tables
 2. `sql/02_rls_policies.sql` — Enables RLS and sets access policies
 3. `sql/03_gpa_view.sql` — Creates the GPA summary view
-4. `sql/04_dummy_data.sql` — Inserts sample data for testing
+4. `batch7_real_data.sql` — Inserts real Batch 7 students, courses, enrollments, and results
+5. `fix_course_departments.sql` — Assigns correct department per course code prefix
+
+### Creating Student Login Accounts
+
+Supabase Auth accounts must be created via the **Admin API**, not raw SQL inserts (manual `auth.users` inserts are unreliable across Supabase versions due to internal password-hashing requirements).
+
+```bash
+npm install @supabase/supabase-js dotenv
+node create_auth_users.cjs   # creates all student logins, password: pes@123
+node sync_ids.cjs            # syncs students.id to match the UUIDs Supabase assigned
+```
+
+> Node scripts must use the `.cjs` extension in this project since `package.json` has `"type": "module"`.
+
+After running both scripts, also run `fix_fk_after_sync.sql` in the SQL Editor to re-link `enrollments` and `results` to the synced student IDs.
 
 ### Run Locally
 
@@ -168,6 +203,15 @@ The system uses university email and password for authentication via Supabase Au
 - `student` → `/app` (student dashboard)
 - `dept_admin` → `/admin` (admin panel)
 
+**Test accounts:**
+
+| Role    | Email                    | Password    |
+| ------- | ------------------------ | ----------- |
+| Student | `en108953@foe.sjp.ac.lk` | `pes@123`   |
+| Admin   | `admin@foe.sjp.ac.lk`    | `admin1234` |
+
+All 163 Batch 7 students share the email format `en{registrationNumber}@foe.sjp.ac.lk` and the password `pes@123`.
+
 ---
 
 ## Academic Rules Implemented
@@ -177,6 +221,7 @@ Rules are taken directly from the **Faculty Handbook 2026**, Faculty of Engineer
 - **80% CCR Attendance Requirement** — Students with less than 80% attendance are flagged as non-eligible
 - **14-Day Medical Certificate Window** — Automated deadline tracking for excused absence submissions
 - **GPA Computation** — Credit-weighted SGPA and CGPA using the faculty's exact grade point values
+- **Department Assignment Post Year 1** — Students remain `Inter-departmental` through Year 1; department selection occurs after Year 1 GPA ranking
 - **Minor Categories** — Data Management and High Performance Computing mapped to correct courses
 - **Add/Drop Period** — 14-day enrollment window enforced
 
@@ -184,30 +229,33 @@ Rules are taken directly from the **Faculty Handbook 2026**, Faculty of Engineer
 
 ## Branches
 
-| Branch                 | Purpose                 |
-| ---------------------- | ----------------------- |
-| `main`                 | Production-ready code   |
-| `feature/admin-panel`  | Admin panel development |
-| `feature/ai-assistant` | AI integration          |
+| Branch                 | Purpose                           |
+| ---------------------- | --------------------------------- |
+| `main`                 | Production-ready code             |
+| `feature/admin-panel`  | Admin panel development (current) |
+| `feature/ai-assistant` | AI integration                    |
 
 ---
 
 ## Project Status
 
-| Phase                               | Status         |
-| ----------------------------------- | -------------- |
-| Database schema + RLS               | ✅ Complete    |
-| Authentication + role-based routing | ✅ Complete    |
-| Student dashboard                   | ✅ Complete    |
-| Attendance page                     | ✅ Complete    |
-| Results page                        | ✅ Complete    |
-| Courses page                        | ✅ Complete    |
-| Enrollment page                     | ✅ Complete    |
-| Profile page                        | ✅ Complete    |
-| Admin panel                         | 🔄 In Progress |
-| AI assistant                        | ⏳ Planned     |
-| CART prediction model               | ⏳ Planned     |
-| Deployment                          | ⏳ Planned     |
+| Phase                                | Status      |
+| ------------------------------------ | ----------- |
+| Database schema + RLS                | ✅ Complete |
+| Real Batch 7 data migration          | ✅ Complete |
+| Student auth accounts (163 students) | ✅ Complete |
+| Authentication + role-based routing  | ✅ Complete |
+| Student dashboard                    | ✅ Complete |
+| Attendance page                      | ✅ Complete |
+| Results page                         | ✅ Complete |
+| Courses page                         | ✅ Complete |
+| Enrollment page                      | ✅ Complete |
+| Profile page                         | ✅ Complete |
+| Admin panel (5 pages)                | ✅ Complete |
+| Year 2 & 3 department data           | ⏳ Pending  |
+| AI assistant (Claude API)            | ⏳ Planned  |
+| CART prediction model                | ⏳ Planned  |
+| Deployment                           | ⏳ Planned  |
 
 ---
 
