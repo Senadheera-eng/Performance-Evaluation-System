@@ -121,7 +121,7 @@ export default function Dashboard() {
 
     data.forEach((r: any) => {
       const course = r.courses;
-      if (!course?.contributes_to_gpa || !r.gpv) return;
+      if (!course?.contributes_to_gpa) return;
 
       totalWeighted += r.gpv * course.credits;
       totalCredits += course.credits;
