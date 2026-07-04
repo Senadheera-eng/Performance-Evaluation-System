@@ -3,11 +3,13 @@ export type Role = 'student' | 'dept_admin'
 export interface Student {
   id: string
   reg_number: string | null
+  index_number: string | null
   name: string
   email: string
   department: string
   batch_year: number | null
   role: Role
+  status: 'active' | 'withdrawn' | 'transferred' | 'graduated'
   created_at: string
   avatar_url?: string | null
 }

@@ -342,8 +342,11 @@ export default function Profile() {
                   <h2 className="text-2xl font-bold text-foreground mb-1">
                     {student?.name ?? "—"}
                   </h2>
+                  <p className="text-sm text-muted-foreground mb-0.5">
+                    {student?.index_number ?? "—"}
+                  </p>
                   <p className="text-sm text-muted-foreground mb-2">
-                    {student?.reg_number ?? "—"}
+                    {student?.reg_number ? `EN${student.reg_number}` : "—"}
                   </p>
                   <Badge className="bg-primary/10 text-primary border-primary/20 mb-6">
                     {yearLabel}
@@ -470,10 +473,18 @@ export default function Profile() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">
+                        Index Number
+                      </p>
+                      <p className="font-medium text-foreground">
+                        {student?.index_number ?? "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">
                         Registration Number
                       </p>
                       <p className="font-medium text-foreground">
-                        {student?.reg_number ?? "—"}
+                        {student?.reg_number ? `EN${student.reg_number}` : "—"}
                       </p>
                     </div>
                     <div>

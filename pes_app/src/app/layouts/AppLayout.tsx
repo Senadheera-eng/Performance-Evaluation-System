@@ -162,7 +162,9 @@ export default function AppLayout() {
                 {student?.name ?? "Student"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {student?.reg_number ?? ""}
+                {student?.index_number ?? ""}
+                {student?.index_number && student?.reg_number ? " · " : ""}
+                {student?.reg_number ? `EN${student.reg_number}` : ""}
               </p>
             </div>
           </div>
@@ -281,7 +283,11 @@ export default function AppLayout() {
                         {student?.name ?? "Student"}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {student?.reg_number ?? ""}
+                        {student?.index_number ?? ""}
+                        {student?.index_number && student?.reg_number
+                          ? " · "
+                          : ""}
+                        {student?.reg_number ? `EN${student.reg_number}` : ""}
                       </p>
                     </div>
                   </div>
@@ -357,7 +363,9 @@ export default function AppLayout() {
                     {student?.name ?? "Student"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {student?.reg_number ?? ""}
+                    {student?.index_number ?? ""}
+                    {student?.index_number && student?.reg_number ? " · " : ""}
+                    {student?.reg_number ? `EN${student.reg_number}` : ""}
                   </p>
                 </div>
                 <ChevronDown className="hidden md:block h-4 w-4 text-muted-foreground" />
