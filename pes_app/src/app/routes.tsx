@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Enrollment from "./pages/Enrollment";
 import MedicalCertificates from "./pages/MedicalCertificates";
+import GraduationPlanner from "./pages/GraduationPlanner";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Admin imports
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: "results", element: <Results /> },
       { path: "enrollment", element: <Enrollment /> },
       { path: "medical", element: <MedicalCertificates /> },
+      { path: "planner", element: <GraduationPlanner /> },
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "profile", element: <Profile /> },
       { path: "settings", element: <Settings /> },
