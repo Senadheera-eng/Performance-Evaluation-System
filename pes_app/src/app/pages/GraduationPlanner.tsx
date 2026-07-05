@@ -36,6 +36,16 @@ import { useAuth } from "../context/AuthContext";
 const TOTAL_CREDITS_REQUIRED = 144;
 const TOTAL_SEMESTERS = 8;
 
+// Elective credit totals per department+semester, taken directly from the
+// handbook's "Elective (N)" labels — e.g. CO Sem7 has "Elective (2)" +
+// "Elective (3)" groups = 5 elective credits required, on top of compulsory.
+const EXPECTED_ELECTIVE_CREDITS: Record<string, Record<number, number>> = {
+  "Computer Engineering": { 7: 5, 8: 5 },
+  "Civil Engineering": { 7: 6, 8: 10 },
+  "Electrical and Electronic Engineering": { 7: 5, 8: 9 },
+  "Mechanical Engineering": { 7: 5, 8: 5 },
+};
+
 const GPV: Record<string, number> = {
   "A+": 4.0,
   A: 4.0,
@@ -244,13 +254,23 @@ export default function GraduationPlanner() {
         ) / 100
       : activeCgpa;
 
-  const knownCompulsorySum = remainingSemesterCredits.reduce(
-    (s, x) => s + x.compulsoryCredits,
+  // Accurate per-semester total credits: confirmed compulsory (from DB) +
+  // expected elective credits (from the handbook's Elective(N) labels)
+  const semesterTotals = remainingSemesterCredits.map((sem) => {
+    const expectedElective =
+      EXPECTED_ELECTIVE_CREDITS[student?.department ?? ""]?.[sem.semester] ??
+      null;
+    const total =
+      expectedElective !== null
+        ? sem.compulsoryCredits + expectedElective
+        : null;
+    return { ...sem, expectedElective, total };
+  });
+
+  const allSemesterTotalsKnown = semesterTotals.every((s) => s.total !== null);
+  const sumOfKnownTotals = semesterTotals.reduce(
+    (s, x) => s + (x.total ?? 0),
     0,
-  );
-  const unallocatedElectiveCredits = Math.max(
-    0,
-    remainingCredits - knownCompulsorySum,
   );
 
   const coursesBySemester = useMemo(() => {
@@ -430,47 +450,87 @@ export default function GraduationPlanner() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  Remaining Semesters
+                  Semester-by-Semester Targets
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Since your final CGPA weights every semester by its credit
-                  load, achieving the same target average consistently across
-                  each remaining semester reaches your goal.
+              <CardContent className="space-y-5">
+                <p className="text-sm text-muted-foreground">
+                  Real course credit data for{" "}
+                  {student?.department ?? "your department"}
+                  {allSemesterTotalsKnown && (
+                    <>
+                      :{" "}
+                      {semesterTotals
+                        .map((s) => `Sem ${s.semester} = ${s.total} credits`)
+                        .join(", ")}{" "}
+                      (total {sumOfKnownTotals} credits
+                      {sumOfKnownTotals !== remainingCredits &&
+                      remainingCredits > 0
+                        ? `, vs. ${remainingCredits} needed to reach 144 — the gap reflects credits you may not need if you're on the standard load`
+                        : ""}
+                      ).
+                    </>
+                  )}
                 </p>
-                <div className="space-y-3">
-                  {remainingSemesterCredits.map((sem) => {
-                    const estimatedTotal =
-                      sem.compulsoryCredits +
-                      (unallocatedElectiveCredits > 0 &&
-                      remainingSemesterCredits.length > 0
-                        ? Math.round(
-                            unallocatedElectiveCredits /
-                              remainingSemesterCredits.length,
-                          )
-                        : 0);
+
+                {CLASSIFICATIONS.map((c) => {
+                  const proj = projections.find((p) => p.key === c.key)!;
+                  if (proj.alreadySecured || !proj.feasible) {
                     return (
                       <div
-                        key={sem.semester}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                        key={c.key}
+                        className="p-3 rounded-lg bg-muted/40 flex items-center justify-between"
                       >
-                        <div>
-                          <span className="font-medium text-foreground">
-                            Semester {sem.semester}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            ~{estimatedTotal || "TBD"} credits estimated (
-                            {sem.compulsoryCredits} confirmed compulsory
-                            {sem.compulsoryCredits === 0
-                              ? " — course data not yet added"
-                              : " + electives, varies by your module choice"}
-                            )
-                          </p>
-                        </div>
+                        <span className="font-medium text-foreground text-sm">
+                          {c.label}
+                        </span>
+                        <Badge
+                          className={
+                            proj.alreadySecured
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }
+                        >
+                          {proj.alreadySecured
+                            ? "Already secured"
+                            : "Not achievable"}
+                        </Badge>
                       </div>
                     );
-                  })}
+                  }
+                  return (
+                    <div key={c.key} className="p-3 rounded-lg bg-muted/40">
+                      <p className="font-medium text-foreground text-sm mb-2">
+                        {c.label}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        If you achieve an SGPA of approximately{" "}
+                        <strong className="text-foreground">
+                          {proj.requiredAvg.toFixed(2)}
+                        </strong>{" "}
+                        in each of{" "}
+                        {semesterTotals
+                          .map(
+                            (s) =>
+                              `Semester ${s.semester} (${s.total ?? "?"} credits)`,
+                          )
+                          .join(" and ")}
+                        , you'll reach the CGPA required for {c.label}.
+                      </p>
+                    </div>
+                  );
+                })}
+
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <p className="text-xs text-blue-900">
+                    The same SGPA target applies to every remaining semester by
+                    design — since your final CGPA is a credit-weighted average
+                    across all of them, sustaining one consistent rate reaches
+                    the goal regardless of how credits split between semesters.
+                    Want a plan where one semester differs from another (e.g.
+                    front-loading a harder semester)? Use the What-If Simulator
+                    to explore specific combinations.
+                  </p>
                 </div>
               </CardContent>
             </Card>
