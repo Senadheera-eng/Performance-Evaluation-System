@@ -10,12 +10,60 @@ import {
 import { Switch } from "../components/ui/switch";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
 import { Separator } from "../components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../components/ui/dialog";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("Account");
   const { theme, setTheme } = useTheme();
+  const { student } = useAuth();
+
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  const handleChangePassword = async () => {
+    setFormError(null);
+    setFormSuccess(null);
+    if (newPassword.length < 6) {
+      setFormError("Password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFormError("Passwords do not match.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    setSaving(false);
+    if (error) {
+      setFormError(error.message);
+      return;
+    }
+    setFormSuccess("Password updated successfully.");
+    setNewPassword("");
+    setConfirmPassword("");
+    setTimeout(() => {
+      setPasswordDialogOpen(false);
+      setFormSuccess(null);
+    }, 1500);
+  };
 
   const settings = [
     { icon: User, label: "Account" },
@@ -82,22 +130,35 @@ export default function Settings() {
                     <div>
                       <Label htmlFor="email">Email Address</Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        john.doe@sjp.ac.lk
+                        {student?.email ?? "—"}
                       </p>
                     </div>
                     <Separator />
                     <div>
-                      <Label htmlFor="student-id">Student ID</Label>
+                      <Label htmlFor="index-number">Index Number</Label>
                       <p className="text-sm text-muted-foreground mt-1">
-                        EF/2021/001
+                        {student?.index_number ?? "—"}
+                      </p>
+                    </div>
+                    <Separator />
+                    <div>
+                      <Label htmlFor="reg-number">Registration Number</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {student?.reg_number ? `EN${student.reg_number}` : "—"}
                       </p>
                     </div>
                     <Separator />
                     <div className="pt-2">
-                      <Button variant="outline" className="mr-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setFormError(null);
+                          setFormSuccess(null);
+                          setPasswordDialogOpen(true);
+                        }}
+                      >
                         Change Password
                       </Button>
-                      <Button variant="outline">Update Email</Button>
                     </div>
                   </div>
                 </CardContent>
@@ -360,6 +421,66 @@ export default function Settings() {
           )}
         </div>
       </div>
+
+      {/* Change Password Dialog */}
+      <Dialog
+        open={passwordDialogOpen}
+        onOpenChange={(open) => {
+          setPasswordDialogOpen(open);
+          if (!open) {
+            setNewPassword("");
+            setConfirmPassword("");
+            setFormError(null);
+            setFormSuccess(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+            <DialogDescription>
+              Enter a new password for your account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            {formError && <p className="text-sm text-red-600">{formError}</p>}
+            {formSuccess && (
+              <p className="text-sm text-green-600">{formSuccess}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPasswordDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleChangePassword} disabled={saving}>
+              {saving ? "Saving..." : "Save Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
