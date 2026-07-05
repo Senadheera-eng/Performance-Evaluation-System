@@ -92,7 +92,8 @@ export default function AdminDashboard() {
     const { count: studentCount } = await supabase
       .from("students")
       .select("*", { count: "exact", head: true })
-      .eq("role", "student");
+      .eq("role", "student")
+      .eq("status", "active");
 
     // Total courses
     const { count: courseCount } = await supabase
