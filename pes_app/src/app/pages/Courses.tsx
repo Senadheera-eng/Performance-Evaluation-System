@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import { Input } from "../components/ui/input";
 import {
   Select,
@@ -308,44 +309,15 @@ export default function Courses() {
         </Select>
       </motion.div>
 
-      {/* Custom Tabs — theme aware, works in light and dark */}
+      {/* Tabs */}
       <div className="w-full">
-        <div className="flex gap-1 p-1 rounded-xl w-full max-w-md mb-6 bg-muted">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.value;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-                style={
-                  isActive ? { backgroundColor: "#C41E3A", color: "white" } : {}
-                }
-              >
-                <span
-                  className={isActive ? "text-white" : "text-muted-foreground"}
-                >
-                  {tab.label}
-                </span>
-                <span
-                  className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: "rgba(255,255,255,0.25)",
-                          color: "white",
-                        }
-                      : {
-                          backgroundColor: "rgba(128,128,128,0.2)",
-                        }
-                  }
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <PillTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          className="max-w-md mb-6"
+          layoutId="courses-tab-indicator"
+        />
 
         {/* Tab Content */}
         {loading ? (

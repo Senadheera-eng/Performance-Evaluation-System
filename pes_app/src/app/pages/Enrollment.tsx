@@ -12,13 +12,8 @@ import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
 import { Checkbox } from "../components/ui/checkbox";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
@@ -77,6 +72,7 @@ export default function Enrollment() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState("all");
   const [nextSemester, setNextSemester] = useState<number | null>(null);
   const [academicYear, setAcademicYear] = useState<string>("");
 
@@ -401,36 +397,35 @@ export default function Enrollment() {
       </motion.div>
 
       {/* Course Tabs */}
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
-          <TabsTrigger value="all">All Courses</TabsTrigger>
-          <TabsTrigger value="Compulsory">Compulsory</TabsTrigger>
-          <TabsTrigger value="Elective">Elective</TabsTrigger>
-        </TabsList>
+      <PillTabs
+        tabs={[
+          { value: "all", label: "All Courses" },
+          { value: "Compulsory", label: "Compulsory" },
+          { value: "Elective", label: "Elective" },
+        ]}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        className="max-w-md"
+        layoutId="enrollment-tab-indicator"
+      />
 
-        {["all", "Compulsory", "Elective"].map((tab) => (
-          <TabsContent key={tab} value={tab} className="mt-6">
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-32 rounded-xl bg-muted animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : (
-              <CourseListGrouped
-                courses={filteredCourses.filter((c) =>
-                  tab === "all" ? true : c.category === tab,
-                )}
-                selectedCourses={selectedCourses}
-                onCourseToggle={handleCourseToggle}
-              />
+      <div className="mt-6">
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <CourseListGrouped
+            courses={filteredCourses.filter((c) =>
+              activeTab === "all" ? true : c.category === activeTab,
             )}
-          </TabsContent>
-        ))}
-      </Tabs>
+            selectedCourses={selectedCourses}
+            onCourseToggle={handleCourseToggle}
+          />
+        )}
+      </div>
     </div>
   );
 }
