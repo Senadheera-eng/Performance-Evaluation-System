@@ -1,0 +1,507 @@
+--- PAGE 1 ---
+PERFORMANCE EVALUATION SYSTEM
+(PES)
+CO3554 DATA MANAGEMENT PROJECT
+NAME : K.M.L.N.SENADHEERA
+INDEX : 22/ENG/079
+REG NO : EN108953
+SUBMISSION DATE : 30/03/2026
+1
+
+--- PAGE 2 ---
+Table of Contents
+1. Introduction
+2. Problem Statement & Objectives
+3. Literature Review & Existing Systems
+4. Novelty & Unique Features
+5. Dataset Overview
+6. System Architecture
+7. AI Model – Training & Accuracy
+8. Tools & Technologies
+9. Implementation Plan & Timeline
+10. Expected outcomes
+11. Conclusion
+12. References
+2
+
+--- PAGE 3 ---
+1. Introduction
+The Performance Evaluation System (PES) is a comprehensive web-based platform designed to
+transform how undergraduate students at the Faculty of Engineering, University of Sri
+Jayewardenepura (USJ), interact with their academic journey. Currently, students face significant
+challenges in tracking their academic performance, understanding attendance eligibility, selecting
+appropriate courses and minors, and receiving timely academic guidance.
+This project proposes the development of an intelligent academic management platform that
+consolidates scattered academic information into a single unified system. The platform integrates an
+AI-powered personal assistant that leverages machine learning algorithms to provide personalized
+academic guidance, predict examination outcomes based on continuous assessment marks, and
+proactively warn students about potential risks such as attendance non-eligibility.
+Unlike existing student information systems that primarily serve administrative purposes, PES is
+designed from the student's perspective. It empowers students with real-time insights into their
+academic standing, provides intelligent course recommendations, enables digital medical certificate
+submissions and examination enrollments, and creates a feedback loop between students and the
+faculty administration.
+The system also provides an administrative interface where faculty staff can publish examination
+results, update attendance records, manage course information, and analyze student feedback—
+creating a complete ecosystem for academic performance management.
+3
+
+--- PAGE 4 ---
+2. Problem Statement & Objectives
+The Faculty of Engineering at USJ currently lacks a centralized digital platform for students to
+monitor their academic performance comprehensively. The following critical problems have been
+identified through direct observation and student surveys:
+ Attendance Unawareness
+According to the Faculty Handbook (2023), students must maintain a minimum of 80% attendance in
+each course to be eligible for the final examination. However, there is no real-time system for students
+to track their attendance percentage. Students often realize they have fallen below the threshold only
+after it is too late, resulting in course non-eligibility. Furthermore, students who miss lectures due to
+medical reasons must submit medical certificates within 14 days (Faculty Handbook, Section 4.3), but
+there is no automated reminder system for this critical deadline.
+ Course Selection & Minor Confusion
+The Faculty of Engineering offers minor specializations. For example Computer Engineering
+department students have two minors High performance & Data management. Students must select
+specific elective courses aligned with their chosen minor. However, no centralized system clearly
+maps which courses belong to which minor, what prerequisites exist, or how credit requirements are
+distributed across semesters. Students frequently make incorrect course selections, which can delay
+their graduation or result in ineligibility for their desired minor.
+ Scattered Academic Records
+Academic records, examination results, course details, and timetables are currently dispersed across
+multiple systems and communication channels. Results are often shared via notice boards or informal
+channels. There is no single platform where students can view their complete academic history,
+calculate their CGPA, or analyze their performance trends across semesters.
+ Lack of Proactive Academic Guidance
+Currently, there is no system that proactively warns students about potential academic risks. Students
+rely on informal networks asking seniors or peers for guidance on course selection, examination
+preparation, and understanding academic regulations. This informal information sharing often leads to
+incomplete, outdated, or inaccurate advice, contributing to poor academic planning and preventable
+failures.
+ No Prediction or Early Warning Mechanism
+Existing systems at Sri Lankan universities do not offer predictive analytics for student performance.
+No mechanism exists to estimate a student's likely final grade based on mid-semester marks,
+continuous assessment scores, and attendance patterns. Such predictive capabilities could enable early
+intervention, allowing students and faculty to take corrective action before it is too late.
+4
+
+--- PAGE 5 ---
+Aim
+To design and develop a comprehensive, AI-integrated web-based platform that empowers
+undergraduate students with real-time academic performance tracking, proactive guidance, and
+intelligent insights, while providing faculty administration with efficient tools for academic
+management.
+Specific Objectives
+1. Develop a centralized student dashboard displaying complete academic history, CGPA
+calculations, and semester-wise performance trends.
+2. Implement real-time attendance tracking with automated eligibility calculations and proactive
+warning notifications when attendance drops below the 80% threshold.
+3. Build an AI-powered conversational assistant using NLP and Decision Tree (CART)
+algorithms that can answer academic queries, predict examination outcomes, and provide
+personalized study recommendations.
+4. Create a course and minor guidance module that helps students understand module
+requirements, prerequisites, and elective options
+5. Develop digital workflows for medical certificate submission, course enrollment, and
+examination registration to replace existing manual processes.
+6. Implement an anonymous and non-anonymous student feedback system to enhance teaching
+quality and course content improvement.
+7. Create an administrative panel enabling faculty staff to publish results, update attendance,
+manage courses, and analyze student feedback.
+8. Design the system with a modular, scalable architecture that can be adapted for other faculties
+and universities beyond the initial deployment.
+5
+
+--- PAGE 6 ---
+3. Literature Review & Existing Systems
+This section reviews existing academic management systems both internationally and within Sri
+Lanka, identifies their strengths and limitations, and establishes the research gap that PES aims to fill.
+3.1 International Systems
+ Degree Works (Ellucian)
+Degree Works is a degree auditing and academic advising tool used in North American universities. It
+tracks degree completion progress and provides 'what-if' scenarios for course selection (Ellucian,
+2023). While it offers course planning capabilities, it does not provide AI-driven result predictions,
+real-time attendance monitoring, or a conversational AI assistant.
+ EduTrack – Student Performance Monitoring System
+EduTrack is a commercial student performance monitoring system used in several international
+universities. It provides GPA tracking, grade analytics, and basic performance dashboards for students
+and administrators. However, EduTrack does not include AI-powered academic guidance, attendance-
+based eligibility monitoring, or predictive analytics for examination results. It primarily functions as a
+retrospective reporting tool rather than a proactive student support platform (Chen & Zhang, 2021).
+ Blackboard Analytics for Learn
+Blackboard Analytics provides institutional-level reporting and student performance dashboards. It
+offers retention risk indicators and basic predictive models for identifying at-risk students. However,
+it lacks a conversational AI assistant, does not provide course-specific result predictions based on
+continuous assessments, and is not designed to handle institution-specific academic regulations such
+as attendance eligibility thresholds (Blackboard Inc., 2024).
+3.2 Sri Lankan Systems
+ Performance Evaluation Service (PES) – Faculty of Applied Sciences, USJ
+The Faculty of Applied Sciences at the University of Sri Jayewardenepura operates a Performance
+Evaluation Service (PES) accessible at pes.science.sjp.ac.lk. This system allows students to log in and
+view their semester results. Developed by Avomarks Solutions, it provides basic result viewing
+functionalities and online course enrollment facilities. However, the system is limited to displaying
+published results and does not offer real-time attendance tracking, AI-powered academic guidance,
+predictive analytics, course selection guidance, or proactive warning systems. It functions primarily as
+a result publication portal rather than a comprehensive academic performance management platform
+(University of Sri Jayewardenepura, Faculty of Applied Sciences, 2024).
+ University of Moratuwa – Student Information System
+The University of Moratuwa operates a Student Information System (SIS) that manages student
+registration, examination results, and basic academic records. However, this system primarily serves
+administrative functions and does not provide students with real-time performance analytics, AI-
+powered guidance, or proactive attendance warnings (University of Moratuwa, 2024).
+6
+
+--- PAGE 7 ---
+ University of Colombo – Student Management System
+The University of Colombo's student management system handles enrollment, examination
+scheduling, and result publication. While functional for administrative purposes, it lacks personalized
+student dashboards, attendance tracking capabilities, course selection guidance, and any form of
+artificial intelligence integration (University of Colombo, 2024).
+3.3 Comparison of Existing Systems
+Feature Degree EduTrack Blackboard USJ UoM UoC PES
+Works Analytics FAS SIS SMS (Ours)
+PES
+Academic Records & Yes Yes Yes Yes Yes Yes Yes
+Results
+Real-time Attendance No No No No No No Yes
+Tracking
+Attendance Eligibility No No No No No No Yes
+Warnings
+CGPA Calculation & Yes Yes Yes Yes Yes No Yes
+Trends
+AI-Powered Personal No No No No No No Yes
+Assistant
+Result Prediction No No Yes No No No Yes
+(ML)
+Course & Minor Yes No No No No No Yes
+Guidance
+Digital Medical No No No No No No Yes
+Submissions
+Online Exam No No No Yes Yes Yes Yes
+Enrollment
+Student Feedback No No No No No No Yes
+System
+Table 1: Feature comparison between existing systems and PES
+3.4 Research Gap
+As Table 1 demonstrates, no existing system either internationally or within Sri Lanka provides a
+comprehensive solution that combines real-time attendance tracking with eligibility warnings, AI-
+powered academic guidance, machine learning-based result predictions, and faculty-specific
+regulation handling in a single unified platform. The proposed PES addresses this gap by integrating
+all these features into one student-centric system specifically designed for the Sri Lankan university
+context, while being flexible enough to adapt to other faculties and universities.
+7
+
+--- PAGE 8 ---
+4. Novelty & Unique Features
+The novelty of the Performance Evaluation System extends far beyond simply targeting the Faculty of
+Engineering students as its user base. PES introduces several innovative features that are not available
+in any existing system used in Sri Lankan universities:
+4.1 AI-Powered Conversational Academic Assistant
+PES integrates a Natural Language Processing (NLP)-based AI assistant that students can interact
+with conversationally. Unlike static FAQ pages or manual browsing, the AI assistant can:
+• Answer complex academic queries in natural language (e.g., "What courses do I need for the
+Data Management minor?")
+• Access all system databases in real-time to provide personalized responses based on the
+student's actual academic records
+• Provide contextual guidance based on faculty regulations from the Faculty Handbook
+• Generate motivational suggestions when a student's performance shows declining trends
+4.2 Machine Learning-Based Result Prediction
+PES implements a Decision Tree (CART) algorithm trained on historical student performance data to
+predict final examination outcomes. This feature enables:
+• Early identification of students at risk of failing based on mid-semester and CA marks
+• Personalized study recommendations based on predicted weak areas
+• Faculty-level analytics showing predicted pass/fail rates before examinations
+4.3 Proactive Warning & Alert System
+Unlike existing systems that are purely reactive (showing data only when requested), PES actively
+monitors student metrics and generates warnings:
+• Attendance Alerts: Automatic warnings when attendance drops below 85% (pre-warning)
+and 80% (critical)
+• Medical Certificate Reminders: 14-day deadline tracking with automated reminders
+• Performance Decline Alerts: Notifications when GPA shows significant drops between
+semesters
+• Enrollment Deadlines: Reminders for course enrollment and exam registration periods
+4.4 Faculty-Specific Regulation Engine
+PES encodes the specific academic regulations of the Faculty of Engineering (from the Faculty
+Handbook) into its business logic. This includes the 80% attendance rule, GPA calculation
+methodology (credit-weighted), minor specialization requirements, examination re-sit rules, and
+grading scales. This makes the system deeply integrated with the actual academic framework rather
+than being a generic tool.
+8
+
+--- PAGE 9 ---
+4.5 Integrated Digital Workflows
+PES digitizes currently manual processes including:
+• Medical certificate submission and approval workflow
+• Online course enrollment and exam registration
+• Anonymous and non-anonymous course feedback submission
+• Timetable management and conflict detection
+4.6 Scalability & Adaptability
+While initially designed for the Faculty of Engineering at USJ, the system architecture is modular and
+configurable. The regulation engine, grading scales, attendance thresholds, and course structures can
+be reconfigured for any faculty or university, making PES adaptable beyond its initial deployment
+scope. This is a key differentiator the novelty is not limited to the user category but lies in the system's
+intelligent features and architectural flexibility.
+9
+
+--- PAGE 10 ---
+5. Dataset Overview
+The system requires the following datasets to function effectively. All data will be obtained through
+official channels with proper permission from the Faculty administration.
+Dataset Key Fields Purpose Source
+Student Information student_id, reg_num, name, Identify students and link records Faculty Database
+batch, department
+Course Results student_id, course_id, GPA/CGPA calculation, AI Examination Branch
+mid_sem, ca_marks, predictions
+final_grade
+Attendance Records course_id, student_id, Track attendance percentages & Course Coordinators
+lecture_date, status alerts
+Course Information course_code, name, credits, Course selection & minor Faculty Handbook
+semester, minor_category guidance
+Lecturer Information lecturer_id, name, department, Link courses to lecturers Faculty Administration
+courses
+Feedback Data student_id, course_id, rating, Teaching quality improvement Student Submissions
+comments, anonymous
+Historical Results batch_year, course_id, Benchmarking & AI training data Past Exam Records
+grade_distribution
+Table 2: Required datasets for PES
+5.1 Data Privacy & Ethics
+All student data will be handled in compliance with data protection principles. Personal information
+will be encrypted at rest and in transit. Role-based access control (RBAC) ensures that students can
+only view their own records. Administrative access is logged and auditable. Anonymous feedback
+ensures student privacy when providing course evaluations. Explicit consent will be obtained for any
+data used in AI model training.
+10
+
+--- PAGE 11 ---
+6. System Architecture
+The Performance Evaluation System follows a three-tier architecture pattern consisting of the
+Presentation Layer (Frontend), Application Layer (Backend & AI), and Data Layer (Databases). The
+system supports two primary user roles Students and Administrators each with distinct functionalities.
+6.1 Architecture Description
+Presentation Layer: Build with React.js and TypeScript, the frontend provides responsive, role-
+based user interfaces. Students access their personalized dashboard, academic records, attendance data,
+AI assistant, and enrollment modules. Administrators access the management panel for publishing
+results, updating attendance, and managing courses.
+Application Layer: The backend, build with Node.js and Express.js, handles authentication (JWT-
+based), REST API endpoints, business logic processing, and the proactive warning engine. Supabase
+Edge Functions are using for serverless processing of specific tasks.
+AI/ML Layer: A dedicated Python-based AI module processes natural language queries from
+students and runs the CART Decision Tree algorithm for result predictions. The AI module has read
+access to all databases to provide contextual, personalized responses.
+Data Layer: PostgreSQL (via Supabase) stores all structured data including student records, course
+results, attendance records, course information, lecturer details, and feedback data. Row-Level
+Security (RLS) policies ensure data access is restricted based on user roles.
+Figure 1: Proposed system architecture
+11
+
+--- PAGE 12 ---
+7. AI Model – Training & Accuracy
+The AI component of PES serves two primary functions: (1) a conversational assistant for answering
+academic queries, and (2) a predictive model for forecasting examination results. This section
+describes the approach for model training, feature selection, and accuracy evaluation.
+7.1 Conversational AI Assistant
+The conversational assistant utilizes a pre-trained Large Language Model (LLM) fine-tuned with
+faculty-specific knowledge. The system employs Retrieval-Augmented Generation (RAG) to combine
+the LLM's language capabilities with real-time data retrieval from the PES databases.
+Training approach:
+• Knowledge Base Construction: The Faculty Handbook, course catalogs, academic
+regulations, examination rules, and FAQ documents are processed and stored as vector
+embeddings.
+• RAG Pipeline: When a student asks a question, the system retrieves relevant documents from
+the knowledge base, combines them with the student's academic context (from the database),
+and generates a contextual response.
+• Continuous Learning: Student interactions are logged (with consent) to identify common
+queries and improve response quality over time.
+7.2 Result Prediction Model
+The result prediction model uses a Classification and Regression Trees (CART) algorithm, chosen
+for its interpretability and effectiveness with structured academic data.
+ Feature Selection
+The following features are used as inputs to the prediction model:
+Feature Type Description
+Mid-semester Marks Numeric (0-100) Mid-semester examination score
+CA Marks Numeric (0-100) Continuous assessment total
+Attendance % Numeric (0-100) Lecture attendance percentage
+Previous GPA Numeric (0-4.0) Cumulative GPA up to current semester
+Course Credit Weight Numeric (1-4) Credit value of the course
+Assignment Completion Rate Numeric (0-100) Percentage of submitted assignments
+Course Difficulty Level Categorical Based on historical pass rates
+Table 3: Features used in the CART prediction model
+12
+
+--- PAGE 13 ---
+ Training Process
+• Data Collection: Historical academic records from the past 3-5 years (approximately 500-
+1000 student records per course) will be collected from the Faculty Examination Branch with
+official permission.
+• Data Preprocessing: Missing values will be handled using mean imputation for numeric
+features and mode imputation for categorical features. Data will be normalized using Min-
+Max scaling.
+• Train-Test Split: The dataset will be split into 80% training data and 20% testing data using
+stratified sampling to maintain class distribution.
+• Model Training: The CART algorithm will be trained with hyperparameter tuning (max depth,
+min samples split, min samples leaf) using 5-fold cross-validation.
+• Output: The model predicts the student's likely grade category: A+/A, A-/B+, B/B-, C+/C, C-
+/D+, or F.
+ Accuracy Evaluation
+The model's accuracy will be measured using the following metrics:
+• Overall Accuracy: Percentage of correctly predicted grades across all categories.
+Target: >=75%.
+• Precision: For each grade category, the proportion of correct predictions out of all predictions
+for that category.
+• Recall: For each grade category, the proportion of correctly identified instances out of all
+actual instances.
+• F1-Score: Harmonic mean of precision and recall, providing a balanced measure.
+Target: >=0.70.
+• Confusion Matrix: A detailed matrix showing the distribution of predictions vs. actual
+outcomes for each grade category.
+• Cross-Validation Score: 5-fold cross-validation mean accuracy to ensure the model
+generalizes well and is not overfitting.
+ Model Improvement Strategy
+If the initial CART model does not achieve the target accuracy, the following strategies will be
+employed:
+• Ensemble Methods: Random Forest or Gradient Boosting to combine multiple decision trees
+for improved accuracy.
+• Feature Engineering: Creating derived features such as 'improvement trend' (change in
+marks across assignments) and 'peer comparison' (performance relative to batch average).
+• Hyperparameter Optimization: Grid search or Bayesian optimization for finding optimal
+tree parameters.
+• Incremental Learning: Retraining the model each semester with new data to improve
+predictions over time.
+13
+
+--- PAGE 14 ---
+8. Tools & Technologies
+Category Technology Purpose
+Frontend Framework React.js with TypeScript Building interactive, type-safe user interfaces
+UI Styling Tailwind CSS + shadcn/ui Responsive, consistent design system
+Backend Runtime Node.js with Express.js RESTful API development and server-side logic
+Database PostgreSQL (via Supabase) Relational data storage with RLS security
+Authentication Supabase Auth (JWT) Secure user authentication and role-based access
+File Storage Supabase Storage Medical certificates, documents upload
+AI/ML Framework Python, Scikit-learn CART decision tree training and predictions
+NLP Processing LangChain + LLM API Conversational AI assistant with RAG
+Data Processing Pandas, NumPy Data cleaning, preprocessing, feature engineering
+Version Control Git + GitHub Source code management and collaboration
+Deployment Vercel (Frontend), Supabase Cloud hosting and serverless functions
+(Backend)
+API Testing Postman API endpoint testing and documentation
+Project Management Notion / Trello Task tracking and milestone management
+Table 4: Technology stack for PES development
+14
+
+--- PAGE 15 ---
+9. Implementation Plan & Timeline
+Phase Duration Key Activities Deliverables
+Phase 1: Research April-May Requirements gathering, literature SRS document, ER diagrams,
+& Planning review, system design, database schema wireframes
+design
+Phase 2: May-June Database setup, user authentication, Working auth system, database
+Foundation basic UI framework, API structure schema, basic frontend
+Phase 3: Core June-July Academic records module, attendance Student dashboard, admin
+Features tracking, course enrollment, result panel, attendance system
+publishing
+Phase 4: AI July- AI assistant development, CART model Working AI chatbot, prediction
+Integration August training, prediction system, NLP model with >=75% accuracy
+pipeline
+Phase 5: Advanced August- Feedback system, medical submissions, Complete feature set, proactive
+Features Octomber warning engine, analytics dashboards warning system
+Phase 6: Testing & Octomber- User testing, bug fixes, performance Production-ready application,
+Deployment November optimization, deployment, user manual, source code
+documentation
+Table 5: Implementation timeline and deliverables
+Figure 2: Project Gantt chart
+15
+
+--- PAGE 16 ---
+10. Expected Outcomes
+Upon successful completion, the Performance Evaluation System is expected to deliver the
+following outcomes:
+10.1 Deliverables
+1. Fully Functional Web Application: A production-ready, responsive web platform accessible
+to students and administrators of the Faculty of Engineering, USJ, with secure authentication
+and role-based access control.
+2. AI-Powered Academic Assistant: A conversational AI chatbot capable of answering
+academic queries, providing course guidance, and offering personalized study
+recommendations using RAG and real-time database access.
+3. ML-Based Result Prediction Model: A trained CART decision tree model achieving ≥75%
+overall accuracy in predicting student grade categories based on continuous assessment and
+attendance data.
+4. Proactive Alert System: An automated warning engine that monitors student attendance and
+performance metrics, generating timely notifications for attendance non-eligibility risks,
+medical certificate deadlines, and performance declines.
+5. Administrative Dashboard: A comprehensive management panel for faculty administrators
+to publish results, update attendance, manage courses and lecturers, and view aggregated
+analytics.
+6. Digital Workflow System: Online modules for medical certificate submission, course
+enrollment, examination registration, and student feedback replacing existing manual paper-
+based processes.
+10.2 Expected Benefits
+1. Improved Student Awareness: Students will have real-time visibility into their attendance
+percentages, CGPA, and academic standing, enabling informed decision-making throughout
+the semester.
+2. Reduced Academic Failures: The proactive warning system and AI-driven predictions are
+expected to reduce preventable course failures by alerting students early about attendance and
+performance risks.
+3. Enhanced Administrative Efficiency: Digital workflows will reduce the time and effort
+required for result publication, attendance management, and medical certificate processing by
+an estimated 60-70%.
+4. Data-Driven Decision Making: Faculty administrators will gain access to aggregated
+analytics and performance trends, enabling evidence-based improvements in teaching and
+curriculum design.
+5. Scalable Model for Sri Lankan Universities: The modular architecture and configurable
+regulation engine will serve as a template that can be adapted for other faculties and
+universities across Sri Lanka.
+16
+
+--- PAGE 17 ---
+11. Conclusion
+This proposal presents the design and development plan for the Performance Evaluation System
+(PES), an intelligent academic management platform tailored for the Faculty of Engineering at the
+University of Sri Jayewardenepura. The system addresses critical gaps in the current academic
+management infrastructure, where students lack centralized access to their academic records, real-time
+attendance tracking, proactive academic guidance, and predictive performance insights.
+Through the integration of AI-powered conversational assistance using Retrieval-Augmented
+Generation (RAG) and machine learning-based result prediction using the CART algorithm, PES goes
+beyond conventional student information systems. It transforms academic data into actionable insights,
+enabling students to make informed decisions about their academic journey while providing faculty
+administrators with efficient digital tools for academic management.
+The literature review demonstrates that no existing system either internationally or within Sri Lanka
+provides the comprehensive combination of features that PES offers: real-time attendance monitoring
+with eligibility warnings, AI-powered academic guidance, machine learning predictions, faculty-
+specific regulation handling, and integrated digital workflows, all within a single unified platform.
+The feasibility of this project is supported by the well-defined technology stack (React.js, Node.js,
+PostgreSQL, Python, Scikit-learn), the availability of required datasets through official faculty
+channels, and a structured 12-month implementation timeline with clear milestones and deliverables.
+The modular architecture ensures that the system can be extended and adapted for other faculties and
+universities, maximizing its long-term impact.
+In summary, PES represents a significant step forward in leveraging data management and artificial
+intelligence to improve the undergraduate academic experience in Sri Lankan universities. By
+addressing the identified problems with innovative, student-centric solutions, this project has the
+potential to serve as a model for academic performance management systems across the higher
+education sector.
+17
+
+--- PAGE 18 ---
+12. References
+[1] Faculty of Engineering, University of Sri Jayewardenepura, "Student Guide – Faculty Handbook
+2023," University of Sri Jayewardenepura, 2023. [Online]. Available:
+https://www.sjp.ac.lk/engineering/
+[2] Faculty of Applied Science, University of Sri Jayewardenepura, "Student Information System,"
+University of Sri Jayewardenepura, 2024. [Online]. Available:
+https://pes.science.sjp.ac.lk/student/login
+[3] Ellucian, "Degree Works: Academic Advising and Degree Audit," 2023. [Online]. Available:
+https://www.ellucian.com/solutions/ellucian-degree-works
+[4] University of Moratuwa, "Student Information System," University of Moratuwa, 2024. [Online].
+Available: https://uom.lk/
+[5] University of Colombo, "Student Management System," University of Colombo, 2024. [Online].
+Available: https://cmb.ac.lk/
+[6] L. Breiman, J. Friedman, C. J. Stone, and R. A. Olshen, Classification and Regression Trees. Boca
+Raton, FL, USA: CRC Press, 1984.
+[7] F. Pedregosa et al., "Scikit-learn: Machine Learning in Python," Journal of Machine Learning
+Research, vol. 12, pp. 2825–2830, 2011.
+[8] P. Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,"
+Advances in Neural Information Processing Systems, vol. 33, pp. 9459–9474, 2020.
+[9] C. Romero and S. Ventura, "Educational Data Mining: A Review of the State of the Art," IEEE
+Transactions on Systems, Man, and Cybernetics, vol. 40, no. 6, pp. 601–618, 2010.
+[10] R. S. Baker and P. S. Inventado, "Educational Data Mining and Learning Analytics," in Learning
+Analytics. New York, NY, USA: Springer, 2014, pp. 61–75.
+[11] Supabase Inc., "Supabase Documentation: PostgreSQL, Authentication, and Edge Functions,"
+2024. [Online]. Available: https://supabase.com/docs
+18

@@ -50,7 +50,8 @@ export default function AdminStudents() {
     const { data: studentData } = await supabase
       .from("students")
       .select("id, name, reg_number, email, department, batch_year")
-      .eq("role", "student");
+      .eq("role", "student")
+      .eq("status", "active");
 
     if (!studentData) {
       setLoading(false);

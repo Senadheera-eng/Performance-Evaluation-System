@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Award, FileText, Download } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Award,
+  FileText,
+  Download,
+} from "lucide-react";
 import {
   Card,
   CardContent,
@@ -9,12 +15,8 @@ import {
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import {
   Table,
   TableBody,
@@ -40,6 +42,8 @@ import {
 } from "recharts";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface CourseResult {
   code: string;
@@ -89,6 +93,7 @@ const getGradeColor = (grade: string | null) => {
 export default function Results() {
   const { student } = useAuth();
   const [semesters, setSemesters] = useState<SemesterData[]>([]);
+  const [activeSemesterTab, setActiveSemesterTab] = useState<string>("");
   const [gpaChart, setGpaChart] = useState<GpaChartPoint[]>([]);
   const [radarData, setRadarData] = useState<RadarPoint[]>([]);
   const [cgpa, setCgpa] = useState<number>(0);
@@ -199,6 +204,9 @@ export default function Results() {
       });
 
     setSemesters(semList);
+    if (semList.length > 0) {
+      setActiveSemesterTab(semList[0].semesterKey);
+    }
 
     // CGPA
     const allGpaCourses = semList.flatMap((s) =>
@@ -271,6 +279,95 @@ export default function Results() {
       ? (lastTwoSems[1].sgpa - lastTwoSems[0].sgpa).toFixed(2)
       : null;
 
+  const handleDownloadTranscript = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("University of Sri Jayewardenepura", pageWidth / 2, 15, {
+      align: "center",
+    });
+    doc.setFontSize(11);
+    doc.text("Faculty of Engineering", pageWidth / 2, 21, { align: "center" });
+    doc.setFontSize(12);
+    doc.text("Unofficial Academic Transcript", pageWidth / 2, 29, {
+      align: "center",
+    });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    let y = 40;
+    doc.text(`Name: ${student?.name ?? "-"}`, 14, y);
+    doc.text(`Index No: ${student?.index_number ?? "-"}`, 130, y);
+    y += 6;
+    doc.text(
+      `Reg No: ${student?.reg_number ? `EN${student.reg_number}` : "-"}`,
+      14,
+      y,
+    );
+    doc.text(`Department: ${student?.department ?? "-"}`, 130, y);
+    y += 6;
+    doc.text(`Batch 7 (2021/2022)`, 14, y);
+    y += 10;
+
+    semesters.forEach((sem) => {
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      const deansListTag = sem.sgpa >= 3.8 ? "  (Dean's List)" : "";
+      doc.text(
+        `Semester ${sem.semesterNum} — ${sem.academicYear}   SGPA: ${sem.sgpa.toFixed(2)}${deansListTag}`,
+        14,
+        y,
+      );
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Code", "Course", "Credits", "Grade", "GPV"]],
+        body: sem.courses.map((c) => [
+          c.code,
+          c.name,
+          String(c.credits),
+          c.grade ?? "-",
+          c.gpv !== null ? c.gpv.toFixed(1) : "-",
+        ]),
+        styles: { fontSize: 8, cellPadding: 1.5 },
+        headStyles: { fillColor: [196, 30, 58] },
+        margin: { left: 14, right: 14 },
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 8;
+    });
+
+    if (y > 250) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Cumulative GPA: ${cgpa.toFixed(2)}`, 14, y);
+    doc.text(`Total Credits Earned: ${totalCredits}`, 100, y);
+    y += 10;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      "This is a computer-generated summary for personal reference only and is not an official transcript of the University of Sri Jayewardenepura.",
+      14,
+      y,
+      { maxWidth: pageWidth - 28 },
+    );
+
+    doc.save(
+      `Transcript_${student?.index_number?.replace(/\//g, "-") ?? "student"}.pdf`,
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -288,7 +385,11 @@ export default function Results() {
               View your semester-wise results and overall academic performance.
             </p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={handleDownloadTranscript}
+            disabled={loading || semesters.length === 0}
+          >
             <Download className="h-4 w-4 mr-2" />
             Download Transcript
           </Button>
@@ -315,8 +416,18 @@ export default function Results() {
                   </h3>
                   {cgpaChange !== null && (
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      <p className="text-sm text-green-600 font-medium">
+                      {Number(cgpaChange) >= 0 ? (
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-600" />
+                      )}
+                      <p
+                        className={`text-sm font-medium ${
+                          Number(cgpaChange) >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
                         {Number(cgpaChange) >= 0 ? "+" : ""}
                         {cgpaChange} from last sem
                       </p>
@@ -490,20 +601,21 @@ export default function Results() {
                 No published results yet.
               </p>
             ) : (
-              <Tabs defaultValue={semesters[0]?.semesterKey} className="w-full">
-                <TabsList
-                  className="mb-6 flex flex-wrap gap-1 h-auto"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${Math.min(semesters.length, 4)}, 1fr)`,
-                  }}
-                >
-                  {semesters.map((sem) => (
-                    <TabsTrigger key={sem.semesterKey} value={sem.semesterKey}>
-                      Sem {sem.semesterNum}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+              <Tabs
+                value={activeSemesterTab}
+                onValueChange={setActiveSemesterTab}
+                className="w-full"
+              >
+                <PillTabs
+                  tabs={semesters.map((sem) => ({
+                    value: sem.semesterKey,
+                    label: `Sem ${sem.semesterNum}`,
+                  }))}
+                  activeTab={activeSemesterTab}
+                  onChange={setActiveSemesterTab}
+                  className="mb-6 flex-wrap h-auto"
+                  layoutId="results-semester-tab-indicator"
+                />
 
                 {semesters.map((sem) => (
                   <TabsContent key={sem.semesterKey} value={sem.semesterKey}>
@@ -511,9 +623,17 @@ export default function Results() {
                       {/* Semester Summary */}
                       <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
                         <div>
-                          <h4 className="font-semibold text-foreground">
-                            {sem.label} — {sem.academicYear}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-foreground">
+                              {sem.label} — {sem.academicYear}
+                            </h4>
+                            {sem.sgpa >= 3.8 && (
+                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
+                                <Award className="h-3 w-3 mr-1" />
+                                Dean's List
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             {sem.courses.length} courses completed
                           </p>

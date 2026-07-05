@@ -2,8 +2,15 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
@@ -27,6 +34,7 @@ export default function Courses() {
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -177,13 +185,26 @@ export default function Courses() {
     const matchesSearch =
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.code.toLowerCase().includes(searchQuery.toLowerCase());
-    if (activeTab === "all") return matchesSearch;
-    if (activeTab === "ongoing")
-      return matchesSearch && course.status === "ongoing";
-    if (activeTab === "completed")
-      return matchesSearch && course.status === "completed";
-    return matchesSearch;
+    const matchesSemester =
+      semesterFilter === "all" || course.semester === Number(semesterFilter);
+    if (!matchesSearch || !matchesSemester) return false;
+    if (activeTab === "all") return true;
+    if (activeTab === "ongoing") return course.status === "ongoing";
+    if (activeTab === "completed") return course.status === "completed";
+    return true;
   });
+
+  const semesterOptions = Array.from(
+    new Set(allCourses.map((c) => c.semester)),
+  ).sort((a, b) => a - b);
+
+  const coursesBySemester = semesterOptions
+    .map((sem) => ({
+      semester: sem,
+      courses: filteredCourses.filter((c) => c.semester === sem),
+    }))
+    .filter((group) => group.courses.length > 0)
+    .sort((a, b) => b.semester - a.semester);
 
   const stats = {
     all: allCourses.length,
@@ -272,50 +293,31 @@ export default function Courses() {
             className="pl-10 h-12 bg-card border-border"
           />
         </div>
-        <Button variant="outline" className="h-12 px-6 border-border">
-          <Filter className="h-5 w-5 mr-2" />
-          Filters
-        </Button>
+        <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+          <SelectTrigger className="h-12 px-6 border-border sm:w-56 w-full">
+            <Filter className="h-5 w-5 mr-2 shrink-0" />
+            <SelectValue placeholder="Filter by semester" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Semesters</SelectItem>
+            {semesterOptions.map((sem) => (
+              <SelectItem key={sem} value={String(sem)}>
+                Semester {sem}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </motion.div>
 
-      {/* Custom Tabs — theme aware, works in light and dark */}
+      {/* Tabs */}
       <div className="w-full">
-        <div className="flex gap-1 p-1 rounded-xl w-full max-w-md mb-6 bg-muted">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.value;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
-                style={
-                  isActive ? { backgroundColor: "#C41E3A", color: "white" } : {}
-                }
-              >
-                <span
-                  className={isActive ? "text-white" : "text-muted-foreground"}
-                >
-                  {tab.label}
-                </span>
-                <span
-                  className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: "rgba(255,255,255,0.25)",
-                          color: "white",
-                        }
-                      : {
-                          backgroundColor: "rgba(128,128,128,0.2)",
-                        }
-                  }
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <PillTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          className="max-w-md mb-6"
+          layoutId="courses-tab-indicator"
+        />
 
         {/* Tab Content */}
         {loading ? (
@@ -339,9 +341,28 @@ export default function Courses() {
             </p>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} onClick={() => {}} />
+          <div className="space-y-8">
+            {coursesBySemester.map((group) => (
+              <div key={group.semester}>
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Semester {group.semester}
+                  </h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                    {group.courses.length} course
+                    {group.courses.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {group.courses.map((course) => (
+                    <CourseCard
+                      key={course.id}
+                      course={course}
+                      onClick={() => {}}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
