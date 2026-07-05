@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Bot,
@@ -6,7 +6,8 @@ import {
   Sparkles,
   BookOpen,
   Calendar,
-  TrendingUp,
+  Target,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
@@ -17,6 +18,7 @@ import {
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { getAssistantReply } from "../../lib/chatbotEngine";
 
 interface Message {
   id: string;
@@ -26,11 +28,11 @@ interface Message {
 }
 
 const suggestedQuestions = [
-  "What are the available selective modules for next semester?",
-  "How is my attendance for CS303?",
-  "What's my predicted grade for Software Engineering?",
-  "What courses do I need to complete my degree?",
-  "Tell me about the practical components in CS305",
+  "What GPA do I need to graduate with First Class?",
+  "What's my current CGPA?",
+  "What are my courses next semester?",
+  "Tell me about Mathematics V",
+  "What is CO3554?",
 ];
 
 export default function AIAssistant() {
@@ -39,16 +41,21 @@ export default function AIAssistant() {
       id: "1",
       role: "assistant",
       content:
-        "Hello! I'm your AI Academic Assistant. I can help you with course information, attendance tracking, result predictions, and academic guidance. How can I assist you today?",
+        "Hello! I'm your AI Academic Assistant. I can help with GPA/CGPA planning, your current academic standing, upcoming courses, and module lookups — all based on your real academic records. How can I help today?",
       timestamp: new Date(),
     },
   ]);
   const [inputMessage, setInputMessage] = useState("");
+  const [isThinking, setIsThinking] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = (message: string) => {
-    if (!message.trim()) return;
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
 
-    // Add user message
+  const handleSendMessage = async (message: string) => {
+    if (!message.trim() || isThinking) return;
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -56,20 +63,31 @@ export default function AIAssistant() {
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
+    setInputMessage("");
+    setIsThinking(true);
 
-    // Simulate AI response (in real app, this would be an API call)
-    setTimeout(() => {
+    try {
+      const reply = await getAssistantReply(message);
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          "This is a UI demo. In the full implementation, I would provide detailed academic insights and guidance based on your question.",
+        content: reply,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
-
-    setInputMessage("");
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Something went wrong on my end — please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   return (
@@ -155,14 +173,12 @@ export default function AIAssistant() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-100">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <Target className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Result Prediction
-                  </p>
+                  <p className="text-sm text-muted-foreground">GPA Planning</p>
                   <p className="text-lg font-semibold text-foreground">
-                    AI-Powered
+                    Available
                   </p>
                 </div>
               </div>
@@ -199,7 +215,9 @@ export default function AIAssistant() {
                         : "bg-muted text-foreground"
                     }`}
                   >
-                    <p className="text-sm">{message.content}</p>
+                    <p className="text-sm whitespace-pre-line">
+                      {message.content}
+                    </p>
                     <p
                       className={`text-xs mt-2 ${
                         message.role === "user"
@@ -212,6 +230,19 @@ export default function AIAssistant() {
                   </div>
                 </motion.div>
               ))}
+              {isThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-start"
+                >
+                  <div className="max-w-[80%] rounded-2xl p-4 bg-muted text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Looking that up...</span>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input Area */}
@@ -221,6 +252,7 @@ export default function AIAssistant() {
                   placeholder="Ask me anything about your academics..."
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
+                  disabled={isThinking}
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
                       handleSendMessage(inputMessage);
@@ -230,6 +262,7 @@ export default function AIAssistant() {
                 />
                 <Button
                   onClick={() => handleSendMessage(inputMessage)}
+                  disabled={isThinking}
                   className="h-12 px-6 bg-primary hover:bg-primary/90"
                 >
                   <Send className="h-5 w-5" />
@@ -297,14 +330,15 @@ export default function AIAssistant() {
 
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-lg bg-green-100 mt-0.5">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+                  <Target className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground text-sm">
-                    Result Prediction
+                    GPA Planning
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    ML-based predictions of final grades
+                    Exact SGPA targets to reach your desired CGPA or
+                    classification
                   </p>
                 </div>
               </div>
