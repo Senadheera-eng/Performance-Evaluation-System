@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Moon,
   Sun,
+  FileHeart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "../components/ui/input";
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
   { name: "Courses", href: "/app/courses", icon: BookOpen },
   { name: "Attendance", href: "/app/attendance", icon: Calendar },
+  { name: "Medical Certificates", href: "/app/medical", icon: FileHeart },
   { name: "Results", href: "/app/results", icon: TrendingUp },
   { name: "Enrollment", href: "/app/enrollment", icon: GraduationCap },
   { name: "AI Assistant", href: "/app/ai-assistant", icon: Bot, badge: "New" },
