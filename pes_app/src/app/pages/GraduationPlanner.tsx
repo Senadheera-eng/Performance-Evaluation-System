@@ -24,12 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
@@ -431,13 +427,20 @@ export default function GraduationPlanner() {
         </Card>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-2 w-full max-w-md">
-            <TabsTrigger value="standing">Current Standing</TabsTrigger>
-            <TabsTrigger value="simulator">
-              <FlaskConical className="h-4 w-4 mr-1.5" />
-              What-If Simulator
-            </TabsTrigger>
-          </TabsList>
+          <PillTabs
+            tabs={[
+              { value: "standing", label: "Current Standing" },
+              {
+                value: "simulator",
+                label: "What-If Simulator",
+                icon: FlaskConical,
+              },
+            ]}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+            className="max-w-md"
+            layoutId="planner-tab-indicator"
+          />
 
           <TabsContent value="standing" className="space-y-6 mt-6">
             {renderStandingCards(

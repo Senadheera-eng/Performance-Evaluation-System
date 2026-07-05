@@ -15,12 +15,8 @@ import {
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "../components/ui/tabs";
+import { Tabs, TabsContent } from "../components/ui/tabs";
+import { PillTabs } from "../components/dashboard/PillTabs";
 import {
   Table,
   TableBody,
@@ -97,6 +93,7 @@ const getGradeColor = (grade: string | null) => {
 export default function Results() {
   const { student } = useAuth();
   const [semesters, setSemesters] = useState<SemesterData[]>([]);
+  const [activeSemesterTab, setActiveSemesterTab] = useState<string>("");
   const [gpaChart, setGpaChart] = useState<GpaChartPoint[]>([]);
   const [radarData, setRadarData] = useState<RadarPoint[]>([]);
   const [cgpa, setCgpa] = useState<number>(0);
@@ -207,6 +204,9 @@ export default function Results() {
       });
 
     setSemesters(semList);
+    if (semList.length > 0) {
+      setActiveSemesterTab(semList[0].semesterKey);
+    }
 
     // CGPA
     const allGpaCourses = semList.flatMap((s) =>
@@ -601,20 +601,21 @@ export default function Results() {
                 No published results yet.
               </p>
             ) : (
-              <Tabs defaultValue={semesters[0]?.semesterKey} className="w-full">
-                <TabsList
-                  className="mb-6 flex flex-wrap gap-1 h-auto"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${Math.min(semesters.length, 4)}, 1fr)`,
-                  }}
-                >
-                  {semesters.map((sem) => (
-                    <TabsTrigger key={sem.semesterKey} value={sem.semesterKey}>
-                      Sem {sem.semesterNum}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+              <Tabs
+                value={activeSemesterTab}
+                onValueChange={setActiveSemesterTab}
+                className="w-full"
+              >
+                <PillTabs
+                  tabs={semesters.map((sem) => ({
+                    value: sem.semesterKey,
+                    label: `Sem ${sem.semesterNum}`,
+                  }))}
+                  activeTab={activeSemesterTab}
+                  onChange={setActiveSemesterTab}
+                  className="mb-6 flex-wrap h-auto"
+                  layoutId="results-semester-tab-indicator"
+                />
 
                 {semesters.map((sem) => (
                   <TabsContent key={sem.semesterKey} value={sem.semesterKey}>
