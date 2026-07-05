@@ -77,22 +77,62 @@ export default function Enrollment() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [nextSemester, setNextSemester] = useState<number | null>(null);
+  const [academicYear, setAcademicYear] = useState<string>("");
+
   useEffect(() => {
     if (!student?.id) return;
     fetchAvailableCourses();
   }, [student?.id]);
 
+  const semesterToAcademicYear = (sem: number): string => {
+    const map: Record<number, string> = {
+      1: "2022/2023",
+      2: "2022/2023",
+      3: "2023/2024",
+      4: "2024/2025",
+      5: "2025/2026",
+      6: "2026/2027",
+      7: "2027/2028",
+      8: "2028/2029",
+    };
+    return map[sem] ?? "TBD";
+  };
+
   const fetchAvailableCourses = async () => {
     setLoading(true);
 
-    // Get next semester courses — semester 6 for a sem 5 student
-    // Get all courses for year 3 semester 6
+    if (!student?.department) {
+      setLoading(false);
+      return;
+    }
+
+    // Determine the student's highest completed semester from published results
+    const { data: completedResults } = await supabase
+      .from("results")
+      .select("courses(semester)")
+      .eq("student_id", student!.id)
+      .eq("is_published", true);
+
+    const completedSemesters =
+      completedResults
+        ?.map((r: any) => r.courses?.semester ?? 0)
+        .filter((s: number) => s > 0) ?? [];
+
+    const highestCompleted =
+      completedSemesters.length > 0 ? Math.max(...completedSemesters) : 0;
+    const targetSemester = highestCompleted + 1;
+    const targetYear = Math.ceil(targetSemester / 2);
+
+    setNextSemester(targetSemester);
+    setAcademicYear(semesterToAcademicYear(targetSemester));
+
     const { data: courses } = await supabase
       .from("courses")
       .select("*")
-      .eq("department", "Computer Engineering")
-      .eq("year", 3)
-      .eq("semester", 6)
+      .eq("department", student.department)
+      .eq("year", targetYear)
+      .eq("semester", targetSemester)
       .order("course_code");
 
     if (!courses) {
@@ -169,7 +209,7 @@ export default function Enrollment() {
       const enrollments = selectedCourses.map((courseId) => ({
         student_id: student!.id,
         course_id: courseId,
-        academic_year: "2025/2026",
+        academic_year: academicYear,
         status: "enrolled",
       }));
 
@@ -217,8 +257,9 @@ export default function Enrollment() {
           Course Enrollment
         </h1>
         <p className="text-muted-foreground">
-          Enroll in courses for Semester 6 — {availableCourses.length} courses
-          available.
+          Enroll in courses for Semester {nextSemester ?? "—"}
+          {academicYear ? ` (${academicYear})` : ""} — {availableCourses.length}{" "}
+          courses available.
         </p>
       </motion.div>
 
@@ -379,7 +420,7 @@ export default function Enrollment() {
                 ))}
               </div>
             ) : (
-              <CourseList
+              <CourseListGrouped
                 courses={filteredCourses.filter((c) =>
                   tab === "all" ? true : c.category === tab,
                 )}
@@ -390,6 +431,81 @@ export default function Enrollment() {
           </TabsContent>
         ))}
       </Tabs>
+    </div>
+  );
+}
+
+function CourseListGrouped({
+  courses,
+  selectedCourses,
+  onCourseToggle,
+}: {
+  courses: AvailableCourse[];
+  selectedCourses: string[];
+  onCourseToggle: (id: string) => void;
+}) {
+  if (courses.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">
+          No courses found
+        </h3>
+        <p className="text-muted-foreground">
+          Try adjusting your search criteria.
+        </p>
+      </div>
+    );
+  }
+
+  const compulsory = courses.filter((c) => c.category !== "Elective");
+  const electives = courses.filter((c) => c.category === "Elective");
+
+  const minorGroups = Array.from(
+    new Set(electives.map((c) => c.minor_category ?? "General Electives")),
+  );
+
+  return (
+    <div className="space-y-8">
+      {compulsory.length > 0 && (
+        <div>
+          {electives.length > 0 && (
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              Compulsory Courses
+            </h4>
+          )}
+          <CourseList
+            courses={compulsory}
+            selectedCourses={selectedCourses}
+            onCourseToggle={onCourseToggle}
+          />
+        </div>
+      )}
+
+      {minorGroups.map((minor) => (
+        <div key={minor}>
+          <div className="flex items-center gap-2 mb-3">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              {minor} Electives
+            </h4>
+            {minor !== "General Electives" && (
+              <Badge
+                variant="outline"
+                className="text-xs border-purple-300 text-purple-700"
+              >
+                Minor
+              </Badge>
+            )}
+          </div>
+          <CourseList
+            courses={electives.filter(
+              (c) => (c.minor_category ?? "General Electives") === minor,
+            )}
+            selectedCourses={selectedCourses}
+            onCourseToggle={onCourseToggle}
+          />
+        </div>
+      ))}
     </div>
   );
 }
