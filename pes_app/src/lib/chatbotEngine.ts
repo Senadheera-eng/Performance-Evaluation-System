@@ -64,10 +64,15 @@ type Intent =
 function classifyIntent(message: string): Intent {
   const text = message.toLowerCase().trim();
 
-  // Greetings / help are short and distinctive — check first
-  if (
-    /^(hi|hey|hello|good morning|good afternoon|good evening)\b/.test(text)
-  ) {
+  // Greetings: only when the message IS essentially just a greeting (short,
+  // no other question content) — not merely "hi" followed by a real question.
+  const wordCount = text.split(/\s+/).length;
+  const isPureGreeting =
+    wordCount <= 4 &&
+    /^(hi|hey|hello|good morning|good afternoon|good evening)[\s!.,]*$/.test(
+      text,
+    );
+  if (isPureGreeting) {
     return "greeting";
   }
   if (anyMatch(text, ["what can you do", "what do you do", "capabilities", "help me", "how do you work"])) {
@@ -226,12 +231,44 @@ const COURSE_INFO_STRIP_PHRASES = [
   "?",
 ];
 
+// Course titles use Roman numerals ("Engineering Mathematics V") and full
+// words ("Mathematics", not "Maths") — normalize common shorthand so a
+// casual search like "maths 5" still finds "Engineering Mathematics V".
+const WORD_EXPANSIONS: Record<string, string> = {
+  maths: "math",
+  eng: "engineering",
+  comp: "computer",
+  elec: "electrical",
+  mech: "mechanical",
+  civ: "civil",
+  mgmt: "management",
+  intro: "introduction",
+};
+
+const ROMAN_NUMERALS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+function normalizeSearchWords(term: string): string {
+  return term
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      if (WORD_EXPANSIONS[word]) return WORD_EXPANSIONS[word];
+      const asNumber = Number(word);
+      if (Number.isInteger(asNumber) && asNumber >= 1 && asNumber <= 10) {
+        return ROMAN_NUMERALS[asNumber];
+      }
+      return word;
+    })
+    .join(" ");
+}
+
 function extractCourseSearchTerm(message: string): string {
   let cleaned = message.toLowerCase();
   for (const phrase of COURSE_INFO_STRIP_PHRASES) {
     cleaned = cleaned.replace(phrase, " ");
   }
-  return cleaned.replace(/\s+/g, " ").trim();
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+  return normalizeSearchWords(cleaned);
 }
 
 // ---------- Response builders (real data only, via RPC, written conversationally) ----------
@@ -295,8 +332,7 @@ async function handleUpcomingCourses(message: string): Promise<string> {
   const lines = data.courses
     .map(
       (c: any) =>
-        `• ${c.code} — ${c.title} (${c.credits} credits${
-          c.minor_category ? `, ${c.minor_category} minor` : ""
+        `• ${c.code} — ${c.title} (${c.credits} credits${c.minor_category ? `, ${c.minor_category} minor` : ""
         }${!c.contributes_to_gpa ? ", non-GPA" : ""})`,
     )
     .join("\n");
@@ -322,13 +358,11 @@ async function handleCourseInfo(message: string): Promise<string> {
 
   if (matches.length === 1) {
     const c = matches[0];
-    return `${c.code} — ${c.title}. It's a ${c.credits}-credit ${c.category.toLowerCase()} course${
-      c.minor_category ? ` under the ${c.minor_category} minor` : ""
-    }, offered in Semester ${c.semester} (Year ${c.year}) for ${c.department}. ${
-      c.contributes_to_gpa
+    return `${c.code} — ${c.title}. It's a ${c.credits}-credit ${c.category.toLowerCase()} course${c.minor_category ? ` under the ${c.minor_category} minor` : ""
+      }, offered in Semester ${c.semester} (Year ${c.year}) for ${c.department}. ${c.contributes_to_gpa
         ? "It counts toward your GPA."
         : "It doesn't count toward your GPA."
-    }`;
+      }`;
   }
 
   const lines = matches
