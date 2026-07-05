@@ -37,27 +37,6 @@ interface ProfileStats {
   currentSemester: number;
 }
 
-const achievements = [
-  {
-    title: "Dean's List",
-    semester: "Semester 4",
-    icon: Award,
-    color: "text-amber-600 bg-amber-100",
-  },
-  {
-    title: "Perfect Attendance",
-    semester: "Semester 2",
-    icon: Calendar,
-    color: "text-green-600 bg-green-100",
-  },
-  {
-    title: "Best Project Award",
-    semester: "Semester 3",
-    icon: BookOpen,
-    color: "text-blue-600 bg-blue-100",
-  },
-];
-
 const getYearLabel = (batchYear: number): string => {
   const today = new Date();
   const month = today.getMonth();
@@ -264,6 +243,10 @@ export default function Profile() {
     ? getYearLabel(student.batch_year)
     : "Undergraduate";
 
+  const deansListSemesters = semesterStats.filter(
+    (s) => s.completed && s.sgpa >= 3.8,
+  );
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -368,8 +351,8 @@ export default function Profile() {
                     <div className="flex items-center gap-3 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-foreground">
-                        Batch {student?.batch_year ?? "—"}/
-                        {student?.batch_year ? student.batch_year + 1 : "—"}
+                        Batch 7 ({student?.batch_year ?? "—"}/
+                        {student?.batch_year ? student.batch_year + 1 : "—"})
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
@@ -500,8 +483,8 @@ export default function Profile() {
                         Intake Batch
                       </p>
                       <p className="font-medium text-foreground">
-                        {student?.batch_year ?? "—"}/
-                        {student?.batch_year ? student.batch_year + 1 : "—"}
+                        Batch 7 ({student?.batch_year ?? "—"}/
+                        {student?.batch_year ? student.batch_year + 1 : "—"})
                       </p>
                     </div>
                   </div>
@@ -521,29 +504,34 @@ export default function Profile() {
                 <CardTitle>Achievements & Awards</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {achievements.map((achievement, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
-                      className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      <div
-                        className={`p-3 rounded-lg ${achievement.color} w-fit mb-3`}
+                {deansListSemesters.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    No achievements yet — make Dean's List by scoring 3.80+ GPA
+                    in a semester.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {deansListSemesters.map((sem, index) => (
+                      <motion.div
+                        key={sem.semNum}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
+                        className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                       >
-                        <achievement.icon className="h-6 w-6" />
-                      </div>
-                      <h4 className="font-semibold text-foreground mb-1">
-                        {achievement.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {achievement.semester}
-                      </p>
-                    </motion.div>
-                  ))}
-                </div>
+                        <div className="p-3 rounded-lg text-amber-600 bg-amber-100 w-fit mb-3">
+                          <Award className="h-6 w-6" />
+                        </div>
+                        <h4 className="font-semibold text-foreground mb-1">
+                          Dean's List
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {sem.label} · GPA {sem.sgpa.toFixed(2)}
+                        </p>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -584,6 +572,12 @@ export default function Profile() {
                             ) : (
                               <Badge className="bg-blue-100 text-blue-700">
                                 In Progress
+                              </Badge>
+                            )}
+                            {sem.completed && sem.sgpa >= 3.8 && (
+                              <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                                <Award className="h-3 w-3 mr-1" />
+                                Dean's List
                               </Badge>
                             )}
                           </div>
