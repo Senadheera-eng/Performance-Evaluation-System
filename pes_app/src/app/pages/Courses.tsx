@@ -45,11 +45,11 @@ export default function Courses() {
   const fetchCourses = async () => {
     setLoading(true);
 
+    // Ongoing courses: the student's active enrollment for the current semester.
     const { data: enrollments } = await supabase
       .from("enrollments")
       .select(
         `
-        status,
         course_id,
         courses (
           id,
@@ -63,16 +63,10 @@ export default function Courses() {
         )
       `,
       )
-      .eq("student_id", student!.id);
+      .eq("student_id", student!.id)
+      .eq("status", "enrolled");
 
-    if (!enrollments) {
-      setLoading(false);
-      return;
-    }
-
-    const enrolledIds = enrollments
-      .filter((e: any) => e.status === "enrolled")
-      .map((e: any) => e.course_id);
+    const enrolledIds = (enrollments ?? []).map((e: any) => e.course_id);
 
     const attendanceMap: Record<string, number> = {};
     if (enrolledIds.length > 0) {
@@ -99,25 +93,6 @@ export default function Courses() {
       }
     }
 
-    const completedIds = enrollments
-      .filter((e: any) => e.status === "completed")
-      .map((e: any) => e.course_id);
-
-    const gradeMap: Record<string, string> = {};
-    if (completedIds.length > 0) {
-      const { data: resultsData } = await supabase
-        .from("results")
-        .select("course_id, grade")
-        .eq("student_id", student!.id)
-        .eq("is_published", true)
-        .in("course_id", completedIds)
-        .not("grade", "is", null);
-
-      resultsData?.forEach((r: any) => {
-        gradeMap[r.course_id] = r.grade;
-      });
-    }
-
     const progressMap: Record<string, number> = {};
     if (enrolledIds.length > 0) {
       const { data: currentResults } = await supabase
@@ -137,37 +112,67 @@ export default function Courses() {
       });
     }
 
-    const courses: Course[] = enrollments.map((e: any) => {
+    const ongoingCourses: Course[] = (enrollments ?? []).map((e: any) => {
       const c = e.courses;
-      if (e.status === "enrolled") {
-        return {
-          id: c.id,
-          code: c.course_code,
-          name: c.title,
-          credits: c.credits,
-          status: "ongoing" as const,
-          attendance: attendanceMap[c.id],
-          progress: progressMap[c.id],
-          category: c.category,
-          minor_category: c.minor_category,
-          semester: c.semester,
-          year: c.year,
-        };
-      } else {
+      return {
+        id: c.id,
+        code: c.course_code,
+        name: c.title,
+        credits: c.credits,
+        status: "ongoing" as const,
+        attendance: attendanceMap[c.id],
+        progress: progressMap[c.id],
+        category: c.category,
+        minor_category: c.minor_category,
+        semester: c.semester,
+        year: c.year,
+      };
+    });
+
+    // Completed courses: published results are the authoritative record of
+    // "did the student finish this course" — unlike `enrollments`, this isn't
+    // missing rows for semesters that were bulk-imported directly into `results`.
+    const { data: resultsData } = await supabase
+      .from("results")
+      .select(
+        `
+        course_id,
+        grade,
+        courses (
+          id,
+          course_code,
+          title,
+          credits,
+          semester,
+          year,
+          category,
+          minor_category
+        )
+      `,
+      )
+      .eq("student_id", student!.id)
+      .eq("is_published", true)
+      .not("grade", "is", null);
+
+    const completedCourses: Course[] = (resultsData ?? [])
+      .filter((r: any) => r.courses && !enrolledIds.includes(r.course_id))
+      .map((r: any) => {
+        const c = r.courses;
         return {
           id: c.id,
           code: c.course_code,
           name: c.title,
           credits: c.credits,
           status: "completed" as const,
-          grade: gradeMap[c.id],
+          grade: r.grade,
           category: c.category,
           minor_category: c.minor_category,
           semester: c.semester,
           year: c.year,
         };
-      }
-    });
+      });
+
+    const courses: Course[] = [...ongoingCourses, ...completedCourses];
 
     courses.sort((a, b) => {
       if (a.status === "ongoing" && b.status !== "ongoing") return -1;

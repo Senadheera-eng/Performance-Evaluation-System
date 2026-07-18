@@ -102,12 +102,15 @@ export default function Profile() {
       .eq("is_published", true)
       .not("gpv", "is", null);
 
-    // Completed courses count
+    // Completed courses count — sourced from published results, not
+    // `enrollments`, since historical semesters were bulk-imported straight
+    // into `results` without matching enrollment rows.
     const { count: completedCount } = await supabase
-      .from("enrollments")
+      .from("results")
       .select("*", { count: "exact", head: true })
       .eq("student_id", student!.id)
-      .eq("status", "completed");
+      .eq("is_published", true)
+      .not("grade", "is", null);
 
     // Current enrolled to find current semester
     const { data: enrolled } = await supabase
