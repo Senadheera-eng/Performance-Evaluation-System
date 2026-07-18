@@ -20,6 +20,13 @@ export default defineConfig({
     },
   },
 
+  // transformers.js (local in-browser embeddings for chatbot RAG) ships its
+  // own WASM/worker loading that Vite's dependency pre-bundler mishandles —
+  // exclude it so it's loaded as-is at runtime instead.
+  optimizeDeps: {
+    exclude: ['@xenova/transformers'],
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv', '**/*.jpg', '**/*.jpeg', '**/*.png', '**/*.gif', '**/*.webp'],
 })

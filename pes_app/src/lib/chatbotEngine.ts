@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { searchHandbook } from "./ragRetrieval";
 
 /**
  * Rule-based NLU engine for the PES AI Assistant.
@@ -381,7 +382,45 @@ const HELP_REPLY =
   "Here's what I'm good for right now:\n\n• GPA/CGPA planning — \"I want a 3.5 GPA, how should I perform?\"\n• Your current standing — \"What's my CGPA?\"\n• Upcoming courses — \"What subjects do I have next semester?\"\n• Course lookups — \"Tell me about Mathematics V\"\n\nEverything I tell you comes straight from your real academic records, so the numbers are always accurate — I won't guess.";
 
 const UNKNOWN_REPLY =
-  "I didn't quite catch what you're looking for. Right now I can help with your GPA/CGPA targets, your current standing, upcoming courses, and course lookups — try rephrasing, or ask \"what can you do\" for examples.";
+  "I didn't quite catch what you're looking for. Right now I can help with your GPA/CGPA targets, your current standing, upcoming courses, course lookups, and general Faculty Handbook questions — try rephrasing, or ask \"what can you do\" for examples.";
+
+// Below this similarity, the best handbook match isn't a real answer to the
+// question — better to admit we don't know than to return a loosely-related
+// paragraph and let the reader assume it's relevant. Threshold is tuned
+// empirically for MiniLM cosine similarity on this corpus, which runs much
+// lower (~0.3-0.45 for genuinely correct matches) than intuition suggests.
+const HANDBOOK_MIN_SIMILARITY = 0.3;
+
+/**
+ * Fallback for anything that doesn't match one of the known intents above:
+ * semantic search over the Faculty Handbook 2026 (local embeddings, pgvector
+ * search via the `search_handbook` RPC — see ragRetrieval.ts). The reply is
+ * the retrieved handbook text itself, with a citation, never a
+ * model-generated paraphrase — so there's nothing here that can be
+ * fabricated beyond what's actually printed in the handbook.
+ */
+async function handleHandbookFallback(message: string): Promise<string> {
+  let matches: Awaited<ReturnType<typeof searchHandbook>>;
+  try {
+    matches = await searchHandbook(message, {
+      matchCount: 2,
+      minSimilarity: HANDBOOK_MIN_SIMILARITY,
+    });
+  } catch {
+    return UNKNOWN_REPLY;
+  }
+
+  if (matches.length === 0) {
+    return UNKNOWN_REPLY;
+  }
+
+  const top = matches[0];
+  const citation = top.page
+    ? ` — Faculty Handbook 2026, p.${top.page}${top.section ? ` ("${top.section}")` : ""}`
+    : "";
+
+  return `From the Faculty Handbook: ${top.content}\n\n(Source:${citation || " Faculty Handbook 2026"}. If this doesn't fully answer your question, try rephrasing or check with your department.)`;
+}
 
 /** Main entry point — classify the message and return a real, data-backed reply. */
 export async function getAssistantReply(message: string): Promise<string> {
@@ -401,6 +440,6 @@ export async function getAssistantReply(message: string): Promise<string> {
     case "help":
       return HELP_REPLY;
     default:
-      return UNKNOWN_REPLY;
+      return handleHandbookFallback(message);
   }
 }
