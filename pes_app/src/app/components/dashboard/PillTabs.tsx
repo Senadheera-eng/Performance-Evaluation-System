@@ -29,7 +29,7 @@ export function PillTabs({
   layoutId = "pill-tab-indicator",
 }: PillTabsProps) {
   return (
-    <div className={`flex gap-1 p-1 rounded-xl bg-muted ${className}`}>
+    <div className={`flex gap-1 p-1 rounded-lg bg-muted ${className}`}>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
         const Icon = tab.icon;
@@ -37,7 +37,7 @@ export function PillTabs({
           <button
             key={tab.value}
             onClick={() => onChange(tab.value)}
-            className="relative flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+            className="relative flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium"
           >
             {isActive && (
               <motion.div

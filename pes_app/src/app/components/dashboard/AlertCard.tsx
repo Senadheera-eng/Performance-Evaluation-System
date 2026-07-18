@@ -73,16 +73,16 @@ export function AlertCard({ type, title, message, action }: AlertCardProps) {
       transition={{ duration: 0.3 }}
     >
       <Card className={`${bgColor} ${borderColor} border-2`}>
-        <CardContent className="p-4">
-          <div className="flex gap-3">
-            <Icon className={`h-5 w-5 ${iconColor} flex-shrink-0 mt-0.5`} />
-            <div className="flex-1 space-y-1">
+        <CardContent className="p-3">
+          <div className="flex gap-2.5">
+            <Icon className={`h-4 w-4 ${iconColor} flex-shrink-0 mt-0.5`} />
+            <div className="flex-1 space-y-0.5">
               <h4 className={`text-sm font-semibold ${textColor}`}>{title}</h4>
               <p className={`text-sm ${messageColor}`}>{message}</p>
               {action && (
                 <button
                   onClick={action.onClick}
-                  className={`mt-2 px-3 py-1.5 rounded-lg text-sm font-medium ${buttonColor} transition-colors`}
+                  className={`mt-1.5 px-2.5 py-1 rounded-lg text-sm font-medium ${buttonColor} transition-colors`}
                 >
                   {action.label}
                 </button>

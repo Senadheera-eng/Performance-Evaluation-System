@@ -280,23 +280,23 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Welcome Back, {firstName}! 👋
         </h1>
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Here's what's happening with your academic progress today.
           </p>
           {student?.department && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              <GraduationCap className="h-4 w-4" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              <GraduationCap className="h-3.5 w-3.5" />
               {student.department}
             </span>
           )}
@@ -304,7 +304,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Current CGPA"
           value={loading ? "..." : (cgpa?.toFixed(2) ?? "N/A")}
@@ -380,7 +380,7 @@ export default function Dashboard() {
               <CardTitle>GPA Trend</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={240}>
                 <LineChart data={semesterData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="semester" stroke="#6b7280" />
@@ -418,7 +418,7 @@ export default function Dashboard() {
               <CardTitle>Attendance Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={attendanceData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="course" stroke="#6b7280" />
@@ -444,8 +444,8 @@ export default function Dashboard() {
 
       {/* Ongoing Courses */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-foreground">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-foreground">
             Ongoing Courses
           </h2>
           <Button

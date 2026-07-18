@@ -91,23 +91,23 @@ export default function AIAssistant() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 rounded-xl bg-gradient-secondary">
-            <Bot className="h-6 w-6 text-white" />
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-gradient-secondary">
+            <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               AI Academic Assistant
               <Badge className="bg-accent text-accent-foreground">Beta</Badge>
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Get intelligent insights and guidance for your academic journey
             </p>
           </div>
@@ -115,14 +115,14 @@ export default function AIAssistant() {
       </motion.div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10">
                   <BookOpen className="h-5 w-5 text-primary" />
@@ -146,7 +146,7 @@ export default function AIAssistant() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-100">
                   <Calendar className="h-5 w-5 text-blue-600" />
@@ -170,7 +170,7 @@ export default function AIAssistant() {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-100">
                   <Target className="h-5 w-5 text-green-600" />
@@ -187,10 +187,10 @@ export default function AIAssistant() {
         </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Chat Interface */}
         <div className="lg:col-span-2">
-          <Card className="border-border h-[600px] flex flex-col">
+          <Card className="border-border h-[560px] flex flex-col">
             <CardHeader className="border-b border-border">
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
@@ -199,7 +199,7 @@ export default function AIAssistant() {
             </CardHeader>
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((message) => (
                 <motion.div
                   key={message.id}
@@ -209,7 +209,7 @@ export default function AIAssistant() {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-4 ${
+                    className={`max-w-[80%] rounded-2xl p-3 ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
@@ -236,7 +236,7 @@ export default function AIAssistant() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex justify-start"
                 >
-                  <div className="max-w-[80%] rounded-2xl p-4 bg-muted text-muted-foreground flex items-center gap-2">
+                  <div className="max-w-[80%] rounded-2xl p-3 bg-muted text-muted-foreground flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="text-sm">Looking that up...</span>
                   </div>
@@ -246,7 +246,7 @@ export default function AIAssistant() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-border">
+            <div className="p-3 border-t border-border">
               <div className="flex gap-2">
                 <Input
                   placeholder="Ask me anything about your academics..."
@@ -258,14 +258,14 @@ export default function AIAssistant() {
                       handleSendMessage(inputMessage);
                     }
                   }}
-                  className="flex-1 h-12 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/20"
+                  className="flex-1 h-9 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/20"
                 />
                 <Button
                   onClick={() => handleSendMessage(inputMessage)}
                   disabled={isThinking}
-                  className="h-12 px-6 bg-primary hover:bg-primary/90"
+                  className="h-9 px-4 bg-primary hover:bg-primary/90"
                 >
-                  <Send className="h-5 w-5" />
+                  <Send className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -295,7 +295,7 @@ export default function AIAssistant() {
           </Card>
 
           {/* Capabilities */}
-          <Card className="border-border mt-6">
+          <Card className="border-border mt-4">
             <CardHeader>
               <CardTitle className="text-lg">AI Capabilities</CardTitle>
             </CardHeader>

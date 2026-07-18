@@ -224,21 +224,23 @@ export default function Courses() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Courses</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
+          My Courses
+        </h1>
+        <p className="text-muted-foreground text-sm">
           View and manage all your courses throughout your academic journey.
         </p>
       </motion.div>
 
       {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           {
             label: "Total Courses",
@@ -264,14 +266,14 @@ export default function Courses() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="bg-card rounded-xl p-4 border border-border shadow-sm"
+            className="bg-card rounded-xl p-3 border border-border shadow-sm"
           >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+            <div className="flex items-center gap-2.5">
+              <div className={`p-1.5 rounded-lg ${stat.color}`}>
+                <stat.icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-xl font-bold text-foreground">
                   {loading ? "..." : stat.value}
                 </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -286,21 +288,21 @@ export default function Courses() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row gap-4"
+        className="flex flex-col sm:flex-row gap-3"
       >
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Search courses by name or code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 bg-card border-border"
+            className="pl-9 h-9 bg-card border-border"
           />
         </div>
         <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-          <SelectTrigger className="h-12 px-6 border-border sm:w-56 w-full">
-            <Filter className="h-5 w-5 mr-2 shrink-0" />
+          <SelectTrigger className="h-9 px-4 border-border sm:w-52 w-full">
+            <Filter className="h-4 w-4 mr-2 shrink-0" />
             <SelectValue placeholder="Filter by semester" />
           </SelectTrigger>
           <SelectContent>
@@ -320,7 +322,7 @@ export default function Courses() {
           tabs={tabs}
           activeTab={activeTab}
           onChange={setActiveTab}
-          className="max-w-md mb-6"
+          className="max-w-md mb-4"
           layoutId="courses-tab-indicator"
         />
 
@@ -346,11 +348,11 @@ export default function Courses() {
             </p>
           </motion.div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {coursesBySemester.map((group) => (
               <div key={group.semester}>
-                <div className="flex items-center gap-3 mb-4">
-                  <h3 className="text-lg font-semibold text-foreground">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <h3 className="text-base font-semibold text-foreground">
                     Semester {group.semester}
                   </h3>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
@@ -358,7 +360,7 @@ export default function Courses() {
                     {group.courses.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {group.courses.map((course) => (
                     <CourseCard
                       key={course.id}

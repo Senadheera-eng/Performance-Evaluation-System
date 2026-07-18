@@ -251,46 +251,48 @@ export default function Profile() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">My Profile</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
+          My Profile
+        </h1>
+        <p className="text-muted-foreground text-sm">
           View your academic profile and progress.
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left Column */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-4">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
             <Card className="border-border">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex flex-col items-center text-center">
                   {/* Avatar with upload overlay */}
                   <div
-                    className="relative group cursor-pointer mb-4"
+                    className="relative group cursor-pointer mb-3"
                     onClick={() => fileInputRef.current?.click()}
                     title="Click to change profile picture"
                   >
-                    <Avatar className="w-24 h-24">
+                    <Avatar className="w-20 h-20">
                       {avatarUrl ? (
                         <img
                           src={avatarUrl}
                           alt="Profile"
-                          className="w-24 h-24 rounded-full object-cover"
+                          className="w-20 h-20 rounded-full object-cover"
                         />
                       ) : (
                         <AvatarFallback
-                          className="text-white text-3xl font-bold w-24 h-24"
+                          className="text-white text-2xl font-bold w-20 h-20"
                           style={{
                             background:
                               "linear-gradient(135deg, #C41E3A, #6D28D9)",
@@ -325,7 +327,7 @@ export default function Profile() {
                     onChange={handleAvatarUpload}
                   />
 
-                  <h2 className="text-2xl font-bold text-foreground mb-1">
+                  <h2 className="text-xl font-bold text-foreground mb-1">
                     {student?.name ?? "—"}
                   </h2>
                   <p className="text-sm text-muted-foreground mb-0.5">
@@ -334,11 +336,11 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground mb-2">
                     {student?.reg_number ? `EN${student.reg_number}` : "—"}
                   </p>
-                  <Badge className="bg-primary/10 text-primary border-primary/20 mb-6">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
                     {yearLabel}
                   </Badge>
 
-                  <div className="w-full space-y-3 pt-4 border-t border-border">
+                  <div className="w-full space-y-2.5 pt-3 border-t border-border">
                     <div className="flex items-center gap-3 text-sm">
                       <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-foreground truncate">
@@ -419,7 +421,7 @@ export default function Profile() {
         </div>
 
         {/* Right Column */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Academic Information */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -431,8 +433,8 @@ export default function Profile() {
                 <CardTitle>Academic Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">
                         Degree Program
@@ -456,7 +458,7 @@ export default function Profile() {
                       <p className="font-medium text-foreground">{yearLabel}</p>
                     </div>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">
                         Index Number

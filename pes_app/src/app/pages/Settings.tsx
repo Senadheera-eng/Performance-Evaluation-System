@@ -74,36 +74,36 @@ export default function Settings() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">Settings</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
+        <p className="text-muted-foreground text-sm">
           Manage your account preferences and application settings.
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Settings Navigation */}
         <div className="lg:col-span-1">
           <Card className="border-border">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <nav className="space-y-1">
                 {settings.map((item) => (
                   <button
                     key={item.label}
                     onClick={() => setActiveTab(item.label)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       activeTab === item.label
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }`}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-4 w-4" />
                     {item.label}
                   </button>
                 ))}
@@ -113,7 +113,7 @@ export default function Settings() {
         </div>
 
         {/* Settings Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-4">
           {/* Account Settings */}
           {activeTab === "Account" && (
             <motion.div
@@ -125,7 +125,7 @@ export default function Settings() {
                 <CardHeader>
                   <CardTitle>Account Settings</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="email">Email Address</Label>
@@ -180,7 +180,7 @@ export default function Settings() {
                     Notification Preferences
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
@@ -251,47 +251,47 @@ export default function Settings() {
                     Appearance
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div>
-                      <Label className="mb-3 block">Theme</Label>
-                      <div className="grid grid-cols-3 gap-4">
+                      <Label className="mb-2 block">Theme</Label>
+                      <div className="grid grid-cols-3 gap-3">
                         <button
                           onClick={() => setTheme("light")}
-                          className={`p-4 rounded-xl border-2 transition-colors ${
+                          className={`p-3 rounded-xl border-2 transition-colors ${
                             theme === "light"
                               ? "border-primary bg-primary/5"
                               : "border-border hover:border-primary/50"
                           }`}
                         >
                           <Sun
-                            className={`h-6 w-6 mx-auto mb-2 ${theme === "light" ? "text-primary" : "text-muted-foreground"}`}
+                            className={`h-5 w-5 mx-auto mb-1.5 ${theme === "light" ? "text-primary" : "text-muted-foreground"}`}
                           />
                           <p className="text-sm font-medium">Light</p>
                         </button>
                         <button
                           onClick={() => setTheme("dark")}
-                          className={`p-4 rounded-xl border-2 transition-colors ${
+                          className={`p-3 rounded-xl border-2 transition-colors ${
                             theme === "dark"
                               ? "border-primary bg-primary/5"
                               : "border-border hover:border-primary/50"
                           }`}
                         >
                           <Moon
-                            className={`h-6 w-6 mx-auto mb-2 ${theme === "dark" ? "text-primary" : "text-muted-foreground"}`}
+                            className={`h-5 w-5 mx-auto mb-1.5 ${theme === "dark" ? "text-primary" : "text-muted-foreground"}`}
                           />
                           <p className="text-sm font-medium">Dark</p>
                         </button>
                         <button
                           onClick={() => setTheme("auto")}
-                          className={`p-4 rounded-xl border-2 transition-colors ${
+                          className={`p-3 rounded-xl border-2 transition-colors ${
                             theme === "auto"
                               ? "border-primary bg-primary/5"
                               : "border-border hover:border-primary/50"
                           }`}
                         >
                           <div
-                            className={`h-6 w-6 mx-auto mb-2 rounded-full bg-gradient-to-r from-yellow-400 to-blue-600 ${theme === "auto" ? "" : "opacity-75"}`}
+                            className={`h-5 w-5 mx-auto mb-1.5 rounded-full bg-gradient-to-r from-yellow-400 to-blue-600 ${theme === "auto" ? "" : "opacity-75"}`}
                           />
                           <p className="text-sm font-medium">Auto</p>
                         </button>
@@ -332,7 +332,7 @@ export default function Settings() {
                     Privacy & Security
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
@@ -392,7 +392,7 @@ export default function Settings() {
                     Language & Region
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="language">Language</Label>

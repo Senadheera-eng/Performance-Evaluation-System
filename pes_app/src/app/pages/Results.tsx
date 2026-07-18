@@ -369,7 +369,7 @@ export default function Results() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -378,10 +378,10 @@ export default function Results() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-2xl font-bold text-foreground mb-1">
               Academic Results
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               View your semester-wise results and overall academic performance.
             </p>
           </div>
@@ -397,7 +397,7 @@ export default function Results() {
       </motion.div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -405,13 +405,13 @@ export default function Results() {
         >
           <Card className="border-border relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
-            <CardContent className="p-6 relative">
+            <CardContent className="p-4 relative">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Current CGPA
                   </p>
-                  <h3 className="text-5xl font-bold text-primary mb-2">
+                  <h3 className="text-3xl font-bold text-primary mb-1.5">
                     {loading ? "..." : cgpa.toFixed(2)}
                   </h3>
                   {cgpaChange !== null && (
@@ -434,8 +434,8 @@ export default function Results() {
                     </div>
                   )}
                 </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <Award className="h-6 w-6 text-primary" />
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <Award className="h-5 w-5 text-primary" />
                 </div>
               </div>
             </CardContent>
@@ -448,21 +448,21 @@ export default function Results() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Credits Earned
                   </p>
-                  <h3 className="text-5xl font-bold text-foreground mb-2">
+                  <h3 className="text-3xl font-bold text-foreground mb-1.5">
                     {loading ? "..." : totalCredits}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     Contributing to GPA
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-100">
-                  <FileText className="h-6 w-6 text-blue-600" />
+                <div className="p-2 rounded-xl bg-blue-100">
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -475,21 +475,21 @@ export default function Results() {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Courses Completed
                   </p>
-                  <h3 className="text-5xl font-bold text-foreground mb-2">
+                  <h3 className="text-3xl font-bold text-foreground mb-1.5">
                     {loading ? "..." : completedCourses}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     Across {semesters.length} semesters
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-green-100">
-                  <Award className="h-6 w-6 text-green-600" />
+                <div className="p-2 rounded-xl bg-green-100">
+                  <Award className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -509,7 +509,7 @@ export default function Results() {
               <CardTitle>GPA Trend Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={gpaChart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis dataKey="semester" stroke="#6b7280" />
@@ -540,7 +540,7 @@ export default function Results() {
             </CardHeader>
             <CardContent>
               {radarData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={240}>
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="#e5e7eb" />
                     <PolarAngleAxis dataKey="subject" stroke="#6b7280" />
@@ -613,15 +613,15 @@ export default function Results() {
                   }))}
                   activeTab={activeSemesterTab}
                   onChange={setActiveSemesterTab}
-                  className="mb-6 flex-wrap h-auto"
+                  className="mb-4 flex-wrap h-auto"
                   layoutId="results-semester-tab-indicator"
                 />
 
                 {semesters.map((sem) => (
                   <TabsContent key={sem.semesterKey} value={sem.semesterKey}>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Semester Summary */}
-                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-foreground">
@@ -639,7 +639,7 @@ export default function Results() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <div className="text-3xl font-bold text-primary">
+                          <div className="text-2xl font-bold text-primary">
                             {sem.sgpa.toFixed(2)}
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -713,28 +713,28 @@ export default function Results() {
                       </div>
 
                       {/* Semester Stats */}
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 bg-muted/30 rounded-lg text-center">
                           <p className="text-sm text-muted-foreground mb-1">
                             GPA Credits
                           </p>
-                          <p className="text-2xl font-bold text-foreground">
+                          <p className="text-xl font-bold text-foreground">
                             {sem.totalCredits}
                           </p>
                         </div>
-                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                        <div className="p-3 bg-muted/30 rounded-lg text-center">
                           <p className="text-sm text-muted-foreground mb-1">
                             Semester GPA
                           </p>
-                          <p className="text-2xl font-bold text-primary">
+                          <p className="text-xl font-bold text-primary">
                             {sem.sgpa.toFixed(2)}
                           </p>
                         </div>
-                        <div className="p-4 bg-muted/30 rounded-lg text-center">
+                        <div className="p-3 bg-muted/30 rounded-lg text-center">
                           <p className="text-sm text-muted-foreground mb-1">
                             Courses
                           </p>
-                          <p className="text-2xl font-bold text-foreground">
+                          <p className="text-xl font-bold text-foreground">
                             {sem.courses.length}
                           </p>
                         </div>

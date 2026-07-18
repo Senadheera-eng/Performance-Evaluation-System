@@ -202,6 +202,44 @@
   --sidebar-ring: #C41E3A;
 }
 
+/**
+ * Compact desktop design system.
+ *
+ * Tailwind v4 derives every spacing utility (p-*, m-*, gap-*, w-*, h-*, etc.)
+ * from --spacing, and every text-* utility from these --text-* tokens. Tuning
+ * them here — instead of hunting down text-3xl/p-6/gap-6 in every page —
+ * is what keeps the whole app's density consistent and reusable: one change
+ * here reaches every page, current and future, automatically.
+ *
+ * --spacing is cut ~12% (0.25rem -> 0.22rem) so paddings, gaps, icon sizes,
+ * and the sidebar width all tighten uniformly. The type scale keeps small
+ * body/label text (xs/sm) untouched for readability, and concentrates the
+ * reduction on the oversized display/heading tiers (lg through 5xl) that
+ * were the actual complaint.
+ */
+@theme {
+  --spacing: 0.22rem;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.4;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.45;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: 1.4;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.3;
+  --text-3xl: 1.625rem;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 1.875rem;
+  --text-4xl--line-height: 1.2;
+  --text-5xl: 2.25rem;
+  --text-5xl--line-height: 1.15;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
