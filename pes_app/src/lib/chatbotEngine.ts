@@ -60,6 +60,8 @@ type Intent =
   | "current_standing"
   | "upcoming_courses"
   | "course_info"
+  | "semester_results"
+  | "course_results"
   | "greeting"
   | "help"
   | "unknown";
@@ -107,6 +109,21 @@ async function classifyIntent(message: string): Promise<Intent> {
   );
   if (asksHowCalculated) {
     return "unknown";
+  }
+
+  // Personal results/grades ("my results", "what did I get in CO3554", "show
+  // my semester 5 results", "how did I do this semester") are an unambiguous
+  // personal-data request — this is exactly the class of question that used
+  // to have no matching intent at all and fell through to the handbook
+  // vector search, which is how "results for sem 5" ended up returning a
+  // Semester 7 handbook excerpt instead of real result data. Deterministic,
+  // not left to embedding similarity, so it can never be silently dropped or
+  // confused with a course-info / handbook question.
+  const asksAboutOwnPerformance =
+    (/\b(results?|grades?|marks?|scores?)\b/.test(text) && /\b(my|i|me)\b/.test(text)) ||
+    /\bhow (did|have) i (do|done|perform)/.test(text);
+  if (asksAboutOwnPerformance) {
+    return extractCourseCode(text) ? "course_results" : "semester_results";
   }
 
   // A specific semester number ("sem 5", "semester 7") paired with course-list
@@ -165,6 +182,15 @@ function extractRequestedSemester(message: string): number | null {
   if (!match) return null;
   const n = parseInt(match[1], 10);
   return n >= 1 && n <= 8 ? n : null;
+}
+
+// Matches course codes like "CO3554", "IS4161", "EE4301" — 2-4 letters
+// directly followed by 3-4 digits, no space. Used to tell "what did I get in
+// CO3554" (a single-course result lookup) apart from "show my results" (a
+// semester/overall results lookup).
+function extractCourseCode(message: string): string | null {
+  const match = message.match(/\b[a-z]{2,4}\d{3,4}\b/i);
+  return match ? match[0].toUpperCase() : null;
 }
 
 function wantsCreditTotalOnly(message: string): boolean {
@@ -329,6 +355,93 @@ async function handleUpcomingCourses(message: string): Promise<string> {
   return `${heading}\n\n${lines}`;
 }
 
+/**
+ * Personal results — "show my results", "what were my semester 5 grades",
+ * "how did I do this semester". Always resolves to the logged-in student via
+ * auth.uid() inside the RPC (never a client-supplied student id), and only
+ * ever returns rows for that student's own semester — this is the fix for
+ * the bug where a results question fell through to the handbook and
+ * returned an unrelated semester's course table instead.
+ */
+async function handleSemesterResults(message: string): Promise<string> {
+  const requestedSemester = extractRequestedSemester(message);
+
+  const { data, error } = await supabase.rpc("get_student_results", {
+    p_semester: requestedSemester,
+  });
+  if (error) return `Couldn't pull up your results just now (${error.message}) — try again?`;
+  if (data.error) return data.error;
+
+  const results: any[] = data.results ?? [];
+
+  // Retrieval validation: every row must actually belong to the semester
+  // that was asked for. The RPC already filters this server-side, so this
+  // is a defensive double-check, not the primary guard — but it means a
+  // future RPC bug fails loudly instead of silently showing wrong data.
+  if (
+    requestedSemester !== null &&
+    results.some((r) => r.semester !== requestedSemester)
+  ) {
+    return `Something went wrong matching your results to Semester ${requestedSemester} — please try again, and mention this if it keeps happening.`;
+  }
+
+  if (results.length === 0) {
+    return requestedSemester !== null
+      ? `I couldn't find any Semester ${requestedSemester} results on your student account — they may not have been uploaded or published yet.`
+      : "I couldn't find any published results on your student account yet.";
+  }
+
+  const heading = requestedSemester !== null
+    ? `### Your Semester ${requestedSemester} Results`
+    : "### Your Results";
+
+  const tableHeader = "| Course | Title | Credits | Grade |\n|---|---|---|---|";
+  const rows = results
+    .map((r) => `| ${r.course_code} | ${r.title} | ${r.credits} | ${r.grade ?? "—"} |`)
+    .join("\n");
+
+  const gpaLine =
+    data.gpa != null
+      ? `\n\n**${requestedSemester !== null ? "Semester GPA" : "GPA (shown results)"}:** ${data.gpa} · **GPA-eligible credits:** ${data.gpa_credits}`
+      : "";
+
+  return `${heading}\n\n${tableHeader}\n${rows}${gpaLine}`;
+}
+
+/** A single course's grade — "what did I get in CO3554", "my result for Data Management Project". */
+async function handleCourseResults(message: string): Promise<string> {
+  const searchTerm = extractCourseCode(message) ?? extractCourseSearchTerm(message);
+  if (!searchTerm) {
+    return 'Sure — which course\'s result did you want? Something like "What grade did I get for CO3554?" works.';
+  }
+
+  const { data, error } = await supabase.rpc("get_student_course_result", {
+    p_search: searchTerm,
+  });
+  if (error) return `Couldn't look that up just now (${error.message}) — try again?`;
+
+  const matches: any[] = data.results ?? [];
+  if (matches.length === 0) {
+    return `I couldn't find a result for "${searchTerm}" on your student account — you may not be enrolled in it, or it hasn't been graded yet.`;
+  }
+
+  if (matches.length === 1) {
+    const r = matches[0];
+    if (!r.is_published) {
+      return `Your result for **${r.course_code} — ${r.title}** hasn't been published yet.`;
+    }
+    return `**${r.course_code} — ${r.title}** (Semester ${r.semester}, ${r.credits} credits): you got **${r.grade}**.`;
+  }
+
+  const lines = matches
+    .map(
+      (r) =>
+        `- ${r.course_code} — ${r.title} (Sem ${r.semester}): ${r.is_published ? `**${r.grade}**` : "not yet published"}`,
+    )
+    .join("\n");
+  return `A few of your results matched "${searchTerm}":\n\n${lines}`;
+}
+
 async function handleCourseInfo(
   message: string,
   history: ChatHistoryItem[],
@@ -379,10 +492,10 @@ const GREETING_REPLY =
   "Hey! I can help with your GPA/CGPA targets, your current standing, upcoming courses, and specific module info. Try something like \"What GPA do I need for First Class?\" or \"What are my next semester courses?\"";
 
 const HELP_REPLY =
-  "Here's what I'm good for right now:\n\n- GPA/CGPA planning — \"I want a 3.5 GPA, how should I perform?\"\n- Your current standing — \"What's my CGPA?\"\n- Upcoming courses — \"What subjects do I have next semester?\"\n- Course lookups — \"Tell me about Mathematics V\"\n\nEverything I tell you comes straight from your real academic records, so the numbers are always accurate — I won't guess.";
+  "Here's what I'm good for right now:\n\n- GPA/CGPA planning — \"I want a 3.5 GPA, how should I perform?\"\n- Your current standing — \"What's my CGPA?\"\n- Upcoming courses — \"What subjects do I have next semester?\"\n- Course lookups — \"Tell me about Mathematics V\"\n- Your results — \"Show my Semester 5 results\" or \"What did I get in CO3554?\"\n\nEverything I tell you comes straight from your real academic records, so the numbers are always accurate — I won't guess.";
 
 const UNKNOWN_REPLY =
-  "I didn't quite catch what you're looking for. Right now I can help with your GPA/CGPA targets, your current standing, upcoming courses, course lookups, and general Faculty Handbook questions — try rephrasing, or ask \"what can you do\" for examples.";
+  "I didn't quite catch what you're looking for. Right now I can help with your GPA/CGPA targets, your current standing, upcoming courses, your results, course lookups, and general Faculty Handbook questions — try rephrasing, or ask \"what can you do\" for examples.";
 
 // Below this similarity, the best handbook match isn't a real answer to the
 // question — better to admit we don't know than to return a loosely-related
@@ -464,6 +577,10 @@ export async function getAssistantReply(
       return handleCurrentStanding();
     case "upcoming_courses":
       return handleUpcomingCourses(message);
+    case "semester_results":
+      return handleSemesterResults(message);
+    case "course_results":
+      return handleCourseResults(message);
     case "course_info":
       return handleCourseInfo(message, history);
     case "greeting":

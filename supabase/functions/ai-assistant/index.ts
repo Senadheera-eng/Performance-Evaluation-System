@@ -83,7 +83,7 @@ const TOOLS = [
       {
         name: "get_course_info",
         description:
-          "Look up a specific course/module by name or course code (fuzzy matched). Use this whenever the question is about a specific course's credits, category, or which semester it's offered.",
+          "Look up a specific course/module's catalog details — credits, category, which semester it's offered. This is curriculum metadata, NOT the student's own grade. Use get_student_course_result instead if the student is asking what THEY got in a course.",
         parameters: {
           type: "OBJECT",
           properties: {
@@ -91,6 +91,32 @@ const TOOLS = [
               type: "STRING",
               description: "Course name, partial title, or course code",
             },
+          },
+          required: ["p_search"],
+        },
+      },
+      {
+        name: "get_student_results",
+        description:
+          "Get the calling student's REAL published results (course code, title, credits, grade) and GPA. Pass p_semester to filter to one semester (1-8); omit it to get every published result across all semesters. This is the ONLY correct source for 'my results' / 'my grades' questions — never use search_handbook or get_courses_by_semester for this, those return curriculum data, not the student's actual grades.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            p_semester: {
+              type: "NUMBER",
+              description: "Optional. Semester number 1-8 to filter to. Omit for all semesters.",
+            },
+          },
+        },
+      },
+      {
+        name: "get_student_course_result",
+        description:
+          "Get the calling student's REAL grade for one specific course, by course code or name (e.g. 'CO3554' or 'Data Management'). Use this when the student asks what grade/mark they got in a named course.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            p_search: { type: "STRING", description: "Course code or name" },
           },
           required: ["p_search"],
         },
@@ -119,6 +145,7 @@ STRICT RULES — these override any instinct to be more "helpful":
 - If a tool returns an error or no data, say so plainly rather than guessing or making up a plausible-sounding answer.
 - When you use search_handbook, cite the section name and page number from the result in your answer. If your first search finds nothing, try again with different/simpler keywords before concluding there's no answer.
 - If none of your tools return anything relevant to the question after reasonable attempts, say plainly that you don't have enough information, and suggest the student check with their department — do not fabricate an answer.
+- For personal data (results, grades, GPA, attendance, enrollment), use ONLY get_student_results / get_student_course_result / get_academic_standing / calculate_gpa_target — NEVER search_handbook or get_courses_by_semester, which are curriculum/policy documents, not the student's actual records. If get_student_results returns no rows for a requested semester, say plainly that no results were found for that semester — do not substitute results from a different semester, and do not describe that semester's curriculum from the handbook as if it were an answer to a results question.
 - Keep answers concise and conversational, like a knowledgeable senior student texting back — not a formal report.
 - If the student sends a greeting or casual small talk (hi, hello, good morning, thanks, how's it going, etc.) with no real question attached, do NOT call any tools and do NOT dump your full capability list — just reply briefly and warmly in 1-2 sentences, vary your wording instead of reusing the same greeting every time, use their first name if you know it, and naturally invite them to ask about their studies. Pick up any earlier conversation naturally rather than treating each message as the first one.
 - Format your answers in markdown when it aids readability: short paragraphs, headings for distinct sections, bullet or numbered lists for steps or grouped facts, and **bold** for key numbers or terms. Don't over-format a one-line answer or a greeting.`;
@@ -244,6 +271,18 @@ Deno.serve(async (req: Request) => {
       }
       case "get_course_info": {
         const { data, error } = await userClient.rpc("get_course_info", {
+          p_search: args.p_search,
+        });
+        return error ? { error: error.message } : data;
+      }
+      case "get_student_results": {
+        const { data, error } = await userClient.rpc("get_student_results", {
+          p_semester: args.p_semester ?? null,
+        });
+        return error ? { error: error.message } : data;
+      }
+      case "get_student_course_result": {
+        const { data, error } = await userClient.rpc("get_student_course_result", {
           p_search: args.p_search,
         });
         return error ? { error: error.message } : data;
