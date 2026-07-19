@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { embedText } from "./embedder";
 
 /**
  * Local (in-browser) semantic search over the Faculty Handbook 2026.
@@ -11,8 +12,6 @@ import { supabase } from "./supabase";
  * user's question.
  */
 
-const MODEL_NAME = "Xenova/all-MiniLM-L6-v2";
-
 export interface HandbookMatch {
   id: string;
   content: string;
@@ -22,23 +21,8 @@ export interface HandbookMatch {
   similarity: number;
 }
 
-// Lazily import + instantiate the pipeline once per session and reuse it —
-// loading the model on every question would re-download/re-init needlessly.
-let embedderPromise: Promise<any> | null = null;
-
-function getEmbedder() {
-  if (!embedderPromise) {
-    embedderPromise = import("@huggingface/transformers").then(({ pipeline }) =>
-      pipeline("feature-extraction", MODEL_NAME),
-    );
-  }
-  return embedderPromise;
-}
-
 export async function embedQuery(text: string): Promise<number[]> {
-  const embed = await getEmbedder();
-  const result = await embed(text, { pooling: "mean", normalize: true });
-  return Array.from(result.data as Float32Array);
+  return embedText(text);
 }
 
 export async function searchHandbook(

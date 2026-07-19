@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { searchHandbook } from "./ragRetrieval";
+import { classifyIntentSemantic } from "./intentClassifier";
 
 /**
  * Rule-based NLU engine for the PES AI Assistant.
@@ -8,11 +9,13 @@ import { searchHandbook } from "./ragRetrieval";
  * Postgres RPC function (the same ones the Graduation Planner and Enrollment
  * pages use), so answers are always backed by real data — never guessed.
  *
- * Robustness to typos/phrasing comes from fuzzy keyword matching plus a
- * PRIORITY-ORDERED classifier (checked most-specific-first), rather than raw
- * keyword-count scoring — that's what fixes "what's my current CGPA?" being
- * misread as a GPA *target* question just because "gpa" fuzzy-matches inside
- * "cgpa".
+ * Intent classification is semantic (embedding nearest-neighbor against
+ * canonical example phrasings — see intentClassifier.ts), not keyword
+ * matching, except for two cases precise enough that semantic matching adds
+ * nothing: a short pure greeting, and an explicit GPA number/classification
+ * name. Slot extraction (pulling the actual number, course code, or search
+ * term out of the message) still uses plain regex below — that part was
+ * never the brittle part, classification was.
  */
 
 // ---------- Fuzzy matching helpers ----------
@@ -47,11 +50,7 @@ function fuzzyContains(text: string, keyword: string): boolean {
     .some((word) => levenshtein(word, keyword) <= maxDist);
 }
 
-function anyMatch(text: string, keywords: string[]): boolean {
-  return keywords.some((kw) => fuzzyContains(text, kw));
-}
-
-// ---------- Intent classification (priority order, not pure scoring) ----------
+// ---------- Intent classification ----------
 
 type Intent =
   | "gpa_target"
@@ -62,11 +61,12 @@ type Intent =
   | "help"
   | "unknown";
 
-function classifyIntent(message: string): Intent {
+async function classifyIntent(message: string): Promise<Intent> {
   const text = message.toLowerCase().trim();
 
   // Greetings: only when the message IS essentially just a greeting (short,
-  // no other question content) — not merely "hi" followed by a real question.
+  // no other question content) — not merely "hi" followed by a real
+  // question. Fast, deterministic, no reason to spend an embedding on it.
   const wordCount = text.split(/\s+/).length;
   const isPureGreeting =
     wordCount <= 4 &&
@@ -76,12 +76,11 @@ function classifyIntent(message: string): Intent {
   if (isPureGreeting) {
     return "greeting";
   }
-  if (anyMatch(text, ["what can you do", "what do you do", "capabilities", "help me", "how do you work"])) {
-    return "help";
-  }
 
-  // --- GPA TARGET: only when there's a genuine forward-looking signal ---
-  // (an explicit number, a classification name, or "how should I perform" style phrasing)
+  // Explicit GPA-target signals — a literal number ("3.5") or an exact
+  // classification name ("first class") — are unambiguous enough that
+  // semantic matching adds nothing, so these are checked directly rather
+  // than routed through the classifier below.
   const hasNumber = /\b[0-4]\.\d{1,2}\b/.test(text);
   const hasClassificationWord =
     fuzzyContains(text, "first class") ||
@@ -90,114 +89,30 @@ function classifyIntent(message: string): Intent {
     text.includes("lower division") ||
     text.includes("second upper") ||
     text.includes("second lower");
-  const hasForwardPhrase = anyMatch(text, [
-    "how should i perform",
-    "how do i graduate",
-    "graduate with",
-    "graduation gpa",
-    "i want a",
-    "i want to get",
-    "i need to score",
-    "aim for",
-    "target",
-    "what do i need",
-    "what should i score",
-    "what should i get",
-  ]);
-
-  if (hasNumber || hasClassificationWord || hasForwardPhrase) {
+  if (hasNumber || hasClassificationWord) {
     return "gpa_target";
   }
 
-  // "How is GPA calculated" / "how do I calculate my GPA" asks for the
-  // formula, not the caller's personal number — despite containing "my
-  // gpa", it should NOT match the current-standing checks below. Checked
-  // once here so it can gate both the early and the bare-fallback match.
-  const asksHowCalculated = anyMatch(text, [
-    "how is gpa calculated",
-    "how is cgpa calculated",
-    "how do i calculate",
-    "how to calculate",
-    "gpa formula",
-    "how does gpa work",
-    "how gpa is calculated",
-    "how gpa works",
-  ]);
-
-  // --- CURRENT STANDING: asking about right now, not a future goal ---
-  // Deliberately checked BEFORE any generic "gpa"/"cgpa" catch-all, since
-  // "current", "my", "so far" are strong signals this is about today.
-  if (
-    !asksHowCalculated &&
-    anyMatch(text, [
-      "current cgpa",
-      "current gpa",
-      "my cgpa",
-      "my gpa",
-      "how am i doing",
-      "my progress",
-      "so far",
-      "credits completed",
-      "credits remaining",
-      "my classification",
-      "current standing",
-      "my standing",
-    ])
-  ) {
-    return "current_standing";
+  // "How is GPA calculated" asks for the formula, not the caller's personal
+  // number — but it semantically resembles "what's my current GPA" closely
+  // enough (both mention "my gpa") that the embedding classifier pulls it
+  // toward current_standing. Precise enough to check directly: route straight
+  // to "unknown", which falls through to the handbook fallback and correctly
+  // returns the actual formula instead of a number that wasn't asked for.
+  const asksHowCalculated = /\bhow (is|do i|does|to) (gpa|cgpa)?\s*(calculat|comput|work)/.test(
+    text,
+  );
+  if (asksHowCalculated) {
+    return "unknown";
   }
 
-  // --- UPCOMING COURSES ---
-  if (
-    anyMatch(text, [
-      "next semester",
-      "next sem",
-      "upcoming course",
-      "upcoming subject",
-      "coming semester",
-      "what subjects",
-      "what subjets", // common typo, kept explicit since edit-distance to "subjects" is >2
-      "what courses",
-      "which courses",
-      "which subjects",
-      "modules next",
-      "subjects next",
-      "credits in next",
-      "credits next semester",
-    ])
-  ) {
-    return "upcoming_courses";
-  }
-
-  // --- COURSE INFO LOOKUP ---
-  if (
-    anyMatch(text, [
-      "tell me about",
-      "what is",
-      "info about",
-      "information about",
-      "details about",
-      "about the module",
-      "about the course",
-    ])
-  ) {
-    return "course_info";
-  }
-
-  // Fallback: a bare "gpa"/"cgpa" mention with none of the above signals —
-  // treat as a current-standing question, since that's the more common intent
-  // for an unqualified "what's my gpa" style message. Formula/how-to questions
-  // fall through to "unknown" instead, where the handbook fallback answers
-  // them correctly (the actual GPA formula, not the caller's personal number).
-  if (!asksHowCalculated && anyMatch(text, ["gpa", "cgpa", "grade point"])) {
-    return "current_standing";
-  }
-
-  if (anyMatch(text, ["module", "course", "subject"])) {
-    return "course_info";
-  }
-
-  return "unknown";
+  // Everything else: semantic nearest-neighbor classification against
+  // canonical example phrasings (intentClassifier.ts) rather than a
+  // hand-written keyword cascade — this is what actually generalizes to
+  // real student phrasing instead of needing a new keyword patched in for
+  // every variant someone happens to type.
+  const { intent } = await classifyIntentSemantic(message);
+  return intent;
 }
 
 // ---------- Slot extraction ----------
@@ -458,7 +373,7 @@ async function handleHandbookFallback(message: string): Promise<string> {
 
 /** Main entry point — classify the message and return a real, data-backed reply. */
 export async function getAssistantReply(message: string): Promise<string> {
-  const intent = classifyIntent(message);
+  const intent = await classifyIntent(message);
 
   switch (intent) {
     case "gpa_target":
