@@ -20,13 +20,19 @@ export default defineConfig({
     },
   },
 
-  // transformers.js (local in-browser embeddings for chatbot RAG) ships its
-  // own WASM/worker loading that Vite's dependency pre-bundler mishandles —
-  // exclude it so it's loaded as-is at runtime instead.
+  // transformers.js (local in-browser embeddings for chatbot RAG) bundles
+  // onnxruntime-web, whose webpack-built WASM loader breaks under Vite's
+  // default dep pre-bundling and worker format — excluding it from the
+  // optimizer alone isn't enough; the worker format must also be set to
+  // 'es' or onnxruntime-web throws "Cannot read properties of undefined
+  // (reading 'registerBackend')" at load time.
   optimizeDeps: {
-    exclude: ['@xenova/transformers'],
+    exclude: ['@huggingface/transformers'],
+  },
+  worker: {
+    format: 'es',
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
-  assetsInclude: ['**/*.svg', '**/*.csv', '**/*.jpg', '**/*.jpeg', '**/*.png', '**/*.gif', '**/*.webp'],
+  assetsInclude: ['**/*.svg', '**/*.csv', '**/*.jpg', '**/*.jpeg', '**/*.png', '**/*.gif', '**/*.webp', '**/*.onnx'],
 })

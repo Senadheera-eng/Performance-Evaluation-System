@@ -109,10 +109,26 @@ function classifyIntent(message: string): Intent {
     return "gpa_target";
   }
 
+  // "How is GPA calculated" / "how do I calculate my GPA" asks for the
+  // formula, not the caller's personal number — despite containing "my
+  // gpa", it should NOT match the current-standing checks below. Checked
+  // once here so it can gate both the early and the bare-fallback match.
+  const asksHowCalculated = anyMatch(text, [
+    "how is gpa calculated",
+    "how is cgpa calculated",
+    "how do i calculate",
+    "how to calculate",
+    "gpa formula",
+    "how does gpa work",
+    "how gpa is calculated",
+    "how gpa works",
+  ]);
+
   // --- CURRENT STANDING: asking about right now, not a future goal ---
   // Deliberately checked BEFORE any generic "gpa"/"cgpa" catch-all, since
   // "current", "my", "so far" are strong signals this is about today.
   if (
+    !asksHowCalculated &&
     anyMatch(text, [
       "current cgpa",
       "current gpa",
@@ -170,8 +186,10 @@ function classifyIntent(message: string): Intent {
 
   // Fallback: a bare "gpa"/"cgpa" mention with none of the above signals —
   // treat as a current-standing question, since that's the more common intent
-  // for an unqualified "what's my gpa" style message.
-  if (anyMatch(text, ["gpa", "cgpa", "grade point"])) {
+  // for an unqualified "what's my gpa" style message. Formula/how-to questions
+  // fall through to "unknown" instead, where the handbook fallback answers
+  // them correctly (the actual GPA formula, not the caller's personal number).
+  if (!asksHowCalculated && anyMatch(text, ["gpa", "cgpa", "grade point"])) {
     return "current_standing";
   }
 
@@ -263,10 +281,20 @@ function normalizeSearchWords(term: string): string {
     .join(" ");
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function extractCourseSearchTerm(message: string): string {
   let cleaned = message.toLowerCase();
   for (const phrase of COURSE_INFO_STRIP_PHRASES) {
-    cleaned = cleaned.replace(phrase, " ");
+    // Word-boundary + global match: a literal (non-boundary) replace here
+    // would strip "module" out of "modules" and leave a stray "s" behind,
+    // and only remove the first occurrence of each phrase.
+    const pattern = /^[a-z ']+$/.test(phrase)
+      ? new RegExp(`\\b${escapeRegExp(phrase)}\\b`, "g")
+      : new RegExp(escapeRegExp(phrase), "g");
+    cleaned = cleaned.replace(pattern, " ");
   }
   cleaned = cleaned.replace(/\s+/g, " ").trim();
   return normalizeSearchWords(cleaned);
@@ -354,6 +382,12 @@ async function handleCourseInfo(message: string): Promise<string> {
 
   const matches = data.matches ?? [];
   if (matches.length === 0) {
+    // Not every course-shaped question is a single-course lookup — "semester
+    // 7 modules" isn't a course title, but the handbook has real per-semester
+    // course listings that can answer it. Try that before giving up, using
+    // the original message (not the mangled single-course search term).
+    const handbookReply = await handleHandbookFallback(message);
+    if (handbookReply !== UNKNOWN_REPLY) return handbookReply;
     return `I couldn't find anything matching "${searchTerm}" — maybe try the exact course code, or a shorter piece of the title?`;
   }
 
@@ -416,10 +450,10 @@ async function handleHandbookFallback(message: string): Promise<string> {
 
   const top = matches[0];
   const citation = top.page
-    ? ` — Faculty Handbook 2026, p.${top.page}${top.section ? ` ("${top.section}")` : ""}`
-    : "";
+    ? `Faculty Handbook 2026, p.${top.page}${top.section ? ` ("${top.section}")` : ""}`
+    : "Faculty Handbook 2026";
 
-  return `From the Faculty Handbook: ${top.content}\n\n(Source:${citation || " Faculty Handbook 2026"}. If this doesn't fully answer your question, try rephrasing or check with your department.)`;
+  return `From the Faculty Handbook: ${top.content}\n\n(Source: ${citation}. If this doesn't fully answer your question, try rephrasing or check with your department.)`;
 }
 
 /** Main entry point — classify the message and return a real, data-backed reply. */

@@ -28,7 +28,7 @@ let embedderPromise: Promise<any> | null = null;
 
 function getEmbedder() {
   if (!embedderPromise) {
-    embedderPromise = import("@xenova/transformers").then(({ pipeline }) =>
+    embedderPromise = import("@huggingface/transformers").then(({ pipeline }) =>
       pipeline("feature-extraction", MODEL_NAME),
     );
   }

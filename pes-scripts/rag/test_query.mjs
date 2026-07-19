@@ -1,7 +1,7 @@
 // Embeds a test question exactly like the browser will and prints the
 // vector as a SQL-ready literal, so it can be passed straight into
 // search_handbook() for a real end-to-end quality check.
-import { pipeline } from "@xenova/transformers";
+import { pipeline } from "@huggingface/transformers";
 
 const question = process.argv[2];
 if (!question) {

@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { pipeline } from "@xenova/transformers";
+import { pipeline } from "@huggingface/transformers";
 
 // Sections that are low-value for an academic-policy/course chatbot (staff
 // directories, clubs/societies, front-matter, contact listings) — dropped
