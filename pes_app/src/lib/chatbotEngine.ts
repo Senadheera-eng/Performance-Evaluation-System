@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { searchHandbook } from "./ragRetrieval";
 import { classifyIntentSemantic } from "./intentClassifier";
+import { askLlmAssistant } from "./llmAssistant";
 
 /**
  * Rule-based NLU engine for the PES AI Assistant.
@@ -356,19 +357,28 @@ async function handleHandbookFallback(message: string): Promise<string> {
       minSimilarity: HANDBOOK_MIN_SIMILARITY,
     });
   } catch {
-    return UNKNOWN_REPLY;
+    matches = [];
   }
 
-  if (matches.length === 0) {
-    return UNKNOWN_REPLY;
+  if (matches.length > 0) {
+    const top = matches[0];
+    const citation = top.page
+      ? `Faculty Handbook 2026, p.${top.page}${top.section ? ` ("${top.section}")` : ""}`
+      : "Faculty Handbook 2026";
+
+    return `From the Faculty Handbook: ${top.content}\n\n(Source: ${citation}. If this doesn't fully answer your question, try rephrasing or check with your department.)`;
   }
 
-  const top = matches[0];
-  const citation = top.page
-    ? `Faculty Handbook 2026, p.${top.page}${top.section ? ` ("${top.section}")` : ""}`
-    : "Faculty Handbook 2026";
+  // Nothing in the free, fast paths answered this — escalate to the LLM
+  // tier (Gemini, tool-calling over the same RPCs + a handbook text search).
+  // It can reason across multiple lookups and retry its own search terms in
+  // a way the deterministic paths can't. If this also fails (quota
+  // exhausted, network error, or it genuinely found nothing), fall through
+  // to the same honest "I don't know" as before.
+  const llmReply = await askLlmAssistant(message);
+  if (llmReply) return llmReply;
 
-  return `From the Faculty Handbook: ${top.content}\n\n(Source: ${citation}. If this doesn't fully answer your question, try rephrasing or check with your department.)`;
+  return UNKNOWN_REPLY;
 }
 
 /** Main entry point — classify the message and return a real, data-backed reply. */
