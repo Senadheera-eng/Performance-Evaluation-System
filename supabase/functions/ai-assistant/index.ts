@@ -27,7 +27,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 // well before hitting that wall rather than letting one heavy user (or a
 // bug in a retry loop) exhaust everyone else's quota for the day.
 const DAILY_QUOTA = 1400;
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash";
 const MAX_TOOL_TURNS = 4;
 
 const CORS_HEADERS = {
@@ -98,13 +98,17 @@ const TOOLS = [
       {
         name: "get_student_results",
         description:
-          "Get the calling student's REAL published results (course code, title, credits, grade) and GPA. Pass p_semester to filter to one semester (1-8); omit it to get every published result across all semesters. This is the ONLY correct source for 'my results' / 'my grades' questions — never use search_handbook or get_courses_by_semester for this, those return curriculum data, not the student's actual grades.",
+          "Get the calling student's REAL published results (course code, title, credits, grade) and GPA. Pass p_semester to filter to one semester (1-8), p_course_search to filter to a specific course by code or name (e.g. 'CO3554' or 'Mathematics'), or both together (e.g. 'my semester 2 result for maths 2'). Omit both for every published result. This is the ONLY correct source for 'my results' / 'my grades' questions — never use search_handbook or get_courses_by_semester for this, those return curriculum data, not the student's actual grades.",
         parameters: {
           type: "OBJECT",
           properties: {
             p_semester: {
               type: "NUMBER",
               description: "Optional. Semester number 1-8 to filter to. Omit for all semesters.",
+            },
+            p_course_search: {
+              type: "STRING",
+              description: "Optional. Course code or name to filter to within the semester (or overall if p_semester is omitted).",
             },
           },
         },
@@ -278,6 +282,7 @@ Deno.serve(async (req: Request) => {
       case "get_student_results": {
         const { data, error } = await userClient.rpc("get_student_results", {
           p_semester: args.p_semester ?? null,
+          p_course_search: args.p_course_search ?? null,
         });
         return error ? { error: error.message } : data;
       }

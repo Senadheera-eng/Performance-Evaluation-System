@@ -112,15 +112,28 @@ async function classifyIntent(message: string): Promise<Intent> {
   }
 
   // Personal results/grades ("my results", "what did I get in CO3554", "show
-  // my semester 5 results", "how did I do this semester") are an unambiguous
-  // personal-data request — this is exactly the class of question that used
-  // to have no matching intent at all and fell through to the handbook
-  // vector search, which is how "results for sem 5" ended up returning a
-  // Semester 7 handbook excerpt instead of real result data. Deterministic,
-  // not left to embedding similarity, so it can never be silently dropped or
-  // confused with a course-info / handbook question.
+  // my semester 5 results", "how did I do this semester", "mathematics 2
+  // results") are an unambiguous personal-data request — this is exactly the
+  // class of question that used to have no matching intent at all and fell
+  // through to the handbook vector search, which is how "results for sem 5"
+  // ended up returning a Semester 7 handbook excerpt instead of real result
+  // data. Deterministic, not left to embedding similarity, so it can never
+  // be silently dropped or confused with a course-info / handbook question.
+  //
+  // A result word ("results"/"grade"/"mark"/"score") is the primary trigger.
+  // It doesn't need an explicit "my/I" alongside it — a terse label-style
+  // query like "mathematics 2 results" or "CO3554 grade" has no pronoun at
+  // all but is unambiguously personal in this app. The one case that DOES
+  // need gating is a genuine policy question about the same words ("what's
+  // the passing mark", "how are grades calculated") — those are phrased as
+  // questions (what/how/...), so requiring the absence of a question word
+  // (unless a pronoun is also present) separates "CO3554 grade" from "what's
+  // the passing mark" without needing the pronoun as a hard requirement.
+  const hasResultWord = /\b(results?|grades?|marks?|scores?)\b/.test(text);
+  const hasOwnershipPronoun = /\b(my|i|me|ive)\b/.test(text);
+  const hasQuestionWord = /\b(what|whats|how|why|when|who|which)\b/.test(text);
   const asksAboutOwnPerformance =
-    (/\b(results?|grades?|marks?|scores?)\b/.test(text) && /\b(my|i|me)\b/.test(text)) ||
+    (hasResultWord && (hasOwnershipPronoun || !hasQuestionWord)) ||
     /\bhow (did|have) i (do|done|perform)/.test(text);
   if (asksAboutOwnPerformance) {
     return extractCourseCode(text) ? "course_results" : "semester_results";
@@ -191,6 +204,41 @@ function extractRequestedSemester(message: string): number | null {
 function extractCourseCode(message: string): string | null {
   const match = message.match(/\b[a-z]{2,4}\d{3,4}\b/i);
   return match ? match[0].toUpperCase() : null;
+}
+
+// Words that show up in "show my sem 2 results for maths 2"-style questions
+// but aren't part of the course name itself — stripped before whatever's
+// left is treated as a course filter term.
+const RESULT_FILLER_WORDS = new Set([
+  "my", "i", "me", "show", "give", "gimme", "tell", "what", "whats", "was",
+  "were", "did", "ive", "get", "got", "results", "result", "grades", "grade",
+  "marks", "mark", "scores", "score", "for", "in", "of", "the", "a", "an",
+  "please", "pls", "can", "you", "could", "would", "about", "from", "and",
+  "how", "do", "does", "doing", "this", "that", "am", "is", "are", "so",
+  "far", "now", "right", "currently", "overall", "going", "been", "be",
+  "well", "up", "on", "with", "to", "semester", "sem",
+]);
+
+// Pulls a course name/code out of a results question that ALSO names a
+// semester, e.g. "give my sem 2 results for maths 2" -> "math II" (after
+// removing the "sem 2" phrase itself, so its digit isn't mistaken for part
+// of the course name). Returns null when nothing but filler words remain —
+// i.e. the question really is just "my results", no course in it.
+function extractCourseFilterTerm(message: string): string | null {
+  let text = message
+    .toLowerCase()
+    .replace(/\bsem(?:ester)?\.?\s*(?:no\.?\s*)?\d{1,2}\b/g, " ")
+    .replace(/\b\d{1,2}(?:st|nd|rd|th)?\s*sem(?:ester)?\b/g, " ")
+    .replace(/['’]/g, "")
+    .replace(/[?.!,]/g, " ");
+
+  const words = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((w) => !RESULT_FILLER_WORDS.has(w));
+
+  if (words.length === 0) return null;
+  return normalizeSearchWords(words.join(" "));
 }
 
 function wantsCreditTotalOnly(message: string): boolean {
@@ -365,9 +413,11 @@ async function handleUpcomingCourses(message: string): Promise<string> {
  */
 async function handleSemesterResults(message: string): Promise<string> {
   const requestedSemester = extractRequestedSemester(message);
+  const courseFilter = extractCourseFilterTerm(message);
 
   const { data, error } = await supabase.rpc("get_student_results", {
     p_semester: requestedSemester,
+    p_course_search: courseFilter,
   });
   if (error) return `Couldn't pull up your results just now (${error.message}) — try again?`;
   if (data.error) return data.error;
@@ -385,15 +435,25 @@ async function handleSemesterResults(message: string): Promise<string> {
     return `Something went wrong matching your results to Semester ${requestedSemester} — please try again, and mention this if it keeps happening.`;
   }
 
+  const scopeText = requestedSemester !== null ? `Semester ${requestedSemester}` : null;
+
   if (results.length === 0) {
-    return requestedSemester !== null
-      ? `I couldn't find any Semester ${requestedSemester} results on your student account — they may not have been uploaded or published yet.`
+    if (courseFilter) {
+      return `I couldn't find a result matching "${courseFilter}"${scopeText ? ` in ${scopeText}` : ""} on your student account — you may not be enrolled in it, or it hasn't been published yet.`;
+    }
+    return scopeText
+      ? `I couldn't find any ${scopeText} results on your student account — they may not have been uploaded or published yet.`
       : "I couldn't find any published results on your student account yet.";
   }
 
-  const heading = requestedSemester !== null
-    ? `### Your Semester ${requestedSemester} Results`
-    : "### Your Results";
+  // A course filter narrowing to exactly one match reads better as a direct
+  // answer than a one-row table.
+  if (courseFilter && results.length === 1) {
+    const r = results[0];
+    return `**${r.course_code} — ${r.title}** (Semester ${r.semester}, ${r.credits} credits): you got **${r.grade ?? "—"}**.`;
+  }
+
+  const heading = scopeText ? `### Your ${scopeText} Results` : "### Your Results";
 
   const tableHeader = "| Course | Title | Credits | Grade |\n|---|---|---|---|";
   const rows = results
@@ -402,7 +462,7 @@ async function handleSemesterResults(message: string): Promise<string> {
 
   const gpaLine =
     data.gpa != null
-      ? `\n\n**${requestedSemester !== null ? "Semester GPA" : "GPA (shown results)"}:** ${data.gpa} · **GPA-eligible credits:** ${data.gpa_credits}`
+      ? `\n\n**${scopeText ? "Semester GPA" : "GPA (shown results)"}:** ${data.gpa} · **GPA-eligible credits:** ${data.gpa_credits}`
       : "";
 
   return `${heading}\n\n${tableHeader}\n${rows}${gpaLine}`;
