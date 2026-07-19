@@ -1,7 +1,9 @@
 import { supabase } from "./supabase";
 import { searchHandbook } from "./ragRetrieval";
 import { classifyIntentSemantic } from "./intentClassifier";
-import { askLlmAssistant } from "./llmAssistant";
+import { askLlmAssistant, type ChatHistoryItem } from "./llmAssistant";
+
+export type { ChatHistoryItem };
 
 /**
  * Rule-based NLU engine for the PES AI Assistant.
@@ -277,7 +279,7 @@ async function handleUpcomingCourses(message: string): Promise<string> {
   const lines = data.courses
     .map(
       (c: any) =>
-        `• ${c.code} — ${c.title} (${c.credits} credits${c.minor_category ? `, ${c.minor_category} minor` : ""
+        `- ${c.code} — ${c.title} (${c.credits} credits${c.minor_category ? `, ${c.minor_category} minor` : ""
         }${!c.contributes_to_gpa ? ", non-GPA" : ""})`,
     )
     .join("\n");
@@ -285,7 +287,10 @@ async function handleUpcomingCourses(message: string): Promise<string> {
   return `Here's what's on your plate for Semester ${data.next_semester} in ${data.department} (${totalCredits} credits total):\n\n${lines}`;
 }
 
-async function handleCourseInfo(message: string): Promise<string> {
+async function handleCourseInfo(
+  message: string,
+  history: ChatHistoryItem[],
+): Promise<string> {
   const searchTerm = extractCourseSearchTerm(message);
   if (!searchTerm) {
     return "Sure — which course or module did you want to know about? Something like \"Tell me about Mathematics V\" or \"What is CO3554?\" works.";
@@ -302,7 +307,7 @@ async function handleCourseInfo(message: string): Promise<string> {
     // 7 modules" isn't a course title, but the handbook has real per-semester
     // course listings that can answer it. Try that before giving up, using
     // the original message (not the mangled single-course search term).
-    const handbookReply = await handleHandbookFallback(message);
+    const handbookReply = await handleHandbookFallback(message, history);
     if (handbookReply !== UNKNOWN_REPLY) return handbookReply;
     return `I couldn't find anything matching "${searchTerm}" — maybe try the exact course code, or a shorter piece of the title?`;
   }
@@ -319,17 +324,20 @@ async function handleCourseInfo(message: string): Promise<string> {
   const lines = matches
     .map(
       (c: any) =>
-        `• ${c.code} — ${c.title} (Sem ${c.semester}, ${c.department})`,
+        `- ${c.code} — ${c.title} (Sem ${c.semester}, ${c.department})`,
     )
     .join("\n");
   return `A few things matched "${searchTerm}":\n\n${lines}\n\nAsk about a specific code and I'll give you the full details.`;
 }
 
+// Fallback ONLY — used if the Gemini call below fails (network error, quota
+// exhausted, no key configured). The normal path generates a fresh, varied,
+// personalized greeting via the LLM rather than repeating this every time.
 const GREETING_REPLY =
   "Hey! I can help with your GPA/CGPA targets, your current standing, upcoming courses, and specific module info. Try something like \"What GPA do I need for First Class?\" or \"What are my next semester courses?\"";
 
 const HELP_REPLY =
-  "Here's what I'm good for right now:\n\n• GPA/CGPA planning — \"I want a 3.5 GPA, how should I perform?\"\n• Your current standing — \"What's my CGPA?\"\n• Upcoming courses — \"What subjects do I have next semester?\"\n• Course lookups — \"Tell me about Mathematics V\"\n\nEverything I tell you comes straight from your real academic records, so the numbers are always accurate — I won't guess.";
+  "Here's what I'm good for right now:\n\n- GPA/CGPA planning — \"I want a 3.5 GPA, how should I perform?\"\n- Your current standing — \"What's my CGPA?\"\n- Upcoming courses — \"What subjects do I have next semester?\"\n- Course lookups — \"Tell me about Mathematics V\"\n\nEverything I tell you comes straight from your real academic records, so the numbers are always accurate — I won't guess.";
 
 const UNKNOWN_REPLY =
   "I didn't quite catch what you're looking for. Right now I can help with your GPA/CGPA targets, your current standing, upcoming courses, course lookups, and general Faculty Handbook questions — try rephrasing, or ask \"what can you do\" for examples.";
@@ -349,7 +357,10 @@ const HANDBOOK_MIN_SIMILARITY = 0.3;
  * model-generated paraphrase — so there's nothing here that can be
  * fabricated beyond what's actually printed in the handbook.
  */
-async function handleHandbookFallback(message: string): Promise<string> {
+async function handleHandbookFallback(
+  message: string,
+  history: ChatHistoryItem[],
+): Promise<string> {
   let matches: Awaited<ReturnType<typeof searchHandbook>>;
   try {
     matches = await searchHandbook(message, {
@@ -375,14 +386,33 @@ async function handleHandbookFallback(message: string): Promise<string> {
   // a way the deterministic paths can't. If this also fails (quota
   // exhausted, network error, or it genuinely found nothing), fall through
   // to the same honest "I don't know" as before.
-  const llmReply = await askLlmAssistant(message);
+  const llmReply = await askLlmAssistant(message, history);
   if (llmReply) return llmReply;
 
   return UNKNOWN_REPLY;
 }
 
+/**
+ * A greeting isn't a question with a "right" answer — it doesn't need RPCs
+ * or the handbook, just a warm, varied, human-sounding reply. That's exactly
+ * what an LLM is good at and a fixed string isn't, so this always goes to
+ * Gemini (which also gets the student's name and recent conversation from
+ * the Edge Function) rather than repeating the same canned line every time.
+ */
+async function handleGreeting(
+  message: string,
+  history: ChatHistoryItem[],
+): Promise<string> {
+  const llmReply = await askLlmAssistant(message, history);
+  if (llmReply) return llmReply;
+  return GREETING_REPLY;
+}
+
 /** Main entry point — classify the message and return a real, data-backed reply. */
-export async function getAssistantReply(message: string): Promise<string> {
+export async function getAssistantReply(
+  message: string,
+  history: ChatHistoryItem[] = [],
+): Promise<string> {
   const intent = await classifyIntent(message);
 
   switch (intent) {
@@ -393,12 +423,12 @@ export async function getAssistantReply(message: string): Promise<string> {
     case "upcoming_courses":
       return handleUpcomingCourses(message);
     case "course_info":
-      return handleCourseInfo(message);
+      return handleCourseInfo(message, history);
     case "greeting":
-      return GREETING_REPLY;
+      return handleGreeting(message, history);
     case "help":
       return HELP_REPLY;
     default:
-      return handleHandbookFallback(message);
+      return handleHandbookFallback(message, history);
   }
 }

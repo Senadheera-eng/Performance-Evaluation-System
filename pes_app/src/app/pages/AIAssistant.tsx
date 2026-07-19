@@ -18,7 +18,8 @@ import {
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { getAssistantReply } from "../../lib/chatbotEngine";
+import { ChatMarkdown } from "../components/chat/ChatMarkdown";
+import { getAssistantReply, type ChatHistoryItem } from "../../lib/chatbotEngine";
 
 interface Message {
   id: string;
@@ -62,12 +63,19 @@ export default function AIAssistant() {
       content: message,
       timestamp: new Date(),
     };
+    // Snapshot before this turn's messages are appended — this is exactly
+    // the conversation-so-far context the LLM tier needs for follow-ups.
+    const history: ChatHistoryItem[] = messages.slice(-8).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsThinking(true);
 
     try {
-      const reply = await getAssistantReply(message);
+      const reply = await getAssistantReply(message, history);
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -209,15 +217,19 @@ export default function AIAssistant() {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-3 ${
+                    className={`max-w-[85%] rounded-2xl p-3 ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted text-foreground"
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-line">
-                      {message.content}
-                    </p>
+                    {message.role === "assistant" ? (
+                      <ChatMarkdown content={message.content} />
+                    ) : (
+                      <p className="text-sm whitespace-pre-line">
+                        {message.content}
+                      </p>
+                    )}
                     <p
                       className={`text-xs mt-2 ${
                         message.role === "user"

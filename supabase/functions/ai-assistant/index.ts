@@ -104,7 +104,9 @@ STRICT RULES — these override any instinct to be more "helpful":
 - If a tool returns an error or no data, say so plainly rather than guessing or making up a plausible-sounding answer.
 - When you use search_handbook, cite the section name and page number from the result in your answer. If your first search finds nothing, try again with different/simpler keywords before concluding there's no answer.
 - If none of your tools return anything relevant to the question after reasonable attempts, say plainly that you don't have enough information, and suggest the student check with their department — do not fabricate an answer.
-- Keep answers concise and conversational, like a knowledgeable senior student texting back — not a formal report.`;
+- Keep answers concise and conversational, like a knowledgeable senior student texting back — not a formal report.
+- If the student sends a greeting or casual small talk (hi, hello, good morning, thanks, how's it going, etc.) with no real question attached, do NOT call any tools and do NOT dump your full capability list — just reply briefly and warmly in 1-2 sentences, vary your wording instead of reusing the same greeting every time, use their first name if you know it, and naturally invite them to ask about their studies. Pick up any earlier conversation naturally rather than treating each message as the first one.
+- Format your answers in markdown when it aids readability: short paragraphs, headings for distinct sections, bullet or numbered lists for steps or grouped facts, and **bold** for key numbers or terms. Don't over-format a one-line answer or a greeting.`;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -128,10 +130,22 @@ Deno.serve(async (req: Request) => {
   }
 
   let message: string;
+  let history: { role: "user" | "assistant"; content: string }[] = [];
   try {
     const body = await req.json();
     message = body.message;
     if (!message || typeof message !== "string") throw new Error("bad message");
+    if (Array.isArray(body.history)) {
+      history = body.history
+        .filter(
+          (h: unknown): h is { role: string; content: string } =>
+            !!h &&
+            typeof (h as Record<string, unknown>).content === "string" &&
+            ((h as Record<string, unknown>).role === "user" ||
+              (h as Record<string, unknown>).role === "assistant"),
+        )
+        .slice(-8) as { role: "user" | "assistant"; content: string }[];
+    }
   } catch {
     return jsonResponse(
       { error: "Invalid request body — expected JSON { message: string }" },
@@ -176,6 +190,21 @@ Deno.serve(async (req: Request) => {
 
   await adminClient.from("ai_assistant_usage_log").insert({ student_id: studentId });
 
+  // Best-effort personalization only — never a grounding fact reported back
+  // as data, just used to make greetings feel natural. RLS already scopes
+  // this to the caller's own row, same as every RPC above.
+  const { data: studentRow } = await userClient
+    .from("students")
+    .select("name")
+    .eq("id", studentId)
+    .single();
+  const studentFirstName =
+    typeof studentRow?.name === "string" ? studentRow.name.split(" ")[0] : null;
+
+  const systemInstructionText = studentFirstName
+    ? `${SYSTEM_INSTRUCTION}\n\nThe student you're talking to is named ${studentFirstName} — you may use their first name occasionally where it feels natural (e.g. in a greeting), but don't overdo it.`
+    : SYSTEM_INSTRUCTION;
+
   async function executeTool(name: string, args: Record<string, unknown>) {
     switch (name) {
       case "get_academic_standing": {
@@ -211,7 +240,15 @@ Deno.serve(async (req: Request) => {
   }
 
   // deno-lint-ignore no-explicit-any
-  const contents: any[] = [{ role: "user", parts: [{ text: message }] }];
+  const historyContents: any[] = history.map((h) => ({
+    role: h.role === "assistant" ? "model" : "user",
+    parts: [{ text: h.content }],
+  }));
+  // deno-lint-ignore no-explicit-any
+  const contents: any[] = [
+    ...historyContents,
+    { role: "user", parts: [{ text: message }] },
+  ];
   let finalText: string | null = null;
 
   try {
@@ -224,8 +261,11 @@ Deno.serve(async (req: Request) => {
           body: JSON.stringify({
             contents,
             tools: TOOLS,
-            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-            generationConfig: { temperature: 0.2 },
+            systemInstruction: { parts: [{ text: systemInstructionText }] },
+            // Greetings/small talk benefit from a little more natural
+            // variation than the grounded-answer default; the model still
+            // can't invent facts since tool results are unaffected by this.
+            generationConfig: { temperature: 0.4 },
           }),
         },
       );
