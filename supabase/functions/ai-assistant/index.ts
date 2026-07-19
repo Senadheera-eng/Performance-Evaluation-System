@@ -62,8 +62,23 @@ const TOOLS = [
       {
         name: "get_upcoming_courses",
         description:
-          "Get the REAL list of courses in the student's own next semester, derived from their actual completed-semester progress. Takes no arguments.",
+          "Get the REAL list of courses in the student's own next semester, derived from their actual completed-semester progress. Takes no arguments. Only use this for 'my next semester' — if the student names a specific semester number, use get_courses_by_semester instead.",
         parameters: { type: "OBJECT", properties: {} },
+      },
+      {
+        name: "get_courses_by_semester",
+        description:
+          "Get the REAL list of courses offered in a specific, named semester (1-8) for the student's department — independent of the student's own progress. Use this whenever the student names a semester number (e.g. 'semester 5', 'sem 3'), whether it's in their past, their actual next semester, or further ahead.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            p_semester: {
+              type: "NUMBER",
+              description: "Semester number, 1 through 8",
+            },
+          },
+          required: ["p_semester"],
+        },
       },
       {
         name: "get_course_info",
@@ -219,6 +234,12 @@ Deno.serve(async (req: Request) => {
       }
       case "get_upcoming_courses": {
         const { data, error } = await userClient.rpc("get_upcoming_courses");
+        return error ? { error: error.message } : data;
+      }
+      case "get_courses_by_semester": {
+        const { data, error } = await userClient.rpc("get_courses_by_semester", {
+          p_semester: args.p_semester,
+        });
         return error ? { error: error.message } : data;
       }
       case "get_course_info": {

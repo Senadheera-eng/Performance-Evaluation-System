@@ -109,6 +109,16 @@ async function classifyIntent(message: string): Promise<Intent> {
     return "unknown";
   }
 
+  // A specific semester number ("sem 5", "semester 7") paired with course-list
+  // wording is unambiguous and easy to get wrong via semantic similarity alone
+  // — "what were the subjects in sem 5" reads a lot like "what are my courses
+  // next semester" to an embedding model, but the two need different data
+  // (an arbitrary semester vs. always "next"). Route deterministically so the
+  // number in the message is never silently dropped.
+  if (extractRequestedSemester(text) !== null && /\b(subjects?|courses?|modules?)\b/.test(text)) {
+    return "upcoming_courses";
+  }
+
   // Everything else: semantic nearest-neighbor classification against
   // canonical example phrasings (intentClassifier.ts) rather than a
   // hand-written keyword cascade — this is what actually generalizes to
@@ -141,6 +151,20 @@ function extractTargetCgpa(message: string): number | null {
   if (normalized.includes("pass")) return 2.0;
 
   return null;
+}
+
+// Pulls an explicit semester number ("sem 5", "semester 7", "5th semester")
+// out of a message, if any. Returns null when no specific semester is named
+// (e.g. "next semester"), so callers can fall back to "the student's actual
+// next semester" instead of a number that was never mentioned.
+function extractRequestedSemester(message: string): number | null {
+  const text = message.toLowerCase();
+  const match =
+    text.match(/\bsem(?:ester)?\.?\s*(?:no\.?\s*)?(\d{1,2})\b/) ||
+    text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s*sem(?:ester)?\b/);
+  if (!match) return null;
+  const n = parseInt(match[1], 10);
+  return n >= 1 && n <= 8 ? n : null;
 }
 
 function wantsCreditTotalOnly(message: string): boolean {
@@ -260,11 +284,25 @@ async function handleCurrentStanding(): Promise<string> {
 }
 
 async function handleUpcomingCourses(message: string): Promise<string> {
-  const { data, error } = await supabase.rpc("get_upcoming_courses");
-  if (error) return `Couldn't fetch your upcoming courses just now (${error.message}) — give it another try?`;
+  // A named semester ("sem 5", "semester 7") means the student wants that
+  // specific semester's course list, not necessarily their actual next one —
+  // those are two different RPCs (get_courses_by_semester ignores the
+  // student's own progress; get_upcoming_courses always resolves to it).
+  const requestedSemester = extractRequestedSemester(message);
+  const isNextSemester = requestedSemester === null;
+
+  const { data, error } = isNextSemester
+    ? await supabase.rpc("get_upcoming_courses")
+    : await supabase.rpc("get_courses_by_semester", {
+        p_semester: requestedSemester,
+      });
+  if (error) return `Couldn't fetch that course list just now (${error.message}) — give it another try?`;
+  if (data.error) return data.error;
+
+  const semesterNumber = isNextSemester ? data.next_semester : requestedSemester;
 
   if (!data.courses || data.courses.length === 0) {
-    return `I don't have course data loaded for Semester ${data.next_semester} in ${data.department} yet — worth checking with your department directly.`;
+    return `I don't have course data loaded for Semester ${semesterNumber} in ${data.department} yet — worth checking with your department directly.`;
   }
 
   const totalCredits = data.courses.reduce(
@@ -273,7 +311,7 @@ async function handleUpcomingCourses(message: string): Promise<string> {
   );
 
   if (wantsCreditTotalOnly(message)) {
-    return `Semester ${data.next_semester} adds up to ${totalCredits} credits across ${data.courses.length} courses in ${data.department}. Want the full breakdown? Just ask what subjects you're taking.`;
+    return `Semester ${semesterNumber} adds up to ${totalCredits} credits across ${data.courses.length} courses in ${data.department}.${isNextSemester ? " Want the full breakdown? Just ask what subjects you're taking." : ""}`;
   }
 
   const lines = data.courses
@@ -284,7 +322,11 @@ async function handleUpcomingCourses(message: string): Promise<string> {
     )
     .join("\n");
 
-  return `Here's what's on your plate for Semester ${data.next_semester} in ${data.department} (${totalCredits} credits total):\n\n${lines}`;
+  const heading = isNextSemester
+    ? `Here's what's on your plate for Semester ${semesterNumber} in ${data.department} (${totalCredits} credits total):`
+    : `Here's the Semester ${semesterNumber} course list for ${data.department} (${totalCredits} credits total):`;
+
+  return `${heading}\n\n${lines}`;
 }
 
 async function handleCourseInfo(
