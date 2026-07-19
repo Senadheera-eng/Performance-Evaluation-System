@@ -199,17 +199,17 @@ export default function AdminAttendance() {
   const unmarkedCount = students.filter((s) => s.status === null).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Attendance Management
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Select a course and date to mark or update attendance.
         </p>
       </motion.div>
@@ -234,7 +234,7 @@ export default function AdminAttendance() {
                 <div className="relative">
                   <button
                     onClick={() => setCourseDropdownOpen(!courseDropdownOpen)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
                   >
                     <span
                       className={
@@ -259,7 +259,7 @@ export default function AdminAttendance() {
                             setSelectedCourse(course);
                             setCourseDropdownOpen(false);
                           }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors text-sm ${
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm ${
                             selectedCourse?.id === course.id
                               ? "bg-primary/10 text-primary"
                               : "text-foreground"
@@ -289,7 +289,7 @@ export default function AdminAttendance() {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   max={new Date().toISOString().split("T")[0]}
-                  className="h-12 bg-card border-border"
+                  className="h-9 bg-card border-border"
                 />
               </div>
             </div>
@@ -388,7 +388,7 @@ export default function AdminAttendance() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.03 }}
-                      className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                      className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
                         student.status === "present"
                           ? "border-green-200 bg-green-50"
                           : student.status === "absent"
@@ -398,9 +398,9 @@ export default function AdminAttendance() {
                               : "border-border bg-card"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
                           style={{
                             background:
                               "linear-gradient(135deg, #C41E3A, #6D28D9)",
@@ -490,7 +490,7 @@ export default function AdminAttendance() {
                       saving ||
                       students.filter((s) => s.status !== null).length === 0
                     }
-                    className="w-full bg-primary hover:bg-primary/90 h-12"
+                    className="w-full bg-primary hover:bg-primary/90 h-10"
                   >
                     {saving ? (
                       <div className="flex items-center gap-2">

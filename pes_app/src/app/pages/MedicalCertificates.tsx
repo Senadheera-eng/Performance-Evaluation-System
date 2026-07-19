@@ -260,16 +260,16 @@ export default function MedicalCertificates() {
     startDate && daysBetween(new Date(startDate), new Date()) > 14;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Medical Certificates
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Submit evidence to be excused from academic activities due to a
           medical reason or bereavement.
         </p>
@@ -279,9 +279,9 @@ export default function MedicalCertificates() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="p-4 rounded-xl bg-blue-50 border border-blue-200 flex gap-3"
+        className="p-3 rounded-xl bg-blue-50 border border-blue-200 flex gap-2.5"
       >
-        <AlertTriangle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+        <AlertTriangle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
         <p className="text-sm text-blue-900">
           Per Faculty policy, evidence must be submitted within{" "}
           <strong>14 days</strong> of the event (illness onset, or the demise of
@@ -290,7 +290,7 @@ export default function MedicalCertificates() {
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Submission form */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
@@ -387,8 +387,8 @@ export default function MedicalCertificates() {
 
               <div>
                 <Label className="mb-2 block">Supporting Evidence</Label>
-                <label className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
-                  <Upload className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <label className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
+                  <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm text-muted-foreground truncate">
                     {file ? file.name : "Upload PDF, JPG, or PNG (max 5MB)"}
                   </span>
@@ -465,7 +465,7 @@ export default function MedicalCertificates() {
                     return (
                       <div
                         key={sub.id}
-                        className="p-4 rounded-xl border border-border"
+                        className="p-3 rounded-xl border border-border"
                       >
                         <div className="flex items-start justify-between mb-2 gap-2">
                           <div>

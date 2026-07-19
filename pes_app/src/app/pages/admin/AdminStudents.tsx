@@ -146,22 +146,22 @@ export default function AdminStudents() {
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Student Management
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           View and manage all registered students and their academic records.
         </p>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
           {
             label: "Total Students",
@@ -201,14 +201,14 @@ export default function AdminStudents() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, delay: i * 0.1 }}
-            className="bg-card rounded-xl p-4 border border-border shadow-sm"
+            className="bg-card rounded-xl p-3 border border-border shadow-sm"
           >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+            <div className="flex items-center gap-2.5">
+              <div className={`p-1.5 rounded-lg ${stat.color}`}>
+                <stat.icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-xl font-bold text-foreground">
                   {loading ? "..." : stat.value}
                 </p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -219,14 +219,14 @@ export default function AdminStudents() {
       </div>
 
       {/* Search and Sort */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by name, reg number or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 bg-card border-border"
+            className="pl-9 h-9 bg-card border-border"
           />
         </div>
         <div className="flex gap-2">
@@ -234,7 +234,7 @@ export default function AdminStudents() {
             <button
               key={s}
               onClick={() => setSortBy(s)}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              className="px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
               style={
                 sortBy === s
                   ? { backgroundColor: "#C41E3A", color: "white" }
@@ -289,7 +289,7 @@ export default function AdminStudents() {
                 >
                   {/* Student Row */}
                   <div
-                    className="p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
                     onClick={() =>
                       setExpandedId(
                         expandedId === student.id ? null : student.id,
@@ -297,9 +297,9 @@ export default function AdminStudents() {
                     }
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
                           style={{
                             background:
                               "linear-gradient(135deg, #C41E3A, #6D28D9)",
@@ -376,9 +376,9 @@ export default function AdminStudents() {
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.2 }}
-                      className="mx-2 p-4 rounded-b-xl border border-t-0 border-border bg-muted/30"
+                      className="mx-2 p-3 rounded-b-xl border border-t-0 border-border bg-muted/30"
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           <div>

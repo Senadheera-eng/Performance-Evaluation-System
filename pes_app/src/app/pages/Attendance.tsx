@@ -197,37 +197,37 @@ export default function Attendance() {
   const criticalCourses = courses.filter((c) => c.status === "warning");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Attendance Tracker
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Monitor your attendance and stay on track with the 80% CCR
           requirement.
         </p>
       </motion.div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Overall Attendance
                   </p>
-                  <h3 className="text-4xl font-bold text-foreground mb-2">
+                  <h3 className="text-2xl font-bold text-foreground mb-1.5">
                     {loading ? "..." : `${overallAttendance}%`}
                   </h3>
                   <p
@@ -242,8 +242,8 @@ export default function Attendance() {
                       : "Below requirement"}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <TrendingUp className="h-6 w-6 text-primary" />
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <TrendingUp className="h-5 w-5 text-primary" />
                 </div>
               </div>
             </CardContent>
@@ -256,19 +256,19 @@ export default function Attendance() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Excellent (≥90%)
                   </p>
-                  <h3 className="text-4xl font-bold text-green-600 mb-2">
+                  <h3 className="text-2xl font-bold text-green-600 mb-1.5">
                     {loading ? "..." : excellentCourses.length}
                   </h3>
                   <p className="text-xs text-muted-foreground">courses</p>
                 </div>
-                <div className="p-3 rounded-xl bg-green-100">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                <div className="p-2 rounded-xl bg-green-100">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -281,19 +281,19 @@ export default function Attendance() {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Good (80-89%)
                   </p>
-                  <h3 className="text-4xl font-bold text-blue-600 mb-2">
+                  <h3 className="text-2xl font-bold text-blue-600 mb-1.5">
                     {loading ? "..." : goodCourses.length}
                   </h3>
                   <p className="text-xs text-muted-foreground">courses</p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-100">
-                  <Calendar className="h-6 w-6 text-blue-600" />
+                <div className="p-2 rounded-xl bg-blue-100">
+                  <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -306,19 +306,19 @@ export default function Attendance() {
           transition={{ duration: 0.3, delay: 0.3 }}
         >
           <Card className="border-border">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
                     Critical (&lt;80%)
                   </p>
-                  <h3 className="text-4xl font-bold text-red-600 mb-2">
+                  <h3 className="text-2xl font-bold text-red-600 mb-1.5">
                     {loading ? "..." : criticalCourses.length}
                   </h3>
                   <p className="text-xs text-muted-foreground">courses</p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-100">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                <div className="p-2 rounded-xl bg-red-100">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
               </div>
             </CardContent>
@@ -376,13 +376,13 @@ export default function Attendance() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.08 }}
-                      className={`p-6 rounded-xl border-2 ${colors.border} bg-card hover:shadow-lg transition-shadow`}
+                      className={`p-4 rounded-xl border-2 ${colors.border} bg-card hover:shadow-lg transition-shadow`}
                     >
-                      <div className="space-y-4">
+                      <div className="space-y-3">
                         {/* Header */}
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
+                            <div className="flex items-center gap-2.5 mb-1">
                               <h4 className="font-semibold text-foreground">
                                 {course.name}
                               </h4>
@@ -396,7 +396,7 @@ export default function Attendance() {
                           </div>
                           <div className="text-right">
                             <div
-                              className={`text-3xl font-bold ${colors.text}`}
+                              className={`text-2xl font-bold ${colors.text}`}
                             >
                               {course.percentage}%
                             </div>
@@ -407,8 +407,8 @@ export default function Attendance() {
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="space-y-2">
-                          <Progress value={course.percentage} className="h-3" />
+                        <div className="space-y-1.5">
+                          <Progress value={course.percentage} className="h-2.5" />
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>Classes attended: {course.attended}</span>
                             <span>Total classes: {course.total}</span>
@@ -418,7 +418,7 @@ export default function Attendance() {
                         {/* Status Message */}
                         {course.status === "warning" && (
                           <div
-                            className={`flex items-start gap-2 p-3 rounded-lg ${colors.messageBg}`}
+                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
                           >
                             <AlertTriangle
                               className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
@@ -433,7 +433,7 @@ export default function Attendance() {
 
                         {course.status === "good" && (
                           <div
-                            className={`flex items-start gap-2 p-3 rounded-lg ${colors.messageBg}`}
+                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
                           >
                             <Calendar
                               className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
@@ -451,7 +451,7 @@ export default function Attendance() {
 
                         {course.status === "excellent" && (
                           <div
-                            className={`flex items-start gap-2 p-3 rounded-lg ${colors.messageBg}`}
+                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
                           >
                             <CheckCircle
                               className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}

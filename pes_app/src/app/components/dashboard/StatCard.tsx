@@ -35,25 +35,25 @@ export function StatCard({
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
     >
       <Card className="border-border hover:shadow-lg transition-shadow duration-300">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <p className="text-sm font-medium text-muted-foreground mb-1">
                 {title}
               </p>
-              <h3 className="text-3xl font-bold text-foreground mb-2">
+              <h3 className="text-2xl font-bold text-foreground mb-1.5">
                 {value}
               </h3>
               {change && (
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${changeColors[changeType]}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${changeColors[changeType]}`}
                 >
                   {change}
                 </span>
               )}
             </div>
-            <div className={`p-3 rounded-xl ${iconBgColor}`}>
-              <Icon className={`h-6 w-6 ${iconColor}`} />
+            <div className={`p-2 rounded-xl ${iconBgColor}`}>
+              <Icon className={`h-5 w-5 ${iconColor}`} />
             </div>
           </div>
         </CardContent>

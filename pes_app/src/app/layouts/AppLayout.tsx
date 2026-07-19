@@ -84,36 +84,38 @@ export default function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar for Desktop */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col bg-card border-r border-border">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col bg-card border-r border-border">
         <div className="flex flex-col flex-1 min-h-0">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
+          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-border">
             <img
               src={universityLogo}
               alt="University Logo"
-              className="w-10 h-10 object-cover rounded-lg"
+              className="w-8 h-8 object-cover rounded-lg"
             />
             <div>
-              <h1 className="text-lg font-bold text-foreground">PES</h1>
-              <p className="text-xs text-muted-foreground">
+              <h1 className="text-base font-bold text-foreground leading-tight">
+                PES
+              </h1>
+              <p className="text-xs text-muted-foreground leading-tight">
                 Performance System
               </p>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => (
               <button
                 key={item.name}
                 onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive(item.href)
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
+                <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1 text-left">{item.name}</span>
                 {item.badge && (
                   <Badge
@@ -128,35 +130,35 @@ export default function AppLayout() {
           </nav>
 
           {/* Bottom Navigation */}
-          <div className="px-4 py-4 border-t border-border space-y-2">
+          <div className="px-3 py-3 border-t border-border space-y-1">
             {bottomNavigation.map((item) => (
               <button
                 key={item.name}
                 onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive(item.href)
                     ? "bg-primary text-primary-foreground shadow-md"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
+                <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1 text-left">{item.name}</span>
               </button>
             ))}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
             >
-              <LogOut className="h-5 w-5 flex-shrink-0" />
+              <LogOut className="h-4 w-4 flex-shrink-0" />
               <span className="flex-1 text-left">Logout</span>
             </button>
           </div>
         </div>
 
         {/* Sidebar Footer — student info */}
-        <div className="px-4 py-4 border-t border-border">
-          <div className="flex items-center gap-3 px-2">
-            <Avatar className="w-9 h-9">
+        <div className="px-3 py-3 border-t border-border">
+          <div className="flex items-center gap-2.5 px-1">
+            <Avatar className="w-8 h-8">
               <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                 {initials}
               </AvatarFallback>
@@ -191,19 +193,21 @@ export default function AppLayout() {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-card border-r border-border z-50 lg:hidden"
+              className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border z-50 lg:hidden"
             >
               <div className="flex flex-col flex-1 min-h-0 h-full">
                 {/* Mobile Header */}
-                <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+                  <div className="flex items-center gap-2.5">
                     <img
                       src={universityLogo}
                       alt="University Logo"
-                      className="w-10 h-10 object-cover rounded-lg"
+                      className="w-8 h-8 object-cover rounded-lg"
                     />
                     <div>
-                      <h1 className="text-lg font-bold text-foreground">PES</h1>
+                      <h1 className="text-base font-bold text-foreground">
+                        PES
+                      </h1>
                       <p className="text-xs text-muted-foreground">
                         Performance System
                       </p>
@@ -211,14 +215,14 @@ export default function AppLayout() {
                   </div>
                   <button
                     onClick={() => setSidebarOpen(false)}
-                    className="p-2 rounded-lg hover:bg-muted transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-muted transition-colors"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                   {navigation.map((item) => (
                     <button
                       key={item.name}
@@ -226,13 +230,13 @@ export default function AppLayout() {
                         navigate(item.href);
                         setSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isActive(item.href)
                           ? "bg-primary text-primary-foreground shadow-md"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
                       <span className="flex-1 text-left">{item.name}</span>
                       {item.badge && (
                         <Badge
@@ -247,7 +251,7 @@ export default function AppLayout() {
                 </nav>
 
                 {/* Bottom Navigation */}
-                <div className="px-4 py-4 border-t border-border space-y-2">
+                <div className="px-3 py-3 border-t border-border space-y-1">
                   {bottomNavigation.map((item) => (
                     <button
                       key={item.name}
@@ -255,29 +259,29 @@ export default function AppLayout() {
                         navigate(item.href);
                         setSidebarOpen(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isActive(item.href)
                           ? "bg-primary text-primary-foreground shadow-md"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"
                       }`}
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <item.icon className="h-4 w-4 flex-shrink-0" />
                       <span className="flex-1 text-left">{item.name}</span>
                     </button>
                   ))}
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
                   >
-                    <LogOut className="h-5 w-5 flex-shrink-0" />
+                    <LogOut className="h-4 w-4 flex-shrink-0" />
                     <span className="flex-1 text-left">Logout</span>
                   </button>
                 </div>
 
                 {/* Mobile Sidebar Footer */}
-                <div className="px-4 py-4 border-t border-border">
-                  <div className="flex items-center gap-3 px-2">
-                    <Avatar className="w-9 h-9">
+                <div className="px-3 py-3 border-t border-border">
+                  <div className="flex items-center gap-2.5 px-1">
+                    <Avatar className="w-8 h-8">
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                         {initials}
                       </AvatarFallback>
@@ -303,84 +307,86 @@ export default function AppLayout() {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <div className="lg:pl-72">
+      <div className="lg:pl-60">
         {/* Top Header */}
         <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between px-4 sm:px-5 lg:px-6 py-2.5">
             {/* Left: Mobile Menu + Search */}
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-3 flex-1">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+                className="lg:hidden p-1.5 rounded-lg hover:bg-muted transition-colors"
               >
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               </button>
 
               {/* Search Bar */}
-              <div className="hidden sm:block relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="hidden sm:block relative flex-1 max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search courses, results..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-muted/50 border-0 focus:bg-muted focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="h-8 pl-8 text-sm bg-muted/50 border-0 focus:bg-muted focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
             </div>
 
             {/* Right: Notifications + Theme + Profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Notifications */}
-              <button className="relative p-2 rounded-lg hover:bg-muted transition-colors">
-                <Bell className="h-5 w-5 text-muted-foreground" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
+              <button className="relative p-1.5 rounded-lg hover:bg-muted transition-colors">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full"></span>
               </button>
 
               {/* Dark Mode Toggle */}
               <button
                 onClick={cycleTheme}
-                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
                 title={`Current theme: ${theme}`}
               >
                 {theme === "dark" ||
                 (theme === "auto" &&
                   window.matchMedia("(prefers-color-scheme: dark)").matches) ? (
-                  <Sun className="h-5 w-5 text-muted-foreground" />
+                  <Sun className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <Moon className="h-5 w-5 text-muted-foreground" />
+                  <Moon className="h-4 w-4 text-muted-foreground" />
                 )}
               </button>
 
               {/* Profile */}
               <button
                 onClick={() => navigate("/app/profile")}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors"
               >
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                <Avatar className="w-7 h-7">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-medium text-foreground leading-tight">
                     {student?.name ?? "Student"}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground leading-tight">
                     {student?.index_number ?? ""}
                     {student?.index_number && student?.reg_number ? " · " : ""}
                     {student?.reg_number ? `EN${student.reg_number}` : ""}
                   </p>
                 </div>
-                <ChevronDown className="hidden md:block h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="hidden md:block h-3.5 w-3.5 text-muted-foreground" />
               </button>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          <Outlet />
+        <main className="p-4 sm:p-5 lg:p-6">
+          <div className="max-w-screen-2xl mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

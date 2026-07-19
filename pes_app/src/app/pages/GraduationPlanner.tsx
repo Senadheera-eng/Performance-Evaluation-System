@@ -282,35 +282,35 @@ export default function GraduationPlanner() {
   }, [allCourses]);
 
   const renderStandingCards = (cgpa: number, credits: number) => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
       <Card className="border-border">
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           <p className="text-sm text-muted-foreground">
             {activeTab === "simulator" ? "Simulated CGPA" : "Current CGPA"}
           </p>
-          <p className="text-2xl font-bold text-primary">{cgpa.toFixed(2)}</p>
+          <p className="text-xl font-bold text-primary">{cgpa.toFixed(2)}</p>
         </CardContent>
       </Card>
       <Card className="border-border">
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           <p className="text-sm text-muted-foreground">Credits Completed</p>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-xl font-bold text-foreground">
             {credits} / {TOTAL_CREDITS_REQUIRED}
           </p>
         </CardContent>
       </Card>
       <Card className="border-border">
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           <p className="text-sm text-muted-foreground">Credits Remaining</p>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-xl font-bold text-foreground">
             {Math.max(0, TOTAL_CREDITS_REQUIRED - credits)}
           </p>
         </CardContent>
       </Card>
       <Card className="border-border">
-        <CardContent className="p-4">
+        <CardContent className="p-3">
           <p className="text-sm text-muted-foreground">Best Possible CGPA</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xl font-bold text-green-600">
             {bestPossibleCgpa.toFixed(2)}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -329,11 +329,11 @@ export default function GraduationPlanner() {
           What You Need for Each Classification
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {projections.map((p) => (
           <div
             key={p.key}
-            className="p-4 rounded-xl border border-border flex items-center justify-between gap-4 flex-wrap"
+            className="p-3 rounded-xl border border-border flex items-center justify-between gap-4 flex-wrap"
           >
             <div>
               <div className="flex items-center gap-2">
@@ -383,21 +383,21 @@ export default function GraduationPlanner() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-primary to-primary/70">
-            <GraduationCap className="h-6 w-6 text-white" />
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/70">
+            <GraduationCap className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground">
               Graduation Planner
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               See what GPA you need in your remaining semesters — or experiment
               with hypothetical grades to see the impact.
             </p>
@@ -456,7 +456,7 @@ export default function GraduationPlanner() {
                   Semester-by-Semester Targets
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-5">
+              <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Real course credit data for{" "}
                   {student?.department ?? "your department"}
@@ -482,7 +482,7 @@ export default function GraduationPlanner() {
                     return (
                       <div
                         key={c.key}
-                        className="p-3 rounded-lg bg-muted/40 flex items-center justify-between"
+                        className="p-2.5 rounded-lg bg-muted/40 flex items-center justify-between"
                       >
                         <span className="font-medium text-foreground text-sm">
                           {c.label}
@@ -502,8 +502,8 @@ export default function GraduationPlanner() {
                     );
                   }
                   return (
-                    <div key={c.key} className="p-3 rounded-lg bg-muted/40">
-                      <p className="font-medium text-foreground text-sm mb-2">
+                    <div key={c.key} className="p-2.5 rounded-lg bg-muted/40">
+                      <p className="font-medium text-foreground text-sm mb-1.5">
                         {c.label}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -524,7 +524,7 @@ export default function GraduationPlanner() {
                   );
                 })}
 
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200">
                   <p className="text-xs text-blue-900">
                     The same SGPA target applies to every remaining semester by
                     design — since your final CGPA is a credit-weighted average
@@ -543,10 +543,10 @@ export default function GraduationPlanner() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl bg-purple-50 border border-purple-200 flex items-start justify-between gap-3 flex-wrap"
+              className="p-3 rounded-xl bg-purple-50 border border-purple-200 flex items-start justify-between gap-3 flex-wrap"
             >
-              <div className="flex gap-3">
-                <FlaskConical className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+              <div className="flex gap-2.5">
+                <FlaskConical className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-purple-900">
                   Change any past module's grade below to see how it would have
                   affected your SGPA, CGPA, and what you'd need going forward.
@@ -580,7 +580,7 @@ export default function GraduationPlanner() {
                   Edit Past Module Grades
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4">
                 {coursesBySemester.map((group) => {
                   const semStanding = simulatedStanding.semesterGpas.find(
                     (s) => s.semester === group.semester,

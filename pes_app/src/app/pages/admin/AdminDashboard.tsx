@@ -286,24 +286,24 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Admin Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Overview of the Faculty of Engineering — Computer Engineering
           Department.
         </p>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card, index) => (
           <motion.div
             key={card.title}
@@ -312,21 +312,21 @@ export default function AdminDashboard() {
             transition={{ duration: 0.3, delay: index * 0.1 }}
           >
             <Card className="border-border">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground mb-1">
                       {card.title}
                     </p>
-                    <h3 className="text-4xl font-bold text-foreground mb-1">
+                    <h3 className="text-2xl font-bold text-foreground mb-1">
                       {loading ? "..." : card.value}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       {card.change}
                     </p>
                   </div>
-                  <div className={`p-3 rounded-xl ${card.bg}`}>
-                    <card.icon className={`h-6 w-6 ${card.color}`} />
+                  <div className={`p-2 rounded-xl ${card.bg}`}>
+                    <card.icon className={`h-5 w-5 ${card.color}`} />
                   </div>
                 </div>
               </CardContent>
@@ -394,7 +394,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -406,9 +406,9 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="h-[300px] bg-muted animate-pulse rounded-lg" />
+                <div className="h-[240px] bg-muted animate-pulse rounded-lg" />
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={courseAttendance}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis
@@ -481,10 +481,10 @@ export default function AdminDashboard() {
                 <button
                   key={index}
                   onClick={() => navigate(action.path)}
-                  className="w-full flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
                 >
                   <div className={`p-2 rounded-lg ${action.color}`}>
-                    <action.icon className="h-5 w-5" />
+                    <action.icon className="h-4 w-4" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground">
@@ -545,7 +545,7 @@ export default function AdminDashboard() {
                 {recentResults.map((result, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-green-100">

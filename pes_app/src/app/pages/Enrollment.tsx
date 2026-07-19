@@ -242,17 +242,17 @@ export default function Enrollment() {
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Course Enrollment
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Enroll in courses for Semester {nextSemester ?? "—"}
           {academicYear ? ` (${academicYear})` : ""} — {availableCourses.length}{" "}
           courses available.
@@ -264,9 +264,9 @@ export default function Enrollment() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-xl bg-green-50 border border-green-200 flex items-center gap-3"
+          className="p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2.5"
         >
-          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
           <p className="text-sm text-green-800 font-medium">{successMessage}</p>
         </motion.div>
       )}
@@ -275,28 +275,28 @@ export default function Enrollment() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-center gap-3"
+          className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2.5"
         >
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
           <p className="text-sm text-red-800 font-medium">{errorMessage}</p>
         </motion.div>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <GraduationCap className="h-5 w-5 text-primary" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  <GraduationCap className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-xl font-bold text-foreground">
                     {selectedCourses.length}
                   </p>
                   <p className="text-sm text-muted-foreground">Selected</p>
@@ -312,13 +312,13 @@ export default function Enrollment() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-blue-100">
+                  <BookOpen className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-xl font-bold text-foreground">
                     {selectedCredits}
                   </p>
                   <p className="text-sm text-muted-foreground">New Credits</p>
@@ -334,13 +334,13 @@ export default function Enrollment() {
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-green-100">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-xl font-bold text-foreground">
                     {loading ? "..." : alreadyEnrolledCount}
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -357,8 +357,8 @@ export default function Enrollment() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: 0.3 }}
         >
-          <Card className="border-border">
-            <CardContent className="p-4">
+          <Card className="border-border h-full">
+            <CardContent className="p-3 h-full flex items-center">
               <Button
                 className="w-full bg-primary hover:bg-primary/90"
                 disabled={selectedCourses.length === 0 || enrolling}
@@ -385,13 +385,13 @@ export default function Enrollment() {
         transition={{ duration: 0.4 }}
       >
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Search courses by name or code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 bg-card border-border"
+            className="pl-9 h-9 bg-card border-border"
           />
         </div>
       </motion.div>
@@ -409,11 +409,11 @@ export default function Enrollment() {
         layoutId="enrollment-tab-indicator"
       />
 
-      <div className="mt-6">
+      <div className="mt-4">
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
+              <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
             ))}
           </div>
         ) : (
@@ -461,11 +461,11 @@ function CourseListGrouped({
   );
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {compulsory.length > 0 && (
         <div>
           {electives.length > 0 && (
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               Compulsory Courses
             </h4>
           )}
@@ -479,7 +479,7 @@ function CourseListGrouped({
 
       {minorGroups.map((minor) => (
         <div key={minor}>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2">
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               {minor} Electives
             </h4>
@@ -529,7 +529,7 @@ function CourseList({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4">
+    <div className="space-y-2">
       {courses.map((course, index) => {
         const status = getCourseStatus(course);
         const StatusIcon = status.icon;
@@ -553,68 +553,67 @@ function CourseList({
                     : "border-border hover:border-primary/50"
               } ${isDisabled && !course.alreadyEnrolled ? "opacity-60" : ""}`}
             >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <div className="pt-1">
-                    <Checkbox
-                      checked={isSelected || course.alreadyEnrolled}
-                      onCheckedChange={() => onCourseToggle(course.id)}
-                      disabled={isDisabled}
-                    />
-                  </div>
+              <CardContent className="p-3">
+                <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
+                  <Checkbox
+                    checked={isSelected || course.alreadyEnrolled}
+                    onCheckedChange={() => onCourseToggle(course.id)}
+                    disabled={isDisabled}
+                    className="flex-shrink-0"
+                  />
 
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-lg font-semibold text-foreground">
-                            {course.name}
-                          </h3>
-                          <Badge className="bg-primary/10 text-primary">
-                            {course.code}
-                          </Badge>
-                          {course.minor_category && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-purple-300 text-purple-700"
-                            >
-                              {course.minor_category}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {course.credits} Credits • {course.category}
-                        </p>
-                      </div>
-                      <Badge className={status.color}>
-                        <StatusIcon className="h-3 w-3 mr-1" />
-                        {status.label}
+                  {/* Course identity */}
+                  <div className="flex-1 min-w-0 basis-full md:basis-auto">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="text-sm font-semibold text-foreground truncate">
+                        {course.name}
+                      </h3>
+                      <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
+                        {course.code}
                       </Badge>
+                      {course.minor_category && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-purple-300 text-purple-700 flex-shrink-0"
+                        >
+                          {course.minor_category}
+                        </Badge>
+                      )}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {course.credits} Credits • {course.category}
+                    </p>
+                  </div>
 
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Seats: {course.enrolled}/{course.seats}
-                      </span>
-                      <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            course.enrolled >= course.seats
-                              ? "bg-red-500"
-                              : course.enrolled / course.seats > 0.8
-                                ? "bg-yellow-500"
-                                : "bg-green-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              (course.enrolled / course.seats) * 100,
-                            )}%`,
-                          }}
-                        />
-                      </div>
+                  {/* Seats + availability progress */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      Seats: {course.enrolled}/{course.seats}
+                    </span>
+                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          course.enrolled >= course.seats
+                            ? "bg-red-500"
+                            : course.enrolled / course.seats > 0.8
+                              ? "bg-yellow-500"
+                              : "bg-green-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (course.enrolled / course.seats) * 100,
+                          )}%`,
+                        }}
+                      />
                     </div>
                   </div>
+
+                  {/* Status */}
+                  <Badge className={`${status.color} flex-shrink-0`}>
+                    <StatusIcon className="h-3 w-3 mr-1" />
+                    {status.label}
+                  </Badge>
                 </div>
               </CardContent>
             </Card>

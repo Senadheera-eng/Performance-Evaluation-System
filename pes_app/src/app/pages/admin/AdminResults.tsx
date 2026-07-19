@@ -288,17 +288,17 @@ export default function AdminResults() {
     students.length > 0 && publishedCount === students.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Results Management
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Enter student marks, save as draft, then publish to make them visible
           to students.
         </p>
@@ -319,7 +319,7 @@ export default function AdminResults() {
               <div className="relative">
                 <button
                   onClick={() => setCourseDropdownOpen(!courseDropdownOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
                 >
                   <span
                     className={
@@ -344,7 +344,7 @@ export default function AdminResults() {
                           setSelectedCourse(course);
                           setCourseDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors text-sm ${
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm ${
                           selectedCourse?.id === course.id
                             ? "bg-primary/10 text-primary"
                             : "text-foreground"
@@ -372,7 +372,7 @@ export default function AdminResults() {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="2025/2026">2025/2026</option>
                 <option value="2024/2025">2024/2025</option>
@@ -474,7 +474,7 @@ export default function AdminResults() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.02 }}
-                      className={`p-4 rounded-xl border transition-all ${
+                      className={`p-3 rounded-xl border transition-all ${
                         student.isPublished
                           ? "border-green-200 bg-green-50/50"
                           : student.isDirty
@@ -482,11 +482,11 @@ export default function AdminResults() {
                             : "border-border bg-card"
                       }`}
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
                         {/* Student info */}
-                        <div className="md:col-span-4 flex items-center gap-3">
+                        <div className="md:col-span-4 flex items-center gap-2.5">
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                             style={{
                               background:
                                 "linear-gradient(135deg, #C41E3A, #6D28D9)",
@@ -528,7 +528,7 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-9 text-center text-sm bg-card border-border"
+                            className="h-8 text-center text-sm bg-card border-border"
                           />
                         </div>
 
@@ -551,7 +551,7 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-9 text-center text-sm bg-card border-border"
+                            className="h-8 text-center text-sm bg-card border-border"
                           />
                         </div>
 
@@ -574,7 +574,7 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-9 text-center text-sm bg-card border-border"
+                            className="h-8 text-center text-sm bg-card border-border"
                           />
                         </div>
 
@@ -631,7 +631,7 @@ export default function AdminResults() {
                         saving || students.filter((s) => s.isDirty).length === 0
                       }
                       variant="outline"
-                      className="flex-1 h-12 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      className="flex-1 h-10 border-amber-300 text-amber-700 hover:bg-amber-50"
                     >
                       {saving ? (
                         <div className="flex items-center gap-2">
@@ -649,7 +649,7 @@ export default function AdminResults() {
                     <Button
                       onClick={handlePublish}
                       disabled={publishing || allPublished}
-                      className="flex-1 h-12 bg-primary hover:bg-primary/90"
+                      className="flex-1 h-10 bg-primary hover:bg-primary/90"
                     >
                       {publishing ? (
                         <div className="flex items-center gap-2">

@@ -90,22 +90,22 @@ export default function AdminCourses() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-3xl font-bold text-foreground mb-2">
+        <h1 className="text-2xl font-bold text-foreground mb-1">
           Course Management
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           View all courses in the faculty catalogue.
         </p>
       </motion.div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           {
             label: "Total Courses",
@@ -133,10 +133,10 @@ export default function AdminCourses() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, delay: i * 0.1 }}
-            className="bg-card rounded-xl p-4 border border-border shadow-sm"
+            className="bg-card rounded-xl p-3 border border-border shadow-sm"
           >
             <div
-              className={`text-2xl font-bold mb-1 ${stat.color.split(" ")[1]}`}
+              className={`text-xl font-bold mb-1 ${stat.color.split(" ")[1]}`}
             >
               {loading ? "..." : stat.value}
             </div>
@@ -146,14 +146,14 @@ export default function AdminCourses() {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by course code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12 bg-card border-border"
+            className="pl-9 h-9 bg-card border-border"
           />
         </div>
 
@@ -237,9 +237,9 @@ export default function AdminCourses() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: index * 0.02 }}
-                  className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-primary/10">
                       <BookOpen className="h-4 w-4 text-primary" />
                     </div>
