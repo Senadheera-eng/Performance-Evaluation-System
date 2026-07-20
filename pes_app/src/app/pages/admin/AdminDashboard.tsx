@@ -29,6 +29,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 
 interface DashboardStats {
   totalStudents: number;
@@ -59,6 +61,8 @@ interface RecentResult {
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { student } = useAuth();
+  const scope = getAdminScope(student);
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     totalCourses: 0,
@@ -73,8 +77,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (student) fetchDashboardData();
+  }, [student]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -95,10 +99,16 @@ export default function AdminDashboard() {
       .eq("role", "student")
       .eq("status", "active");
 
-    // Total courses
-    const { count: courseCount } = await supabase
+    // Total courses (scoped to this admin's department — courses stay
+    // broadly SELECT-able by RLS so students can browse the full
+    // catalogue, so this filter is applied client-side for the admin view)
+    let courseCountQuery = supabase
       .from("courses")
       .select("*", { count: "exact", head: true });
+    if (scope.kind === "department") {
+      courseCountQuery = courseCountQuery.eq("department", scope.department);
+    }
+    const { count: courseCount } = await courseCountQuery;
 
     // Active courses (semester 5 — current)
     const { count: activeCount } = await supabase
@@ -183,11 +193,15 @@ export default function AdminDashboard() {
   };
 
   const fetchCourseAttendance = async () => {
-    const { data: courses } = await supabase
+    let courseQuery = supabase
       .from("courses")
       .select("id, course_code")
-      .eq("semester", 5)
-      .eq("year", 3);
+      .order("semester")
+      .order("course_code");
+    if (scope.kind === "department") {
+      courseQuery = courseQuery.eq("department", scope.department);
+    }
+    const { data: courses } = await courseQuery;
 
     if (!courses) return;
 
@@ -297,8 +311,7 @@ export default function AdminDashboard() {
           Admin Dashboard
         </h1>
         <p className="text-muted-foreground text-sm">
-          Overview of the Faculty of Engineering — Computer Engineering
-          Department.
+          Overview of the Faculty of Engineering — {describeAdminScope(student)}.
         </p>
       </motion.div>
 

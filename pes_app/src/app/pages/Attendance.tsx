@@ -20,7 +20,7 @@ interface CourseAttendance {
   total: number;
   attended: number;
   percentage: number;
-  status: "excellent" | "good" | "warning";
+  status: "excellent" | "good" | "warning" | "pending";
   lastClass: string;
   absencesAllowed: number;
 }
@@ -54,6 +54,15 @@ const getStatusColor = (status: string) => {
         messageText: "text-red-900",
         messageIcon: "text-red-600",
       };
+    case "pending":
+      return {
+        text: "text-gray-500",
+        border: "border-gray-200",
+        badge: "bg-gray-100 text-gray-600",
+        messageBg: "bg-gray-50",
+        messageText: "text-gray-700",
+        messageIcon: "text-gray-500",
+      };
     default:
       return {
         text: "text-gray-600",
@@ -66,7 +75,11 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getStatus = (percentage: number): "excellent" | "good" | "warning" => {
+const getStatus = (
+  percentage: number,
+  total: number,
+): "excellent" | "good" | "warning" | "pending" => {
+  if (total === 0) return "pending";
   if (percentage >= 90) return "excellent";
   if (percentage >= 80) return "good";
   return "warning";
@@ -169,7 +182,7 @@ export default function Attendance() {
         total: stats.total,
         attended: stats.present,
         percentage,
-        status: getStatus(percentage),
+        status: getStatus(percentage, stats.total),
         lastClass,
         absencesAllowed,
       };
@@ -185,10 +198,15 @@ export default function Attendance() {
     setLoading(false);
   };
 
+  // Courses with no recorded lectures yet have nothing to average — including
+  // them as 0% would understate attendance for courses that simply haven't
+  // had a lecture marked yet.
+  const scoredCourses = courses.filter((c) => c.status !== "pending");
   const overallAttendance =
-    courses.length > 0
+    scoredCourses.length > 0
       ? Math.round(
-          courses.reduce((sum, c) => sum + c.percentage, 0) / courses.length,
+          scoredCourses.reduce((sum, c) => sum + c.percentage, 0) /
+            scoredCourses.length,
         )
       : 0;
 
@@ -416,6 +434,21 @@ export default function Attendance() {
                         </div>
 
                         {/* Status Message */}
+                        {course.status === "pending" && (
+                          <div
+                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
+                          >
+                            <Calendar
+                              className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
+                            />
+                            <p className={`text-sm ${colors.messageText}`}>
+                              No lectures have been recorded for this course
+                              yet — attendance will appear here once your
+                              department admin starts marking it.
+                            </p>
+                          </div>
+                        )}
+
                         {course.status === "warning" && (
                           <div
                             className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}

@@ -20,6 +20,9 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { getAdminScope } from "../../../lib/adminScope";
+import { describeBatch } from "../../../lib/batch";
 
 interface Course {
   id: string;
@@ -37,7 +40,13 @@ interface StudentAttendance {
 }
 
 export default function AdminAttendance() {
-  const [courses, setCourses] = useState<Course[]>([]);
+  const { student } = useAuth();
+  const scope = getAdminScope(student);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [batches, setBatches] = useState<number[]>([]);
+  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
+  const [batchSemester, setBatchSemester] = useState<number | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -50,8 +59,16 @@ export default function AdminAttendance() {
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    if (student) {
+      fetchCourses();
+      fetchBatches();
+    }
+  }, [student]);
+
+  useEffect(() => {
+    if (selectedBatch !== null) fetchBatchCurrentSemester(selectedBatch);
+    setSelectedCourse(null);
+  }, [selectedBatch]);
 
   useEffect(() => {
     if (selectedCourse && selectedDate) {
@@ -60,14 +77,18 @@ export default function AdminAttendance() {
   }, [selectedCourse, selectedDate]);
 
   const fetchCourses = async () => {
-    const { data } = await supabase
+    let courseQuery = supabase
       .from("courses")
       .select("id, course_code, title, semester")
       .order("semester")
       .order("course_code");
+    if (scope.kind === "department") {
+      courseQuery = courseQuery.eq("department", scope.department);
+    }
+    const { data } = await courseQuery;
 
     if (data) {
-      setCourses(
+      setAllCourses(
         data.map((c: any) => ({
           id: c.id,
           code: c.course_code,
@@ -77,6 +98,54 @@ export default function AdminAttendance() {
       );
     }
   };
+
+  const fetchBatches = async () => {
+    const { data } = await supabase
+      .from("students")
+      .select("batch_year")
+      .eq("role", "student");
+
+    const distinct = [...new Set((data ?? []).map((s: any) => s.batch_year))]
+      .filter((y): y is number => y !== null)
+      .sort((a, b) => b - a);
+    setBatches(distinct);
+  };
+
+  // A batch's currently ongoing semester is derived from what its students
+  // are actively enrolled in right now — not hardcoded — so this keeps
+  // working as batches progress year to year.
+  const fetchBatchCurrentSemester = async (batchYear: number) => {
+    setBatchLoading(true);
+    setBatchSemester(null);
+
+    const { data } = await supabase
+      .from("enrollments")
+      .select("status, students!inner(batch_year), courses!inner(semester)")
+      .eq("status", "enrolled")
+      .eq("students.batch_year", batchYear);
+
+    const semesterCounts: Record<number, number> = {};
+    (data ?? []).forEach((row: any) => {
+      const sem = row.courses?.semester;
+      if (sem) semesterCounts[sem] = (semesterCounts[sem] ?? 0) + 1;
+    });
+
+    const entries = Object.entries(semesterCounts);
+    const mostCommonSemester =
+      entries.length > 0
+        ? Number(entries.sort((a, b) => b[1] - a[1])[0][0])
+        : null;
+
+    setBatchSemester(mostCommonSemester);
+    setBatchLoading(false);
+  };
+
+  const courses =
+    selectedBatch === null
+      ? []
+      : batchSemester === null
+        ? []
+        : allCourses.filter((c) => c.semester === batchSemester);
 
   const fetchStudentsForCourse = async () => {
     if (!selectedCourse) return;
@@ -210,11 +279,12 @@ export default function AdminAttendance() {
           Attendance Management
         </h1>
         <p className="text-muted-foreground text-sm">
-          Select a course and date to mark or update attendance.
+          Select a batch, then a course and date, to mark or update
+          attendance.
         </p>
       </motion.div>
 
-      {/* Course and Date Selection */}
+      {/* Batch, Course and Date Selection */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -222,10 +292,42 @@ export default function AdminAttendance() {
       >
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Select Course & Date</CardTitle>
+            <CardTitle>Select Batch, Course & Date</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Batch Dropdown */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Batch
+                </label>
+                <select
+                  value={selectedBatch ?? ""}
+                  onChange={(e) =>
+                    setSelectedBatch(
+                      e.target.value ? Number(e.target.value) : null,
+                    )
+                  }
+                  className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Select a batch...</option>
+                  {batches.map((b) => (
+                    <option key={b} value={b}>
+                      {describeBatch(b)}
+                    </option>
+                  ))}
+                </select>
+                {selectedBatch !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    {batchLoading
+                      ? "Detecting current semester..."
+                      : batchSemester !== null
+                        ? `Currently in Semester ${batchSemester}`
+                        : "No active enrollments found for this batch."}
+                  </p>
+                )}
+              </div>
+
               {/* Course Dropdown */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
@@ -233,8 +335,12 @@ export default function AdminAttendance() {
                 </label>
                 <div className="relative">
                   <button
-                    onClick={() => setCourseDropdownOpen(!courseDropdownOpen)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
+                    onClick={() =>
+                      selectedBatch !== null &&
+                      setCourseDropdownOpen(!courseDropdownOpen)
+                    }
+                    disabled={selectedBatch === null}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span
                       className={
@@ -245,7 +351,9 @@ export default function AdminAttendance() {
                     >
                       {selectedCourse
                         ? `${selectedCourse.code} — ${selectedCourse.name}`
-                        : "Select a course..."}
+                        : selectedBatch === null
+                          ? "Select a batch first..."
+                          : "Select a course..."}
                     </span>
                     <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   </button>

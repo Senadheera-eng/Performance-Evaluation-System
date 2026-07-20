@@ -20,6 +20,7 @@ import AdminAttendance from "./pages/admin/AdminAttendance";
 import AdminResults from "./pages/admin/AdminResults";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminCourses from "./pages/admin/AdminCourses";
+import AdminMedical from "./pages/admin/AdminMedical";
 
 export const router = createBrowserRouter([
   {
@@ -49,7 +50,7 @@ export const router = createBrowserRouter([
   {
     path: "/admin",
     element: (
-      <ProtectedRoute allowedRole="dept_admin">
+      <ProtectedRoute allowedRole={["dept_admin", "super_admin"]}>
         <AdminLayout />
       </ProtectedRoute>
     ),
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
       { path: "results", element: <AdminResults /> },
       { path: "students", element: <AdminStudents /> },
       { path: "courses", element: <AdminCourses /> },
+      { path: "medical", element: <AdminMedical /> },
     ],
   },
   {

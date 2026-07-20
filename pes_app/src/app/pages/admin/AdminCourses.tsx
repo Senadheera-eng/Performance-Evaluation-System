@@ -10,6 +10,8 @@ import {
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 
 interface Course {
   id: string;
@@ -26,23 +28,29 @@ interface Course {
 }
 
 export default function AdminCourses() {
+  const { student } = useAuth();
+  const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    if (student) fetchCourses();
+  }, [student]);
 
   const fetchCourses = async () => {
     setLoading(true);
 
-    const { data: courseData } = await supabase
+    let courseQuery = supabase
       .from("courses")
       .select("*")
       .order("semester")
       .order("course_code");
+    if (scope.kind === "department") {
+      courseQuery = courseQuery.eq("department", scope.department);
+    }
+    const { data: courseData } = await courseQuery;
 
     if (!courseData) {
       setLoading(false);
@@ -100,7 +108,9 @@ export default function AdminCourses() {
           Course Management
         </h1>
         <p className="text-muted-foreground text-sm">
-          View all courses in the faculty catalogue.
+          {scope.kind === "all"
+            ? "View all courses in the faculty catalogue."
+            : `Courses belonging to ${describeAdminScope(student)}.`}
         </p>
       </motion.div>
 

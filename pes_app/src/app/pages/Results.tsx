@@ -42,6 +42,7 @@ import {
 } from "recharts";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { describeBatch } from "../../lib/batch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -308,7 +309,7 @@ export default function Results() {
     );
     doc.text(`Department: ${student?.department ?? "-"}`, 130, y);
     y += 6;
-    doc.text(`Batch 7 (2021/2022)`, 14, y);
+    doc.text(describeBatch(student?.batch_year), 14, y);
     y += 10;
 
     semesters.forEach((sem) => {

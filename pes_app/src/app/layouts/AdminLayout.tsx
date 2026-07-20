@@ -13,11 +13,13 @@ import {
   Shield,
   Moon,
   Sun,
+  FileHeart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { describeAdminScope } from "../../lib/adminScope";
 
 const universityLogo = new URL("../../assets/logo.jpg", import.meta.url).href;
 
@@ -27,6 +29,7 @@ const navigation = [
   { name: "Results", href: "/admin/results", icon: TrendingUp },
   { name: "Students", href: "/admin/students", icon: Users },
   { name: "Courses", href: "/admin/courses", icon: BookOpen },
+  { name: "Medical", href: "/admin/medical", icon: FileHeart },
 ];
 
 export default function AdminLayout() {
@@ -90,7 +93,7 @@ export default function AdminLayout() {
           <div className="mx-3 mt-3 mb-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
             <Shield className="h-3.5 w-3.5 text-primary" />
             <span className="text-xs font-medium text-primary">
-              Department Admin
+              {student?.role === "super_admin" ? "Super Admin" : "Department Admin"}
             </span>
           </div>
 
@@ -136,7 +139,7 @@ export default function AdminLayout() {
                   {student?.name ?? "Admin"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {student?.department ?? "Department Admin"}
+                  {describeAdminScope(student)}
                 </p>
               </div>
             </div>
@@ -304,7 +307,7 @@ export default function AdminLayout() {
                     {student?.name ?? "Admin"}
                   </p>
                   <p className="text-xs text-muted-foreground leading-tight">
-                    Dept. Admin
+                    {student?.role === "super_admin" ? "Super Admin" : "Dept. Admin"}
                   </p>
                 </div>
                 <ChevronDown className="hidden md:block h-3.5 w-3.5 text-muted-foreground" />
