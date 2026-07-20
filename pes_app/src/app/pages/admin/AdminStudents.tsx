@@ -21,6 +21,7 @@ import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { describeBatch } from "../../../lib/batch";
 
 interface Student {
   id: string;
@@ -33,6 +34,7 @@ interface Student {
   totalCredits: number;
   enrolledCourses: number;
   avgAttendance: number;
+  hasAttendanceData: boolean;
 }
 
 export default function AdminStudents() {
@@ -43,6 +45,7 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "cgpa" | "attendance">("name");
+  const [batchFilter, setBatchFilter] = useState<number | "all">("all");
 
   useEffect(() => {
     fetchStudents();
@@ -74,13 +77,20 @@ export default function AdminStudents() {
 
     const statsMap: Record<
       string,
-      { cgpa: number | null; credits: number; attendance: number; enrolled: number }
+      {
+        cgpa: number | null;
+        credits: number;
+        attendance: number;
+        attendanceTotal: number;
+        enrolled: number;
+      }
     > = {};
     statsData?.forEach((row: any) => {
       statsMap[row.student_id] = {
         cgpa: row.cgpa !== null ? Number(row.cgpa) : null,
         credits: row.total_gpa_credits ?? 0,
         attendance: row.avg_attendance ?? 0,
+        attendanceTotal: row.attendance_total ?? 0,
         enrolled: row.enrolled_courses ?? 0,
       };
     });
@@ -99,6 +109,7 @@ export default function AdminStudents() {
         totalCredits: stats?.credits ?? 0,
         enrolledCourses: stats?.enrolled ?? 0,
         avgAttendance: stats?.attendance ?? 0,
+        hasAttendanceData: (stats?.attendanceTotal ?? 0) > 0,
       };
     });
 
@@ -106,7 +117,16 @@ export default function AdminStudents() {
     setLoading(false);
   };
 
-  const filtered = students
+  const batches = [...new Set(students.map((s) => s.batchYear))].sort(
+    (a, b) => b - a,
+  );
+
+  const batchFiltered =
+    batchFilter === "all"
+      ? students
+      : students.filter((s) => s.batchYear === batchFilter);
+
+  const filtered = batchFiltered
     .filter(
       (s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,24 +158,47 @@ export default function AdminStudents() {
         </p>
       </motion.div>
 
+      {/* Batch filter */}
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          Batch:
+        </label>
+        <select
+          value={batchFilter}
+          onChange={(e) =>
+            setBatchFilter(
+              e.target.value === "all" ? "all" : Number(e.target.value),
+            )
+          }
+          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="all">All Batches</option>
+          {batches.map((b) => (
+            <option key={b} value={b}>
+              {describeBatch(b)}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {[
           {
             label: "Total Students",
-            value: students.length,
+            value: batchFiltered.length,
             icon: Users,
             color: "bg-primary/10 text-primary",
           },
           {
             label: "Avg CGPA",
             value:
-              students.length > 0
+              batchFiltered.length > 0
                 ? (
-                    students
+                    batchFiltered
                       .filter((s) => s.cgpa !== null)
                       .reduce((sum, s) => sum + (s.cgpa ?? 0), 0) /
-                    students.filter((s) => s.cgpa !== null).length
+                    batchFiltered.filter((s) => s.cgpa !== null).length
                   ).toFixed(2)
                 : "—",
             icon: TrendingUp,
@@ -164,10 +207,12 @@ export default function AdminStudents() {
           {
             label: "Avg Attendance",
             value:
-              students.length > 0
+              batchFiltered.filter((s) => s.hasAttendanceData).length > 0
                 ? `${Math.round(
-                    students.reduce((sum, s) => sum + s.avgAttendance, 0) /
-                      students.length,
+                    batchFiltered
+                      .filter((s) => s.hasAttendanceData)
+                      .reduce((sum, s) => sum + s.avgAttendance, 0) /
+                      batchFiltered.filter((s) => s.hasAttendanceData).length,
                   )}%`
                 : "—",
             icon: Calendar,
@@ -313,12 +358,16 @@ export default function AdminStudents() {
                           <div className="text-center">
                             <p
                               className={`text-lg font-bold ${
-                                student.avgAttendance >= 80
-                                  ? "text-green-600"
-                                  : "text-red-600"
+                                !student.hasAttendanceData
+                                  ? "text-muted-foreground"
+                                  : student.avgAttendance >= 80
+                                    ? "text-green-600"
+                                    : "text-red-600"
                               }`}
                             >
-                              {student.avgAttendance}%
+                              {student.hasAttendanceData
+                                ? `${student.avgAttendance}%`
+                                : "—"}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Attendance
@@ -333,11 +382,12 @@ export default function AdminStudents() {
                             </p>
                           </div>
                         </div>
-                        {student.avgAttendance < 80 && (
-                          <Badge className="bg-red-100 text-red-700 hidden md:flex">
-                            Low Attendance
-                          </Badge>
-                        )}
+                        {student.hasAttendanceData &&
+                          student.avgAttendance < 80 && (
+                            <Badge className="bg-red-100 text-red-700 hidden md:flex">
+                              Low Attendance
+                            </Badge>
+                          )}
                         {expandedId === student.id ? (
                           <ChevronUp className="h-5 w-5 text-muted-foreground" />
                         ) : (

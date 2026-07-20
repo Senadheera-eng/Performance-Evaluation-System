@@ -21,6 +21,7 @@ import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { describeBatch } from "../../lib/batch";
 
 interface SemesterStat {
   semNum: number;
@@ -356,8 +357,7 @@ export default function Profile() {
                     <div className="flex items-center gap-3 text-sm">
                       <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <span className="text-foreground">
-                        Batch 7 ({student?.batch_year ?? "—"}/
-                        {student?.batch_year ? student.batch_year + 1 : "—"})
+                        {describeBatch(student?.batch_year)}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
@@ -488,8 +488,7 @@ export default function Profile() {
                         Intake Batch
                       </p>
                       <p className="font-medium text-foreground">
-                        Batch 7 ({student?.batch_year ?? "—"}/
-                        {student?.batch_year ? student.batch_year + 1 : "—"})
+                        {describeBatch(student?.batch_year)}
                       </p>
                     </div>
                   </div>

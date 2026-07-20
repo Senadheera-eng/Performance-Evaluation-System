@@ -23,6 +23,7 @@ import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeAdminScope } from "../../../lib/adminScope";
+import { describeBatch } from "../../../lib/batch";
 
 const REASON_LABELS: Record<string, string> = {
   medical: "Medical",
@@ -54,6 +55,7 @@ interface Submission {
   studentName: string;
   studentReg: string;
   studentEmail: string;
+  studentBatchYear: number | null;
   courses: SubmissionCourse[];
   files: SubmissionFile[];
 }
@@ -70,10 +72,30 @@ export default function AdminMedical() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [batches, setBatches] = useState<number[]>([]);
+  const [batchFilter, setBatchFilter] = useState<number | "all">("all");
 
   useEffect(() => {
-    if (admin) fetchSubmissions();
+    if (admin) {
+      fetchSubmissions();
+      fetchBatches();
+    }
   }, [admin]);
+
+  // Sourced from real students, not from existing submissions — otherwise
+  // the batch selector would stay empty until a submission happened to
+  // exist for that batch.
+  const fetchBatches = async () => {
+    const { data } = await supabase
+      .from("students")
+      .select("batch_year")
+      .eq("role", "student");
+
+    const distinct = [...new Set((data ?? []).map((s: any) => s.batch_year))]
+      .filter((y): y is number => y !== null)
+      .sort((a, b) => b - a);
+    setBatches(distinct);
+  };
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -84,7 +106,7 @@ export default function AdminMedical() {
         `
         id, reason_type, missed_date, end_date, description, status,
         submitted_at, review_notes,
-        students ( name, reg_number, email ),
+        students ( name, reg_number, email, batch_year ),
         medical_submission_courses ( courses ( course_code, title, department ) ),
         medical_submission_files ( id, file_url, file_name )
       `,
@@ -104,6 +126,7 @@ export default function AdminMedical() {
         studentName: s.students?.name ?? "—",
         studentReg: s.students?.reg_number ?? "—",
         studentEmail: s.students?.email ?? "—",
+        studentBatchYear: s.students?.batch_year ?? null,
         courses: (s.medical_submission_courses ?? [])
           .map((link: any) => link.courses)
           .filter(Boolean)
@@ -179,14 +202,24 @@ export default function AdminMedical() {
 
   const filtered = submissions.filter((s) => {
     const matchStatus = statusFilter === "all" || s.status === statusFilter;
+    const matchBatch =
+      batchFilter === "all" || s.studentBatchYear === batchFilter;
     const q = searchQuery.toLowerCase();
     const matchSearch =
       !q ||
       s.studentName.toLowerCase().includes(q) ||
       s.studentReg.toLowerCase().includes(q) ||
       s.courses.some((c) => c.code.toLowerCase().includes(q));
-    return matchStatus && matchSearch;
+    return matchStatus && matchBatch && matchSearch;
   });
+
+  const groupedByBatch = [...filtered]
+    .sort((a, b) => (b.studentBatchYear ?? 0) - (a.studentBatchYear ?? 0))
+    .reduce<Record<string, Submission[]>>((groups, sub) => {
+      const key = sub.studentBatchYear?.toString() ?? "unknown";
+      (groups[key] ??= []).push(sub);
+      return groups;
+    }, {});
 
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
 
@@ -248,6 +281,28 @@ export default function AdminMedical() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+          Batch:
+        </label>
+        <select
+          value={batchFilter}
+          onChange={(e) =>
+            setBatchFilter(
+              e.target.value === "all" ? "all" : Number(e.target.value),
+            )
+          }
+          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          <option value="all">All Batches</option>
+          {batches.map((b) => (
+            <option key={b} value={b}>
+              {describeBatch(b)}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <Card className="border-border">
         <CardHeader>
           <CardTitle>
@@ -270,28 +325,39 @@ export default function AdminMedical() {
               <p className="text-muted-foreground">No submissions found.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.map((sub, index) => (
-                <motion.div
-                  key={sub.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.03 }}
-                  className="p-3 rounded-xl border border-border bg-card"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-foreground">
-                          {sub.studentName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {sub.studentReg}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {REASON_LABELS[sub.reason_type] ?? "Other"}
-                        </Badge>
-                      </div>
+            <div className="space-y-5">
+              {Object.entries(groupedByBatch).map(([batchKey, batchSubs]) => (
+                <div key={batchKey}>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    {batchKey === "unknown"
+                      ? "Unknown Batch"
+                      : describeBatch(Number(batchKey))}{" "}
+                    <span className="font-normal normal-case">
+                      ({batchSubs.length})
+                    </span>
+                  </h4>
+                  <div className="space-y-3">
+                    {batchSubs.map((sub, index) => (
+                      <motion.div
+                        key={sub.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: index * 0.03 }}
+                        className="p-3 rounded-xl border border-border bg-card"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-foreground">
+                                {sub.studentName}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {sub.studentReg}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {REASON_LABELS[sub.reason_type] ?? "Other"}
+                              </Badge>
+                            </div>
                       <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                         <Mail className="h-3 w-3" />
                         {sub.studentEmail}
@@ -407,7 +473,10 @@ export default function AdminMedical() {
                       )}
                     </div>
                   )}
-                </motion.div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

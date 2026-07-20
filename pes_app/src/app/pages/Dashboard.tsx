@@ -232,18 +232,24 @@ export default function Dashboard() {
       courses.map((c) => ({ course: c.code, attendance: c.attendance })),
     );
 
-    // Average attendance
+    // Average attendance — only over courses that actually have a lecture
+    // recorded yet. A freshly enrolled course with zero lectures marked has
+    // nothing to average and shouldn't be treated as 0%.
+    const scoredCourses = courses.filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0);
     const avg =
-      courses.length > 0
+      scoredCourses.length > 0
         ? Math.round(
-            courses.reduce((sum, c) => sum + c.attendance, 0) / courses.length,
+            scoredCourses.reduce((sum, c) => sum + c.attendance, 0) /
+              scoredCourses.length,
           )
         : 0;
     setAvgAttendance(avg);
 
-    // Alerts for courses below 80%
+    // Alerts for courses below 80% — only once an admin has actually
+    // recorded at least one lecture for that course. Otherwise every
+    // freshly enrolled course would falsely show up as "0% attendance".
     const alertList: AttendanceAlert[] = courses
-      .filter((c) => c.attendance < 80)
+      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < 80)
       .map((c) => {
         const att = courseAttMap[c.id];
         return {
