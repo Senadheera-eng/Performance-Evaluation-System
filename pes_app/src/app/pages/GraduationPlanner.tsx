@@ -146,7 +146,7 @@ export default function GraduationPlanner() {
       const { data: futureCourses } = await supabase
         .from("courses")
         .select("semester, credits, category, contributes_to_gpa")
-        .eq("department", student.department)
+        .in("department", [student.department, "Interdisciplinary Studies"])
         .gt("semester", maxSem)
         .eq("category", "Compulsory")
         .eq("contributes_to_gpa", true);

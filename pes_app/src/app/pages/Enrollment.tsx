@@ -119,10 +119,13 @@ export default function Enrollment() {
     setNextSemester(targetSemester);
     setAcademicYear(semesterToAcademicYear(targetSemester));
 
+    // Interdisciplinary Studies courses are shared general-education
+    // requirements taken by students of every department, so they must be
+    // included alongside the student's own department's courses here.
     const { data: courses } = await supabase
       .from("courses")
       .select("*")
-      .eq("department", student.department)
+      .in("department", [student.department, "Interdisciplinary Studies"])
       .eq("year", targetYear)
       .eq("semester", targetSemester)
       .order("course_code");
