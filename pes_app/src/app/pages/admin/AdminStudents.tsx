@@ -19,6 +19,8 @@ import {
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 
 interface Student {
   id: string;
@@ -34,6 +36,8 @@ interface Student {
 }
 
 export default function AdminStudents() {
+  const { student: currentAdmin } = useAuth();
+  const scope = getAdminScope(currentAdmin);
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -156,7 +160,11 @@ export default function AdminStudents() {
           Student Management
         </h1>
         <p className="text-muted-foreground text-sm">
-          View and manage all registered students and their academic records.
+          {scope.kind === "all"
+            ? "View and manage all registered students and their academic records."
+            : scope.department === "Interdisciplinary Studies"
+              ? "Students with results or enrollments in an Interdisciplinary Studies course."
+              : `Students in ${describeAdminScope(currentAdmin)}.`}
         </p>
       </motion.div>
 

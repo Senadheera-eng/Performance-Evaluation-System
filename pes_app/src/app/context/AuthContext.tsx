@@ -24,6 +24,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchStudentProfile = async (userId: string) => {
+    // Admins live in a separate table from students — check there first.
+    // Normalized into the same Student shape (with the student-only fields
+    // nulled out) so every existing consumer of `student` keeps working
+    // unchanged regardless of which table the profile came from.
+    const { data: admin } = await supabase
+      .from("admins")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+    if (admin) {
+      return {
+        id: admin.id,
+        reg_number: null,
+        index_number: null,
+        name: admin.name,
+        email: admin.email,
+        department: admin.department,
+        batch_year: null,
+        role: admin.role,
+        status: admin.status,
+        created_at: admin.created_at,
+      } as Student;
+    }
+
     const { data } = await supabase
       .from("students")
       .select("*")
@@ -63,6 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) return { error: error.message, role: null };
 
     if (data.user) {
+      const { data: adminData } = await supabase
+        .from("admins")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      if (adminData) return { error: null, role: adminData.role };
+
       const { data: studentData } = await supabase
         .from("students")
         .select("role")

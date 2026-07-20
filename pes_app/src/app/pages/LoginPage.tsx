@@ -31,7 +31,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (role === "dept_admin") {
+    if (role === "dept_admin" || role === "super_admin") {
       navigate("/admin");
     } else {
       navigate("/app");

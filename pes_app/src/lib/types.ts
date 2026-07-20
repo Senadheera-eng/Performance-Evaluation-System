@@ -1,4 +1,4 @@
-export type Role = 'student' | 'dept_admin'
+export type Role = 'student' | 'dept_admin' | 'super_admin'
 
 export interface Student {
   id: string
@@ -6,7 +6,8 @@ export interface Student {
   index_number: string | null
   name: string
   email: string
-  department: string
+  // Null for super_admin, which has no single home department.
+  department: string | null
   batch_year: number | null
   role: Role
   status: 'active' | 'withdrawn' | 'transferred' | 'graduated'

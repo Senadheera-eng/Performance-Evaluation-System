@@ -20,6 +20,8 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
+import { useAuth } from "../../context/AuthContext";
+import { getAdminScope } from "../../../lib/adminScope";
 
 interface Course {
   id: string;
@@ -37,6 +39,8 @@ interface StudentAttendance {
 }
 
 export default function AdminAttendance() {
+  const { student } = useAuth();
+  const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedDate, setSelectedDate] = useState(
@@ -50,8 +54,8 @@ export default function AdminAttendance() {
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    if (student) fetchCourses();
+  }, [student]);
 
   useEffect(() => {
     if (selectedCourse && selectedDate) {
@@ -60,11 +64,15 @@ export default function AdminAttendance() {
   }, [selectedCourse, selectedDate]);
 
   const fetchCourses = async () => {
-    const { data } = await supabase
+    let courseQuery = supabase
       .from("courses")
       .select("id, course_code, title, semester")
       .order("semester")
       .order("course_code");
+    if (scope.kind === "department") {
+      courseQuery = courseQuery.eq("department", scope.department);
+    }
+    const { data } = await courseQuery;
 
     if (data) {
       setCourses(

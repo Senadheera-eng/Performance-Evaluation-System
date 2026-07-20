@@ -1,9 +1,10 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import type { Role } from "../../lib/types";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRole?: "student" | "dept_admin";
+  allowedRole?: Role | Role[];
 }
 
 export default function ProtectedRoute({
@@ -11,6 +12,11 @@ export default function ProtectedRoute({
   allowedRole,
 }: ProtectedRouteProps) {
   const { user, student, loading } = useAuth();
+  const allowedRoles = allowedRole
+    ? Array.isArray(allowedRole)
+      ? allowedRole
+      : [allowedRole]
+    : null;
 
   // Still checking auth — show spinner
   if (loading) {
@@ -40,8 +46,10 @@ export default function ProtectedRoute({
   }
 
   // Wrong role → redirect
-  if (allowedRole && student?.role !== allowedRole) {
-    if (student?.role === "dept_admin") return <Navigate to="/admin" replace />;
+  if (allowedRoles && (!student || !allowedRoles.includes(student.role))) {
+    if (student?.role === "dept_admin" || student?.role === "super_admin") {
+      return <Navigate to="/admin" replace />;
+    }
     return <Navigate to="/app" replace />;
   }
 
