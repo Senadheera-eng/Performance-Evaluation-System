@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Paperclip,
   Loader2,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -21,6 +22,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Label } from "../components/ui/label";
+import { Checkbox } from "../components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -43,19 +45,24 @@ interface EnrolledCourse {
   title: string;
 }
 
+interface SubmissionFile {
+  id: string;
+  file_url: string;
+  file_name: string;
+}
+
 interface Submission {
   id: string;
   reason_type: string;
   missed_date: string;
   end_date: string | null;
   description: string | null;
-  file_url: string | null;
-  file_name: string | null;
   status: string;
   deadline: string | null;
   submitted_at: string;
   review_notes: string | null;
-  course: { code: string; title: string } | null;
+  courses: { code: string; title: string }[];
+  files: SubmissionFile[];
 }
 
 const daysBetween = (a: Date, b: Date) =>
@@ -72,11 +79,11 @@ export default function MedicalCertificates() {
 
   // form state
   const [reasonType, setReasonType] = useState("medical");
-  const [courseId, setCourseId] = useState<string>("all");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
@@ -88,6 +95,8 @@ export default function MedicalCertificates() {
   const fetchData = async () => {
     setLoading(true);
 
+    // Courses the student is currently taking this semester — the only
+    // ones a medical excuse can reasonably apply to.
     const { data: enrollments } = await supabase
       .from("enrollments")
       .select("courses(id, course_code, title)")
@@ -106,40 +115,74 @@ export default function MedicalCertificates() {
       .select(
         `
         id, reason_type, missed_date, end_date, description,
-        file_url, file_name, status, deadline, submitted_at, review_notes,
-        course:courses(code:course_code, title)
+        status, deadline, submitted_at, review_notes,
+        medical_submission_courses ( courses ( course_code, title ) ),
+        medical_submission_files ( id, file_url, file_name )
       `,
       )
       .eq("student_id", student!.id)
       .order("submitted_at", { ascending: false });
 
-    setSubmissions((subs as any) ?? []);
+    setSubmissions(
+      (subs ?? []).map((s: any) => ({
+        id: s.id,
+        reason_type: s.reason_type,
+        missed_date: s.missed_date,
+        end_date: s.end_date,
+        description: s.description,
+        status: s.status,
+        deadline: s.deadline,
+        submitted_at: s.submitted_at,
+        review_notes: s.review_notes,
+        courses: (s.medical_submission_courses ?? [])
+          .map((link: any) => link.courses)
+          .filter(Boolean)
+          .map((c: any) => ({ code: c.course_code, title: c.title })),
+        files: s.medical_submission_files ?? [],
+      })),
+    );
     setLoading(false);
   };
 
+  const toggleCourse = (courseId: string) => {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId],
+    );
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 5 * 1024 * 1024) {
-      setFormError("File must be smaller than 5MB.");
-      return;
-    }
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+
     const okTypes = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
-    if (!okTypes.includes(f.type)) {
-      setFormError("Please upload a PDF, JPG, or PNG file.");
-      return;
+    for (const f of picked) {
+      if (f.size > 5 * 1024 * 1024) {
+        setFormError(`"${f.name}" is larger than 5MB.`);
+        return;
+      }
+      if (!okTypes.includes(f.type)) {
+        setFormError(`"${f.name}" must be a PDF, JPG, or PNG file.`);
+        return;
+      }
     }
     setFormError(null);
-    setFile(f);
+    setFiles((prev) => [...prev, ...picked]);
+    e.target.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const resetForm = () => {
     setReasonType("medical");
-    setCourseId("all");
+    setSelectedCourseIds([]);
     setStartDate("");
     setEndDate("");
     setDescription("");
-    setFile(null);
+    setFiles([]);
   };
 
   const handleSubmit = async () => {
@@ -150,9 +193,13 @@ export default function MedicalCertificates() {
       setFormError("Please select the date of the event/onset.");
       return;
     }
-    if (!file) {
+    if (selectedCourseIds.length === 0) {
+      setFormError("Please select at least one missed course.");
+      return;
+    }
+    if (files.length === 0) {
       setFormError(
-        "Please attach your medical certificate or supporting evidence.",
+        "Please attach at least one medical certificate or supporting document.",
       );
       return;
     }
@@ -161,45 +208,65 @@ export default function MedicalCertificates() {
     setSubmitting(true);
 
     try {
-      const ext = file.name.split(".").pop();
-      const path = `${student.id}/${Date.now()}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("medical-certificates")
-        .upload(path, file);
-
-      if (uploadError) {
-        setFormError("File upload failed. Please try again.");
-        setSubmitting(false);
-        return;
-      }
-
-      const deadline = new Date(startDate);
-      deadline.setDate(deadline.getDate() + 14);
-
-      const { error: insertError } = await supabase
+      const { data: inserted, error: insertError } = await supabase
         .from("medical_submissions")
         .insert({
           student_id: student.id,
-          course_id: courseId === "all" ? null : courseId,
           reason_type: reasonType,
           missed_date: startDate,
           end_date: endDate || null,
           description: description || null,
-          file_url: path,
-          file_name: file.name,
-          deadline: deadline.toISOString().split("T")[0],
           status: "pending",
-        });
+        })
+        .select("id")
+        .single();
 
-      if (insertError) {
+      if (insertError || !inserted) {
         setFormError("Submission failed. Please try again.");
         setSubmitting(false);
         return;
       }
 
+      const submissionId = inserted.id;
+
+      const { error: coursesError } = await supabase
+        .from("medical_submission_courses")
+        .insert(
+          selectedCourseIds.map((courseId) => ({
+            submission_id: submissionId,
+            course_id: courseId,
+          })),
+        );
+
+      if (coursesError) {
+        setFormError("Submission failed while linking courses.");
+        setSubmitting(false);
+        return;
+      }
+
+      for (const file of files) {
+        const ext = file.name.split(".").pop();
+        const path = `${student.id}/${submissionId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("medical-certificates")
+          .upload(path, file);
+
+        if (uploadError) {
+          setFormError(`Upload failed for "${file.name}". Please try again.`);
+          setSubmitting(false);
+          return;
+        }
+
+        await supabase.from("medical_submission_files").insert({
+          submission_id: submissionId,
+          file_url: path,
+          file_name: file.name,
+        });
+      }
+
       setFormSuccess(
-        "Submitted successfully. Your department will review it shortly.",
+        "Submitted successfully. The relevant department(s) will review it shortly.",
       );
       resetForm();
       await fetchData();
@@ -210,18 +277,17 @@ export default function MedicalCertificates() {
     setSubmitting(false);
   };
 
-  const handleViewFile = async (sub: Submission) => {
-    if (!sub.file_url) return;
-    if (signedUrls[sub.id]) {
-      window.open(signedUrls[sub.id], "_blank");
+  const handleViewFile = async (fileKey: string, fileUrl: string) => {
+    if (signedUrls[fileKey]) {
+      window.open(signedUrls[fileKey], "_blank");
       return;
     }
     const { data } = await supabase.storage
       .from("medical-certificates")
-      .createSignedUrl(sub.file_url, 60 * 10);
+      .createSignedUrl(fileUrl, 60 * 10);
 
     if (data?.signedUrl) {
-      setSignedUrls((prev) => ({ ...prev, [sub.id]: data.signedUrl }));
+      setSignedUrls((prev) => ({ ...prev, [fileKey]: data.signedUrl }));
       window.open(data.signedUrl, "_blank");
     }
   };
@@ -320,22 +386,37 @@ export default function MedicalCertificates() {
               </div>
 
               <div>
-                <Label className="mb-2 block">Affected Course</Label>
-                <Select value={courseId} onValueChange={setCourseId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      All ongoing courses (general excuse)
-                    </SelectItem>
+                <Label className="mb-2 block">
+                  Missed Course(s){" "}
+                  <span className="text-muted-foreground font-normal">
+                    — select all that apply
+                  </span>
+                </Label>
+                {courses.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-2">
+                    You have no currently enrolled courses to select from.
+                  </p>
+                ) : (
+                  <div className="border border-border rounded-xl max-h-48 overflow-y-auto divide-y divide-border">
                     {courses.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.code} — {c.title}
-                      </SelectItem>
+                      <label
+                        key={c.id}
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedCourseIds.includes(c.id)}
+                          onCheckedChange={() => toggleCourse(c.id)}
+                        />
+                        <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
+                          {c.code}
+                        </Badge>
+                        <span className="text-foreground truncate">
+                          {c.title}
+                        </span>
+                      </label>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -390,15 +471,39 @@ export default function MedicalCertificates() {
                 <label className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
                   <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm text-muted-foreground truncate">
-                    {file ? file.name : "Upload PDF, JPG, or PNG (max 5MB)"}
+                    Upload PDF, JPG, or PNG (max 5MB each) — multiple files
+                    allowed
                   </span>
                   <input
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
+                    multiple
                     className="hidden"
                     onChange={handleFileChange}
                   />
                 </label>
+                {files.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {files.map((f, i) => (
+                      <div
+                        key={`${f.name}-${i}`}
+                        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-muted/50 text-xs"
+                      >
+                        <span className="flex items-center gap-1.5 text-foreground truncate">
+                          <Paperclip className="h-3 w-3 flex-shrink-0" />
+                          {f.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {formError && <p className="text-sm text-red-600">{formError}</p>}
@@ -473,15 +578,15 @@ export default function MedicalCertificates() {
                               <span className="font-semibold text-foreground">
                                 {REASON_LABELS[sub.reason_type] ?? "Other"}
                               </span>
-                              {sub.course ? (
-                                <Badge variant="outline" className="text-xs">
-                                  {sub.course.code}
+                              {sub.courses.map((c) => (
+                                <Badge
+                                  key={c.code}
+                                  variant="outline"
+                                  className="text-xs"
+                                >
+                                  {c.code}
                                 </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs">
-                                  All courses
-                                </Badge>
-                              )}
+                              ))}
                               {late && sub.status === "pending" && (
                                 <Badge className="bg-orange-100 text-orange-700 text-xs">
                                   Submitted late
@@ -508,14 +613,21 @@ export default function MedicalCertificates() {
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => handleViewFile(sub)}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                          >
-                            <Paperclip className="h-3 w-3" />
-                            {sub.file_name ?? "View attachment"}
-                          </button>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {sub.files.map((f) => (
+                              <button
+                                key={f.id}
+                                onClick={() =>
+                                  handleViewFile(f.id, f.file_url)
+                                }
+                                className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                              >
+                                <Paperclip className="h-3 w-3" />
+                                {f.file_name}
+                              </button>
+                            ))}
+                          </div>
                           <span className="text-xs text-muted-foreground">
                             Submitted{" "}
                             {new Date(sub.submitted_at).toLocaleDateString()}

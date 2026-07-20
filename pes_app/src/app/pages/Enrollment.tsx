@@ -81,18 +81,14 @@ export default function Enrollment() {
     fetchAvailableCourses();
   }, [student?.id]);
 
+  // Academic year for a given semester is derived from the student's own
+  // intake (batch_year) plus the course year that semester falls in — two
+  // semesters (e.g. 3 & 4) always share one academic year.
   const semesterToAcademicYear = (sem: number): string => {
-    const map: Record<number, string> = {
-      1: "2022/2023",
-      2: "2022/2023",
-      3: "2023/2024",
-      4: "2024/2025",
-      5: "2025/2026",
-      6: "2026/2027",
-      7: "2027/2028",
-      8: "2028/2029",
-    };
-    return map[sem] ?? "TBD";
+    if (!student?.batch_year) return "TBD";
+    const courseYear = Math.ceil(sem / 2);
+    const startYear = student.batch_year + courseYear - 1;
+    return `${startYear}/${startYear + 1}`;
   };
 
   const fetchAvailableCourses = async () => {
@@ -609,7 +605,16 @@ function CourseList({
                     </div>
                   </div>
 
-                  {/* Status */}
+                  {/* Category + Status */}
+                  <Badge
+                    className={`text-xs flex-shrink-0 ${
+                      course.category === "Compulsory"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-purple-100 text-purple-700"
+                    }`}
+                  >
+                    {course.category}
+                  </Badge>
                   <Badge className={`${status.color} flex-shrink-0`}>
                     <StatusIcon className="h-3 w-3 mr-1" />
                     {status.label}

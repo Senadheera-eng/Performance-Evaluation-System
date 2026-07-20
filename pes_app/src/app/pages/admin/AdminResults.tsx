@@ -77,12 +77,45 @@ const getGradeColor = (grade: string | null) => {
   return "bg-gray-100 text-gray-700";
 };
 
+// Academic years selectable for results entry. The lower bound is derived
+// from the earliest student batch actually on record (not a fixed lookback),
+// so an older or newer batch is never silently unselectable.
+const buildAcademicYearOptions = (earliestBatchYear: number): string[] => {
+  const currentYear = new Date().getFullYear();
+  const years: string[] = [];
+  for (let y = currentYear + 1; y >= earliestBatchYear; y--) {
+    years.push(`${y}/${y + 1}`);
+  }
+  return years;
+};
+
 export default function AdminResults() {
   const { student } = useAuth();
   const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedYear, setSelectedYear] = useState("2025/2026");
+  const [academicYearOptions, setAcademicYearOptions] = useState<string[]>(
+    () => buildAcademicYearOptions(new Date().getFullYear() - 4),
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    () => buildAcademicYearOptions(new Date().getFullYear() - 4)[1],
+  );
+
+  useEffect(() => {
+    const loadYearRange = async () => {
+      const { data } = await supabase
+        .from("students")
+        .select("batch_year")
+        .eq("role", "student")
+        .order("batch_year", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (data?.batch_year) {
+        setAcademicYearOptions(buildAcademicYearOptions(data.batch_year));
+      }
+    };
+    loadYearRange();
+  }, []);
   const [students, setStudents] = useState<StudentResult[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -127,7 +160,10 @@ export default function AdminResults() {
     if (!selectedCourse) return;
     setLoading(true);
 
-    // Get enrolled students
+    // Get students enrolled in this specific offering (course + academic
+    // year) — each course is only ever offered under one academic year in
+    // practice, so filtering here keeps the roster from bleeding across
+    // years when a different year is selected.
     const { data: enrollments } = await supabase
       .from("enrollments")
       .select(
@@ -137,6 +173,7 @@ export default function AdminResults() {
       `,
       )
       .eq("course_id", selectedCourse.id)
+      .eq("academic_year", selectedYear)
       .in("status", ["enrolled", "completed"]);
 
     if (!enrollments) {
@@ -348,9 +385,23 @@ export default function AdminResults() {
                     {courses.map((course) => (
                       <button
                         key={course.id}
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedCourse(course);
                           setCourseDropdownOpen(false);
+
+                          // Each course's results live under exactly one
+                          // academic year (the cohort that took it) — snap
+                          // the year selector to match, so existing grades
+                          // aren't hidden behind a mismatched year filter.
+                          const { data: yearProbe } = await supabase
+                            .from("results")
+                            .select("academic_year")
+                            .eq("course_id", course.id)
+                            .limit(1)
+                            .maybeSingle();
+                          if (yearProbe?.academic_year) {
+                            setSelectedYear(yearProbe.academic_year);
+                          }
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm ${
                           selectedCourse?.id === course.id
@@ -382,10 +433,11 @@ export default function AdminResults() {
                 onChange={(e) => setSelectedYear(e.target.value)}
                 className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
-                <option value="2025/2026">2025/2026</option>
-                <option value="2024/2025">2024/2025</option>
-                <option value="2023/2024">2023/2024</option>
-                <option value="2022/2023">2022/2023</option>
+                {academicYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -471,7 +523,9 @@ export default function AdminResults() {
                 <div className="text-center py-10">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                   <p className="text-muted-foreground">
-                    No students found for this course.
+                    {searchQuery
+                      ? "No students match your search."
+                      : `No students enrolled in this course for ${selectedYear}.`}
                   </p>
                 </div>
               ) : (

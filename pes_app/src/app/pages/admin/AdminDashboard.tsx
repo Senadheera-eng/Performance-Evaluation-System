@@ -196,8 +196,8 @@ export default function AdminDashboard() {
     let courseQuery = supabase
       .from("courses")
       .select("id, course_code")
-      .eq("semester", 5)
-      .eq("year", 3);
+      .order("semester")
+      .order("course_code");
     if (scope.kind === "department") {
       courseQuery = courseQuery.eq("department", scope.department);
     }

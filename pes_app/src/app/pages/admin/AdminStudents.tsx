@@ -62,61 +62,31 @@ export default function AdminStudents() {
       return;
     }
 
-    // Fetch results for CGPA
-    const { data: results } = await supabase
-      .from("results")
-      .select("student_id, gpv, courses(credits, contributes_to_gpa)")
-      .eq("is_published", true)
-      .not("gpv", "is", null);
+    // Full academic picture (CGPA, attendance, enrollment count) computed
+    // server-side across ALL departments — RLS on results/attendance/
+    // enrollments is intentionally scoped per-course-department for raw
+    // row access, so aggregating client-side here would only ever see this
+    // admin's own department's courses and silently produce a partial,
+    // misleading CGPA/attendance figure.
+    const { data: statsData } = await supabase.rpc(
+      "get_all_students_academic_stats",
+    );
 
-    // Fetch enrollments count
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select("student_id, status");
-
-    // Fetch attendance
-    const { data: attendance } = await supabase
-      .from("attendance")
-      .select("student_id, status");
-
-    // Build maps
-    const cgpaMap: Record<string, { weighted: number; credits: number }> = {};
-    results?.forEach((r: any) => {
-      if (!r.courses?.contributes_to_gpa) return;
-      if (!cgpaMap[r.student_id])
-        cgpaMap[r.student_id] = { weighted: 0, credits: 0 };
-      cgpaMap[r.student_id].weighted += r.gpv * r.courses.credits;
-      cgpaMap[r.student_id].credits += r.courses.credits;
-    });
-
-    const enrollMap: Record<string, number> = {};
-    enrollments?.forEach((e: any) => {
-      if (e.status === "enrolled") {
-        enrollMap[e.student_id] = (enrollMap[e.student_id] ?? 0) + 1;
-      }
-    });
-
-    const attMap: Record<string, { present: number; total: number }> = {};
-    attendance?.forEach((a: any) => {
-      if (!attMap[a.student_id])
-        attMap[a.student_id] = { present: 0, total: 0 };
-      attMap[a.student_id].total++;
-      if (a.status === "present" || a.status === "excused")
-        attMap[a.student_id].present++;
+    const statsMap: Record<
+      string,
+      { cgpa: number | null; credits: number; attendance: number; enrolled: number }
+    > = {};
+    statsData?.forEach((row: any) => {
+      statsMap[row.student_id] = {
+        cgpa: row.cgpa !== null ? Number(row.cgpa) : null,
+        credits: row.total_gpa_credits ?? 0,
+        attendance: row.avg_attendance ?? 0,
+        enrolled: row.enrolled_courses ?? 0,
+      };
     });
 
     const studentList: Student[] = studentData.map((s: any) => {
-      const cgpaData = cgpaMap[s.id];
-      const cgpa =
-        cgpaData && cgpaData.credits > 0
-          ? Math.round((cgpaData.weighted / cgpaData.credits) * 100) / 100
-          : null;
-
-      const attData = attMap[s.id];
-      const avgAttendance =
-        attData && attData.total > 0
-          ? Math.round((attData.present / attData.total) * 100)
-          : 0;
+      const stats = statsMap[s.id];
 
       return {
         id: s.id,
@@ -125,10 +95,10 @@ export default function AdminStudents() {
         email: s.email,
         department: s.department,
         batchYear: s.batch_year,
-        cgpa,
-        totalCredits: cgpaData?.credits ?? 0,
-        enrolledCourses: enrollMap[s.id] ?? 0,
-        avgAttendance,
+        cgpa: stats?.cgpa ?? null,
+        totalCredits: stats?.credits ?? 0,
+        enrolledCourses: stats?.enrolled ?? 0,
+        avgAttendance: stats?.attendance ?? 0,
       };
     });
 

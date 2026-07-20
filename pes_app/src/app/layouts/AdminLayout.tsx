@@ -13,6 +13,7 @@ import {
   Shield,
   Moon,
   Sun,
+  FileHeart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Results", href: "/admin/results", icon: TrendingUp },
   { name: "Students", href: "/admin/students", icon: Users },
   { name: "Courses", href: "/admin/courses", icon: BookOpen },
+  { name: "Medical", href: "/admin/medical", icon: FileHeart },
 ];
 
 export default function AdminLayout() {
