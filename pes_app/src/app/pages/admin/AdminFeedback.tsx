@@ -70,6 +70,8 @@ import {
   FeedbackQuestion,
   buildFeedbackCsv,
   downloadCsv,
+  buildFeedbackExcel,
+  downloadExcel,
 } from "../../../lib/feedbackService";
 
 
@@ -238,15 +240,25 @@ function AnalyticsView() {
     );
   }
 
-  const handleExport = () => {
+  const handleExport = (format: "csv" | "excel") => {
     const period = periods.find((p) => p.id === periodId);
     if (!period) return;
     const scoped = courseId
       ? courseAnalytics.filter((c) => c.course_id === courseId)
       : courseAnalytics;
-    const csv = buildFeedbackCsv(period, scoped, questionAnalytics, comments);
     const slug = period.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    downloadCsv(`feedback-${slug}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (format === "csv") {
+      downloadCsv(
+        `feedback-${slug}-${stamp}.csv`,
+        buildFeedbackCsv(period, scoped, questionAnalytics, comments),
+      );
+    } else {
+      downloadExcel(
+        `feedback-${slug}-${stamp}.xls`,
+        buildFeedbackExcel(period, scoped, questionAnalytics, comments),
+      );
+    }
   };
 
   const selectedCourse = courseAnalytics.find((c) => c.course_id === courseId);
@@ -280,9 +292,21 @@ function AnalyticsView() {
             </option>
           ))}
         </select>
-        <Button variant="outline" onClick={handleExport} className="h-9">
+        <Button
+          variant="outline"
+          onClick={() => handleExport("csv")}
+          className="h-9"
+        >
           <Download className="h-4 w-4 mr-1.5" />
-          Export CSV
+          CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleExport("excel")}
+          className="h-9"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          Excel
         </Button>
       </div>
 
