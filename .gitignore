@@ -41,6 +41,11 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# ...except the deployed app's lockfile. A hosting provider builds from a
+# clean clone, so without this it resolves fresh dependency versions on every
+# deploy and the build is not reproducible.
+!pes_app/package-lock.json
+
 # Cache and Temporary files
 .cache/
 .eslintcache
