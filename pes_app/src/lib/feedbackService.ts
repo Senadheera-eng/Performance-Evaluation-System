@@ -83,14 +83,11 @@ function friendlyError(raw: string | undefined): string {
 }
 
 export async function getActiveFeedbackPeriod(): Promise<FeedbackPeriod | null> {
-  const { data, error } = await supabase
-    .from("feedback_periods")
-    .select("*")
-    .eq("status", "open")
-    .lte("opens_at", new Date().toISOString())
-    .gte("closes_at", new Date().toISOString())
-    .order("opens_at", { ascending: false })
-    .limit(1);
+  // RPC rather than a direct table query: it also filters by the calling
+  // student's own batch, so a period aimed at another batch never shows.
+  const { data, error } = await supabase.rpc(
+    "get_student_active_feedback_period",
+  );
 
   if (error || !data || data.length === 0) return null;
   return data[0] as FeedbackPeriod;

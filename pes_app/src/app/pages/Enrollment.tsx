@@ -75,11 +75,40 @@ export default function Enrollment() {
   const [activeTab, setActiveTab] = useState("all");
   const [nextSemester, setNextSemester] = useState<number | null>(null);
   const [academicYear, setAcademicYear] = useState<string>("");
+  const [enrollmentPeriod, setEnrollmentPeriod] = useState<{
+    title: string;
+    opens_at: string;
+    closes_at: string;
+  } | null>(null);
+  const [periodChecked, setPeriodChecked] = useState(false);
 
   useEffect(() => {
     if (!student?.id) return;
+    fetchEnrollmentPeriod();
     fetchAvailableCourses();
   }, [student?.id]);
+
+  // Enrolment is only possible while the super admin has an enrolment
+  // period open for this student's batch/department — enforced by RLS on
+  // the enrollments table, mirrored here so the UI explains itself.
+  const fetchEnrollmentPeriod = async () => {
+    const nowIso = new Date().toISOString();
+    const { data } = await supabase
+      .from("enrollment_periods")
+      .select("title, opens_at, closes_at, batch_year, department")
+      .eq("status", "open")
+      .lte("opens_at", nowIso)
+      .gte("closes_at", nowIso)
+      .eq("batch_year", student!.batch_year ?? -1);
+
+    const match = (data ?? []).find(
+      (p: any) => !p.department || p.department === student!.department,
+    );
+    setEnrollmentPeriod(match ?? null);
+    setPeriodChecked(true);
+  };
+
+  const enrollmentOpen = enrollmentPeriod !== null;
 
   // Academic year for a given semester is derived from the student's own
   // intake (batch_year) plus the course year that semester falls in — two
@@ -183,6 +212,7 @@ export default function Enrollment() {
   };
 
   const handleCourseToggle = (courseId: string) => {
+    if (!enrollmentOpen) return;
     const course = availableCourses.find((c) => c.id === courseId);
     if (!course || course.alreadyEnrolled || course.enrolled >= course.seats)
       return;
@@ -195,7 +225,7 @@ export default function Enrollment() {
   };
 
   const handleEnroll = async () => {
-    if (selectedCourses.length === 0) return;
+    if (selectedCourses.length === 0 || !enrollmentOpen) return;
     setEnrolling(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -257,6 +287,42 @@ export default function Enrollment() {
           courses available.
         </p>
       </motion.div>
+
+      {/* Enrollment period status */}
+      {periodChecked && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`p-3 rounded-xl border flex items-center gap-2.5 ${
+            enrollmentOpen
+              ? "bg-green-50 border-green-200"
+              : "bg-amber-50 border-amber-200"
+          }`}
+        >
+          {enrollmentOpen ? (
+            <>
+              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <p className="text-sm text-green-800 font-medium">
+                {enrollmentPeriod!.title} is open — enrol before{" "}
+                {new Date(enrollmentPeriod!.closes_at).toLocaleDateString(
+                  "en-GB",
+                  { day: "numeric", month: "long", year: "numeric" },
+                )}
+                .
+              </p>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <p className="text-sm text-amber-800 font-medium">
+                Enrolment is currently closed. You can browse the available
+                courses below, but selections will open once the faculty
+                announces the next enrolment period.
+              </p>
+            </>
+          )}
+        </motion.div>
+      )}
 
       {/* Success / Error Messages */}
       {successMessage && (
@@ -360,7 +426,9 @@ export default function Enrollment() {
             <CardContent className="p-3 h-full flex items-center">
               <Button
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={selectedCourses.length === 0 || enrolling}
+                disabled={
+                  selectedCourses.length === 0 || enrolling || !enrollmentOpen
+                }
                 onClick={handleEnroll}
               >
                 {enrolling ? (
@@ -422,6 +490,7 @@ export default function Enrollment() {
             )}
             selectedCourses={selectedCourses}
             onCourseToggle={handleCourseToggle}
+            selectionEnabled={enrollmentOpen}
           />
         )}
       </div>
@@ -433,10 +502,12 @@ function CourseListGrouped({
   courses,
   selectedCourses,
   onCourseToggle,
+  selectionEnabled,
 }: {
   courses: AvailableCourse[];
   selectedCourses: string[];
   onCourseToggle: (id: string) => void;
+  selectionEnabled: boolean;
 }) {
   if (courses.length === 0) {
     return (
@@ -472,6 +543,7 @@ function CourseListGrouped({
             courses={compulsory}
             selectedCourses={selectedCourses}
             onCourseToggle={onCourseToggle}
+            selectionEnabled={selectionEnabled}
           />
         </div>
       )}
@@ -497,6 +569,7 @@ function CourseListGrouped({
             )}
             selectedCourses={selectedCourses}
             onCourseToggle={onCourseToggle}
+            selectionEnabled={selectionEnabled}
           />
         </div>
       ))}
@@ -508,10 +581,12 @@ function CourseList({
   courses,
   selectedCourses,
   onCourseToggle,
+  selectionEnabled,
 }: {
   courses: AvailableCourse[];
   selectedCourses: string[];
   onCourseToggle: (id: string) => void;
+  selectionEnabled: boolean;
 }) {
   if (courses.length === 0) {
     return (
@@ -534,7 +609,9 @@ function CourseList({
         const StatusIcon = status.icon;
         const isSelected = selectedCourses.includes(course.id);
         const isDisabled =
-          course.alreadyEnrolled || course.enrolled >= course.seats;
+          !selectionEnabled ||
+          course.alreadyEnrolled ||
+          course.enrolled >= course.seats;
 
         return (
           <motion.div

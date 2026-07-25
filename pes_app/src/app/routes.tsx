@@ -24,6 +24,7 @@ import AdminStudents from "./pages/admin/AdminStudents";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminMedical from "./pages/admin/AdminMedical";
 import AdminFeedback from "./pages/admin/AdminFeedback";
+import AdminEnrollment from "./pages/admin/AdminEnrollment";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: "courses", element: <AdminCourses /> },
       { path: "medical", element: <AdminMedical /> },
       { path: "feedback", element: <AdminFeedback /> },
+      { path: "enrollment", element: <AdminEnrollment /> },
     ],
   },
   {

@@ -23,6 +23,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
+import { formatRegNumber } from "../../../lib/format";
 
 interface Course {
   id: string;
@@ -151,19 +152,15 @@ export default function AdminAttendance() {
     if (!selectedCourse) return;
     setLoading(true);
 
-    // Get all students enrolled in this course
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select(
-        `
-        student_id,
-        students (id, name, reg_number)
-      `,
-      )
-      .eq("course_id", selectedCourse.id)
-      .in("status", ["enrolled", "completed"]);
+    // SECURITY DEFINER roster RPC — a direct students join can't resolve
+    // names for students homed in other departments (RLS-scoped), but a
+    // course's own admin is entitled to its full roster.
+    const { data: roster } = await supabase.rpc("get_course_roster", {
+      p_course_id: selectedCourse.id,
+      p_academic_year: null,
+    });
 
-    if (!enrollments) {
+    if (!roster) {
       setLoading(false);
       return;
     }
@@ -183,12 +180,12 @@ export default function AdminAttendance() {
       existingMap[a.student_id] = { id: a.id, status: a.status };
     });
 
-    const studentList: StudentAttendance[] = enrollments.map((e: any) => {
-      const existing = existingMap[e.student_id];
+    const studentList: StudentAttendance[] = roster.map((s: any) => {
+      const existing = existingMap[s.student_id];
       return {
-        studentId: e.student_id,
-        name: e.students?.name ?? "—",
-        regNumber: e.students?.reg_number ?? "—",
+        studentId: s.student_id,
+        name: s.name ?? "—",
+        regNumber: formatRegNumber(s.reg_number),
         status: existing?.status ?? null,
         existingRecordId: existing?.id ?? null,
       };

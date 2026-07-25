@@ -15,6 +15,7 @@ import {
   Sun,
   FileHeart,
   MessageSquareText,
+  GraduationCap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
@@ -32,6 +33,7 @@ const navigation = [
   { name: "Courses", href: "/admin/courses", icon: BookOpen },
   { name: "Medical", href: "/admin/medical", icon: FileHeart },
   { name: "Feedback", href: "/admin/feedback", icon: MessageSquareText },
+  { name: "Enrollment", href: "/admin/enrollment", icon: GraduationCap },
 ];
 
 export default function AdminLayout() {

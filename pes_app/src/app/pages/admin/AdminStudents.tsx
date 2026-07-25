@@ -22,6 +22,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
+import { formatRegNumber } from "../../../lib/format";
 
 interface Student {
   id: string;
@@ -101,7 +102,7 @@ export default function AdminStudents() {
       return {
         id: s.id,
         name: s.name,
-        regNumber: s.reg_number ?? "—",
+        regNumber: formatRegNumber(s.reg_number),
         email: s.email,
         department: s.department,
         batchYear: s.batch_year,

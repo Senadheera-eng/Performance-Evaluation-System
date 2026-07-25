@@ -23,6 +23,7 @@ import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
+import { formatRegNumber } from "../../../lib/format";
 
 interface Course {
   id: string;
@@ -160,23 +161,18 @@ export default function AdminResults() {
     if (!selectedCourse) return;
     setLoading(true);
 
-    // Get students enrolled in this specific offering (course + academic
-    // year) — each course is only ever offered under one academic year in
-    // practice, so filtering here keeps the roster from bleeding across
-    // years when a different year is selected.
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select(
-        `
-        student_id,
-        students (id, name, reg_number)
-      `,
-      )
-      .eq("course_id", selectedCourse.id)
-      .eq("academic_year", selectedYear)
-      .in("status", ["enrolled", "completed"]);
+    // Roster comes from a SECURITY DEFINER RPC rather than a client-side
+    // join: students' RLS scopes a dept admin to their own department's
+    // student rows, but a course they own is taken by students from EVERY
+    // department, so a direct join can only resolve a fraction of the
+    // names. The RPC validates course ownership server-side and also
+    // includes students with historical result rows but no enrollment row.
+    const { data: roster } = await supabase.rpc("get_course_roster", {
+      p_course_id: selectedCourse.id,
+      p_academic_year: selectedYear,
+    });
 
-    if (!enrollments) {
+    if (!roster) {
       setLoading(false);
       return;
     }
@@ -193,13 +189,13 @@ export default function AdminResults() {
       resultMap[r.student_id] = r;
     });
 
-    const studentList: StudentResult[] = enrollments.map((e: any) => {
-      const existing = resultMap[e.student_id];
+    const studentList: StudentResult[] = roster.map((s: any) => {
+      const existing = resultMap[s.student_id];
       return {
         resultId: existing?.id ?? null,
-        studentId: e.student_id,
-        name: e.students?.name ?? "—",
-        regNumber: e.students?.reg_number ?? "—",
+        studentId: s.student_id,
+        name: s.name ?? "—",
+        regNumber: formatRegNumber(s.reg_number),
         midSem: existing?.mid_sem_mark?.toString() ?? "",
         ca: existing?.ca_mark?.toString() ?? "",
         ese: existing?.ese_mark?.toString() ?? "",

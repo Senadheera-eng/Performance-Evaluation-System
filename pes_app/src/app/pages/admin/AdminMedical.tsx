@@ -24,6 +24,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
+import { formatRegNumber } from "../../../lib/format";
 
 const REASON_LABELS: Record<string, string> = {
   medical: "Medical",
@@ -124,7 +125,7 @@ export default function AdminMedical() {
         submitted_at: s.submitted_at,
         review_notes: s.review_notes,
         studentName: s.students?.name ?? "—",
-        studentReg: s.students?.reg_number ?? "—",
+        studentReg: formatRegNumber(s.students?.reg_number),
         studentEmail: s.students?.email ?? "—",
         studentBatchYear: s.students?.batch_year ?? null,
         courses: (s.medical_submission_courses ?? [])

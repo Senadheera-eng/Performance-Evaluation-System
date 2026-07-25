@@ -45,6 +45,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
+import { formatRegNumber } from "../../../lib/format";
 import {
   getAdminFeedbackPeriods,
   getAdminFeedbackSummary,
@@ -468,7 +469,7 @@ function AnalyticsView() {
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-foreground">
                               <Eye className="h-3 w-3" />
-                              {c.student_name} ({c.student_reg})
+                              {c.student_name} ({formatRegNumber(c.student_reg)})
                             </span>
                           )}
                         </div>

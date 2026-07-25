@@ -172,7 +172,44 @@ export default function Courses() {
         };
       });
 
-    const courses: Course[] = [...ongoingCourses, ...completedCourses];
+    // Upcoming courses: everything in the student's own curriculum (their
+    // department plus shared Interdisciplinary Studies courses) that they
+    // haven't taken or aren't currently taking — future semesters included,
+    // so students can browse ahead through Semester 8.
+    const { data: catalogueData } = await supabase
+      .from("courses")
+      .select(
+        "id, course_code, title, credits, semester, year, category, minor_category",
+      )
+      .in("department", [
+        student!.department ?? "",
+        "Interdisciplinary Studies",
+      ]);
+
+    const knownIds = new Set([
+      ...enrolledIds,
+      ...(resultsData ?? []).map((r: any) => r.course_id),
+    ]);
+
+    const upcomingCourses: Course[] = (catalogueData ?? [])
+      .filter((c: any) => !knownIds.has(c.id))
+      .map((c: any) => ({
+        id: c.id,
+        code: c.course_code,
+        name: c.title,
+        credits: c.credits,
+        status: "upcoming" as const,
+        category: c.category,
+        minor_category: c.minor_category,
+        semester: c.semester,
+        year: c.year,
+      }));
+
+    const courses: Course[] = [
+      ...ongoingCourses,
+      ...completedCourses,
+      ...upcomingCourses,
+    ];
 
     courses.sort((a, b) => {
       if (a.status === "ongoing" && b.status !== "ongoing") return -1;
@@ -196,6 +233,7 @@ export default function Courses() {
     if (activeTab === "all") return true;
     if (activeTab === "ongoing") return course.status === "ongoing";
     if (activeTab === "completed") return course.status === "completed";
+    if (activeTab === "upcoming") return course.status === "upcoming";
     return true;
   });
 
@@ -215,12 +253,14 @@ export default function Courses() {
     all: allCourses.length,
     ongoing: allCourses.filter((c) => c.status === "ongoing").length,
     completed: allCourses.filter((c) => c.status === "completed").length,
+    upcoming: allCourses.filter((c) => c.status === "upcoming").length,
   };
 
   const tabs = [
     { value: "all", label: "All", count: stats.all },
     { value: "ongoing", label: "Ongoing", count: stats.ongoing },
     { value: "completed", label: "Completed", count: stats.completed },
+    { value: "upcoming", label: "Upcoming", count: stats.upcoming },
   ];
 
   return (
@@ -240,7 +280,7 @@ export default function Courses() {
       </motion.div>
 
       {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           {
             label: "Total Courses",
@@ -259,6 +299,12 @@ export default function Courses() {
             value: stats.completed,
             icon: CheckCircle2,
             color: "bg-green-100 text-green-600",
+          },
+          {
+            label: "Upcoming",
+            value: stats.upcoming,
+            icon: Clock,
+            color: "bg-yellow-100 text-yellow-600",
           },
         ].map((stat, index) => (
           <motion.div
