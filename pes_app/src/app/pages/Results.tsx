@@ -17,14 +17,10 @@ import {
   TableRow,
 } from "../components/ui/table";
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
-  ComposedChart,
   LabelList,
-  Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -35,6 +31,7 @@ import {
   ChartContainer,
   ChartTooltip,
   EmptyState,
+  GpaTrendChart,
   ErrorState,
   PageHeader,
   SectionCard,
@@ -526,97 +523,7 @@ export default function Results() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartContainer
-          title="GPA trend"
-          description="Semester GPA against your cumulative average."
-          height={250}
-          loading={loading}
-          hasData={gpaChart.length > 0}
-          emptyTitle="No graded semesters yet"
-          emptyDescription="Your GPA trend appears once results are published."
-          summary={`Semester GPA by semester: ${gpaChart
-            .map((p) => `${p.semester} ${p.gpa.toFixed(2)}`)
-            .join(", ")}. Cumulative GPA ${cgpa.toFixed(2)} out of 4.00.`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={gpaChart}
-              margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="gpaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop
-                    offset="0%"
-                    stopColor="var(--primary)"
-                    stopOpacity={0.28}
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor="var(--primary)"
-                    stopOpacity={0.02}
-                  />
-                </linearGradient>
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="semester"
-                stroke="var(--muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                domain={[0, 4]}
-                ticks={[0, 1, 2, 3, 4]}
-                stroke="var(--muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
-                content={
-                  <ChartTooltip
-                    labelFormatter={(l) => `${l} — semester GPA`}
-                  />
-                }
-              />
-              <ReferenceLine
-                y={cgpa}
-                stroke="var(--muted-foreground)"
-                strokeDasharray="4 4"
-                label={{
-                  value: `CGPA ${cgpa.toFixed(2)}`,
-                  position: "insideTopRight",
-                  fill: "var(--muted-foreground)",
-                  fontSize: 11,
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="gpa"
-                name="Semester GPA"
-                stroke="none"
-                fill="url(#gpaFill)"
-                animationDuration={chartDuration}
-              />
-              <Line
-                type="monotone"
-                dataKey="gpa"
-                name="Semester GPA"
-                stroke="var(--primary)"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: "var(--primary)", strokeWidth: 0 }}
-                activeDot={{ r: 6 }}
-                animationDuration={chartDuration}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+        <GpaTrendChart data={gpaChart} cgpa={cgpa} loading={loading} />
 
         <ChartContainer
           title="Grade distribution"

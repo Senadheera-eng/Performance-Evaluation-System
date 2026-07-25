@@ -19,6 +19,11 @@ export {
   ActionCard,
 } from "./Surfaces";
 export { ChartContainer, ChartTooltip } from "./ChartContainer";
+export { GpaTrendChart, type GpaTrendPoint } from "./GpaTrendChart";
+export {
+  CourseAttendanceChart,
+  type CourseAttendancePoint,
+} from "./CourseAttendanceChart";
 export { SegmentedTabs, type SegmentedTabItem } from "./SegmentedTabs";
 export { ProgressRing } from "./ProgressRing";
 export {
