@@ -91,10 +91,12 @@
   --popover-foreground: #111827;
   --primary: #C41E3A;
   --primary-foreground: #FFFFFF;
-  --secondary: #8B5CF6;
+  /* Academic navy, not purple — carries structural UI so crimson stays
+     reserved for actions and genuinely critical state. */
+  --secondary: #1E293B;
   --secondary-foreground: #FFFFFF;
   --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
+  --muted-foreground: #5B6472;
   --accent: #FDB913;
   --accent-foreground: #78350F;
   --destructive: #EF4444;
@@ -109,11 +111,11 @@
   --font-weight-normal: 400;
   --ring: #C41E3A;
   --chart-1: #C41E3A;
-  --chart-2: #8B5CF6;
+  --chart-2: #1E293B;
   --chart-3: #FDB913;
   --chart-4: #10B981;
   --chart-5: #3B82F6;
-  --radius: 0.75rem;
+  --radius: 1rem;
   --sidebar: #FFFFFF;
   --sidebar-foreground: #111827;
   --sidebar-primary: #C41E3A;
@@ -122,6 +124,42 @@
   --sidebar-accent-foreground: #111827;
   --sidebar-border: #E5E7EB;
   --sidebar-ring: #C41E3A;
+
+  /**
+   * Semantic status tokens.
+   *
+   * Components previously hardcoded Tailwind literals like
+   * `bg-green-50 text-green-600`, which have no dark-mode counterpart — the
+   * single largest source of unreadable dark UI. Every status surface now
+   * resolves through these, so both themes are designed rather than inverted.
+   */
+  --status-success-bg: #ECFDF5;
+  --status-success-fg: #047857;
+  --status-success-border: #A7F3D0;
+  --status-warning-bg: #FFFBEB;
+  --status-warning-fg: #B45309;
+  --status-warning-border: #FDE68A;
+  --status-danger-bg: #FEF2F2;
+  --status-danger-fg: #B91C1C;
+  --status-danger-border: #FECACA;
+  --status-info-bg: #EFF6FF;
+  --status-info-fg: #1D4ED8;
+  --status-info-border: #BFDBFE;
+  --status-neutral-bg: #F3F4F6;
+  --status-neutral-fg: #4B5563;
+  --status-neutral-border: #E5E7EB;
+
+  /* Elevation — subtle borders carry structure; shadow marks interactivity. */
+  --elevation-none: none;
+  --elevation-sm: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --elevation-md: 0 2px 8px -2px rgb(16 24 40 / 0.08), 0 1px 3px -1px rgb(16 24 40 / 0.04);
+  --elevation-lg: 0 12px 28px -8px rgb(16 24 40 / 0.14), 0 4px 10px -4px rgb(16 24 40 / 0.06);
+
+  /* Motion — referenced by components so reduced-motion can zero them out. */
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 400ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
@@ -131,36 +169,63 @@
   --card-foreground: #F9FAFB;
   --popover: #1A1F2E;
   --popover-foreground: #F9FAFB;
-  --primary: #F43F5E;
+  /* Crimson lifted just enough for contrast on #0F1419 without going neon. */
+  --primary: #E8455F;
   --primary-foreground: #FFFFFF;
-  --secondary: #A78BFA;
-  --secondary-foreground: #FFFFFF;
+  --secondary: #94A3B8;
+  --secondary-foreground: #0F1419;
   --muted: #1F2937;
-  --muted-foreground: #D1D5DB;
+  --muted-foreground: #9CA8B8;
   --accent: #FBBF24;
   --accent-foreground: #78350F;
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
   --border: #374151;
   --input: #1F2937;
-  --ring: #F43F5E;
+  --ring: #E8455F;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-weight-normal: 400;
-  --chart-1: #F43F5E;
-  --chart-2: #A78BFA;
+  --chart-1: #E8455F;
+  --chart-2: #7DD3FC;
   --chart-3: #FBBF24;
   --chart-4: #10B981;
   --chart-5: #3B82F6;
   --sidebar: #1A1F2E;
   --sidebar-foreground: #F9FAFB;
-  --sidebar-primary: #F43F5E;
+  --sidebar-primary: #E8455F;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #1F2937;
   --sidebar-accent-foreground: #F9FAFB;
   --sidebar-border: #374151;
-  --sidebar-ring: #F43F5E;
+  --sidebar-ring: #E8455F;
+
+  /**
+   * Dark status surfaces: low-saturation tinted backgrounds with light
+   * foregrounds, rather than the light theme's pale fills which turn to mud
+   * on a dark card. Contrast on --card (#1A1F2E) clears WCAG AA for text.
+   */
+  --status-success-bg: rgb(16 185 129 / 0.14);
+  --status-success-fg: #6EE7B7;
+  --status-success-border: rgb(16 185 129 / 0.30);
+  --status-warning-bg: rgb(245 158 11 / 0.14);
+  --status-warning-fg: #FCD34D;
+  --status-warning-border: rgb(245 158 11 / 0.30);
+  --status-danger-bg: rgb(239 68 68 / 0.14);
+  --status-danger-fg: #FCA5A5;
+  --status-danger-border: rgb(239 68 68 / 0.30);
+  --status-info-bg: rgb(59 130 246 / 0.14);
+  --status-info-fg: #93C5FD;
+  --status-info-border: rgb(59 130 246 / 0.30);
+  --status-neutral-bg: rgb(148 163 184 / 0.12);
+  --status-neutral-fg: #CBD5E1;
+  --status-neutral-border: rgb(148 163 184 / 0.24);
+
+  /* Shadows read as darker, not lighter, against a dark surface. */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
+  --elevation-md: 0 2px 8px -2px rgb(0 0 0 / 0.45), 0 1px 3px -1px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 4px 10px -4px rgb(0 0 0 / 0.35);
 }
 
 .light {
@@ -172,10 +237,12 @@
   --popover-foreground: #111827;
   --primary: #C41E3A;
   --primary-foreground: #FFFFFF;
-  --secondary: #8B5CF6;
+  /* Academic navy, not purple — carries structural UI so crimson stays
+     reserved for actions and genuinely critical state. */
+  --secondary: #1E293B;
   --secondary-foreground: #FFFFFF;
   --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
+  --muted-foreground: #5B6472;
   --accent: #FDB913;
   --accent-foreground: #78350F;
   --destructive: #EF4444;
@@ -188,7 +255,7 @@
   --font-weight-bold: 700;
   --font-weight-normal: 400;
   --chart-1: #C41E3A;
-  --chart-2: #8B5CF6;
+  --chart-2: #1E293B;
   --chart-3: #FDB913;
   --chart-4: #10B981;
   --chart-5: #3B82F6;
@@ -301,11 +368,63 @@
   /* Info colors */
   --color-info: var(--info-500);
   --color-info-light: var(--info-50);
+
+  /* Semantic status surfaces (theme-aware in both light and dark) */
+  --color-success-bg: var(--status-success-bg);
+  --color-success-fg: var(--status-success-fg);
+  --color-success-border: var(--status-success-border);
+  --color-warning-bg: var(--status-warning-bg);
+  --color-warning-fg: var(--status-warning-fg);
+  --color-warning-border: var(--status-warning-border);
+  --color-danger-bg: var(--status-danger-bg);
+  --color-danger-fg: var(--status-danger-fg);
+  --color-danger-border: var(--status-danger-border);
+  --color-info-bg: var(--status-info-bg);
+  --color-info-fg: var(--status-info-fg);
+  --color-info-border: var(--status-info-border);
+  --color-neutral-bg: var(--status-neutral-bg);
+  --color-neutral-fg: var(--status-neutral-fg);
+  --color-neutral-border: var(--status-neutral-border);
+
+  /* Elevation */
+  --shadow-elevation-sm: var(--elevation-sm);
+  --shadow-elevation-md: var(--elevation-md);
+  --shadow-elevation-lg: var(--elevation-lg);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  /**
+   * Reduced motion.
+   *
+   * Zeroing the motion tokens covers CSS transitions, and framer-motion is
+   * additionally gated per-component via the useReducedMotion hook, since
+   * JS-driven animation ignores these variables.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --motion-fast: 0ms;
+      --motion-base: 0ms;
+      --motion-slow: 0ms;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Keyboard focus must stay visible everywhere, including on dark cards. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 
   body {

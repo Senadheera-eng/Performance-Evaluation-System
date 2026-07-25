@@ -18,6 +18,11 @@ export default defineConfig({
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
     },
+    // Force a single React instance. Without this, a pre-bundled dependency
+    // that ships its own React resolution (sonner is the one that surfaced
+    // it) renders against a second copy and every hook call inside it throws
+    // "Invalid hook call".
+    dedupe: ['react', 'react-dom'],
   },
 
   // transformers.js (local in-browser embeddings for chatbot RAG) bundles
@@ -27,7 +32,11 @@ export default defineConfig({
   // 'es' or onnxruntime-web throws "Cannot read properties of undefined
   // (reading 'registerBackend')" at load time.
   optimizeDeps: {
-    exclude: ['@huggingface/transformers'],
+    // sonner is excluded because its pre-bundled copy resolved a separate
+    // React instance, making every hook inside <Toaster> throw "Invalid hook
+    // call". Served unbundled, it resolves React through the normal (deduped)
+    // resolver like the rest of the app.
+    exclude: ['@huggingface/transformers', 'sonner'],
   },
   worker: {
     format: 'es',
