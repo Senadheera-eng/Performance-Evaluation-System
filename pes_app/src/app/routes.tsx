@@ -10,6 +10,8 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Enrollment from "./pages/Enrollment";
 import MedicalCertificates from "./pages/MedicalCertificates";
+import Feedback from "./pages/Feedback";
+import FeedbackForm from "./pages/FeedbackForm";
 import GraduationPlanner from "./pages/GraduationPlanner";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -21,6 +23,7 @@ import AdminResults from "./pages/admin/AdminResults";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminCourses from "./pages/admin/AdminCourses";
 import AdminMedical from "./pages/admin/AdminMedical";
+import AdminFeedback from "./pages/admin/AdminFeedback";
 
 export const router = createBrowserRouter([
   {
@@ -41,6 +44,8 @@ export const router = createBrowserRouter([
       { path: "results", element: <Results /> },
       { path: "enrollment", element: <Enrollment /> },
       { path: "medical", element: <MedicalCertificates /> },
+      { path: "feedback", element: <Feedback /> },
+      { path: "feedback/:courseId", element: <FeedbackForm /> },
       { path: "planner", element: <GraduationPlanner /> },
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "profile", element: <Profile /> },
@@ -61,6 +66,7 @@ export const router = createBrowserRouter([
       { path: "students", element: <AdminStudents /> },
       { path: "courses", element: <AdminCourses /> },
       { path: "medical", element: <AdminMedical /> },
+      { path: "feedback", element: <AdminFeedback /> },
     ],
   },
   {
