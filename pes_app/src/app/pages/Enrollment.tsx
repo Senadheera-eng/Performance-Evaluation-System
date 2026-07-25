@@ -29,6 +29,8 @@ interface AvailableCourse {
   seats: number;
   enrolled: number;
   alreadyEnrolled: boolean;
+  prerequisites: { code: string; title: string }[];
+  prerequisitesMet: boolean;
 }
 
 const getCourseStatus = (course: AvailableCourse) => {
@@ -193,19 +195,61 @@ export default function Enrollment() {
       countMap[e.course_id] = (countMap[e.course_id] ?? 0) + 1;
     });
 
-    const result: AvailableCourse[] = courses.map((c) => ({
-      id: c.id,
-      code: c.course_code,
-      name: c.title,
-      credits: c.credits,
-      category: c.category,
-      minor_category: c.minor_category,
-      semester: c.semester,
-      year: c.year,
-      seats: 45,
-      enrolled: countMap[c.id] ?? 0,
-      alreadyEnrolled: enrolledIds.has(c.id),
-    }));
+    // Prerequisites for the courses on offer, plus which ones this student
+    // has already passed — so an unmet requirement can be shown up front
+    // rather than discovered after a failed enrolment.
+    const { data: prereqRows } = await supabase
+      .from("course_prerequisites")
+      .select("course_id, prerequisite:courses!course_prerequisites_prerequisite_course_id_fkey(id, course_code, title)")
+      .in(
+        "course_id",
+        courses.map((c) => c.id),
+      );
+
+    const { data: passedResults } = await supabase
+      .from("results")
+      .select("course_id, grade")
+      .eq("student_id", student!.id)
+      .eq("is_published", true)
+      .not("grade", "is", null);
+
+    const passedIds = new Set(
+      (passedResults ?? [])
+        .filter((r: any) => !["F", "R"].includes(r.grade))
+        .map((r: any) => r.course_id),
+    );
+
+    const prereqMap: Record<
+      string,
+      { id: string; code: string; title: string }[]
+    > = {};
+    (prereqRows ?? []).forEach((row: any) => {
+      if (!row.prerequisite) return;
+      (prereqMap[row.course_id] ??= []).push({
+        id: row.prerequisite.id,
+        code: row.prerequisite.course_code,
+        title: row.prerequisite.title,
+      });
+    });
+
+    const result: AvailableCourse[] = courses.map((c) => {
+      const prereqs = prereqMap[c.id] ?? [];
+      return {
+        id: c.id,
+        code: c.course_code,
+        name: c.title,
+        credits: c.credits,
+        category: c.category,
+        minor_category: c.minor_category,
+        semester: c.semester,
+        year: c.year,
+        seats: 45,
+        enrolled: countMap[c.id] ?? 0,
+        alreadyEnrolled: enrolledIds.has(c.id),
+        prerequisites: prereqs.map((p) => ({ code: p.code, title: p.title })),
+        prerequisitesMet: prereqs.every((p) => passedIds.has(p.id)),
+      };
+    });
 
     setAvailableCourses(result);
     setLoading(false);
@@ -214,7 +258,12 @@ export default function Enrollment() {
   const handleCourseToggle = (courseId: string) => {
     if (!enrollmentOpen) return;
     const course = availableCourses.find((c) => c.id === courseId);
-    if (!course || course.alreadyEnrolled || course.enrolled >= course.seats)
+    if (
+      !course ||
+      course.alreadyEnrolled ||
+      course.enrolled >= course.seats ||
+      !course.prerequisitesMet
+    )
       return;
 
     setSelectedCourses((prev) =>
@@ -611,7 +660,8 @@ function CourseList({
         const isDisabled =
           !selectionEnabled ||
           course.alreadyEnrolled ||
-          course.enrolled >= course.seats;
+          course.enrolled >= course.seats ||
+          !course.prerequisitesMet;
 
         return (
           <motion.div
@@ -659,6 +709,19 @@ function CourseList({
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {course.credits} Credits • {course.category}
                     </p>
+                    {course.prerequisites.length > 0 && (
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          course.prerequisitesMet
+                            ? "text-muted-foreground"
+                            : "text-red-600 font-medium"
+                        }`}
+                      >
+                        {course.prerequisitesMet
+                          ? `Prerequisite: ${course.prerequisites.map((p) => p.code).join(", ")} — met`
+                          : `Requires ${course.prerequisites.map((p) => p.code).join(", ")} — not yet passed`}
+                      </p>
+                    )}
                   </div>
 
                   {/* Seats + availability progress */}

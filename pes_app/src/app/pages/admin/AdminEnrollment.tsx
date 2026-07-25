@@ -19,13 +19,8 @@ import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
+import { useSettings } from "../../../lib/settings";
 
-const DEPARTMENTS = [
-  "Civil Engineering",
-  "Computer Engineering",
-  "Electrical and Electronic Engineering",
-  "Mechanical Engineering",
-];
 
 const STATUS_COLOR: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
@@ -242,6 +237,8 @@ function CreatePeriodForm({
   const [batches, setBatches] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const settings = useSettings();
+  const DEPARTMENTS = settings.studentDepartments;
 
   useEffect(() => {
     (async () => {

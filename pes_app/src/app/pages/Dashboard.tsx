@@ -32,6 +32,7 @@ import {
 } from "recharts";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../../lib/settings";
 
 interface CourseWithAttendance {
   id: string;
@@ -66,6 +67,8 @@ interface RecentResult {
 export default function Dashboard() {
   const { student } = useAuth();
   const navigate = useNavigate();
+  const settings = useSettings();
+  const threshold = settings.attendanceThreshold;
 
   const [cgpa, setCgpa] = useState<number | null>(null);
   const [totalCredits, setTotalCredits] = useState(0);
@@ -87,7 +90,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!student?.id) return;
     fetchDashboardData();
-  }, [student?.id]);
+  }, [student?.id, threshold]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -245,11 +248,11 @@ export default function Dashboard() {
         : 0;
     setAvgAttendance(avg);
 
-    // Alerts for courses below 80% — only once an admin has actually
+    // Alerts for courses below the threshold — only once an admin has actually
     // recorded at least one lecture for that course. Otherwise every
     // freshly enrolled course would falsely show up as "0% attendance".
     const alertList: AttendanceAlert[] = courses
-      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < 80)
+      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < threshold)
       .map((c) => {
         const att = courseAttMap[c.id];
         return {
@@ -333,9 +336,11 @@ export default function Dashboard() {
           title="Avg. Attendance"
           value={loading ? "..." : `${avgAttendance}%`}
           change={
-            avgAttendance >= 80 ? "Above required 80%" : "Below required 80%"
+            avgAttendance >= threshold
+              ? `Above required ${threshold}%`
+              : `Below required ${threshold}%`
           }
-          changeType={avgAttendance >= 80 ? "positive" : "negative"}
+          changeType={avgAttendance >= threshold ? "positive" : "negative"}
           icon={Calendar}
           iconColor="text-green-600"
           iconBgColor="bg-green-100"
@@ -356,13 +361,14 @@ export default function Dashboard() {
         <div className="space-y-3">
           {alerts.map((alert) => {
             const needed =
-              Math.ceil(alert.totalLectures * 0.8) - alert.presentCount;
+              Math.ceil(alert.totalLectures * (threshold / 100)) -
+              alert.presentCount;
             return (
               <AlertCard
                 key={alert.courseCode}
                 type="warning"
                 title={`Low Attendance — ${alert.courseCode} ${alert.courseName}`}
-                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the 80% CCR requirement.`}
+                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the ${threshold}% CCR requirement.`}
                 action={{
                   label: "View Attendance",
                   onClick: () => navigate("/app/attendance"),

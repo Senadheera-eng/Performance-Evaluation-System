@@ -273,6 +273,154 @@ export async function getFeedbackComments(
   return data as FeedbackComment[];
 }
 
+/**
+ * Build a CSV of feedback for the given period.
+ *
+ * Privacy rules, applied here and reinforced by the RPCs this reads from:
+ * anonymous submissions never carry a name or registration number, drafts
+ * are excluded (the analytics RPCs only return submitted rows), the caller's
+ * own department scope is enforced server-side, and courses below the
+ * minimum-response threshold are already suppressed upstream.
+ */
+export function buildFeedbackCsv(
+  period: AdminFeedbackPeriod,
+  courses: CourseAnalytics[],
+  questions: QuestionAnalytics[],
+  comments: FeedbackComment[],
+): string {
+  const esc = (v: unknown): string => {
+    const s = v === null || v === undefined ? "" : String(v);
+    // Guard against CSV formula injection when opened in Excel.
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const row = (cells: unknown[]) => cells.map(esc).join(",");
+  const lines: string[] = [];
+
+  lines.push(row(["Feedback Period", period.title]));
+  lines.push(row(["Academic Year", period.academic_year]));
+  lines.push(row(["Semester", period.semester]));
+  lines.push(row(["Batch Year", period.batch_year ?? "All"]));
+  lines.push(row(["Department", period.department ?? "All Departments"]));
+  lines.push(row(["Exported At", new Date().toISOString()]));
+  lines.push("");
+
+  lines.push(row(["COURSE SUMMARY"]));
+  lines.push(
+    row([
+      "Course Code",
+      "Course",
+      "Owning Department",
+      "Semester",
+      "Eligible",
+      "Responses",
+      "Response Rate (%)",
+      "Average Rating",
+      "Anonymous",
+      "Identified",
+    ]),
+  );
+  courses.forEach((c) =>
+    lines.push(
+      row([
+        c.course_code,
+        c.title,
+        c.department,
+        c.semester,
+        c.eligible_count,
+        c.response_count,
+        c.response_rate,
+        c.avg_rating ?? "",
+        c.anonymous_count,
+        c.non_anonymous_count,
+      ]),
+    ),
+  );
+  lines.push("");
+
+  lines.push(row(["QUESTION RATINGS"]));
+  lines.push(
+    row([
+      "Question",
+      "Category",
+      "Responses",
+      "Average",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "Positive (%)",
+      "Neutral (%)",
+      "Negative (%)",
+    ]),
+  );
+  questions.forEach((q) =>
+    lines.push(
+      row([
+        q.question_text,
+        q.category ?? "",
+        q.response_count,
+        q.avg_rating ?? "",
+        q.count_1,
+        q.count_2,
+        q.count_3,
+        q.count_4,
+        q.count_5,
+        q.pct_positive ?? "",
+        q.pct_neutral ?? "",
+        q.pct_negative ?? "",
+      ]),
+    ),
+  );
+  lines.push("");
+
+  lines.push(row(["WRITTEN COMMENTS"]));
+  lines.push(
+    row([
+      "Course Code",
+      "Course",
+      "Question",
+      "Category",
+      "Comment",
+      "Anonymous",
+      "Student",
+      "Registration No",
+      "Submitted",
+    ]),
+  );
+  comments.forEach((c) =>
+    lines.push(
+      row([
+        c.course_code,
+        c.course_title,
+        c.question_text,
+        c.question_category ?? "",
+        c.comment,
+        c.is_anonymous ? "Yes" : "No",
+        c.is_anonymous ? "" : (c.student_name ?? ""),
+        c.is_anonymous ? "" : (c.student_reg ?? ""),
+        c.submitted_date,
+      ]),
+    ),
+  );
+
+  return lines.join("\r\n");
+}
+
+export function downloadCsv(filename: string, csv: string): void {
+  // BOM so Excel opens UTF-8 correctly.
+  const blob = new Blob(["﻿" + csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function getQuestionBank(): Promise<FeedbackQuestion[]> {
   const { data, error } = await supabase
     .from("feedback_questions")

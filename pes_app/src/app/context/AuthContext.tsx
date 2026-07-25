@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { Student } from "../../lib/types";
+import { loadSettings } from "../../lib/settings";
 
 interface AuthContextType {
   user: User | null;
@@ -55,6 +56,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single();
     return data as Student | null;
   };
+
+  // Pull the regulation engine (attendance thresholds, grading scale, etc.)
+  // once per session; every consumer falls back to faculty defaults until
+  // this resolves, so nothing blocks on it.
+  useEffect(() => {
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     const {
