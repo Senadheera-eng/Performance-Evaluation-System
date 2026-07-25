@@ -1,11 +1,10 @@
 import { useEffect, useState, useRef } from "react";
-import { motion, number } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Mail,
   MapPin,
   Calendar,
   Award,
-  BookOpen,
   TrendingUp,
   GraduationCap,
   Camera,

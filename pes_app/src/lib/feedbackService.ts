@@ -92,6 +92,48 @@ function fail(context: string, error: unknown): { ok: false; error: string } {
   return { ok: false, error: friendlyError(raw) };
 }
 
+const GENERIC = "Something went wrong. Please try again.";
+
+/**
+ * Turns a Supabase/Postgres error message into something worth showing a
+ * student.
+ *
+ * The feedback RPCs deliberately raise plain sentences ("This feedback period
+ * has already closed."), so those are passed through unchanged. Anything that
+ * looks like database or transport plumbing is replaced — a student can act on
+ * neither an RLS violation nor a missing relation.
+ */
+function friendlyError(raw: string): string {
+  const msg = raw.trim();
+  if (!msg) return GENERIC;
+
+  if (
+    /row-level security|permission denied|not authorized|access denied|JWT/i.test(
+      msg,
+    )
+  ) {
+    return "You do not have permission to do that.";
+  }
+  if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+    return "We could not reach the server. Check your connection and try again.";
+  }
+  if (/duplicate key|unique constraint/i.test(msg)) {
+    return "That response has already been recorded.";
+  }
+  if (
+    /does not exist|syntax error|invalid input syntax|violates|constraint|null value/i.test(
+      msg,
+    )
+  ) {
+    return GENERIC;
+  }
+
+  // A sentence raised by our own SQL — already written for students.
+  if (msg.length <= 200 && /^[A-Z][^\n]*[.!?]$/.test(msg)) return msg;
+
+  return GENERIC;
+}
+
 export async function getActiveFeedbackPeriods(): Promise<
   Result<FeedbackPeriod[]>
 > {

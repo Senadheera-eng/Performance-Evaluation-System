@@ -1,22 +1,13 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
 import {
-  TrendingUp,
-  TrendingDown,
   Award,
-  FileText,
+  BookOpenCheck,
   Download,
+  GraduationCap,
+  Loader2,
+  TrendingUp,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent } from "../components/ui/tabs";
-import { PillTabs } from "../components/dashboard/PillTabs";
 import {
   Table,
   TableBody,
@@ -26,23 +17,39 @@ import {
   TableRow,
 } from "../components/ui/table";
 import {
-  BarChart,
+  Area,
   Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  LabelList,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  Legend,
 } from "recharts";
+import { toast } from "sonner";
+import {
+  ChartContainer,
+  ChartTooltip,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SectionCard,
+  SegmentedTabs,
+  Skeleton,
+  SkeletonRows,
+  StatCard,
+  StatusBadge,
+  useChartMotion,
+  type StatusTone,
+} from "../components/common";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
+import { useSettings } from "../../lib/settings";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -71,46 +78,66 @@ interface SemesterData {
 
 interface GpaChartPoint {
   semester: string;
+  semesterNum: number;
   gpa: number;
 }
 
-interface RadarPoint {
-  subject: string;
-  current: number;
-  previous: number;
+interface GradeCount {
+  grade: string;
+  count: number;
+  gpv: number;
 }
 
-const getGradeColor = (grade: string | null) => {
-  if (!grade) return "bg-gray-100 text-gray-500 border-gray-200";
-  if (grade.startsWith("A"))
-    return "bg-green-100 text-green-700 border-green-200";
-  if (grade.startsWith("B")) return "bg-blue-100 text-blue-700 border-blue-200";
-  if (grade.startsWith("C"))
-    return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  if (grade === "F") return "bg-red-100 text-red-700 border-red-200";
-  return "bg-gray-100 text-gray-700 border-gray-200";
+/**
+ * Grade tone. Uses semantic status tokens rather than literal Tailwind
+ * colours so grades stay legible in dark mode.
+ */
+const gradeTone = (grade: string | null): StatusTone => {
+  if (!grade) return "neutral";
+  const g = grade.toUpperCase();
+  if (g.startsWith("A")) return "success";
+  if (g.startsWith("B")) return "info";
+  if (g.startsWith("C") || g.startsWith("D")) return "warning";
+  if (g === "F" || g === "R") return "danger";
+  return "neutral";
+};
+
+const TONE_VAR: Record<StatusTone, string> = {
+  success: "var(--status-success-fg)",
+  warning: "var(--status-warning-fg)",
+  danger: "var(--status-danger-fg)",
+  info: "var(--status-info-fg)",
+  neutral: "var(--status-neutral-fg)",
+  brand: "var(--primary)",
 };
 
 export default function Results() {
   const { student } = useAuth();
+  const settings = useSettings();
+  const chartDuration = useChartMotion();
+
   const [semesters, setSemesters] = useState<SemesterData[]>([]);
   const [activeSemesterTab, setActiveSemesterTab] = useState<string>("");
   const [gpaChart, setGpaChart] = useState<GpaChartPoint[]>([]);
-  const [radarData, setRadarData] = useState<RadarPoint[]>([]);
+  const [gradeSpread, setGradeSpread] = useState<GradeCount[]>([]);
   const [cgpa, setCgpa] = useState<number>(0);
   const [totalCredits, setTotalCredits] = useState<number>(0);
   const [completedCourses, setCompletedCourses] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!student?.id) return;
     fetchResults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student?.id]);
 
   const fetchResults = async () => {
     setLoading(true);
+    setError(null);
 
-    const { data } = await supabase
+    const { data, error: queryError } = await supabase
       .from("results")
       .select(
         `
@@ -136,7 +163,17 @@ export default function Results() {
       .eq("is_published", true)
       .order("academic_year", { ascending: true });
 
+    if (queryError) {
+      console.error("[Results] failed to load results", queryError);
+      setError("We could not load your results. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     if (!data || data.length === 0) {
+      setSemesters([]);
+      setGpaChart([]);
+      setGradeSpread([]);
       setLoading(false);
       return;
     }
@@ -206,7 +243,9 @@ export default function Results() {
 
     setSemesters(semList);
     if (semList.length > 0) {
-      setActiveSemesterTab(semList[0].semesterKey);
+      // Open on the most recent semester — the one a student actually
+      // came to look at. The old default was Semester 1.
+      setActiveSemesterTab(semList[semList.length - 1].semesterKey);
     }
 
     // CGPA
@@ -229,525 +268,580 @@ export default function Results() {
     setGpaChart(
       semList.map((s) => ({
         semester: `Sem ${s.semesterNum}`,
+        semesterNum: s.semesterNum,
         gpa: s.sgpa,
       })),
     );
 
-    // Radar — compare last two semesters by avg marks
-    if (semList.length >= 2) {
-      const current = semList[semList.length - 1];
-      const previous = semList[semList.length - 2];
-
-      const avgMark = (courses: CourseResult[], field: keyof CourseResult) => {
-        const vals = courses
-          .map((c) => c[field] as number | null)
-          .filter((v) => v !== null) as number[];
-        return vals.length > 0
-          ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
-          : 0;
-      };
-
-      setRadarData([
-        {
-          subject: "Mid Sem",
-          current: avgMark(current.courses, "mid_sem"),
-          previous: avgMark(previous.courses, "mid_sem"),
-        },
-        {
-          subject: "CA",
-          current: avgMark(current.courses, "ca"),
-          previous: avgMark(previous.courses, "ca"),
-        },
-        {
-          subject: "ESE",
-          current: avgMark(current.courses, "ese"),
-          previous: avgMark(previous.courses, "ese"),
-        },
-        {
-          subject: "Overall",
-          current: avgMark(current.courses, "oa"),
-          previous: avgMark(previous.courses, "oa"),
-        },
-      ]);
-    }
+    // Grade spread across every graded course, ordered best grade first.
+    const counts = new Map<string, { count: number; gpv: number }>();
+    semList.forEach((s) =>
+      s.courses.forEach((c) => {
+        if (!c.grade) return;
+        const existing = counts.get(c.grade);
+        counts.set(c.grade, {
+          count: (existing?.count ?? 0) + 1,
+          gpv: c.gpv ?? existing?.gpv ?? 0,
+        });
+      }),
+    );
+    setGradeSpread(
+      Array.from(counts.entries())
+        .map(([grade, v]) => ({ grade, count: v.count, gpv: v.gpv }))
+        .sort((a, b) => b.gpv - a.gpv || a.grade.localeCompare(b.grade)),
+    );
 
     setLoading(false);
   };
 
-  const lastTwoSems = semesters.slice(-2);
-  const cgpaChange =
-    lastTwoSems.length === 2
-      ? (lastTwoSems[1].sgpa - lastTwoSems[0].sgpa).toFixed(2)
+  const latest = semesters.length > 0 ? semesters[semesters.length - 1] : null;
+  const previous = semesters.length > 1 ? semesters[semesters.length - 2] : null;
+
+  /**
+   * Semester-over-semester SGPA movement. Deliberately kept off the CGPA
+   * card — this compares two semester GPAs, not the cumulative figure, and
+   * labelling it "from last sem" under CGPA was the source of confusion.
+   */
+  const sgpaDelta =
+    latest && previous
+      ? Math.round((latest.sgpa - previous.sgpa) * 100) / 100
       : null;
 
-  const handleDownloadTranscript = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("University of Sri Jayewardenepura", pageWidth / 2, 15, {
-      align: "center",
-    });
-    doc.setFontSize(11);
-    doc.text("Faculty of Engineering", pageWidth / 2, 21, { align: "center" });
-    doc.setFontSize(12);
-    doc.text("Unofficial Academic Transcript", pageWidth / 2, 29, {
-      align: "center",
-    });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    let y = 40;
-    doc.text(`Name: ${student?.name ?? "-"}`, 14, y);
-    doc.text(`Index No: ${student?.index_number ?? "-"}`, 130, y);
-    y += 6;
-    doc.text(
-      `Reg No: ${student?.reg_number ? `EN${student.reg_number}` : "-"}`,
-      14,
-      y,
+  const classification = useMemo(() => {
+    if (totalCredits === 0) return null;
+    return (
+      settings.honoursClassifications.find((c) => cgpa >= c.threshold) ?? null
     );
-    doc.text(`Department: ${student?.department ?? "-"}`, 130, y);
-    y += 6;
-    doc.text(describeBatch(student?.batch_year), 14, y);
-    y += 10;
+  }, [cgpa, totalCredits, settings.honoursClassifications]);
 
-    semesters.forEach((sem) => {
+  const activeSemester =
+    semesters.find((s) => s.semesterKey === activeSemesterTab) ?? null;
+
+  /**
+   * Component marks (Mid Sem / CA / ESE) are optional in this dataset — the
+   * historical import carries grades and grade points only. Showing four
+   * permanently empty columns made the table look broken, so they appear
+   * only for semesters that actually have component data.
+   */
+  const showComponentMarks = activeSemester
+    ? activeSemester.courses.some(
+        (c) => c.mid_sem !== null || c.ca !== null || c.ese !== null,
+      )
+    : false;
+
+  const handleDownloadTranscript = () => {
+    setDownloading(true);
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("University of Sri Jayewardenepura", pageWidth / 2, 15, {
+        align: "center",
+      });
+      doc.setFontSize(11);
+      doc.text("Faculty of Engineering", pageWidth / 2, 21, {
+        align: "center",
+      });
+      doc.setFontSize(12);
+      doc.text("Unofficial Academic Transcript", pageWidth / 2, 29, {
+        align: "center",
+      });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      let y = 40;
+      doc.text(`Name: ${student?.name ?? "-"}`, 14, y);
+      doc.text(`Index No: ${student?.index_number ?? "-"}`, 130, y);
+      y += 6;
+      doc.text(
+        `Reg No: ${student?.reg_number ? `EN${student.reg_number}` : "-"}`,
+        14,
+        y,
+      );
+      doc.text(`Department: ${student?.department ?? "-"}`, 130, y);
+      y += 6;
+      doc.text(describeBatch(student?.batch_year), 14, y);
+      y += 10;
+
+      semesters.forEach((sem) => {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        const deansListTag = sem.sgpa >= 3.8 ? "  (Dean's List)" : "";
+        doc.text(
+          `Semester ${sem.semesterNum} — ${sem.academicYear}   SGPA: ${sem.sgpa.toFixed(2)}${deansListTag}`,
+          14,
+          y,
+        );
+        y += 4;
+
+        autoTable(doc, {
+          startY: y,
+          head: [["Code", "Course", "Credits", "Grade", "GPV"]],
+          body: sem.courses.map((c) => [
+            c.code,
+            c.name,
+            String(c.credits),
+            c.grade ?? "-",
+            c.gpv !== null ? c.gpv.toFixed(1) : "-",
+          ]),
+          styles: { fontSize: 8, cellPadding: 1.5 },
+          headStyles: { fillColor: [196, 30, 58] },
+          margin: { left: 14, right: 14 },
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 8;
+      });
+
       if (y > 250) {
         doc.addPage();
         y = 20;
       }
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      const deansListTag = sem.sgpa >= 3.8 ? "  (Dean's List)" : "";
+      doc.text(`Cumulative GPA: ${cgpa.toFixed(2)}`, 14, y);
+      doc.text(`Total Credits Earned: ${totalCredits}`, 100, y);
+      y += 10;
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "italic");
       doc.text(
-        `Semester ${sem.semesterNum} — ${sem.academicYear}   SGPA: ${sem.sgpa.toFixed(2)}${deansListTag}`,
+        "This is a computer-generated summary for personal reference only and is not an official transcript of the University of Sri Jayewardenepura.",
         14,
         y,
+        { maxWidth: pageWidth - 28 },
       );
-      y += 4;
 
-      autoTable(doc, {
-        startY: y,
-        head: [["Code", "Course", "Credits", "Grade", "GPV"]],
-        body: sem.courses.map((c) => [
-          c.code,
-          c.name,
-          String(c.credits),
-          c.grade ?? "-",
-          c.gpv !== null ? c.gpv.toFixed(1) : "-",
-        ]),
-        styles: { fontSize: 8, cellPadding: 1.5 },
-        headStyles: { fillColor: [196, 30, 58] },
-        margin: { left: 14, right: 14 },
+      doc.save(
+        `Transcript_${student?.index_number?.replace(/\//g, "-") ?? "student"}.pdf`,
+      );
+      toast.success("Transcript downloaded", {
+        description: "Check your browser's downloads folder.",
       });
-
-      y = (doc as any).lastAutoTable.finalY + 8;
-    });
-
-    if (y > 250) {
-      doc.addPage();
-      y = 20;
+    } catch (err) {
+      console.error("[Results] transcript generation failed", err);
+      toast.error("Could not generate the transcript", {
+        description: "Please try again in a moment.",
+      });
+    } finally {
+      setDownloading(false);
     }
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Cumulative GPA: ${cgpa.toFixed(2)}`, 14, y);
-    doc.text(`Total Credits Earned: ${totalCredits}`, 100, y);
-    y += 10;
-
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "italic");
-    doc.text(
-      "This is a computer-generated summary for personal reference only and is not an official transcript of the University of Sri Jayewardenepura.",
-      14,
-      y,
-      { maxWidth: pageWidth - 28 },
-    );
-
-    doc.save(
-      `Transcript_${student?.index_number?.replace(/\//g, "-") ?? "student"}.pdf`,
-    );
   };
+
+  /* ---------------------------------------------------------------- */
+
+  if (error) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Academic Results"
+          description="Your semester-by-semester grades and overall standing."
+        />
+        <ErrorState message={error} onRetry={fetchResults} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-1">
-              Academic Results
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              View your semester-wise results and overall academic performance.
-            </p>
-          </div>
+      <PageHeader
+        title="Academic Results"
+        description="Your semester-by-semester grades and overall standing."
+        actions={
           <Button
-            className="bg-primary hover:bg-primary/90"
             onClick={handleDownloadTranscript}
-            disabled={loading || semesters.length === 0}
+            disabled={loading || downloading || semesters.length === 0}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Download Transcript
+            {downloading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {downloading ? "Preparing…" : "Download Transcript"}
           </Button>
+        }
+      />
+
+      {/* Summary */}
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-[92px]" />
+          ))}
         </div>
-      </motion.div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="border-border relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl" />
-            <CardContent className="p-4 relative">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Current CGPA
-                  </p>
-                  <h3 className="text-3xl font-bold text-primary mb-1.5">
-                    {loading ? "..." : cgpa.toFixed(2)}
-                  </h3>
-                  {cgpaChange !== null && (
-                    <div className="flex items-center gap-2">
-                      {Number(cgpaChange) >= 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-600" />
-                      )}
-                      <p
-                        className={`text-sm font-medium ${
-                          Number(cgpaChange) >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {Number(cgpaChange) >= 0 ? "+" : ""}
-                        {cgpaChange} from last sem
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 rounded-xl bg-primary/10">
-                  <Award className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Credits Earned
-                  </p>
-                  <h3 className="text-3xl font-bold text-foreground mb-1.5">
-                    {loading ? "..." : totalCredits}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Contributing to GPA
-                  </p>
-                </div>
-                <div className="p-2 rounded-xl bg-blue-100">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Courses Completed
-                  </p>
-                  <h3 className="text-3xl font-bold text-foreground mb-1.5">
-                    {loading ? "..." : completedCourses}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Across {semesters.length} semesters
-                  </p>
-                </div>
-                <div className="p-2 rounded-xl bg-green-100">
-                  <Award className="h-5 w-5 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatCard
+            index={0}
+            label="Cumulative GPA"
+            value={cgpa.toFixed(2)}
+            icon={Award}
+            tone="brand"
+            hint={
+              classification
+                ? `${classification.label} range`
+                : "Awaiting graded credits"
+            }
+          />
+          <StatCard
+            index={1}
+            label={latest ? `Semester ${latest.semesterNum} GPA` : "Latest SGPA"}
+            value={latest ? latest.sgpa.toFixed(2) : "—"}
+            icon={TrendingUp}
+            tone="info"
+            trend={
+              sgpaDelta !== null && previous
+                ? {
+                    direction:
+                      sgpaDelta > 0 ? "up" : sgpaDelta < 0 ? "down" : "flat",
+                    label: `${sgpaDelta > 0 ? "+" : ""}${sgpaDelta.toFixed(2)} vs Semester ${previous.semesterNum}`,
+                  }
+                : undefined
+            }
+            hint={previous ? undefined : "No earlier semester to compare"}
+          />
+          <StatCard
+            index={2}
+            label="Credits Earned"
+            value={totalCredits}
+            icon={GraduationCap}
+            tone="success"
+            hint={`of ${settings.graduationTotalCredits} needed to graduate`}
+          />
+          <StatCard
+            index={3}
+            label="Courses Graded"
+            value={completedCourses}
+            icon={BookOpenCheck}
+            tone="neutral"
+            hint={`Across ${semesters.length} semester${semesters.length === 1 ? "" : "s"}`}
+          />
+        </div>
+      )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ChartContainer
+          title="GPA trend"
+          description="Semester GPA against your cumulative average."
+          height={250}
+          loading={loading}
+          hasData={gpaChart.length > 0}
+          emptyTitle="No graded semesters yet"
+          emptyDescription="Your GPA trend appears once results are published."
+          summary={`Semester GPA by semester: ${gpaChart
+            .map((p) => `${p.semester} ${p.gpa.toFixed(2)}`)
+            .join(", ")}. Cumulative GPA ${cgpa.toFixed(2)} out of 4.00.`}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>GPA Trend Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={gpaChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="semester" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" domain={[0, 4]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                    }}
-                    formatter={(value: number) => [value.toFixed(2), "GPA"]}
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={gpaChart}
+              margin={{ top: 8, right: 12, left: -18, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="gpaFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor="var(--primary)"
+                    stopOpacity={0.28}
                   />
-                  <Bar dataKey="gpa" fill="#C41E3A" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
+                  <stop
+                    offset="100%"
+                    stopColor="var(--primary)"
+                    stopOpacity={0.02}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="semester"
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                domain={[0, 4]}
+                ticks={[0, 1, 2, 3, 4]}
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                cursor={{ stroke: "var(--border)", strokeWidth: 1 }}
+                content={
+                  <ChartTooltip
+                    labelFormatter={(l) => `${l} — semester GPA`}
+                  />
+                }
+              />
+              <ReferenceLine
+                y={cgpa}
+                stroke="var(--muted-foreground)"
+                strokeDasharray="4 4"
+                label={{
+                  value: `CGPA ${cgpa.toFixed(2)}`,
+                  position: "insideTopRight",
+                  fill: "var(--muted-foreground)",
+                  fontSize: 11,
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="gpa"
+                name="Semester GPA"
+                stroke="none"
+                fill="url(#gpaFill)"
+                animationDuration={chartDuration}
+              />
+              <Line
+                type="monotone"
+                dataKey="gpa"
+                name="Semester GPA"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: "var(--primary)", strokeWidth: 0 }}
+                activeDot={{ r: 6 }}
+                animationDuration={chartDuration}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartContainer>
 
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
+        <ChartContainer
+          title="Grade distribution"
+          description={`How your ${completedCourses} graded course${completedCourses === 1 ? "" : "s"} break down.`}
+          height={250}
+          loading={loading}
+          hasData={gradeSpread.length > 0}
+          emptyTitle="No grades recorded yet"
+          summary={`Grade counts: ${gradeSpread
+            .map((g) => `${g.grade}: ${g.count}`)
+            .join(", ")}.`}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {radarData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={240}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="#e5e7eb" />
-                    <PolarAngleAxis dataKey="subject" stroke="#6b7280" />
-                    <PolarRadiusAxis
-                      angle={90}
-                      domain={[0, 50]}
-                      stroke="#6b7280"
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={gradeSpread}
+              layout="vertical"
+              margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
+                allowDecimals={false}
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="grade"
+                width={40}
+                stroke="var(--muted-foreground)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                content={
+                  <ChartTooltip labelFormatter={(l) => `Grade ${l}`} />
+                }
+              />
+              <Bar
+                dataKey="count"
+                name="Courses"
+                radius={[0, 6, 6, 0]}
+                animationDuration={chartDuration}
+                isAnimationActive={chartDuration > 0}
+                shape={(props: any) => {
+                  const { x, y, width, height, payload } = props;
+                  return (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={width}
+                      height={height}
+                      rx={4}
+                      fill={TONE_VAR[gradeTone(payload.grade)]}
                     />
-                    <Radar
-                      name="Current Semester"
-                      dataKey="current"
-                      stroke="#C41E3A"
-                      fill="#C41E3A"
-                      fillOpacity={0.6}
-                    />
-                    <Radar
-                      name="Previous Semester"
-                      dataKey="previous"
-                      stroke="#8B5CF6"
-                      fill="#8B5CF6"
-                      fillOpacity={0.4}
-                    />
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
-                  Need at least 2 semesters of data
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+                  );
+                }}
+              >
+                <LabelList
+                  dataKey="count"
+                  position="right"
+                  fill="var(--muted-foreground)"
+                  fontSize={11}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
-      {/* Semester Results */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+      {/* Semester detail */}
+      <SectionCard
+        title="Semester results"
+        description={
+          activeSemester
+            ? `${activeSemester.label} — ${activeSemester.academicYear}`
+            : undefined
+        }
+        actions={
+          semesters.length > 0 ? (
+            <SegmentedTabs
+              aria-label="Select a semester"
+              tabs={semesters.map((sem) => ({
+                value: sem.semesterKey,
+                label: `Sem ${sem.semesterNum}`,
+              }))}
+              value={activeSemesterTab}
+              onChange={setActiveSemesterTab}
+              layoutId="results-semester-tab-indicator"
+              scrollable
+            />
+          ) : undefined
+        }
       >
-        <Card>
-          <CardHeader>
-            <CardTitle>Semester-wise Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-12 rounded-lg bg-muted animate-pulse"
-                  />
-                ))}
+        {loading ? (
+          <SkeletonRows count={5} height="h-12" />
+        ) : semesters.length === 0 ? (
+          <EmptyState
+            icon={GraduationCap}
+            title="No published results yet"
+            description="Results appear here as soon as your department publishes them."
+          />
+        ) : activeSemester ? (
+          <div className="space-y-4">
+            {/* Semester summary strip */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-foreground">
+                    {activeSemester.label}
+                  </h3>
+                  <span className="text-sm text-muted-foreground">
+                    {activeSemester.academicYear}
+                  </span>
+                  {activeSemester.sgpa >= 3.8 && (
+                    <StatusBadge tone="warning" icon={Award}>
+                      Dean's List
+                    </StatusBadge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activeSemester.courses.length} course
+                  {activeSemester.courses.length === 1 ? "" : "s"} ·{" "}
+                  {activeSemester.totalCredits} credits counting toward GPA
+                </p>
               </div>
-            ) : semesters.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No published results yet.
-              </p>
-            ) : (
-              <Tabs
-                value={activeSemesterTab}
-                onValueChange={setActiveSemesterTab}
-                className="w-full"
-              >
-                <PillTabs
-                  tabs={semesters.map((sem) => ({
-                    value: sem.semesterKey,
-                    label: `Sem ${sem.semesterNum}`,
-                  }))}
-                  activeTab={activeSemesterTab}
-                  onChange={setActiveSemesterTab}
-                  className="mb-4 flex-wrap h-auto"
-                  layoutId="results-semester-tab-indicator"
-                />
+              <div className="text-right">
+                <div className="text-2xl font-bold text-primary tabular-nums leading-none">
+                  {activeSemester.sgpa.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Semester GPA
+                </p>
+              </div>
+            </div>
 
-                {semesters.map((sem) => (
-                  <TabsContent key={sem.semesterKey} value={sem.semesterKey}>
-                    <div className="space-y-3">
-                      {/* Semester Summary */}
-                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-foreground">
-                              {sem.label} — {sem.academicYear}
-                            </h4>
-                            {sem.sgpa >= 3.8 && (
-                              <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200">
-                                <Award className="h-3 w-3 mr-1" />
-                                Dean's List
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {sem.courses.length} courses completed
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">
-                            {sem.sgpa.toFixed(2)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Semester GPA
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Course Results Table */}
-                      <div className="border border-border rounded-xl overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Code</TableHead>
-                              <TableHead>Course Name</TableHead>
-                              <TableHead className="text-center">
-                                Credits
-                              </TableHead>
-                              <TableHead className="text-center">
-                                Mid Sem
-                              </TableHead>
-                              <TableHead className="text-center">CA</TableHead>
-                              <TableHead className="text-center">ESE</TableHead>
-                              <TableHead className="text-center">
-                                Grade
-                              </TableHead>
-                              <TableHead className="text-center">GPV</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sem.courses.map((course) => (
-                              <TableRow key={course.code}>
-                                <TableCell className="font-medium text-primary">
-                                  {course.code}
-                                </TableCell>
-                                <TableCell>{course.name}</TableCell>
-                                <TableCell className="text-center">
-                                  {course.credits}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {course.mid_sem ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {course.ca ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {course.ese ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {course.grade ? (
-                                    <Badge
-                                      className={`${getGradeColor(course.grade)} border`}
-                                    >
-                                      {course.grade}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-muted-foreground text-sm">
-                                      Pending
-                                    </span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-center font-semibold">
-                                  {course.gpv !== null
-                                    ? course.gpv.toFixed(1)
-                                    : "—"}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-
-                      {/* Semester Stats */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="p-3 bg-muted/30 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground mb-1">
-                            GPA Credits
-                          </p>
-                          <p className="text-xl font-bold text-foreground">
-                            {sem.totalCredits}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground mb-1">
-                            Semester GPA
-                          </p>
-                          <p className="text-xl font-bold text-primary">
-                            {sem.sgpa.toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-muted/30 rounded-lg text-center">
-                          <p className="text-sm text-muted-foreground mb-1">
-                            Courses
-                          </p>
-                          <p className="text-xl font-bold text-foreground">
-                            {sem.courses.length}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+            {/* Course table */}
+            <div className="rounded-xl border border-border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[110px]">Code</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead className="text-center w-[80px]">
+                      Credits
+                    </TableHead>
+                    {showComponentMarks && (
+                      <>
+                        <TableHead className="text-center w-[90px]">
+                          Mid Sem
+                        </TableHead>
+                        <TableHead className="text-center w-[70px]">
+                          CA
+                        </TableHead>
+                        <TableHead className="text-center w-[70px]">
+                          ESE
+                        </TableHead>
+                      </>
+                    )}
+                    <TableHead className="text-center w-[90px]">
+                      Grade
+                    </TableHead>
+                    <TableHead className="text-center w-[70px]">GPV</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activeSemester.courses.map((course) => (
+                    <TableRow key={course.code}>
+                      <TableCell className="font-medium text-primary whitespace-nowrap">
+                        {course.code}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-foreground">{course.name}</span>
+                        {!course.contributes_to_gpa && (
+                          <StatusBadge tone="neutral" className="ml-2">
+                            Not in GPA
+                          </StatusBadge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center tabular-nums">
+                        {course.credits}
+                      </TableCell>
+                      {showComponentMarks && (
+                        <>
+                          <TableCell className="text-center tabular-nums text-muted-foreground">
+                            {course.mid_sem ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums text-muted-foreground">
+                            {course.ca ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-center tabular-nums text-muted-foreground">
+                            {course.ese ?? "—"}
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell className="text-center">
+                        {course.grade ? (
+                          <StatusBadge tone={gradeTone(course.grade)}>
+                            {course.grade}
+                          </StatusBadge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            Pending
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center font-semibold tabular-nums">
+                        {course.gpv !== null ? course.gpv.toFixed(1) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : null}
+      </SectionCard>
     </div>
   );
 }

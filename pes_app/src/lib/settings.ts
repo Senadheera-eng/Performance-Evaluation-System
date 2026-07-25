@@ -141,7 +141,7 @@ export function loadSettings(): Promise<Settings> {
     data.forEach((row: { key: string; value: unknown }) => {
       const field = KEY_MAP[row.key];
       if (field && row.value !== null && row.value !== undefined) {
-        (next as Record<string, unknown>)[field] = row.value;
+        (next as unknown as Record<string, unknown>)[field] = row.value;
       }
     });
 

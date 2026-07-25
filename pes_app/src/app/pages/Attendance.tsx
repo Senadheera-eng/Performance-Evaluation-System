@@ -194,11 +194,16 @@ export default function Attendance() {
       };
     });
 
-    // Sort: warning first, then good, then excellent
-    result.sort((a, b) => {
-      const order = { warning: 0, good: 1, excellent: 2 };
-      return order[a.status] - order[b.status];
-    });
+    // Needs-attention first; courses with no lectures recorded yet sort last,
+    // since there is nothing for the student to act on there. Every status
+    // must appear here — a missing key produced NaN and scrambled the order.
+    const order: Record<CourseAttendance["status"], number> = {
+      warning: 0,
+      good: 1,
+      excellent: 2,
+      pending: 3,
+    };
+    result.sort((a, b) => order[a.status] - order[b.status]);
 
     setCourses(result);
     setLoading(false);

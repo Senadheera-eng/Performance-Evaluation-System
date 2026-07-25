@@ -79,7 +79,6 @@ export default function GraduationPlanner() {
   const [simulatedGrades, setSimulatedGrades] = useState<
     Record<string, string>
   >({});
-  const [currentSemester, setCurrentSemester] = useState(0);
   const [remainingSemesterCredits, setRemainingSemesterCredits] = useState<
     SemesterCredit[]
   >([]);
@@ -120,11 +119,11 @@ export default function GraduationPlanner() {
 
     setAllCourses(courseRows);
 
+    // Highest semester already graded — everything above it is still ahead.
     const maxSem = Math.max(
       0,
       ...courseRows.filter((c) => c.contributesToGpa).map((c) => c.semester),
     );
-    setCurrentSemester(maxSem);
 
     if (student?.department) {
       const { data: futureCourses } = await supabase

@@ -122,11 +122,21 @@ export function ErrorState({
 /* Loading                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Neutral shimmer block. Width/height come from the caller via className. */
-export function Skeleton({ className }: { className?: string }) {
+/**
+ * Neutral shimmer block. Width/height come from the caller via className, or
+ * via `style` when the dimension is computed (chart heights, for instance).
+ */
+export function Skeleton({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <div
       className={cn("animate-pulse rounded-lg bg-muted", className)}
+      style={style}
       aria-hidden="true"
     />
   );
