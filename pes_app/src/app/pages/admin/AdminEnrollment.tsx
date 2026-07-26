@@ -11,6 +11,7 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
 } from "lucide-react";
 import {
   Card,
@@ -36,11 +37,11 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
-import { SegmentedTabs } from "../../components/common";
-import { CourseEnrollmentBrowser } from "../../components/enrollment/CourseEnrollmentBrowser";
+import { SegmentedTabs, StatusBadge, ErrorState } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
+import { formatRegNumber } from "../../../lib/format";
 import { useSettings } from "../../../lib/settings";
 
 type PeriodStatus = "draft" | "scheduled" | "open" | "closed" | "archived";
@@ -73,7 +74,19 @@ interface CourseStat {
   course_code: string;
   course_title: string;
   capacity: number | null;
+  eligible_count: number;
   enrolled_count: number;
+}
+
+interface EnrolledStudent {
+  student_id: string;
+  name: string;
+  index_number: string;
+  reg_number: string;
+  batch_year: number;
+  department: string;
+  status: string;
+  enrolled_at: string | null;
 }
 
 interface CourseOption {
@@ -102,8 +115,12 @@ export default function AdminEnrollment() {
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
-  const [view, setView] = useState<"periods" | "courses">("periods");
   const [activeTab, setActiveTab] = useState<TabValue>("current");
+  // Period -> its courses -> a given course's enrolled-student roster: a
+  // period card expands to a course list, and a course row within it
+  // expands again to the roster. expandedCourseKey combines period + course
+  // ids since the same course can appear under more than one period, with
+  // a different roster each time (a different batch's academic year).
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [courseStats, setCourseStats] = useState<
     Record<string, CourseStat[]>
@@ -111,6 +128,17 @@ export default function AdminEnrollment() {
   const [courseStatsLoading, setCourseStatsLoading] = useState<string | null>(
     null,
   );
+  const [courseStatsError, setCourseStatsError] = useState<
+    Record<string, string>
+  >({});
+  const [expandedCourseKey, setExpandedCourseKey] = useState<string | null>(
+    null,
+  );
+  const [rosters, setRosters] = useState<Record<string, EnrolledStudent[]>>(
+    {},
+  );
+  const [rosterLoading, setRosterLoading] = useState<string | null>(null);
+  const [rosterError, setRosterError] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (admin) fetchPeriods();
@@ -189,19 +217,67 @@ export default function AdminEnrollment() {
       return;
     }
     setExpandedId(period.id);
+    setExpandedCourseKey(null);
     if (!courseStats[period.id]) {
-      setCourseStatsLoading(period.id);
-      const { data, error } = await supabase.rpc(
-        "get_enrollment_period_course_stats",
-        { p_period_id: period.id },
-      );
-      if (error) {
-        console.error("[AdminEnrollment] failed to load course stats", error);
-      } else {
-        setCourseStats((prev) => ({ ...prev, [period.id]: data ?? [] }));
-      }
-      setCourseStatsLoading(null);
+      await loadCourseStats(period);
     }
+  };
+
+  const loadCourseStats = async (period: EnrollmentPeriod) => {
+    setCourseStatsLoading(period.id);
+    setCourseStatsError((prev) => {
+      const next = { ...prev };
+      delete next[period.id];
+      return next;
+    });
+    const { data, error } = await supabase.rpc(
+      "get_enrollment_period_course_stats",
+      { p_period_id: period.id },
+    );
+    if (error) {
+      console.error("[AdminEnrollment] failed to load course stats", error);
+      setCourseStatsError((prev) => ({
+        ...prev,
+        [period.id]: "Unable to load courses for this period.",
+      }));
+    } else {
+      setCourseStats((prev) => ({ ...prev, [period.id]: data ?? [] }));
+    }
+    setCourseStatsLoading(null);
+  };
+
+  const toggleCourseExpand = async (
+    period: EnrollmentPeriod,
+    course: CourseStat,
+  ) => {
+    const key = `${period.id}:${course.course_id}`;
+    if (expandedCourseKey === key) {
+      setExpandedCourseKey(null);
+      return;
+    }
+    setExpandedCourseKey(key);
+    if (rosters[key]) return;
+
+    setRosterLoading(key);
+    setRosterError((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    const { data, error } = await supabase.rpc("get_course_enrolled_students", {
+      p_course_id: course.course_id,
+      p_batch_year: period.batch_year,
+    });
+    if (error) {
+      console.error("[AdminEnrollment] failed to load roster", error);
+      setRosterError((prev) => ({
+        ...prev,
+        [key]: "Unable to load enrolled students.",
+      }));
+    } else {
+      setRosters((prev) => ({ ...prev, [key]: data ?? [] }));
+    }
+    setRosterLoading(null);
   };
 
   const filteredPeriods = periods.filter((p) => {
@@ -244,21 +320,6 @@ export default function AdminEnrollment() {
         </div>
       )}
 
-      <SegmentedTabs
-        aria-label="Switch between periods and course view"
-        value={view}
-        onChange={(v) => setView(v as "periods" | "courses")}
-        layoutId="enrollment-view-switch"
-        tabs={[
-          { value: "periods", label: "Periods" },
-          { value: "courses", label: "By Course" },
-        ]}
-      />
-
-      {view === "courses" && <CourseEnrollmentBrowser />}
-
-      {view === "periods" && (
-        <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <SegmentedTabs
           aria-label="Filter enrolment periods"
@@ -421,30 +482,151 @@ export default function AdminEnrollment() {
                 </div>
 
                 {expandedId === p.id && (
-                  <div className="pt-2 border-t border-border/70">
+                  <div className="pt-2 border-t border-border/70 space-y-1.5">
                     {courseStatsLoading === p.id ? (
                       <div className="h-16 rounded-lg bg-muted animate-pulse" />
+                    ) : courseStatsError[p.id] ? (
+                      <ErrorState
+                        message={courseStatsError[p.id]}
+                        onRetry={() => loadCourseStats(p)}
+                        size="inline"
+                      />
                     ) : (courseStats[p.id]?.length ?? 0) === 0 ? (
                       <p className="text-xs text-muted-foreground py-2">
                         No courses match this period's semester.
                       </p>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 pt-2">
-                        {courseStats[p.id].map((c) => (
+                      courseStats[p.id].map((c) => {
+                        const key = `${p.id}:${c.course_id}`;
+                        const courseExpanded = expandedCourseKey === key;
+                        const remaining =
+                          c.capacity !== null
+                            ? Math.max(0, c.capacity - c.enrolled_count)
+                            : null;
+                        return (
                           <div
                             key={c.course_id}
-                            className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-muted/50"
+                            className="rounded-lg border border-border/70 overflow-hidden"
                           >
-                            <span className="text-foreground font-medium truncate">
-                              {c.course_code}
-                            </span>
-                            <span className="text-muted-foreground tabular-nums flex-shrink-0 ml-2">
-                              {c.enrolled_count}
-                              {c.capacity !== null ? ` / ${c.capacity}` : ""}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleCourseExpand(p, c)}
+                              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors bg-card"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {courseExpanded ? (
+                                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                )}
+                                <span className="text-sm font-semibold text-primary flex-shrink-0">
+                                  {c.course_code}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {c.course_title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0 text-xs">
+                                <span className="text-foreground tabular-nums">
+                                  {c.enrolled_count} of {c.eligible_count} enrolled
+                                </span>
+                                {remaining !== null && (
+                                  <StatusBadge
+                                    tone={remaining === 0 ? "danger" : "neutral"}
+                                  >
+                                    {remaining} seat{remaining === 1 ? "" : "s"} left
+                                  </StatusBadge>
+                                )}
+                              </div>
+                            </button>
+
+                            {courseExpanded && (
+                              <div className="px-3 py-2 border-t border-border/70 bg-muted/20">
+                                {rosterLoading === key ? (
+                                  <div className="h-12 rounded-lg bg-muted animate-pulse" />
+                                ) : rosterError[key] ? (
+                                  <ErrorState
+                                    message={rosterError[key]}
+                                    onRetry={() => toggleCourseExpand(p, c)}
+                                    size="inline"
+                                  />
+                                ) : (rosters[key]?.length ?? 0) === 0 ? (
+                                  <p className="text-xs text-muted-foreground py-1">
+                                    No students enrolled in this course yet.
+                                  </p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="text-muted-foreground text-left border-b border-border/70">
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Student
+                                          </th>
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Index No.
+                                          </th>
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Reg. No.
+                                          </th>
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Batch
+                                          </th>
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Department
+                                          </th>
+                                          <th className="pb-1.5 pr-3 font-medium">
+                                            Status
+                                          </th>
+                                          <th className="pb-1.5 font-medium">
+                                            Enrolled
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border/50">
+                                        {rosters[key].map((s) => (
+                                          <tr key={s.student_id}>
+                                            <td className="py-1.5 pr-3 text-foreground">
+                                              {s.name}
+                                            </td>
+                                            <td className="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">
+                                              {s.index_number}
+                                            </td>
+                                            <td className="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">
+                                              {formatRegNumber(s.reg_number)}
+                                            </td>
+                                            <td className="py-1.5 pr-3 text-muted-foreground whitespace-nowrap">
+                                              {describeBatch(s.batch_year)}
+                                            </td>
+                                            <td className="py-1.5 pr-3 text-muted-foreground">
+                                              {s.department}
+                                            </td>
+                                            <td className="py-1.5 pr-3">
+                                              <StatusBadge tone="success">
+                                                {s.status}
+                                              </StatusBadge>
+                                            </td>
+                                            <td className="py-1.5 text-muted-foreground whitespace-nowrap">
+                                              {s.enrolled_at
+                                                ? new Date(
+                                                    s.enrolled_at,
+                                                  ).toLocaleDateString("en-US", {
+                                                    year: "numeric",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                  })
+                                                : "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -452,8 +634,6 @@ export default function AdminEnrollment() {
             </Card>
           ))}
         </div>
-      )}
-        </>
       )}
     </div>
   );
