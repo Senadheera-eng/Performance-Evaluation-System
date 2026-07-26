@@ -19,11 +19,16 @@ import {
 } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { CourseAttendanceChart } from "../../components/common";
+import {
+  CourseAttendanceChart,
+  EmptyState,
+  ErrorState,
+} from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { useSettings } from "../../../lib/settings";
+import { formatRegNumber } from "../../../lib/format";
 
 interface DashboardStats {
   totalStudents: number;
@@ -46,10 +51,14 @@ interface CourseAttendanceStat {
 }
 
 interface RecentResult {
+  id: string;
   studentName: string;
+  regNumber: string;
+  indexNumber: string;
   courseCode: string;
   courseName: string;
   grade: string;
+  publishedAt: string | null;
 }
 
 export default function AdminDashboard() {
@@ -69,6 +78,9 @@ export default function AdminDashboard() {
   >([]);
   const [coursesAwaitingAttendance, setCoursesAwaitingAttendance] = useState(0);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
+  const [recentResultsError, setRecentResultsError] = useState<string | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -239,29 +251,34 @@ export default function AdminDashboard() {
     setCoursesAwaitingAttendance(courses.length - withLectures.length);
   };
 
+  // Client-side joins to students/courses fail RLS for any student outside
+  // the admin's own department — routine for shared first/second-year
+  // courses, which have students from all four departments by design. That
+  // silently produced "—" for the name instead of an error. This RPC
+  // resolves the join server-side, scoped to the admin's department (or all
+  // departments for super_admin) the same way get_course_roster does.
   const fetchRecentResults = async () => {
-    const { data } = await supabase
-      .from("results")
-      .select(
-        `
-        grade,
-        students (name),
-        courses (course_code, title)
-      `,
-      )
-      .eq("is_published", true)
-      .not("grade", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(5);
+    setRecentResultsError(null);
+    const { data, error } = await supabase.rpc("get_admin_recent_results", {
+      p_limit: 5,
+    });
 
-    if (!data) return;
+    if (error) {
+      console.error("[AdminDashboard] failed to load recent results", error);
+      setRecentResultsError("Unable to load recent results.");
+      return;
+    }
 
     setRecentResults(
-      data.map((r: any) => ({
-        studentName: r.students?.name ?? "—",
-        courseCode: r.courses?.course_code ?? "—",
-        courseName: r.courses?.title ?? "—",
+      (data ?? []).map((r: any) => ({
+        id: r.result_id,
+        studentName: r.student_name ?? "—",
+        regNumber: formatRegNumber(r.reg_number),
+        indexNumber: r.index_number ?? "—",
+        courseCode: r.course_code ?? "—",
+        courseName: r.course_title ?? "—",
         grade: r.grade,
+        publishedAt: r.published_at,
       })),
     );
   };
@@ -526,34 +543,50 @@ export default function AdminDashboard() {
                   />
                 ))}
               </div>
+            ) : recentResultsError ? (
+              <ErrorState
+                message={recentResultsError}
+                onRetry={fetchRecentResults}
+                size="inline"
+              />
             ) : recentResults.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-muted-foreground text-sm">
-                  No published results yet
-                </p>
-              </div>
+              <EmptyState
+                icon={Clock}
+                title="No published results yet"
+                description="Results you publish will appear here as soon as they go live."
+                size="inline"
+              />
             ) : (
               <div className="space-y-3">
-                {recentResults.map((result, index) => (
+                {recentResults.map((result) => (
                   <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                    key={result.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-green-100">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 rounded-lg bg-green-100 flex-shrink-0">
                         <CheckCircle className="h-4 w-4 text-green-600" />
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
                           {result.studentName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {result.courseCode} · {result.courseName}
+                        <p className="text-xs text-muted-foreground truncate">
+                          {result.indexNumber} · {result.regNumber} ·{" "}
+                          {result.courseCode} — {result.courseName}
                         </p>
+                        {result.publishedAt && (
+                          <p className="text-xs text-muted-foreground/80">
+                            Published{" "}
+                            {new Date(result.publishedAt).toLocaleDateString(
+                              "en-US",
+                              { year: "numeric", month: "short", day: "numeric" },
+                            )}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Badge className="bg-primary/10 text-primary text-base font-bold px-3">
+                    <Badge className="bg-primary/10 text-primary text-base font-bold px-3 flex-shrink-0">
                       {result.grade}
                     </Badge>
                   </div>
