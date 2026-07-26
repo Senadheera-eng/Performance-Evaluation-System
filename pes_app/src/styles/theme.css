@@ -486,6 +486,16 @@
 
 /* Custom Utility Classes */
 @layer utilities {
+  /* Scrollable tab bars (PillTabs, SegmentedTabs) still scroll — the
+     scrollbar itself is just visually hidden, matching the pill-bar look. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .gradient-primary {
     background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
   }

@@ -411,7 +411,7 @@ export default function Courses() {
           tabs={tabs}
           activeTab={activeTab}
           onChange={setActiveTab}
-          className="max-w-md mb-4"
+          className="max-w-full mb-4"
           layoutId="courses-tab-indicator"
         />
 
