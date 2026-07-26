@@ -25,12 +25,16 @@ import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
 import { formatRegNumber } from "../../../lib/format";
 import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
+import { describeBatch } from "../../../lib/batch";
 
 interface Course {
   id: string;
   code: string;
   name: string;
   semester: number;
+  /** Study year 1-4 (semesters 1-2, 3-4, 5-6, 7-8) — used to derive which
+   *  academic_year a given batch's results for this course belong to. */
+  year: number;
   credits: number;
 }
 
@@ -64,17 +68,14 @@ const getGradeColor = (grade: string | null) => {
   return "bg-gray-100 text-gray-700";
 };
 
-// Academic years selectable for results entry. The lower bound is derived
-// from the earliest student batch actually on record (not a fixed lookback),
-// so an older or newer batch is never silently unselectable.
-const buildAcademicYearOptions = (earliestBatchYear: number): string[] => {
-  const currentYear = new Date().getFullYear();
-  const years: string[] = [];
-  for (let y = currentYear + 1; y >= earliestBatchYear; y--) {
-    years.push(`${y}/${y + 1}`);
-  }
-  return years;
-};
+// A batch's results for a given course live under exactly one academic
+// year, derived from when that batch actually took that study year — not a
+// value an admin should have to know or pick by hand. Matches the formula
+// the database itself was corrected to (batch_year + course.year - 1) /
+// (batch_year + course.year): a Batch 7 (2021 intake) student's year-1
+// courses fall under 2021/2022, year-2 under 2022/2023, and so on.
+const deriveAcademicYear = (batchYear: number, courseYear: number): string =>
+  `${batchYear + courseYear - 1}/${batchYear + courseYear}`;
 
 export default function AdminResults() {
   const { student } = useAuth();
@@ -82,28 +83,8 @@ export default function AdminResults() {
   const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [academicYearOptions, setAcademicYearOptions] = useState<string[]>(
-    () => buildAcademicYearOptions(new Date().getFullYear() - 4),
-  );
-  const [selectedYear, setSelectedYear] = useState(
-    () => buildAcademicYearOptions(new Date().getFullYear() - 4)[1],
-  );
-
-  useEffect(() => {
-    const loadYearRange = async () => {
-      const { data } = await supabase
-        .from("students")
-        .select("batch_year")
-        .eq("role", "student")
-        .order("batch_year", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      if (data?.batch_year) {
-        setAcademicYearOptions(buildAcademicYearOptions(data.batch_year));
-      }
-    };
-    loadYearRange();
-  }, []);
+  const [batches, setBatches] = useState<number[]>([]);
+  const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentResult[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -112,18 +93,43 @@ export default function AdminResults() {
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
+  // The academic year for the currently-selected course/batch combination —
+  // always derived, never picked by hand, so it can't drift out of sync
+  // with what the database actually has these results filed under.
+  const selectedYear =
+    selectedCourse && selectedBatch !== null
+      ? deriveAcademicYear(selectedBatch, selectedCourse.year)
+      : null;
+
   useEffect(() => {
     if (student) fetchCourses();
   }, [student]);
 
   useEffect(() => {
-    if (selectedCourse) fetchStudentResults();
+    fetchBatches();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCourse && selectedYear) fetchStudentResults();
   }, [selectedCourse, selectedYear]);
+
+  const fetchBatches = async () => {
+    const { data } = await supabase
+      .from("students")
+      .select("batch_year")
+      .eq("role", "student");
+
+    const distinct = [...new Set((data ?? []).map((s: any) => s.batch_year))]
+      .filter((y): y is number => y !== null)
+      .sort((a, b) => b - a);
+    setBatches(distinct);
+    setSelectedBatch((current) => current ?? distinct[0] ?? null);
+  };
 
   const fetchCourses = async () => {
     let courseQuery = supabase
       .from("courses")
-      .select("id, course_code, title, semester, credits")
+      .select("id, course_code, title, semester, year, credits")
       .order("semester")
       .order("course_code");
     if (scope.kind === "department") {
@@ -138,6 +144,7 @@ export default function AdminResults() {
           code: c.course_code,
           name: c.title,
           semester: c.semester,
+          year: c.year,
           credits: c.credits,
         })),
       );
@@ -145,7 +152,7 @@ export default function AdminResults() {
   };
 
   const fetchStudentResults = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || !selectedYear) return;
     setLoading(true);
 
     // Roster comes from a SECURITY DEFINER RPC rather than a client-side
@@ -234,7 +241,7 @@ export default function AdminResults() {
   };
 
   const handleSaveDraft = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || !selectedYear) return;
     setSaving(true);
     setSavedMessage(null);
 
@@ -275,7 +282,7 @@ export default function AdminResults() {
   };
 
   const handlePublish = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || !selectedYear) return;
     setPublishing(true);
     setSavedMessage(null);
 
@@ -332,10 +339,10 @@ export default function AdminResults() {
         </p>
       </motion.div>
 
-      {/* Course and Year Selection */}
+      {/* Course and Batch Selection */}
       <Card className="border-border">
         <CardHeader>
-          <CardTitle>Select Course & Academic Year</CardTitle>
+          <CardTitle>Select Course & Batch</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -368,23 +375,9 @@ export default function AdminResults() {
                     {courses.map((course) => (
                       <button
                         key={course.id}
-                        onClick={async () => {
+                        onClick={() => {
                           setSelectedCourse(course);
                           setCourseDropdownOpen(false);
-
-                          // Each course's results live under exactly one
-                          // academic year (the cohort that took it) — snap
-                          // the year selector to match, so existing grades
-                          // aren't hidden behind a mismatched year filter.
-                          const { data: yearProbe } = await supabase
-                            .from("results")
-                            .select("academic_year")
-                            .eq("course_id", course.id)
-                            .limit(1)
-                            .maybeSingle();
-                          if (yearProbe?.academic_year) {
-                            setSelectedYear(yearProbe.academic_year);
-                          }
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm ${
                           selectedCourse?.id === course.id
@@ -406,22 +399,32 @@ export default function AdminResults() {
               </div>
             </div>
 
-            {/* Academic Year */}
+            {/* Batch */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
-                Academic Year
+                Batch
               </label>
               <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
+                value={selectedBatch ?? ""}
+                onChange={(e) =>
+                  setSelectedBatch(
+                    e.target.value ? Number(e.target.value) : null,
+                  )
+                }
                 className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
-                {academicYearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
+                <option value="">Select a batch...</option>
+                {batches.map((b) => (
+                  <option key={b} value={b}>
+                    {describeBatch(b)}
                   </option>
                 ))}
               </select>
+              {selectedCourse && selectedBatch !== null && (
+                <p className="text-xs text-muted-foreground">
+                  Academic year {selectedYear} for this batch and course.
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -442,6 +445,7 @@ export default function AdminResults() {
                     {selectedCourse.code} — {selectedCourse.name}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
+                    {selectedBatch !== null && describeBatch(selectedBatch)} ·{" "}
                     {selectedYear} · {students.length} students ·{" "}
                     {selectedCourse.credits} credits
                   </p>
@@ -510,7 +514,9 @@ export default function AdminResults() {
                   <p className="text-muted-foreground">
                     {searchQuery
                       ? "No students match your search."
-                      : `No students enrolled in this course for ${selectedYear}.`}
+                      : `No students enrolled in this course for ${
+                          selectedBatch !== null ? describeBatch(selectedBatch) : "this batch"
+                        }.`}
                   </p>
                 </div>
               ) : (
