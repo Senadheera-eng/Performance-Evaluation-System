@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
   Award,
+  BookOpen,
   CalendarCheck2,
   CalendarX2,
   CalendarClock,
@@ -255,43 +256,57 @@ export default function Attendance() {
       <PageHeader
         title="Attendance Tracker"
         description={`Monitor your attendance and stay above the ${threshold}% requirement, course by course.`}
-        actions={
-          loading ? (
-            <Skeleton className="h-9 w-64" />
-          ) : (
-            <Select
-              value={selectedCourseId ?? undefined}
-              onValueChange={setSelectedCourseId}
-            >
-              <SelectTrigger className="w-full sm:w-72 h-9">
-                <SelectValue placeholder="Select a course" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((c) => {
-                  const counts = toCounts(recordsByCourse[c.id] ?? []);
-                  const total = totalCount(counts);
-                  const pct = percentageOf(counts);
-                  return (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium">{c.code}</span>
-                        <span className="text-muted-foreground truncate">
-                          {c.name}
-                        </span>
-                        {total > 0 && (
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            ({pct}%)
-                          </span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          )
-        }
       />
+
+      {/* Course selector — deliberately its own full-width, clearly labelled
+          row rather than a small control tucked into the header, which
+          students found easy to miss and didn't read as a dropdown at all. */}
+      {loading ? (
+        <Skeleton className="h-[52px] w-full" />
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+          <label
+            htmlFor="attendance-course-select"
+            className="flex items-center gap-2 text-sm font-medium text-foreground sm:w-36 flex-shrink-0"
+          >
+            <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            Viewing course
+          </label>
+          <Select
+            value={selectedCourseId ?? undefined}
+            onValueChange={setSelectedCourseId}
+          >
+            <SelectTrigger
+              id="attendance-course-select"
+              className="w-full sm:max-w-md h-11 text-sm"
+            >
+              <SelectValue placeholder="Select a course" />
+            </SelectTrigger>
+            <SelectContent>
+              {courses.map((c) => {
+                const counts = toCounts(recordsByCourse[c.id] ?? []);
+                const total = totalCount(counts);
+                const pct = percentageOf(counts);
+                return (
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="flex items-center gap-2">
+                      <span className="font-medium">{c.code}</span>
+                      <span className="text-muted-foreground truncate">
+                        {c.name}
+                      </span>
+                      {total > 0 && (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          ({pct}%)
+                        </span>
+                      )}
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonStatGrid count={6} />
