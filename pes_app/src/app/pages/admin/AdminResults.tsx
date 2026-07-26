@@ -12,6 +12,7 @@ import {
   Clock,
   AlertCircle,
   Lock,
+  FileDown,
 } from "lucide-react";
 import {
   Card,
@@ -32,12 +33,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import { ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
 import { formatRegNumber } from "../../../lib/format";
 import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
+import {
+  buildResultSheetFilename,
+  buildResultSheetPdf,
+  type ResultSheetRow,
+} from "../../../lib/resultSheetPdf";
 import { describeBatch } from "../../../lib/batch";
 
 interface Course {
@@ -49,6 +63,8 @@ interface Course {
    *  academic_year a given batch's results for this course belong to. */
   year: number;
   credits: number;
+  department: string;
+  contributesToGpa: boolean;
 }
 
 interface StudentResult {
@@ -57,6 +73,9 @@ interface StudentResult {
   name: string;
   indexNumber: string;
   regNumber: string;
+  /** Student's home department — used to group the result-sheet PDF by
+   *  department for shared/IS courses. */
+  department: string;
   /** The student's own admission batch — distinct from the batch whose
    *  exam sitting is currently being entered. */
   batchYear: number | null;
@@ -147,6 +166,18 @@ export default function AdminResults() {
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
+  // Result-sheet PDF export. Course coordinator, weightage and the board
+  // exam date are never persisted to `courses` — that table is deliberately
+  // read-only for admins — so these are re-entered per export. The two
+  // reference sheets both show the board-exam-date field blank in practice,
+  // so none of this is required to generate.
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportCoordinator, setExportCoordinator] = useState("");
+  const [exportCaWeight, setExportCaWeight] = useState("");
+  const [exportEseWeight, setExportEseWeight] = useState("");
+  const [exportMidSemWeight, setExportMidSemWeight] = useState("");
+  const [exportBoardDate, setExportBoardDate] = useState("");
+
   // The academic year for the currently-selected course/batch combination —
   // always derived, never picked by hand, so it can't drift out of sync
   // with what the database actually has these results filed under.
@@ -183,7 +214,9 @@ export default function AdminResults() {
   const fetchCourses = async () => {
     let courseQuery = supabase
       .from("courses")
-      .select("id, course_code, title, semester, year, credits")
+      .select(
+        "id, course_code, title, semester, year, credits, department, contributes_to_gpa",
+      )
       .order("semester")
       .order("course_code");
     if (scope.kind === "department") {
@@ -200,6 +233,8 @@ export default function AdminResults() {
           semester: c.semester,
           year: c.year,
           credits: c.credits,
+          department: c.department,
+          contributesToGpa: c.contributes_to_gpa,
         })),
       );
     }
@@ -257,6 +292,7 @@ export default function AdminResults() {
         name: s.name ?? "—",
         indexNumber: s.index_number ?? "—",
         regNumber: formatRegNumber(s.reg_number),
+        department: s.department ?? "—",
         batchYear: s.batch_year ?? null,
         isRepeat:
           s.batch_year !== null &&
@@ -453,6 +489,47 @@ export default function AdminResults() {
     setUnpublishing(false);
   };
 
+  // The result sheet is a record of what's actually been finalised, not a
+  // work-in-progress export — only published rows (which, by construction,
+  // always carry a complete grade) go into it. Every row is included; there
+  // is no partial-metadata block, since the reference sheets themselves
+  // show the coordinator/board-date fields blank when unset.
+  const handleGeneratePdf = () => {
+    if (!selectedCourse || !selectedYear || !selectedBatch) return;
+
+    const rows: ResultSheetRow[] = students
+      .filter((s) => s.isPublished && s.grade)
+      .map((s) => ({
+        indexNumber: s.indexNumber,
+        regNumber: s.regNumber,
+        grade: s.grade as string,
+        department: s.department,
+        isRepeat: s.isRepeat,
+      }));
+
+    const meta = {
+      courseCode: selectedCourse.code,
+      courseTitle: selectedCourse.name,
+      courseDepartment: selectedCourse.department,
+      credits: selectedCourse.credits,
+      contributesToGpa: selectedCourse.contributesToGpa,
+      semester: selectedCourse.semester,
+      batchYear: selectedBatch,
+      academicYear: selectedYear,
+      courseCoordinator: exportCoordinator.trim() || undefined,
+      caWeight: exportCaWeight.trim() ? Number(exportCaWeight) : undefined,
+      eseWeight: exportEseWeight.trim() ? Number(exportEseWeight) : undefined,
+      midSemWeight: exportMidSemWeight.trim()
+        ? Number(exportMidSemWeight)
+        : undefined,
+      boardExamDate: exportBoardDate.trim() || undefined,
+    };
+
+    const doc = buildResultSheetPdf(meta, rows);
+    doc.save(buildResultSheetFilename(meta));
+    setExportDialogOpen(false);
+  };
+
   const filteredStudents = students
     .filter(
       (s) =>
@@ -624,6 +701,20 @@ export default function AdminResults() {
                       </span>
                     )}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={publishedCount === 0}
+                    onClick={() => setExportDialogOpen(true)}
+                    title={
+                      publishedCount === 0
+                        ? "Publish at least one result before exporting"
+                        : undefined
+                    }
+                  >
+                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                    Download Result Sheet PDF
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -1066,6 +1157,98 @@ export default function AdminResults() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Download Result Sheet PDF</DialogTitle>
+            <DialogDescription>
+              {selectedCourse?.code} — {publishedCount} published result
+              {publishedCount === 1 ? "" : "s"} for {selectedYear}
+              {repeatCount > 0
+                ? `, including ${repeatCount} repeat candidate${repeatCount === 1 ? "" : "s"}`
+                : ""}
+              . These fields are optional and only used for this PDF — they
+              are not saved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Course Coordinator
+              </label>
+              <Input
+                placeholder="e.g. Dr. Jane Silva"
+                value={exportCoordinator}
+                onChange={(e) => setExportCoordinator(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Mid Sem Weightage
+                </label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  placeholder="0.4"
+                  value={exportMidSemWeight}
+                  onChange={(e) => setExportMidSemWeight(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  CA Weightage
+                </label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  placeholder="0.3"
+                  value={exportCaWeight}
+                  onChange={(e) => setExportCaWeight(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  ESE Weightage
+                </label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  placeholder="0.7"
+                  value={exportEseWeight}
+                  onChange={(e) => setExportEseWeight(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                Date of Board of Examination
+              </label>
+              <Input
+                placeholder="e.g. 12th March 2026"
+                value={exportBoardDate}
+                onChange={(e) => setExportBoardDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleGeneratePdf}>
+              <FileDown className="h-4 w-4 mr-1.5" />
+              Generate PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {!selectedCourse && (
         <motion.div
