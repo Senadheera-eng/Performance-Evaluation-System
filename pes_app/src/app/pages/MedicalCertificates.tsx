@@ -51,6 +51,15 @@ interface SubmissionFile {
   file_name: string;
 }
 
+interface SubmissionCourseStatus {
+  code: string;
+  title: string;
+  department: string;
+  reviewStatus: "pending" | "approved" | "rejected";
+  reviewNotes: string | null;
+  excusedDays: number;
+}
+
 interface Submission {
   id: string;
   reason_type: string;
@@ -61,9 +70,17 @@ interface Submission {
   deadline: string | null;
   submitted_at: string;
   review_notes: string | null;
-  courses: { code: string; title: string }[];
+  courses: SubmissionCourseStatus[];
   files: SubmissionFile[];
 }
+
+const OVERALL_STATUS_LABELS: Record<string, string> = {
+  pending: "Pending Review",
+  partially_approved: "Partially Approved",
+  approved: "Approved",
+  rejected: "Rejected",
+  mixed: "Mixed Decision",
+};
 
 const daysBetween = (a: Date, b: Date) =>
   Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
@@ -86,6 +103,7 @@ export default function MedicalCertificates() {
   const [files, setFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -94,14 +112,21 @@ export default function MedicalCertificates() {
 
   const fetchData = async () => {
     setLoading(true);
+    setLoadError(null);
 
     // Courses the student is currently taking this semester — the only
     // ones a medical excuse can reasonably apply to.
-    const { data: enrollments } = await supabase
+    const { data: enrollments, error: enrollError } = await supabase
       .from("enrollments")
       .select("courses(id, course_code, title)")
       .eq("student_id", student!.id)
       .eq("status", "enrolled");
+
+    if (enrollError) {
+      setLoadError("The medical submission could not be loaded.");
+      setLoading(false);
+      return;
+    }
 
     setCourses(
       (enrollments ?? [])
@@ -110,36 +135,69 @@ export default function MedicalCertificates() {
         .map((c: any) => ({ id: c.id, code: c.course_code, title: c.title })),
     );
 
-    const { data: subs } = await supabase
+    const { data: subs, error: subsError } = await supabase
       .from("medical_submissions")
       .select(
         `
         id, reason_type, missed_date, end_date, description,
         status, deadline, submitted_at, review_notes,
-        medical_submission_courses ( courses ( course_code, title ) ),
+        medical_submission_courses (
+          course_id, review_status, review_notes, department,
+          courses ( course_code, title )
+        ),
         medical_submission_files ( id, file_url, file_name )
       `,
       )
       .eq("student_id", student!.id)
       .order("submitted_at", { ascending: false });
 
+    if (subsError) {
+      setLoadError("The medical submission could not be loaded.");
+      setLoading(false);
+      return;
+    }
+
+    // Attendance rows this student can already see (own-row RLS) that were
+    // auto-excused by an approved submission — used to show "N day(s)
+    // marked Excused" per course instead of just an "Approved" badge.
+    const { data: excusedRows } = await supabase
+      .from("attendance")
+      .select("course_id, excused_via_submission_id")
+      .eq("student_id", student!.id)
+      .not("excused_via_submission_id", "is", null);
+
+    const excusedCountFor = (submissionId: string, courseId: string) =>
+      (excusedRows ?? []).filter(
+        (r: any) =>
+          r.excused_via_submission_id === submissionId && r.course_id === courseId,
+      ).length;
+
     setSubmissions(
-      (subs ?? []).map((s: any) => ({
-        id: s.id,
-        reason_type: s.reason_type,
-        missed_date: s.missed_date,
-        end_date: s.end_date,
-        description: s.description,
-        status: s.status,
-        deadline: s.deadline,
-        submitted_at: s.submitted_at,
-        review_notes: s.review_notes,
-        courses: (s.medical_submission_courses ?? [])
-          .map((link: any) => link.courses)
-          .filter(Boolean)
-          .map((c: any) => ({ code: c.course_code, title: c.title })),
-        files: s.medical_submission_files ?? [],
-      })),
+      (subs ?? []).map((s: any) => {
+        const links = s.medical_submission_courses ?? [];
+        return {
+          id: s.id,
+          reason_type: s.reason_type,
+          missed_date: s.missed_date,
+          end_date: s.end_date,
+          description: s.description,
+          status: s.status,
+          deadline: s.deadline,
+          submitted_at: s.submitted_at,
+          review_notes: s.review_notes,
+          courses: links
+            .filter((link: any) => link.courses)
+            .map((link: any) => ({
+              code: link.courses.course_code,
+              title: link.courses.title,
+              department: link.department,
+              reviewStatus: link.review_status,
+              reviewNotes: link.review_notes,
+              excusedDays: excusedCountFor(s.id, link.course_id),
+            })),
+          files: s.medical_submission_files ?? [],
+        };
+      }),
     );
     setLoading(false);
   };
@@ -258,11 +316,19 @@ export default function MedicalCertificates() {
           return;
         }
 
-        await supabase.from("medical_submission_files").insert({
-          submission_id: submissionId,
-          file_url: path,
-          file_name: file.name,
-        });
+        const { error: fileRowError } = await supabase
+          .from("medical_submission_files")
+          .insert({
+            submission_id: submissionId,
+            file_url: path,
+            file_name: file.name,
+          });
+
+        if (fileRowError) {
+          setFormError(`Could not save the record for "${file.name}". Please try again.`);
+          setSubmitting(false);
+          return;
+        }
       }
 
       setFormSuccess(
@@ -293,26 +359,35 @@ export default function MedicalCertificates() {
   };
 
   const statusBadge = (status: string) => {
-    if (status === "approved")
-      return (
-        <Badge className="bg-green-100 text-green-700">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Approved
-        </Badge>
-      );
-    if (status === "rejected")
-      return (
-        <Badge className="bg-red-100 text-red-700">
-          <XCircle className="h-3 w-3 mr-1" />
-          Rejected
-        </Badge>
+    const styles: Record<string, string> = {
+      approved: "bg-green-100 text-green-700",
+      rejected: "bg-red-100 text-red-700",
+      pending: "bg-amber-100 text-amber-800",
+      partially_approved: "bg-blue-100 text-blue-700",
+      mixed: "bg-purple-100 text-purple-700",
+    };
+    const icon =
+      status === "approved" ? (
+        <CheckCircle2 className="h-3 w-3 mr-1" />
+      ) : status === "rejected" ? (
+        <XCircle className="h-3 w-3 mr-1" />
+      ) : (
+        <Clock className="h-3 w-3 mr-1" />
       );
     return (
-      <Badge className="bg-amber-100 text-amber-800">
-        <Clock className="h-3 w-3 mr-1" />
-        Pending Review
+      <Badge className={styles[status] ?? "bg-muted text-muted-foreground"}>
+        {icon}
+        {OVERALL_STATUS_LABELS[status] ?? status}
       </Badge>
     );
+  };
+
+  const courseStatusBadge = (status: string) => {
+    if (status === "approved")
+      return <Badge className="bg-green-100 text-green-700 text-[10px]">Approved</Badge>;
+    if (status === "rejected")
+      return <Badge className="bg-red-100 text-red-700 text-[10px]">Rejected</Badge>;
+    return <Badge className="bg-amber-100 text-amber-800 text-[10px]">Pending</Badge>;
   };
 
   const isPastDeadline = (missedDate: string, submittedAt: string) => {
@@ -550,6 +625,14 @@ export default function MedicalCertificates() {
                     />
                   ))}
                 </div>
+              ) : loadError ? (
+                <div className="text-center py-12">
+                  <AlertTriangle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                  <p className="text-red-600 font-medium mb-3">{loadError}</p>
+                  <Button size="sm" variant="outline" onClick={fetchData}>
+                    Try again
+                  </Button>
+                </div>
               ) : submissions.length === 0 ? (
                 <div className="text-center py-12">
                   <FileHeart className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
@@ -578,15 +661,6 @@ export default function MedicalCertificates() {
                               <span className="font-semibold text-foreground">
                                 {REASON_LABELS[sub.reason_type] ?? "Other"}
                               </span>
-                              {sub.courses.map((c) => (
-                                <Badge
-                                  key={c.code}
-                                  variant="outline"
-                                  className="text-xs"
-                                >
-                                  {c.code}
-                                </Badge>
-                              ))}
                               {late && sub.status === "pending" && (
                                 <Badge className="bg-orange-100 text-orange-700 text-xs">
                                   Submitted late
@@ -607,11 +681,38 @@ export default function MedicalCertificates() {
                           </p>
                         )}
 
-                        {sub.status === "rejected" && sub.review_notes && (
-                          <p className="text-xs text-red-700 bg-red-50 rounded-lg p-2 mb-2">
-                            <strong>Reason:</strong> {sub.review_notes}
-                          </p>
-                        )}
+                        <div className="space-y-1.5 mb-2">
+                          {sub.courses.map((c) => (
+                            <div
+                              key={c.code}
+                              className="flex items-start justify-between gap-2 p-2 rounded-lg bg-muted/30 border border-border/60"
+                            >
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <Badge className="bg-primary/10 text-primary text-xs">
+                                    {c.code}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {c.department}
+                                  </span>
+                                </div>
+                                {c.reviewStatus === "rejected" && c.reviewNotes && (
+                                  <p className="text-xs text-red-700 mt-1">
+                                    <strong>Reason:</strong> {c.reviewNotes}
+                                  </p>
+                                )}
+                                {c.reviewStatus === "approved" && (
+                                  <p className="text-xs text-green-700 mt-1">
+                                    {c.excusedDays > 0
+                                      ? `Attendance marked Excused for ${c.excusedDays} day${c.excusedDays > 1 ? "s" : ""}.`
+                                      : "Approved — attendance will be marked once lecture records exist for these dates."}
+                                  </p>
+                                )}
+                              </div>
+                              {courseStatusBadge(c.reviewStatus)}
+                            </div>
+                          ))}
+                        </div>
 
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-2 flex-wrap">
