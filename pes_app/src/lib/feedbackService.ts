@@ -45,7 +45,13 @@ export interface FeedbackAnswerInput {
   text_value?: string | null;
 }
 
+export type FeedbackFormError =
+  | "period_not_found"
+  | "not_eligible"
+  | "no_questions";
+
 export interface FeedbackFormData {
+  error?: FeedbackFormError;
   course: {
     id: string;
     course_code: string;
@@ -63,60 +69,105 @@ export interface FeedbackFormData {
     is_anonymous: boolean;
     answers: FeedbackAnswerInput[];
   } | null;
+  period_open: boolean;
+  allow_editing: boolean;
+  can_edit: boolean;
 }
 
-// Friendly wrapper so pages never have to interpret raw Postgres error text.
-const FRIENDLY_ERRORS: Record<string, string> = {
-  "This feedback period has already closed.":
-    "This feedback period has already closed.",
-  "You are not eligible to submit feedback for this course.":
-    "You are not eligible to submit feedback for this course.",
-  "You have already submitted feedback for this course.":
-    "You have already submitted feedback for this course.",
-  "Please answer all required questions.":
-    "Please answer all required questions.",
-};
+export type Result<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
 
-function friendlyError(raw: string | undefined): string {
-  if (!raw) return "Your feedback could not be saved. Please try again.";
-  return FRIENDLY_ERRORS[raw] ?? "Your feedback could not be saved. Please try again.";
+/**
+ * Supabase surfaces failures on the `error` field rather than throwing, so
+ * every call here inspects it. Technical detail goes to the console for
+ * debugging; the caller only ever receives a sentence fit to show a student.
+ */
+function fail(context: string, error: unknown): { ok: false; error: string } {
+  console.error(`[feedback] ${context}`, error);
+  const raw =
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as { message: unknown }).message)
+      : "";
+  return { ok: false, error: friendlyError(raw) };
 }
 
-export async function getActiveFeedbackPeriod(): Promise<FeedbackPeriod | null> {
-  const { data, error } = await supabase
-    .from("feedback_periods")
-    .select("*")
-    .eq("status", "open")
-    .lte("opens_at", new Date().toISOString())
-    .gte("closes_at", new Date().toISOString())
-    .order("opens_at", { ascending: false })
-    .limit(1);
+const GENERIC = "Something went wrong. Please try again.";
 
-  if (error || !data || data.length === 0) return null;
-  return data[0] as FeedbackPeriod;
+/**
+ * Turns a Supabase/Postgres error message into something worth showing a
+ * student.
+ *
+ * The feedback RPCs deliberately raise plain sentences ("This feedback period
+ * has already closed."), so those are passed through unchanged. Anything that
+ * looks like database or transport plumbing is replaced — a student can act on
+ * neither an RLS violation nor a missing relation.
+ */
+function friendlyError(raw: string): string {
+  const msg = raw.trim();
+  if (!msg) return GENERIC;
+
+  if (
+    /row-level security|permission denied|not authorized|access denied|JWT/i.test(
+      msg,
+    )
+  ) {
+    return "You do not have permission to do that.";
+  }
+  if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+    return "We could not reach the server. Check your connection and try again.";
+  }
+  if (/duplicate key|unique constraint/i.test(msg)) {
+    return "That response has already been recorded.";
+  }
+  if (
+    /does not exist|syntax error|invalid input syntax|violates|constraint|null value/i.test(
+      msg,
+    )
+  ) {
+    return GENERIC;
+  }
+
+  // A sentence raised by our own SQL — already written for students.
+  if (msg.length <= 200 && /^[A-Z][^\n]*[.!?]$/.test(msg)) return msg;
+
+  return GENERIC;
+}
+
+export async function getActiveFeedbackPeriods(): Promise<
+  Result<FeedbackPeriod[]>
+> {
+  const { data, error } = await supabase.rpc(
+    "get_student_active_feedback_period",
+  );
+  if (error) return fail("getActiveFeedbackPeriods", error);
+  return { ok: true, data: (data ?? []) as FeedbackPeriod[] };
 }
 
 export async function getEligibleCourses(
   periodId: string,
-): Promise<EligibleFeedbackCourse[]> {
+): Promise<Result<EligibleFeedbackCourse[]>> {
   const { data, error } = await supabase.rpc(
     "get_student_eligible_feedback_courses",
     { p_period_id: periodId },
   );
-  if (error || !data) return [];
-  return data as EligibleFeedbackCourse[];
+  if (error) return fail("getEligibleCourses", error);
+  return { ok: true, data: (data ?? []) as EligibleFeedbackCourse[] };
 }
 
 export async function getFeedbackForm(
   periodId: string,
   courseId: string,
-): Promise<FeedbackFormData | null> {
+): Promise<Result<FeedbackFormData>> {
   const { data, error } = await supabase.rpc("get_student_feedback_form", {
     p_period_id: periodId,
     p_course_id: courseId,
   });
-  if (error || !data) return null;
-  return data as FeedbackFormData;
+  if (error) return fail("getFeedbackForm", error);
+  if (!data) {
+    return { ok: false, error: "This feedback form could not be loaded." };
+  }
+  return { ok: true, data: data as FeedbackFormData };
 }
 
 export async function saveDraft(
@@ -124,15 +175,15 @@ export async function saveDraft(
   courseId: string,
   isAnonymous: boolean,
   answers: FeedbackAnswerInput[],
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<Result<string>> {
   const { data, error } = await supabase.rpc("save_feedback_draft", {
     p_period_id: periodId,
     p_course_id: courseId,
     p_is_anonymous: isAnonymous,
     p_answers: answers,
   });
-  if (error) return { ok: false, error: friendlyError(error.message) };
-  return { ok: true, id: data as string };
+  if (error) return fail("saveDraft", error);
+  return { ok: true, data: data as string };
 }
 
 export async function submitFeedback(
@@ -140,15 +191,15 @@ export async function submitFeedback(
   courseId: string,
   isAnonymous: boolean,
   answers: FeedbackAnswerInput[],
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<Result<string>> {
   const { data, error } = await supabase.rpc("submit_course_feedback", {
     p_period_id: periodId,
     p_course_id: courseId,
     p_is_anonymous: isAnonymous,
     p_answers: answers,
   });
-  if (error) return { ok: false, error: friendlyError(error.message) };
-  return { ok: true, id: data as string };
+  if (error) return fail("submitFeedback", error);
+  return { ok: true, data: data as string };
 }
 
 // ---------------------------------------------------------------------
@@ -274,6 +325,298 @@ export async function getFeedbackComments(
   });
   if (error || !data) return [];
   return data as FeedbackComment[];
+}
+
+/**
+ * Build a CSV of feedback for the given period.
+ *
+ * Privacy rules, applied here and reinforced by the RPCs this reads from:
+ * anonymous submissions never carry a name or registration number, drafts
+ * are excluded (the analytics RPCs only return submitted rows), the caller's
+ * own department scope is enforced server-side, and courses below the
+ * minimum-response threshold are already suppressed upstream.
+ */
+export function buildFeedbackCsv(
+  period: AdminFeedbackPeriod,
+  courses: CourseAnalytics[],
+  questions: QuestionAnalytics[],
+  comments: FeedbackComment[],
+): string {
+  const esc = (v: unknown): string => {
+    const s = v === null || v === undefined ? "" : String(v);
+    // Guard against CSV formula injection when opened in Excel.
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const row = (cells: unknown[]) => cells.map(esc).join(",");
+  const lines: string[] = [];
+
+  lines.push(row(["Feedback Period", period.title]));
+  lines.push(row(["Academic Year", period.academic_year]));
+  lines.push(row(["Semester", period.semester]));
+  lines.push(row(["Batch Year", period.batch_year ?? "All"]));
+  lines.push(row(["Department", period.department ?? "All Departments"]));
+  lines.push(row(["Exported At", new Date().toISOString()]));
+  lines.push("");
+
+  lines.push(row(["COURSE SUMMARY"]));
+  lines.push(
+    row([
+      "Course Code",
+      "Course",
+      "Owning Department",
+      "Semester",
+      "Eligible",
+      "Responses",
+      "Response Rate (%)",
+      "Average Rating",
+      "Anonymous",
+      "Identified",
+    ]),
+  );
+  courses.forEach((c) =>
+    lines.push(
+      row([
+        c.course_code,
+        c.title,
+        c.department,
+        c.semester,
+        c.eligible_count,
+        c.response_count,
+        c.response_rate,
+        c.avg_rating ?? "",
+        c.anonymous_count,
+        c.non_anonymous_count,
+      ]),
+    ),
+  );
+  lines.push("");
+
+  lines.push(row(["QUESTION RATINGS"]));
+  lines.push(
+    row([
+      "Question",
+      "Category",
+      "Responses",
+      "Average",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "Positive (%)",
+      "Neutral (%)",
+      "Negative (%)",
+    ]),
+  );
+  questions.forEach((q) =>
+    lines.push(
+      row([
+        q.question_text,
+        q.category ?? "",
+        q.response_count,
+        q.avg_rating ?? "",
+        q.count_1,
+        q.count_2,
+        q.count_3,
+        q.count_4,
+        q.count_5,
+        q.pct_positive ?? "",
+        q.pct_neutral ?? "",
+        q.pct_negative ?? "",
+      ]),
+    ),
+  );
+  lines.push("");
+
+  lines.push(row(["WRITTEN COMMENTS"]));
+  lines.push(
+    row([
+      "Course Code",
+      "Course",
+      "Question",
+      "Category",
+      "Comment",
+      "Anonymous",
+      "Student",
+      "Registration No",
+      "Submitted",
+    ]),
+  );
+  comments.forEach((c) =>
+    lines.push(
+      row([
+        c.course_code,
+        c.course_title,
+        c.question_text,
+        c.question_category ?? "",
+        c.comment,
+        c.is_anonymous ? "Yes" : "No",
+        c.is_anonymous ? "" : (c.student_name ?? ""),
+        c.is_anonymous ? "" : (c.student_reg ?? ""),
+        c.submitted_date,
+      ]),
+    ),
+  );
+
+  return lines.join("\r\n");
+}
+
+/**
+ * Excel export as SpreadsheetML 2003 — a documented XML format Excel opens
+ * natively with real multi-sheet support, so no third-party dependency is
+ * needed. Identity is omitted for anonymous rows exactly as in the CSV.
+ */
+export function buildFeedbackExcel(
+  period: AdminFeedbackPeriod,
+  courses: CourseAnalytics[],
+  questions: QuestionAnalytics[],
+  comments: FeedbackComment[],
+): string {
+  const esc = (v: unknown): string =>
+    String(v ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+  const cell = (v: unknown, numeric = false) =>
+    `<Cell><Data ss:Type="${numeric && v !== null && v !== "" ? "Number" : "String"}">${esc(v)}</Data></Cell>`;
+
+  const row = (cells: string[]) => `<Row>${cells.join("")}</Row>`;
+
+  const sheet = (name: string, rows: string[]) =>
+    `<Worksheet ss:Name="${esc(name)}"><Table>${rows.join("")}</Table></Worksheet>`;
+
+  const overview = sheet("Overview", [
+    row([cell("Feedback Period"), cell(period.title)]),
+    row([cell("Academic Year"), cell(period.academic_year)]),
+    row([cell("Semester"), cell(period.semester, true)]),
+    row([cell("Batch Year"), cell(period.batch_year ?? "All")]),
+    row([cell("Department"), cell(period.department ?? "All Departments")]),
+    row([cell("Exported At"), cell(new Date().toISOString())]),
+  ]);
+
+  const courseSheet = sheet("Courses", [
+    row(
+      [
+        "Course Code",
+        "Course",
+        "Owning Department",
+        "Semester",
+        "Eligible",
+        "Responses",
+        "Response Rate (%)",
+        "Average Rating",
+        "Anonymous",
+        "Identified",
+      ].map((h) => cell(h)),
+    ),
+    ...courses.map((c) =>
+      row([
+        cell(c.course_code),
+        cell(c.title),
+        cell(c.department),
+        cell(c.semester, true),
+        cell(c.eligible_count, true),
+        cell(c.response_count, true),
+        cell(c.response_rate, true),
+        cell(c.avg_rating ?? "", true),
+        cell(c.anonymous_count, true),
+        cell(c.non_anonymous_count, true),
+      ]),
+    ),
+  ]);
+
+  const questionSheet = sheet("Questions", [
+    row(
+      [
+        "Question",
+        "Category",
+        "Responses",
+        "Average",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "Positive (%)",
+        "Neutral (%)",
+        "Negative (%)",
+      ].map((h) => cell(h)),
+    ),
+    ...questions.map((q) =>
+      row([
+        cell(q.question_text),
+        cell(q.category ?? ""),
+        cell(q.response_count, true),
+        cell(q.avg_rating ?? "", true),
+        cell(q.count_1, true),
+        cell(q.count_2, true),
+        cell(q.count_3, true),
+        cell(q.count_4, true),
+        cell(q.count_5, true),
+        cell(q.pct_positive ?? "", true),
+        cell(q.pct_neutral ?? "", true),
+        cell(q.pct_negative ?? "", true),
+      ]),
+    ),
+  ]);
+
+  const commentSheet = sheet("Comments", [
+    row(
+      [
+        "Course Code",
+        "Course",
+        "Question",
+        "Category",
+        "Comment",
+        "Anonymous",
+        "Student",
+        "Registration No",
+        "Submitted",
+      ].map((h) => cell(h)),
+    ),
+    ...comments.map((c) =>
+      row([
+        cell(c.course_code),
+        cell(c.course_title),
+        cell(c.question_text),
+        cell(c.question_category ?? ""),
+        cell(c.comment),
+        cell(c.is_anonymous ? "Yes" : "No"),
+        cell(c.is_anonymous ? "" : (c.student_name ?? "")),
+        cell(c.is_anonymous ? "" : (c.student_reg ?? "")),
+        cell(c.submitted_date),
+      ]),
+    ),
+  ]);
+
+  return `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${overview}${courseSheet}${questionSheet}${commentSheet}</Workbook>`;
+}
+
+export function downloadExcel(filename: string, xml: string): void {
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export function downloadCsv(filename: string, csv: string): void {
+  // BOM so Excel opens UTF-8 correctly.
+  const blob = new Blob(["﻿" + csv], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function getQuestionBank(): Promise<FeedbackQuestion[]> {

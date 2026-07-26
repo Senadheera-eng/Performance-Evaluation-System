@@ -19,18 +19,11 @@ import {
 } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { CourseAttendanceChart } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { useSettings } from "../../../lib/settings";
 
 interface DashboardStats {
   totalStudents: number;
@@ -62,6 +55,7 @@ interface RecentResult {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { student } = useAuth();
+  const settings = useSettings();
   const scope = getAdminScope(student);
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
@@ -73,6 +67,7 @@ export default function AdminDashboard() {
   const [courseAttendance, setCourseAttendance] = useState<
     CourseAttendanceStat[]
   >([]);
+  const [coursesAwaitingAttendance, setCoursesAwaitingAttendance] = useState(0);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -224,17 +219,24 @@ export default function AdminDashboard() {
         courseMap[a.course_id].present++;
     });
 
-    const stats: CourseAttendanceStat[] = courses
-      .map((c) => {
-        const att = courseMap[c.id];
-        return {
-          code: c.course_code,
-          avgAttendance: att ? Math.round((att.present / att.total) * 100) : 0,
-        };
-      })
-      .filter((c) => c.avgAttendance > 0);
+    // Keep every course that has at least one recorded lecture. The previous
+    // filter dropped anything at 0%, which hid the genuinely worst case — a
+    // course where nobody attended — while a course with no lectures marked
+    // yet is a different thing entirely and is counted separately.
+    const withLectures = courses.filter(
+      (c) => (courseMap[c.id]?.total ?? 0) > 0,
+    );
+
+    const stats: CourseAttendanceStat[] = withLectures.map((c) => {
+      const att = courseMap[c.id];
+      return {
+        code: c.course_code,
+        avgAttendance: Math.round((att.present / att.total) * 100),
+      };
+    });
 
     setCourseAttendance(stats);
+    setCoursesAwaitingAttendance(courses.length - withLectures.length);
   };
 
   const fetchRecentResults = async () => {
@@ -413,41 +415,19 @@ export default function AdminDashboard() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>Course Attendance Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="h-[240px] bg-muted animate-pulse rounded-lg" />
-              ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={courseAttendance}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="code"
-                      stroke="#6b7280"
-                      tick={{ fontSize: 11 }}
-                    />
-                    <YAxis stroke="#6b7280" domain={[0, 100]} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                      }}
-                      formatter={(value: number) => [`${value}%`, "Attendance"]}
-                    />
-                    <Bar
-                      dataKey="avgAttendance"
-                      fill="#C41E3A"
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
+          <CourseAttendanceChart
+            title="Course attendance"
+            description="Lowest first — the courses needing attention"
+            data={courseAttendance.map((c) => ({
+              code: c.code,
+              percentage: c.avgAttendance,
+            }))}
+            threshold={settings.attendanceThreshold}
+            prewarning={settings.attendancePrewarningThreshold}
+            awaitingCount={coursesAwaitingAttendance}
+            limit={10}
+            loading={loading}
+          />
         </motion.div>
 
         {/* Quick Actions */}

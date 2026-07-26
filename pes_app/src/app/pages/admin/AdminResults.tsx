@@ -23,6 +23,8 @@ import { Badge } from "../../components/ui/badge";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
+import { formatRegNumber } from "../../../lib/format";
+import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
 
 interface Course {
   id: string;
@@ -47,26 +49,11 @@ interface StudentResult {
   isDirty: boolean;
 }
 
-// Grade calculation based on Faculty Handbook 2026
-const calculateGrade = (oa: number): { grade: string; gpv: number } => {
-  if (oa >= 85) return { grade: "A+", gpv: 4.0 };
-  if (oa >= 75) return { grade: "A", gpv: 4.0 };
-  if (oa >= 70) return { grade: "A-", gpv: 3.7 };
-  if (oa >= 65) return { grade: "B+", gpv: 3.3 };
-  if (oa >= 60) return { grade: "B", gpv: 3.0 };
-  if (oa >= 55) return { grade: "B-", gpv: 2.7 };
-  if (oa >= 50) return { grade: "C+", gpv: 2.3 };
-  if (oa >= 45) return { grade: "C", gpv: 2.0 };
-  if (oa >= 40) return { grade: "C-", gpv: 1.7 };
-  if (oa >= 35) return { grade: "D+", gpv: 1.3 };
-  if (oa >= 30) return { grade: "D", gpv: 1.0 };
-  return { grade: "F", gpv: 0.0 };
-};
-
-// OA = Mid Sem (40%) + CA (20%) + ESE (40%)
-const calculateOA = (midSem: number, ca: number, ese: number): number => {
-  return Math.round((midSem * 0.4 + ca * 0.2 + ese * 0.4) * 10) / 10;
-};
+// Grade boundaries and component weights come from the regulation engine
+// (system_settings), so a faculty with a different scale can reconfigure
+// them without a code change.
+const calculateGrade = gradeForMark;
+const calculateOA = overallMark;
 
 const getGradeColor = (grade: string | null) => {
   if (!grade) return "bg-gray-100 text-gray-500";
@@ -91,6 +78,7 @@ const buildAcademicYearOptions = (earliestBatchYear: number): string[] => {
 
 export default function AdminResults() {
   const { student } = useAuth();
+  const settings = useSettings();
   const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -160,23 +148,18 @@ export default function AdminResults() {
     if (!selectedCourse) return;
     setLoading(true);
 
-    // Get students enrolled in this specific offering (course + academic
-    // year) — each course is only ever offered under one academic year in
-    // practice, so filtering here keeps the roster from bleeding across
-    // years when a different year is selected.
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select(
-        `
-        student_id,
-        students (id, name, reg_number)
-      `,
-      )
-      .eq("course_id", selectedCourse.id)
-      .eq("academic_year", selectedYear)
-      .in("status", ["enrolled", "completed"]);
+    // Roster comes from a SECURITY DEFINER RPC rather than a client-side
+    // join: students' RLS scopes a dept admin to their own department's
+    // student rows, but a course they own is taken by students from EVERY
+    // department, so a direct join can only resolve a fraction of the
+    // names. The RPC validates course ownership server-side and also
+    // includes students with historical result rows but no enrollment row.
+    const { data: roster } = await supabase.rpc("get_course_roster", {
+      p_course_id: selectedCourse.id,
+      p_academic_year: selectedYear,
+    });
 
-    if (!enrollments) {
+    if (!roster) {
       setLoading(false);
       return;
     }
@@ -193,13 +176,13 @@ export default function AdminResults() {
       resultMap[r.student_id] = r;
     });
 
-    const studentList: StudentResult[] = enrollments.map((e: any) => {
-      const existing = resultMap[e.student_id];
+    const studentList: StudentResult[] = roster.map((s: any) => {
+      const existing = resultMap[s.student_id];
       return {
         resultId: existing?.id ?? null,
-        studentId: e.student_id,
-        name: e.students?.name ?? "—",
-        regNumber: e.students?.reg_number ?? "—",
+        studentId: s.student_id,
+        name: s.name ?? "—",
+        regNumber: formatRegNumber(s.reg_number),
         midSem: existing?.mid_sem_mark?.toString() ?? "",
         ca: existing?.ca_mark?.toString() ?? "",
         ese: existing?.ese_mark?.toString() ?? "",
@@ -495,7 +478,9 @@ export default function AdminResults() {
 
               {/* Mark Entry Info */}
               <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                OA = Mid Sem (40%) + CA (20%) + ESE (40%). Grade and GPV are
+                OA = Mid Sem ({Math.round(settings.oaWeights.mid_sem * 100)}%) +
+                CA ({Math.round(settings.oaWeights.ca * 100)}%) + ESE (
+                {Math.round(settings.oaWeights.ese * 100)}%). Grade and GPV are
                 calculated automatically.
               </div>
 

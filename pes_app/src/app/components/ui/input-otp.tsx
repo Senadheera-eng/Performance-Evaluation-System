@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { OTPInput, OTPInputContext } from "@/app/components/ui/input-otp";
+// The generated version of this file imported these from its own path, which
+// made the module import itself instead of the `input-otp` package — the same
+// defect that broke ui/sonner.tsx.
+import { OTPInput, OTPInputContext } from "input-otp";
 import { MinusIcon } from "lucide-react";
 
 import { cn } from "./utils";

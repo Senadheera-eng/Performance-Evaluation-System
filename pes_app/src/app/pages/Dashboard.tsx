@@ -19,19 +19,12 @@ import {
 } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  Legend,
-} from "recharts";
+  GpaTrendChart,
+  CourseAttendanceChart,
+} from "../components/common";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../../lib/settings";
 
 interface CourseWithAttendance {
   id: string;
@@ -66,6 +59,8 @@ interface RecentResult {
 export default function Dashboard() {
   const { student } = useAuth();
   const navigate = useNavigate();
+  const settings = useSettings();
+  const threshold = settings.attendanceThreshold;
 
   const [cgpa, setCgpa] = useState<number | null>(null);
   const [totalCredits, setTotalCredits] = useState(0);
@@ -77,6 +72,7 @@ export default function Dashboard() {
   const [attendanceData, setAttendanceData] = useState<
     { course: string; attendance: number }[]
   >([]);
+  const [awaitingAttendance, setAwaitingAttendance] = useState(0);
   const [semesterData, setSemesterData] = useState<SemesterGPA[]>([]);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [alerts, setAlerts] = useState<AttendanceAlert[]>([]);
@@ -87,7 +83,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!student?.id) return;
     fetchDashboardData();
-  }, [student?.id]);
+  }, [student?.id, threshold]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -227,15 +223,19 @@ export default function Dashboard() {
 
     setOngoingCourses(courses);
 
-    // Attendance chart data
-    setAttendanceData(
-      courses.map((c) => ({ course: c.code, attendance: c.attendance })),
-    );
-
     // Average attendance — only over courses that actually have a lecture
     // recorded yet. A freshly enrolled course with zero lectures marked has
     // nothing to average and shouldn't be treated as 0%.
     const scoredCourses = courses.filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0);
+
+    // The chart follows the same rule the average already did. Plotting every
+    // enrolled course meant courses with no lectures yet drew as flat 0% bars
+    // beside the one course that had data.
+    setAttendanceData(
+      scoredCourses.map((c) => ({ course: c.code, attendance: c.attendance })),
+    );
+    setAwaitingAttendance(courses.length - scoredCourses.length);
+
     const avg =
       scoredCourses.length > 0
         ? Math.round(
@@ -245,11 +245,11 @@ export default function Dashboard() {
         : 0;
     setAvgAttendance(avg);
 
-    // Alerts for courses below 80% — only once an admin has actually
+    // Alerts for courses below the threshold — only once an admin has actually
     // recorded at least one lecture for that course. Otherwise every
     // freshly enrolled course would falsely show up as "0% attendance".
     const alertList: AttendanceAlert[] = courses
-      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < 80)
+      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < threshold)
       .map((c) => {
         const att = courseAttMap[c.id];
         return {
@@ -333,9 +333,11 @@ export default function Dashboard() {
           title="Avg. Attendance"
           value={loading ? "..." : `${avgAttendance}%`}
           change={
-            avgAttendance >= 80 ? "Above required 80%" : "Below required 80%"
+            avgAttendance >= threshold
+              ? `Above required ${threshold}%`
+              : `Below required ${threshold}%`
           }
-          changeType={avgAttendance >= 80 ? "positive" : "negative"}
+          changeType={avgAttendance >= threshold ? "positive" : "negative"}
           icon={Calendar}
           iconColor="text-green-600"
           iconBgColor="bg-green-100"
@@ -356,13 +358,14 @@ export default function Dashboard() {
         <div className="space-y-3">
           {alerts.map((alert) => {
             const needed =
-              Math.ceil(alert.totalLectures * 0.8) - alert.presentCount;
+              Math.ceil(alert.totalLectures * (threshold / 100)) -
+              alert.presentCount;
             return (
               <AlertCard
                 key={alert.courseCode}
                 type="warning"
                 title={`Low Attendance — ${alert.courseCode} ${alert.courseName}`}
-                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the 80% CCR requirement.`}
+                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the ${threshold}% CCR requirement.`}
                 action={{
                   label: "View Attendance",
                   onClick: () => navigate("/app/attendance"),
@@ -374,78 +377,24 @@ export default function Dashboard() {
       )}
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GPA Trend */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>GPA Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={semesterData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="semester" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" domain={[0, 4]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="gpa"
-                    stroke="#C41E3A"
-                    strokeWidth={3}
-                    dot={{ fill: "#C41E3A", r: 5 }}
-                    activeDot={{ r: 7 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Attendance Overview */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle>Attendance Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={attendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="course" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#fff",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Bar
-                    dataKey="attendance"
-                    fill="#C41E3A"
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <GpaTrendChart
+          data={semesterData}
+          cgpa={cgpa ?? 0}
+          loading={loading}
+          height={240}
+        />
+        <CourseAttendanceChart
+          title="Attendance by course"
+          data={attendanceData.map((a) => ({
+            code: a.course,
+            percentage: a.attendance,
+          }))}
+          threshold={threshold}
+          prewarning={settings.attendancePrewarningThreshold}
+          awaitingCount={awaitingAttendance}
+          loading={loading}
+        />
       </div>
 
       {/* Ongoing Courses */}

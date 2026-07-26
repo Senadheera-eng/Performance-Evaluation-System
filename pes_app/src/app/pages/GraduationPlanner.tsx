@@ -28,9 +28,8 @@ import { Tabs, TabsContent } from "../components/ui/tabs";
 import { PillTabs } from "../components/dashboard/PillTabs";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { useSettings, getSettings } from "../../lib/settings";
 
-const TOTAL_CREDITS_REQUIRED = 144;
-const TOTAL_SEMESTERS = 8;
 
 // Elective credit totals per department+semester, taken directly from the
 // handbook's "Elective (N)" labels — e.g. CO Sem7 has "Elective (2)" +
@@ -42,34 +41,13 @@ const EXPECTED_ELECTIVE_CREDITS: Record<string, Record<number, number>> = {
   "Mechanical Engineering": { 7: 5, 8: 5 },
 };
 
-const GPV: Record<string, number> = {
-  "A+": 4.0,
-  A: 4.0,
-  "A-": 3.7,
-  "B+": 3.3,
-  B: 3.0,
-  "B-": 2.7,
-  "C+": 2.3,
-  C: 2.0,
-  R: 0.0,
-  F: 0.0,
-  L: 0.0,
-};
-const GRADE_OPTIONS = Object.keys(GPV);
 
-const CLASSIFICATIONS = [
-  { key: "first", label: "First Class Honours", threshold: 3.7 },
-  { key: "upper", label: "Second Class (Upper Division)", threshold: 3.3 },
-  { key: "lower", label: "Second Class (Lower Division)", threshold: 3.0 },
-  { key: "pass", label: "Pass", threshold: 2.0 },
-];
 
 const classificationForGpa = (gpa: number): string => {
-  if (gpa >= 3.7) return "First Class Honours";
-  if (gpa >= 3.3) return "Second Class Honours (Upper Division)";
-  if (gpa >= 3.0) return "Second Class Honours (Lower Division)";
-  if (gpa >= 2.0) return "Pass";
-  return "Below Pass";
+  const match = getSettings().honoursClassifications.find(
+    (c) => gpa >= c.threshold,
+  );
+  return match?.label ?? "Below Pass";
 };
 
 interface CourseResult {
@@ -90,12 +68,17 @@ interface SemesterCredit {
 
 export default function GraduationPlanner() {
   const { student } = useAuth();
+  const settings = useSettings();
+  const TOTAL_CREDITS_REQUIRED = settings.graduationTotalCredits;
+  const TOTAL_SEMESTERS = settings.totalSemesters;
+  const GPV = settings.gpvScale;
+  const GRADE_OPTIONS = Object.keys(GPV);
+  const CLASSIFICATIONS = settings.honoursClassifications;
   const [loading, setLoading] = useState(true);
   const [allCourses, setAllCourses] = useState<CourseResult[]>([]);
   const [simulatedGrades, setSimulatedGrades] = useState<
     Record<string, string>
   >({});
-  const [currentSemester, setCurrentSemester] = useState(0);
   const [remainingSemesterCredits, setRemainingSemesterCredits] = useState<
     SemesterCredit[]
   >([]);
@@ -136,11 +119,11 @@ export default function GraduationPlanner() {
 
     setAllCourses(courseRows);
 
+    // Highest semester already graded — everything above it is still ahead.
     const maxSem = Math.max(
       0,
       ...courseRows.filter((c) => c.contributesToGpa).map((c) => c.semester),
     );
-    setCurrentSemester(maxSem);
 
     if (student?.department) {
       const { data: futureCourses } = await supabase
@@ -469,7 +452,7 @@ export default function GraduationPlanner() {
                       (total {sumOfKnownTotals} credits
                       {sumOfKnownTotals !== remainingCredits &&
                       remainingCredits > 0
-                        ? `, vs. ${remainingCredits} needed to reach 144 — the gap reflects credits you may not need if you're on the standard load`
+                        ? `, vs. ${remainingCredits} needed to reach ${TOTAL_CREDITS_REQUIRED} — the gap reflects credits you may not need if you're on the standard load`
                         : ""}
                       ).
                     </>

@@ -1,14 +1,20 @@
-"use client";
+import { Toaster as Sonner, ToasterProps } from "sonner";
+import { useTheme } from "../../context/ThemeContext";
 
-import { useTheme } from "next-themes";
-import { Toaster as Sonner, ToasterProps } from "@/app/components/ui/sonner";
-
+/**
+ * Toast host.
+ *
+ * The generated version of this file imported `Toaster` from its own path
+ * (an infinite self-import) and pulled `useTheme` from `next-themes`, which
+ * this project does not use — so it could never be mounted. It now reads the
+ * app's own ThemeContext and renders the real sonner Toaster.
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={isDark ? "dark" : "light"}
       className="toaster group"
       style={
         {

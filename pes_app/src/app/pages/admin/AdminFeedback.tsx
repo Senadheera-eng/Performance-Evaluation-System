@@ -4,7 +4,6 @@ import {
   MessageSquareText,
   Users,
   CheckCircle2,
-  Clock,
   Star,
   EyeOff,
   Eye,
@@ -17,6 +16,7 @@ import {
   AlertTriangle,
   Sparkles,
   X,
+  Download,
 } from "lucide-react";
 import {
   Card,
@@ -45,6 +45,8 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
+import { useSettings } from "../../../lib/settings";
+import { formatRegNumber } from "../../../lib/format";
 import {
   getAdminFeedbackPeriods,
   getAdminFeedbackSummary,
@@ -65,15 +67,12 @@ import {
   QuestionAnalytics,
   FeedbackComment,
   FeedbackQuestion,
+  buildFeedbackCsv,
+  downloadCsv,
+  buildFeedbackExcel,
+  downloadExcel,
 } from "../../../lib/feedbackService";
 
-const DEPARTMENTS = [
-  "Civil Engineering",
-  "Computer Engineering",
-  "Electrical and Electronic Engineering",
-  "Mechanical Engineering",
-  "Interdisciplinary Studies",
-];
 
 const STATUS_COLOR: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
@@ -154,6 +153,7 @@ export default function AdminFeedback() {
 // ---------------------------------------------------------------------
 
 function AnalyticsView() {
+  const settings = useSettings();
   const [periods, setPeriods] = useState<AdminFeedbackPeriod[]>([]);
   const [periodId, setPeriodId] = useState<string>("");
   const [courseId, setCourseId] = useState<string>("");
@@ -239,9 +239,30 @@ function AnalyticsView() {
     );
   }
 
+  const handleExport = (format: "csv" | "excel") => {
+    const period = periods.find((p) => p.id === periodId);
+    if (!period) return;
+    const scoped = courseId
+      ? courseAnalytics.filter((c) => c.course_id === courseId)
+      : courseAnalytics;
+    const slug = period.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (format === "csv") {
+      downloadCsv(
+        `feedback-${slug}-${stamp}.csv`,
+        buildFeedbackCsv(period, scoped, questionAnalytics, comments),
+      );
+    } else {
+      downloadExcel(
+        `feedback-${slug}-${stamp}.xls`,
+        buildFeedbackExcel(period, scoped, questionAnalytics, comments),
+      );
+    }
+  };
+
   const selectedCourse = courseAnalytics.find((c) => c.course_id === courseId);
   const smallGroupHidden =
-    courseId && selectedCourse && selectedCourse.response_count < 5;
+    courseId && selectedCourse && selectedCourse.response_count < settings.feedbackMinResponsesForAnalytics;
 
   return (
     <div className="space-y-5">
@@ -270,6 +291,22 @@ function AnalyticsView() {
             </option>
           ))}
         </select>
+        <Button
+          variant="outline"
+          onClick={() => handleExport("csv")}
+          className="h-9"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          CSV
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => handleExport("excel")}
+          className="h-9"
+        >
+          <Download className="h-4 w-4 mr-1.5" />
+          Excel
+        </Button>
       </div>
 
       {/* Summary cards */}
@@ -371,8 +408,8 @@ function AnalyticsView() {
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2.5">
           <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
           <p className="text-sm text-amber-900">
-            Detailed analytics are hidden because this course has fewer than
-            five responses.
+            Detailed analytics are hidden because this course has fewer than{" "}
+            {settings.feedbackMinResponsesForAnalytics} responses.
           </p>
         </div>
       ) : (
@@ -468,7 +505,7 @@ function AnalyticsView() {
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-foreground">
                               <Eye className="h-3 w-3" />
-                              {c.student_name} ({c.student_reg})
+                              {c.student_name} ({formatRegNumber(c.student_reg)})
                             </span>
                           )}
                         </div>
@@ -605,6 +642,13 @@ function CreatePeriodForm({
   const [batches, setBatches] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const settings = useSettings();
+  // Course-owning departments: the four student departments plus
+  // Interdisciplinary Studies, which owns shared courses but no students.
+  const DEPARTMENTS = [
+    ...settings.studentDepartments,
+    settings.interdisciplinaryDepartment,
+  ];
 
   useEffect(() => {
     (async () => {

@@ -85,14 +85,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Prevent flash on load
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // The provider must wrap children on every render, including the first.
+  // Returning bare children before mount meant any consumer rendered by the
+  // initial route (e.g. a hard refresh straight onto /app/results) called
+  // useTheme() with no provider above it and threw. Flash is prevented by
+  // hiding content for the first paint instead of dropping the context.
   return (
     <ThemeContext.Provider value={{ theme, setTheme, isDark }}>
-      {children}
+      <div style={mounted ? undefined : { visibility: "hidden" }}>
+        {children}
+      </div>
     </ThemeContext.Provider>
   );
 }

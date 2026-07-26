@@ -1,10 +1,12 @@
-// Faculty intake numbering: Batch 1 corresponds to the 2015/2016 intake
-// (batch_year 2015). Derived from the existing "Batch 7" label already used
-// throughout the app for batch_year 2021 (2021 - 2015 + 1 = 7).
-const FIRST_BATCH_INTAKE_YEAR = 2015;
+import { getSettings } from "./settings";
 
+/**
+ * Faculty intake numbering: Batch 1 is the intake year configured as
+ * `first_batch_intake_year` in system_settings (2015 for the Faculty of
+ * Engineering, which makes the 2021 intake Batch 7).
+ */
 export function getBatchNumber(batchYear: number): number {
-  return batchYear - FIRST_BATCH_INTAKE_YEAR + 1;
+  return batchYear - getSettings().firstBatchIntakeYear + 1;
 }
 
 export function describeBatch(batchYear: number | null | undefined): string {

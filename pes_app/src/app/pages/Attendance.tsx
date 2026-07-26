@@ -12,6 +12,7 @@ import { Badge } from "../components/ui/badge";
 import { AlertCard } from "../components/dashboard/AlertCard";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../../lib/settings";
 
 interface CourseAttendance {
   id: string;
@@ -75,25 +76,30 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const EXCELLENT_MARGIN = 10;
+
 const getStatus = (
   percentage: number,
   total: number,
+  threshold: number,
 ): "excellent" | "good" | "warning" | "pending" => {
   if (total === 0) return "pending";
-  if (percentage >= 90) return "excellent";
-  if (percentage >= 80) return "good";
+  if (percentage >= threshold + EXCELLENT_MARGIN) return "excellent";
+  if (percentage >= threshold) return "good";
   return "warning";
 };
 
 export default function Attendance() {
   const { student } = useAuth();
+  const settings = useSettings();
+  const threshold = settings.attendanceThreshold;
   const [courses, setCourses] = useState<CourseAttendance[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!student?.id) return;
     fetchAttendance();
-  }, [student?.id]);
+  }, [student?.id, threshold]);
 
   const fetchAttendance = async () => {
     setLoading(true);
@@ -159,11 +165,11 @@ export default function Attendance() {
       const percentage =
         stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
 
-      // How many more absences allowed before dropping below 80%
-      // Formula: floor((attended - 0.8 * total) / 0.8)
+      // How many more absences before dropping below the required threshold.
+      const t = threshold / 100;
       const absencesAllowed = Math.max(
         0,
-        Math.floor((stats.present - 0.8 * stats.total) / 0.8),
+        Math.floor((stats.present - t * stats.total) / t),
       );
 
       // Format last class date
@@ -182,17 +188,22 @@ export default function Attendance() {
         total: stats.total,
         attended: stats.present,
         percentage,
-        status: getStatus(percentage, stats.total),
+        status: getStatus(percentage, stats.total, threshold),
         lastClass,
         absencesAllowed,
       };
     });
 
-    // Sort: warning first, then good, then excellent
-    result.sort((a, b) => {
-      const order = { warning: 0, good: 1, excellent: 2 };
-      return order[a.status] - order[b.status];
-    });
+    // Needs-attention first; courses with no lectures recorded yet sort last,
+    // since there is nothing for the student to act on there. Every status
+    // must appear here — a missing key produced NaN and scrambled the order.
+    const order: Record<CourseAttendance["status"], number> = {
+      warning: 0,
+      good: 1,
+      excellent: 2,
+      pending: 3,
+    };
+    result.sort((a, b) => order[a.status] - order[b.status]);
 
     setCourses(result);
     setLoading(false);
@@ -226,7 +237,7 @@ export default function Attendance() {
           Attendance Tracker
         </h1>
         <p className="text-muted-foreground text-sm">
-          Monitor your attendance and stay on track with the 80% CCR
+          Monitor your attendance and stay on track with the {threshold}% CCR
           requirement.
         </p>
       </motion.div>
@@ -250,12 +261,12 @@ export default function Attendance() {
                   </h3>
                   <p
                     className={`text-xs font-medium ${
-                      overallAttendance >= 80
+                      overallAttendance >= threshold
                         ? "text-green-600"
                         : "text-red-600"
                     }`}
                   >
-                    {overallAttendance >= 80
+                    {overallAttendance >= threshold
                       ? "Above requirement"
                       : "Below requirement"}
                   </p>
@@ -278,7 +289,7 @@ export default function Attendance() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Excellent (≥90%)
+                    Excellent (≥{threshold + EXCELLENT_MARGIN}%)
                   </p>
                   <h3 className="text-2xl font-bold text-green-600 mb-1.5">
                     {loading ? "..." : excellentCourses.length}
@@ -303,7 +314,7 @@ export default function Attendance() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Good (80-89%)
+                    Good ({threshold}-{threshold + EXCELLENT_MARGIN - 1}%)
                   </p>
                   <h3 className="text-2xl font-bold text-blue-600 mb-1.5">
                     {loading ? "..." : goodCourses.length}
@@ -328,7 +339,7 @@ export default function Attendance() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Critical (&lt;80%)
+                    Critical (&lt;{threshold}%)
                   </p>
                   <h3 className="text-2xl font-bold text-red-600 mb-1.5">
                     {loading ? "..." : criticalCourses.length}
@@ -349,14 +360,14 @@ export default function Attendance() {
         <div className="space-y-3">
           {criticalCourses.map((course) => {
             const needed = Math.ceil(
-              (0.8 * course.total - course.attended) / 0.2,
+              ((threshold / 100) * course.total - course.attended) / (1 - threshold / 100),
             );
             return (
               <AlertCard
                 key={course.code}
                 type="error"
                 title={`Critical: ${course.code} - ${course.name}`}
-                message={`Your attendance is ${course.percentage}%. You need to attend ${needed} more lecture(s) without any absence to meet the 80% CCR requirement.`}
+                message={`Your attendance is ${course.percentage}%. You need to attend ${needed} more lecture(s) without any absence to meet the ${threshold}% CCR requirement.`}
                 action={{ label: "View Details", onClick: () => {} }}
               />
             );
@@ -457,7 +468,7 @@ export default function Attendance() {
                               className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
                             />
                             <p className={`text-sm ${colors.messageText}`}>
-                              You are below the 80% CCR threshold. You cannot
+                              You are below the {threshold}% CCR threshold. You cannot
                               afford any more absences — attend all remaining
                               lectures to avoid becoming non-eligible.
                             </p>
@@ -477,7 +488,7 @@ export default function Attendance() {
                                 {course.absencesAllowed} more absence
                                 {course.absencesAllowed !== 1 ? "s" : ""}
                               </span>{" "}
-                              before dropping below 80%.
+                              before dropping below {threshold}%.
                             </p>
                           </div>
                         )}
@@ -495,7 +506,7 @@ export default function Attendance() {
                                 {course.absencesAllowed} more absence
                                 {course.absencesAllowed !== 1 ? "s" : ""}
                               </span>{" "}
-                              while staying above 80%.
+                              while staying above {threshold}%.
                             </p>
                           </div>
                         )}

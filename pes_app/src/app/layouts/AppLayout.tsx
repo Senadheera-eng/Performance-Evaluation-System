@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -8,29 +7,16 @@ import {
   Bot,
   User,
   Settings,
-  LogOut,
-  Menu,
-  X,
-  Search,
-  Bell,
-  ChevronDown,
   GraduationCap,
-  Moon,
-  Sun,
   FileHeart,
   Target,
   MessageSquareText,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Input } from "../components/ui/input";
-import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { Badge } from "../components/ui/badge";
-import { useTheme } from "../context/ThemeContext";
+import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
+import { formatRegNumber } from "../../lib/format";
 
-const universityLogo = new URL("../../assets/logo.jpg", import.meta.url).href;
-
-const navigation = [
+const navigation: ShellNavItem[] = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
   { name: "Courses", href: "/app/courses", icon: BookOpen },
   { name: "Attendance", href: "/app/attendance", icon: Calendar },
@@ -42,355 +28,41 @@ const navigation = [
   { name: "AI Assistant", href: "/app/ai-assistant", icon: Bot, badge: "New" },
 ];
 
-const bottomNavigation = [
+const bottomNavigation: ShellNavItem[] = [
   { name: "Profile", href: "/app/profile", icon: User },
   { name: "Settings", href: "/app/settings", icon: Settings },
 ];
 
 export default function AppLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const { theme, setTheme } = useTheme();
   const { signOut, student } = useAuth();
-
-  // Generate initials from real student name
-  const initials =
-    student?.name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2) ?? "ST";
-
-  const isActive = (href: string) => {
-    if (href === "/app") {
-      return location.pathname === "/app";
-    }
-    return location.pathname.startsWith(href);
-  };
 
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
 
-  const cycleTheme = () => {
-    const themes: Array<"light" | "dark" | "auto"> = ["light", "dark", "auto"];
-    const currentIndex = themes.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % themes.length;
-    setTheme(themes[nextIndex]);
-  };
+  const meta = [
+    student?.index_number,
+    student?.reg_number ? formatRegNumber(student.reg_number) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar for Desktop */}
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col bg-card border-r border-border">
-        <div className="flex flex-col flex-1 min-h-0">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-border">
-            <img
-              src={universityLogo}
-              alt="University Logo"
-              className="w-8 h-8 object-cover rounded-lg"
-            />
-            <div>
-              <h1 className="text-base font-bold text-foreground leading-tight">
-                PES
-              </h1>
-              <p className="text-xs text-muted-foreground leading-tight">
-                Performance System
-              </p>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive(item.href)
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1 text-left">{item.name}</span>
-                {item.badge && (
-                  <Badge
-                    variant="secondary"
-                    className="bg-accent text-accent-foreground text-xs px-2"
-                  >
-                    {item.badge}
-                  </Badge>
-                )}
-              </button>
-            ))}
-          </nav>
-
-          {/* Bottom Navigation */}
-          <div className="px-3 py-3 border-t border-border space-y-1">
-            {bottomNavigation.map((item) => (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive(item.href)
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1 text-left">{item.name}</span>
-              </button>
-            ))}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-            >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
-              <span className="flex-1 text-left">Logout</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Sidebar Footer — student info */}
-        <div className="px-3 py-3 border-t border-border">
-          <div className="flex items-center gap-2.5 px-1">
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {student?.name ?? "Student"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {student?.index_number ?? ""}
-                {student?.index_number && student?.reg_number ? " · " : ""}
-                {student?.reg_number ? `EN${student.reg_number}` : ""}
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Mobile Sidebar */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-            />
-            <motion.aside
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border z-50 lg:hidden"
-            >
-              <div className="flex flex-col flex-1 min-h-0 h-full">
-                {/* Mobile Header */}
-                <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={universityLogo}
-                      alt="University Logo"
-                      className="w-8 h-8 object-cover rounded-lg"
-                    />
-                    <div>
-                      <h1 className="text-base font-bold text-foreground">
-                        PES
-                      </h1>
-                      <p className="text-xs text-muted-foreground">
-                        Performance System
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                  {navigation.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        navigate(item.href);
-                        setSidebarOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        isActive(item.href)
-                          ? "bg-primary text-primary-foreground shadow-md"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-left">{item.name}</span>
-                      {item.badge && (
-                        <Badge
-                          variant="secondary"
-                          className="bg-accent text-accent-foreground text-xs px-2"
-                        >
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </nav>
-
-                {/* Bottom Navigation */}
-                <div className="px-3 py-3 border-t border-border space-y-1">
-                  {bottomNavigation.map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        navigate(item.href);
-                        setSidebarOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        isActive(item.href)
-                          ? "bg-primary text-primary-foreground shadow-md"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                      }`}
-                    >
-                      <item.icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="flex-1 text-left">{item.name}</span>
-                    </button>
-                  ))}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                  >
-                    <LogOut className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex-1 text-left">Logout</span>
-                  </button>
-                </div>
-
-                {/* Mobile Sidebar Footer */}
-                <div className="px-3 py-3 border-t border-border">
-                  <div className="flex items-center gap-2.5 px-1">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {student?.name ?? "Student"}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {student?.index_number ?? ""}
-                        {student?.index_number && student?.reg_number
-                          ? " · "
-                          : ""}
-                        {student?.reg_number ? `EN${student.reg_number}` : ""}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Main Content Area */}
-      <div className="lg:pl-60">
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-md border-b border-border">
-          <div className="flex items-center justify-between px-4 sm:px-5 lg:px-6 py-2.5">
-            {/* Left: Mobile Menu + Search */}
-            <div className="flex items-center gap-3 flex-1">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-1.5 rounded-lg hover:bg-muted transition-colors"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-
-              {/* Search Bar */}
-              <div className="hidden sm:block relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search courses, results..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-8 pl-8 text-sm bg-muted/50 border-0 focus:bg-muted focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Right: Notifications + Theme + Profile */}
-            <div className="flex items-center gap-2">
-              {/* Notifications */}
-              <button className="relative p-1.5 rounded-lg hover:bg-muted transition-colors">
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-destructive rounded-full"></span>
-              </button>
-
-              {/* Dark Mode Toggle */}
-              <button
-                onClick={cycleTheme}
-                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-                title={`Current theme: ${theme}`}
-              >
-                {theme === "dark" ||
-                (theme === "auto" &&
-                  window.matchMedia("(prefers-color-scheme: dark)").matches) ? (
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                )}
-              </button>
-
-              {/* Profile */}
-              <button
-                onClick={() => navigate("/app/profile")}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors"
-              >
-                <Avatar className="w-7 h-7">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-foreground leading-tight">
-                    {student?.name ?? "Student"}
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-tight">
-                    {student?.index_number ?? ""}
-                    {student?.index_number && student?.reg_number ? " · " : ""}
-                    {student?.reg_number ? `EN${student.reg_number}` : ""}
-                  </p>
-                </div>
-                <ChevronDown className="hidden md:block h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="p-4 sm:p-5 lg:p-6">
-          <div className="max-w-screen-2xl mx-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
-    </div>
+    <AppShell
+      brandTitle="PES"
+      brandSubtitle="Performance System"
+      navigation={navigation}
+      bottomNavigation={bottomNavigation}
+      userName={student?.name ?? "Student"}
+      userMeta={meta || "Student"}
+      homeHref="/app"
+      headerSubtitle="Faculty of Engineering — USJ"
+      onProfileClick={() => navigate("/app/profile")}
+      onLogout={handleLogout}
+      showSearch
+      showNotifications
+    />
   );
 }
