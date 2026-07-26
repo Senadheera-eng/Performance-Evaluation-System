@@ -1,524 +1,482 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Calendar, AlertTriangle, CheckCircle, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Progress } from "../components/ui/progress";
-import { Badge } from "../components/ui/badge";
-import { AlertCard } from "../components/dashboard/AlertCard";
+  AlertTriangle,
+  Award,
+  CalendarCheck2,
+  CalendarX2,
+  CalendarClock,
+  CheckCircle2,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import { cn } from "../components/ui/utils";
+import {
+  CourseAttendanceChart,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  Skeleton,
+  SkeletonRows,
+  SkeletonStatGrid,
+  StatCard,
+  StatusBadge,
+  type StatusTone,
+} from "../components/common";
+import {
+  AttendanceCalendar,
+  type AttendanceRecord,
+} from "../components/attendance/AttendanceCalendar";
+import {
+  AttendanceHistoryList,
+  type HistoryRecord,
+} from "../components/attendance/AttendanceHistoryList";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
+import {
+  type AttendanceCounts,
+  type AttendanceTier,
+  TIER_LABEL,
+  classifyTier,
+  compliantCount,
+  getAbsencesAllowed,
+  getLecturesNeededToRecover,
+  percentageOf,
+  totalCount,
+} from "../../lib/attendanceMath";
 
-interface CourseAttendance {
+interface CourseInfo {
   id: string;
   code: string;
   name: string;
-  total: number;
-  attended: number;
-  percentage: number;
-  status: "excellent" | "good" | "warning" | "pending";
-  lastClass: string;
-  absencesAllowed: number;
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "excellent":
-      return {
-        text: "text-green-600",
-        border: "border-green-200",
-        badge: "bg-green-100 text-green-700",
-        messageBg: "bg-green-50",
-        messageText: "text-green-900",
-        messageIcon: "text-green-600",
-      };
-    case "good":
-      return {
-        text: "text-blue-600",
-        border: "border-blue-200",
-        badge: "bg-blue-100 text-blue-700",
-        messageBg: "bg-blue-50",
-        messageText: "text-blue-900",
-        messageIcon: "text-blue-600",
-      };
-    case "warning":
-      return {
-        text: "text-red-600",
-        border: "border-red-200",
-        badge: "bg-red-100 text-red-700",
-        messageBg: "bg-red-50",
-        messageText: "text-red-900",
-        messageIcon: "text-red-600",
-      };
-    case "pending":
-      return {
-        text: "text-gray-500",
-        border: "border-gray-200",
-        badge: "bg-gray-100 text-gray-600",
-        messageBg: "bg-gray-50",
-        messageText: "text-gray-700",
-        messageIcon: "text-gray-500",
-      };
-    default:
-      return {
-        text: "text-gray-600",
-        border: "border-gray-200",
-        badge: "bg-gray-100 text-gray-700",
-        messageBg: "bg-gray-50",
-        messageText: "text-gray-900",
-        messageIcon: "text-gray-600",
-      };
-  }
+const TIER_TONE: Record<AttendanceTier, StatusTone> = {
+  excellent: "success",
+  safe: "info",
+  at_risk: "warning",
+  critical: "danger",
+  pending: "neutral",
 };
 
-const EXCELLENT_MARGIN = 10;
-
-const getStatus = (
-  percentage: number,
-  total: number,
-  threshold: number,
-): "excellent" | "good" | "warning" | "pending" => {
-  if (total === 0) return "pending";
-  if (percentage >= threshold + EXCELLENT_MARGIN) return "excellent";
-  if (percentage >= threshold) return "good";
-  return "warning";
+const TIER_ICON = {
+  excellent: Award,
+  safe: ShieldCheck,
+  at_risk: AlertTriangle,
+  critical: ShieldAlert,
+  pending: CalendarClock,
 };
 
 export default function Attendance() {
   const { student } = useAuth();
   const settings = useSettings();
   const threshold = settings.attendanceThreshold;
-  const [courses, setCourses] = useState<CourseAttendance[]>([]);
+  const prewarning = settings.attendancePrewarningThreshold;
+  const reduce = useReducedMotion();
+
+  const [courses, setCourses] = useState<CourseInfo[]>([]);
+  const [recordsByCourse, setRecordsByCourse] = useState<
+    Record<string, AttendanceRecord[]>
+  >({});
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!student?.id) return;
     fetchAttendance();
-  }, [student?.id, threshold]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [student?.id]);
 
   const fetchAttendance = async () => {
     setLoading(true);
+    setError(null);
 
-    // Get current enrolled courses
-    const { data: enrollments } = await supabase
+    const { data: enrollments, error: enrollError } = await supabase
       .from("enrollments")
       .select("course_id, courses(id, course_code, title)")
       .eq("student_id", student!.id)
       .eq("status", "enrolled");
 
-    if (!enrollments || enrollments.length === 0) {
+    if (enrollError) {
+      console.error("[Attendance] failed to load enrollments", enrollError);
+      setError("We could not load your enrolled courses. Please try again.");
       setLoading(false);
       return;
     }
 
-    const courseIds = enrollments.map((e: any) => e.course_id);
+    const courseInfos: CourseInfo[] = (enrollments ?? [])
+      .filter((e: any) => e.courses)
+      .map((e: any) => ({
+        id: e.courses.id,
+        code: e.courses.course_code,
+        name: e.courses.title,
+      }));
 
-    // Get all attendance records for current courses
-    const { data: attRecords } = await supabase
+    setCourses(courseInfos);
+
+    if (courseInfos.length === 0) {
+      setRecordsByCourse({});
+      setLoading(false);
+      return;
+    }
+
+    const { data: attData, error: attError } = await supabase
       .from("attendance")
       .select("course_id, status, lecture_date")
       .eq("student_id", student!.id)
-      .in("course_id", courseIds)
-      .order("lecture_date", { ascending: false });
+      .in(
+        "course_id",
+        courseInfos.map((c) => c.id),
+      );
 
-    if (!attRecords) {
+    if (attError) {
+      console.error("[Attendance] failed to load records", attError);
+      setError("We could not load your attendance records. Please try again.");
       setLoading(false);
       return;
     }
 
-    // Calculate per-course stats
-    const courseMap: Record<
-      string,
-      {
-        present: number;
-        total: number;
-        lastDate: string;
-      }
-    > = {};
-
-    attRecords.forEach((r: any) => {
-      if (!courseMap[r.course_id]) {
-        courseMap[r.course_id] = { present: 0, total: 0, lastDate: "" };
-      }
-      courseMap[r.course_id].total++;
-      if (r.status === "present" || r.status === "excused") {
-        courseMap[r.course_id].present++;
-      }
-      // First record is latest due to order
-      if (!courseMap[r.course_id].lastDate) {
-        courseMap[r.course_id].lastDate = r.lecture_date;
-      }
+    const grouped: Record<string, AttendanceRecord[]> = {};
+    courseInfos.forEach((c) => (grouped[c.id] = []));
+    (attData ?? []).forEach((r: any) => {
+      grouped[r.course_id]?.push({ date: r.lecture_date, status: r.status });
     });
+    setRecordsByCourse(grouped);
 
-    // Build final course list
-    const result: CourseAttendance[] = enrollments.map((e: any) => {
-      const stats = courseMap[e.course_id] ?? {
-        present: 0,
-        total: 0,
-        lastDate: "",
-      };
-      const percentage =
-        stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
+    // Default to the course needing the most attention — the lowest
+    // attendance percentage among courses that actually have records.
+    // Falls back to the first enrolled course when nothing has data yet.
+    const withData = courseInfos
+      .map((c) => ({
+        course: c,
+        counts: toCounts(grouped[c.id] ?? []),
+      }))
+      .filter((c) => totalCount(c.counts) > 0);
 
-      // How many more absences before dropping below the required threshold.
-      const t = threshold / 100;
-      const absencesAllowed = Math.max(
-        0,
-        Math.floor((stats.present - t * stats.total) / t),
-      );
+    const defaultCourse =
+      withData.length > 0
+        ? withData.reduce((worst, cur) =>
+            percentageOf(cur.counts) < percentageOf(worst.counts) ? cur : worst,
+          ).course
+        : courseInfos[0];
 
-      // Format last class date
-      const lastClass = stats.lastDate
-        ? new Date(stats.lastDate).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })
-        : "No records";
-
-      return {
-        id: e.course_id,
-        code: e.courses.course_code,
-        name: e.courses.title,
-        total: stats.total,
-        attended: stats.present,
-        percentage,
-        status: getStatus(percentage, stats.total, threshold),
-        lastClass,
-        absencesAllowed,
-      };
-    });
-
-    // Needs-attention first; courses with no lectures recorded yet sort last,
-    // since there is nothing for the student to act on there. Every status
-    // must appear here — a missing key produced NaN and scrambled the order.
-    const order: Record<CourseAttendance["status"], number> = {
-      warning: 0,
-      good: 1,
-      excellent: 2,
-      pending: 3,
-    };
-    result.sort((a, b) => order[a.status] - order[b.status]);
-
-    setCourses(result);
+    setSelectedCourseId(defaultCourse.id);
     setLoading(false);
   };
 
-  // Courses with no recorded lectures yet have nothing to average — including
-  // them as 0% would understate attendance for courses that simply haven't
-  // had a lecture marked yet.
-  const scoredCourses = courses.filter((c) => c.status !== "pending");
-  const overallAttendance =
-    scoredCourses.length > 0
-      ? Math.round(
-          scoredCourses.reduce((sum, c) => sum + c.percentage, 0) /
-            scoredCourses.length,
-        )
-      : 0;
+  const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
+  const selectedRecords = selectedCourseId
+    ? recordsByCourse[selectedCourseId] ?? []
+    : [];
+  const selectedCounts = toCounts(selectedRecords);
+  const selectedTotal = totalCount(selectedCounts);
+  const selectedCompliant = compliantCount(selectedCounts);
+  const selectedPercentage = percentageOf(selectedCounts);
+  const selectedTier = classifyTier(
+    selectedPercentage,
+    selectedTotal,
+    threshold,
+    prewarning,
+  );
+  const absencesAllowed = getAbsencesAllowed(selectedCompliant, selectedTotal, threshold);
+  const lecturesNeeded = getLecturesNeededToRecover(
+    selectedCompliant,
+    selectedTotal,
+    threshold,
+  );
 
-  const excellentCourses = courses.filter((c) => c.status === "excellent");
-  const goodCourses = courses.filter((c) => c.status === "good");
-  const criticalCourses = courses.filter((c) => c.status === "warning");
+  // "All courses at a glance" chart — courses with no recorded lecture yet
+  // are excluded and counted separately, same rule the summary math uses.
+  const attendanceChartData = useMemo(
+    () =>
+      courses
+        .map((c) => ({
+          code: c.code,
+          counts: toCounts(recordsByCourse[c.id] ?? []),
+        }))
+        .filter((c) => totalCount(c.counts) > 0)
+        .map((c) => ({ code: c.code, percentage: percentageOf(c.counts) })),
+    [courses, recordsByCourse],
+  );
+  const coursesAwaiting = courses.length - attendanceChartData.length;
+
+  const allHistoryRecords: HistoryRecord[] = useMemo(
+    () =>
+      courses.flatMap((c) =>
+        (recordsByCourse[c.id] ?? []).map((r) => ({
+          date: r.date,
+          status: r.status,
+          courseCode: c.code,
+          courseName: c.name,
+        })),
+      ),
+    [courses, recordsByCourse],
+  );
+
+  if (error) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Attendance Tracker"
+          description="Monitor your attendance course by course."
+        />
+        <ErrorState message={error} onRetry={fetchAttendance} />
+      </div>
+    );
+  }
+
+  if (!loading && courses.length === 0) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Attendance Tracker"
+          description="Monitor your attendance course by course."
+        />
+        <EmptyState
+          icon={CalendarX2}
+          title="No enrolled courses"
+          description="Attendance tracking appears here once you're enrolled in courses for the current semester."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Attendance Tracker
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Monitor your attendance and stay on track with the {threshold}% CCR
-          requirement.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Attendance Tracker"
+        description={`Monitor your attendance and stay above the ${threshold}% requirement, course by course.`}
+        actions={
+          loading ? (
+            <Skeleton className="h-9 w-64" />
+          ) : (
+            <Select
+              value={selectedCourseId ?? undefined}
+              onValueChange={setSelectedCourseId}
+            >
+              <SelectTrigger className="w-full sm:w-72 h-9">
+                <SelectValue placeholder="Select a course" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses.map((c) => {
+                  const counts = toCounts(recordsByCourse[c.id] ?? []);
+                  const total = totalCount(counts);
+                  const pct = percentageOf(counts);
+                  return (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{c.code}</span>
+                        <span className="text-muted-foreground truncate">
+                          {c.name}
+                        </span>
+                        {total > 0 && (
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            ({pct}%)
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )
+        }
+      />
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Overall Attendance
-                  </p>
-                  <h3 className="text-2xl font-bold text-foreground mb-1.5">
-                    {loading ? "..." : `${overallAttendance}%`}
-                  </h3>
-                  <p
-                    className={`text-xs font-medium ${
-                      overallAttendance >= threshold
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {overallAttendance >= threshold
-                      ? "Above requirement"
-                      : "Below requirement"}
-                  </p>
-                </div>
-                <div className="p-2 rounded-xl bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Excellent (≥{threshold + EXCELLENT_MARGIN}%)
-                  </p>
-                  <h3 className="text-2xl font-bold text-green-600 mb-1.5">
-                    {loading ? "..." : excellentCourses.length}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">courses</p>
-                </div>
-                <div className="p-2 rounded-xl bg-green-100">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Good ({threshold}-{threshold + EXCELLENT_MARGIN - 1}%)
-                  </p>
-                  <h3 className="text-2xl font-bold text-blue-600 mb-1.5">
-                    {loading ? "..." : goodCourses.length}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">courses</p>
-                </div>
-                <div className="p-2 rounded-xl bg-blue-100">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Critical (&lt;{threshold}%)
-                  </p>
-                  <h3 className="text-2xl font-bold text-red-600 mb-1.5">
-                    {loading ? "..." : criticalCourses.length}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">courses</p>
-                </div>
-                <div className="p-2 rounded-xl bg-red-100">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Critical Alerts */}
-      {criticalCourses.length > 0 && (
-        <div className="space-y-3">
-          {criticalCourses.map((course) => {
-            const needed = Math.ceil(
-              ((threshold / 100) * course.total - course.attended) / (1 - threshold / 100),
-            );
-            return (
-              <AlertCard
-                key={course.code}
-                type="error"
-                title={`Critical: ${course.code} - ${course.name}`}
-                message={`Your attendance is ${course.percentage}%. You need to attend ${needed} more lecture(s) without any absence to meet the ${threshold}% CCR requirement.`}
-                action={{ label: "View Details", onClick: () => {} }}
-              />
-            );
-          })}
+      {loading ? (
+        <SkeletonStatGrid count={6} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+          <StatCard
+            index={0}
+            label="Attendance"
+            value={`${selectedPercentage}%`}
+            icon={TIER_ICON[selectedTier]}
+            tone={TIER_TONE[selectedTier]}
+            hint={TIER_LABEL[selectedTier]}
+          />
+          <StatCard
+            index={1}
+            label="Total Lectures"
+            value={selectedTotal}
+            icon={CalendarCheck2}
+            tone="neutral"
+          />
+          <StatCard
+            index={2}
+            label="Present"
+            value={selectedCounts.present}
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            index={3}
+            label="Absent"
+            value={selectedCounts.absent}
+            icon={CalendarX2}
+            tone="danger"
+          />
+          <StatCard
+            index={4}
+            label="Excused"
+            value={selectedCounts.excused}
+            icon={ShieldCheck}
+            tone="info"
+          />
+          <StatCard
+            index={5}
+            label="Absences Allowed"
+            value={absencesAllowed}
+            icon={AlertTriangle}
+            tone={absencesAllowed === 0 && selectedTotal > 0 ? "danger" : "neutral"}
+            hint={`Before dropping below ${threshold}%`}
+          />
         </div>
       )}
 
-      {/* Detailed Attendance */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle>Detailed Attendance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-32 rounded-xl bg-muted animate-pulse"
+      {!loading && selectedCourse && (
+        <StatusMessage
+          tier={selectedTier}
+          threshold={threshold}
+          percentage={selectedPercentage}
+          absencesAllowed={absencesAllowed}
+          lecturesNeeded={lecturesNeeded}
+        />
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+        <div className="lg:col-span-3">
+          {loading ? (
+            <Skeleton className="h-[480px] w-full" />
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedCourseId ?? "none"}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                transition={{ duration: reduce ? 0 : 0.2 }}
+              >
+                {selectedCourse && (
+                  <AttendanceCalendar
+                    courseCode={selectedCourse.code}
+                    courseName={selectedCourse.name}
+                    records={selectedRecords}
                   />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {courses.map((course, index) => {
-                  const colors = getStatusColor(course.status);
-                  return (
-                    <motion.div
-                      key={course.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.08 }}
-                      className={`p-4 rounded-xl border-2 ${colors.border} bg-card hover:shadow-lg transition-shadow`}
-                    >
-                      <div className="space-y-3">
-                        {/* Header */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2.5 mb-1">
-                              <h4 className="font-semibold text-foreground">
-                                {course.name}
-                              </h4>
-                              <Badge className={colors.badge}>
-                                {course.code}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              Last attended: {course.lastClass}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div
-                              className={`text-2xl font-bold ${colors.text}`}
-                            >
-                              {course.percentage}%
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {course.attended}/{course.total}
-                            </p>
-                          </div>
-                        </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </div>
 
-                        {/* Progress Bar */}
-                        <div className="space-y-1.5">
-                          <Progress value={course.percentage} className="h-2.5" />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Classes attended: {course.attended}</span>
-                            <span>Total classes: {course.total}</span>
-                          </div>
-                        </div>
+        <div className="lg:col-span-2">
+          {loading ? (
+            <Skeleton className="h-[300px] w-full" />
+          ) : (
+            <CourseAttendanceChart
+              title="All courses at a glance"
+              description="How attendance compares across your enrolled courses"
+              data={attendanceChartData}
+              threshold={threshold}
+              prewarning={prewarning}
+              awaitingCount={coursesAwaiting}
+            />
+          )}
+        </div>
+      </div>
 
-                        {/* Status Message */}
-                        {course.status === "pending" && (
-                          <div
-                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
-                          >
-                            <Calendar
-                              className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
-                            />
-                            <p className={`text-sm ${colors.messageText}`}>
-                              No lectures have been recorded for this course
-                              yet — attendance will appear here once your
-                              department admin starts marking it.
-                            </p>
-                          </div>
-                        )}
+      {loading ? (
+        <SkeletonRows count={5} height="h-12" />
+      ) : (
+        <AttendanceHistoryList records={allHistoryRecords} />
+      )}
+    </div>
+  );
+}
 
-                        {course.status === "warning" && (
-                          <div
-                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
-                          >
-                            <AlertTriangle
-                              className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
-                            />
-                            <p className={`text-sm ${colors.messageText}`}>
-                              You are below the {threshold}% CCR threshold. You cannot
-                              afford any more absences — attend all remaining
-                              lectures to avoid becoming non-eligible.
-                            </p>
-                          </div>
-                        )}
+function toCounts(records: AttendanceRecord[]): AttendanceCounts {
+  return {
+    present: records.filter((r) => r.status === "present").length,
+    absent: records.filter((r) => r.status === "absent").length,
+    excused: records.filter((r) => r.status === "excused").length,
+  };
+}
 
-                        {course.status === "good" && (
-                          <div
-                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
-                          >
-                            <Calendar
-                              className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
-                            />
-                            <p className={`text-sm ${colors.messageText}`}>
-                              You can afford{" "}
-                              <span className="font-semibold">
-                                {course.absencesAllowed} more absence
-                                {course.absencesAllowed !== 1 ? "s" : ""}
-                              </span>{" "}
-                              before dropping below {threshold}%.
-                            </p>
-                          </div>
-                        )}
+function StatusMessage({
+  tier,
+  threshold,
+  percentage,
+  absencesAllowed,
+  lecturesNeeded,
+}: {
+  tier: AttendanceTier;
+  threshold: number;
+  percentage: number;
+  absencesAllowed: number;
+  lecturesNeeded: number;
+}) {
+  const Icon = TIER_ICON[tier];
+  const tone = TIER_TONE[tier];
 
-                        {course.status === "excellent" && (
-                          <div
-                            className={`flex items-start gap-2 p-2.5 rounded-lg ${colors.messageBg}`}
-                          >
-                            <CheckCircle
-                              className={`h-4 w-4 mt-0.5 ${colors.messageIcon}`}
-                            />
-                            <p className={`text-sm ${colors.messageText}`}>
-                              Excellent attendance! You can afford{" "}
-                              <span className="font-semibold">
-                                {course.absencesAllowed} more absence
-                                {course.absencesAllowed !== 1 ? "s" : ""}
-                              </span>{" "}
-                              while staying above {threshold}%.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+  const copy: Record<AttendanceTier, string> = {
+    pending:
+      "No lectures have been recorded for this course yet — attendance will appear here once your department admin starts marking it.",
+    critical: `You are below the ${threshold}% requirement at ${percentage}%. You are not currently eligible — attend the next ${lecturesNeeded} lecture${
+      lecturesNeeded === 1 ? "" : "s"
+    } with zero further absences to recover.`,
+    at_risk: `You're at ${percentage}%, above the ${threshold}% requirement but close to it. You can afford ${absencesAllowed} more absence${
+      absencesAllowed === 1 ? "" : "s"
+    } before falling below the requirement.`,
+    safe: `You're at ${percentage}%, comfortably above the ${threshold}% requirement. You can afford ${absencesAllowed} more absence${
+      absencesAllowed === 1 ? "" : "s"
+    } while staying compliant.`,
+    excellent: `Excellent attendance at ${percentage}%. You can afford ${absencesAllowed} more absence${
+      absencesAllowed === 1 ? "" : "s"
+    } while staying above ${threshold}%.`,
+  };
+
+  const BG_BORDER: Record<StatusTone, string> = {
+    success: "bg-success-bg border-success-border",
+    info: "bg-info-bg border-info-border",
+    warning: "bg-warning-bg border-warning-border",
+    danger: "bg-danger-bg border-danger-border",
+    neutral: "bg-neutral-bg border-neutral-border",
+    brand: "bg-primary/10 border-primary/20",
+  };
+  const ICON_COLOR: Record<StatusTone, string> = {
+    success: "text-success-fg",
+    info: "text-info-fg",
+    warning: "text-warning-fg",
+    danger: "text-danger-fg",
+    neutral: "text-neutral-fg",
+    brand: "text-primary",
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-xl border px-4 py-3",
+        BG_BORDER[tone],
+      )}
+    >
+      <Icon
+        className={cn("h-4.5 w-4.5 mt-0.5 flex-shrink-0", ICON_COLOR[tone])}
+        aria-hidden="true"
+      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <StatusBadge tone={tone}>{TIER_LABEL[tier]}</StatusBadge>
+        <p className="text-sm text-foreground">{copy[tier]}</p>
+      </div>
     </div>
   );
 }
