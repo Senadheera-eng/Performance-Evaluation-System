@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, BookOpen, Clock, CheckCircle2 } from "lucide-react";
+import {
+  Search,
+  Filter,
+  BookOpen,
+  Clock,
+  CheckCircle2,
+  FileQuestion,
+} from "lucide-react";
 import { CourseCard } from "../components/dashboard/CourseCard";
 import { PillTabs } from "../components/dashboard/PillTabs";
 import { Input } from "../components/ui/input";
@@ -19,7 +26,7 @@ interface Course {
   code: string;
   name: string;
   credits: number;
-  status: "ongoing" | "completed" | "upcoming";
+  status: "ongoing" | "completed" | "upcoming" | "not_recorded";
   attendance?: number;
   grade?: string;
   progress?: number;
@@ -172,10 +179,9 @@ export default function Courses() {
         };
       });
 
-    // Upcoming courses: everything in the student's own curriculum (their
-    // department plus shared Interdisciplinary Studies courses) that they
-    // haven't taken or aren't currently taking — future semesters included,
-    // so students can browse ahead through Semester 8.
+    // Remaining catalogue courses: everything in the student's own curriculum
+    // (their department plus shared Interdisciplinary Studies courses) that
+    // they haven't taken or aren't currently taking.
     const { data: catalogueData } = await supabase
       .from("courses")
       .select(
@@ -191,31 +197,59 @@ export default function Courses() {
       ...(resultsData ?? []).map((r: any) => r.course_id),
     ]);
 
-    const upcomingCourses: Course[] = (catalogueData ?? [])
+    // The furthest semester we have *actual evidence* for — an active
+    // enrollment or a published graded result. A leftover catalogue course is
+    // only genuinely "upcoming" if it sits beyond that point. Below it, the
+    // student has clearly already been through that semester; a missing
+    // record there just means no result has been entered for that specific
+    // course, which is a data gap, not a future course. Conflating the two
+    // is what made semester 1/2 courses show up as "Upcoming" long after
+    // graduation from those semesters.
+    const furthestKnownSemester = Math.max(
+      0,
+      ...ongoingCourses.map((c) => c.semester),
+      ...completedCourses.map((c) => c.semester),
+    );
+
+    const upcomingCourses: Course[] = [];
+    const notRecordedCourses: Course[] = [];
+
+    (catalogueData ?? [])
       .filter((c: any) => !knownIds.has(c.id))
-      .map((c: any) => ({
-        id: c.id,
-        code: c.course_code,
-        name: c.title,
-        credits: c.credits,
-        status: "upcoming" as const,
-        category: c.category,
-        minor_category: c.minor_category,
-        semester: c.semester,
-        year: c.year,
-      }));
+      .forEach((c: any) => {
+        const course: Course = {
+          id: c.id,
+          code: c.course_code,
+          name: c.title,
+          credits: c.credits,
+          status:
+            c.semester > furthestKnownSemester ? "upcoming" : "not_recorded",
+          category: c.category,
+          minor_category: c.minor_category,
+          semester: c.semester,
+          year: c.year,
+        };
+        (course.status === "upcoming" ? upcomingCourses : notRecordedCourses).push(
+          course,
+        );
+      });
 
     const courses: Course[] = [
       ...ongoingCourses,
       ...completedCourses,
+      ...notRecordedCourses,
       ...upcomingCourses,
     ];
 
+    const statusOrder: Record<Course["status"], number> = {
+      ongoing: 0,
+      completed: 1,
+      not_recorded: 2,
+      upcoming: 3,
+    };
     courses.sort((a, b) => {
-      if (a.status === "ongoing" && b.status !== "ongoing") return -1;
-      if (a.status !== "ongoing" && b.status === "ongoing") return 1;
-      if (a.status === "completed" && b.status === "completed")
-        return b.semester - a.semester;
+      if (a.status !== b.status) return statusOrder[a.status] - statusOrder[b.status];
+      if (a.status === "completed") return b.semester - a.semester;
       return a.semester - b.semester;
     });
 
@@ -234,6 +268,7 @@ export default function Courses() {
     if (activeTab === "ongoing") return course.status === "ongoing";
     if (activeTab === "completed") return course.status === "completed";
     if (activeTab === "upcoming") return course.status === "upcoming";
+    if (activeTab === "not_recorded") return course.status === "not_recorded";
     return true;
   });
 
@@ -254,6 +289,7 @@ export default function Courses() {
     ongoing: allCourses.filter((c) => c.status === "ongoing").length,
     completed: allCourses.filter((c) => c.status === "completed").length,
     upcoming: allCourses.filter((c) => c.status === "upcoming").length,
+    notRecorded: allCourses.filter((c) => c.status === "not_recorded").length,
   };
 
   const tabs = [
@@ -261,6 +297,7 @@ export default function Courses() {
     { value: "ongoing", label: "Ongoing", count: stats.ongoing },
     { value: "completed", label: "Completed", count: stats.completed },
     { value: "upcoming", label: "Upcoming", count: stats.upcoming },
+    { value: "not_recorded", label: "Not Recorded", count: stats.notRecorded },
   ];
 
   return (
@@ -280,7 +317,7 @@ export default function Courses() {
       </motion.div>
 
       {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
           {
             label: "Total Courses",
@@ -305,6 +342,12 @@ export default function Courses() {
             value: stats.upcoming,
             icon: Clock,
             color: "bg-yellow-100 text-yellow-600",
+          },
+          {
+            label: "Not Recorded",
+            value: stats.notRecorded,
+            icon: FileQuestion,
+            color: "bg-gray-100 text-gray-500",
           },
         ].map((stat, index) => (
           <motion.div

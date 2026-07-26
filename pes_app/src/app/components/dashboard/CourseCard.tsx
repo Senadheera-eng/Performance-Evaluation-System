@@ -9,7 +9,7 @@ interface Course {
   code: string;
   name: string;
   credits: number;
-  status: "ongoing" | "completed" | "upcoming";
+  status: "ongoing" | "completed" | "upcoming" | "not_recorded";
   attendance?: number;
   grade?: string;
   progress?: number;
@@ -25,12 +25,16 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
     ongoing: "bg-blue-100 text-blue-700 border-blue-200",
     completed: "bg-green-100 text-green-700 border-green-200",
     upcoming: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    // Distinct from "upcoming" on purpose: this course's semester has
+    // already been reached, it's just missing a record — not a future course.
+    not_recorded: "bg-gray-100 text-gray-500 border-gray-200",
   };
 
   const statusLabels = {
     ongoing: "Ongoing",
     completed: "Completed",
     upcoming: "Upcoming",
+    not_recorded: "Not Recorded",
   };
 
   return (
