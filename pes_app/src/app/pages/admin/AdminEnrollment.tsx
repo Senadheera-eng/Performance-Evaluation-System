@@ -37,6 +37,7 @@ import {
   CommandList,
 } from "../../components/ui/command";
 import { SegmentedTabs } from "../../components/common";
+import { CourseEnrollmentBrowser } from "../../components/enrollment/CourseEnrollmentBrowser";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
@@ -101,6 +102,7 @@ export default function AdminEnrollment() {
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
+  const [view, setView] = useState<"periods" | "courses">("periods");
   const [activeTab, setActiveTab] = useState<TabValue>("current");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [courseStats, setCourseStats] = useState<
@@ -242,6 +244,21 @@ export default function AdminEnrollment() {
         </div>
       )}
 
+      <SegmentedTabs
+        aria-label="Switch between periods and course view"
+        value={view}
+        onChange={(v) => setView(v as "periods" | "courses")}
+        layoutId="enrollment-view-switch"
+        tabs={[
+          { value: "periods", label: "Periods" },
+          { value: "courses", label: "By Course" },
+        ]}
+      />
+
+      {view === "courses" && <CourseEnrollmentBrowser />}
+
+      {view === "periods" && (
+        <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <SegmentedTabs
           aria-label="Filter enrolment periods"
@@ -435,6 +452,8 @@ export default function AdminEnrollment() {
             </Card>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );
