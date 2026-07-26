@@ -10,6 +10,8 @@ import {
   Users,
   CheckCircle,
   Clock,
+  AlertCircle,
+  Lock,
 } from "lucide-react";
 import {
   Card,
@@ -20,6 +22,17 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
+import { ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
@@ -42,7 +55,16 @@ interface StudentResult {
   resultId: string | null;
   studentId: string;
   name: string;
+  indexNumber: string;
   regNumber: string;
+  /** The student's own admission batch — distinct from the batch whose
+   *  exam sitting is currently being entered. */
+  batchYear: number | null;
+  /** True when batchYear doesn't match the batch being viewed: an earlier
+   *  batch's student sitting this exam again alongside a younger cohort,
+   *  same pattern as the "Repeat Candidates" section on the faculty's own
+   *  result sheets. */
+  isRepeat: boolean;
   midSem: string;
   ca: string;
   ese: string;
@@ -51,6 +73,30 @@ interface StudentResult {
   gpv: number | null;
   isPublished: boolean;
   isDirty: boolean;
+  /** Per-field validation messages; a row with any entry here cannot be
+   *  saved or published. */
+  errors: Partial<Record<"midSem" | "ca" | "ese", string>>;
+}
+
+const MARK_RANGES = {
+  midSem: { max: 50, label: "Mid Sem" },
+  ca: { max: 50, label: "CA" },
+  ese: { max: 100, label: "ESE" },
+} as const;
+
+/** Empty string is valid (mark not yet entered) — only an out-of-range or
+ *  non-numeric value is rejected. */
+function validateMark(
+  field: keyof typeof MARK_RANGES,
+  value: string,
+): string | undefined {
+  if (value.trim() === "") return undefined;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "Must be a number";
+  if (n < 0 || n > MARK_RANGES[field].max) {
+    return `Must be 0-${MARK_RANGES[field].max}`;
+  }
+  return undefined;
 }
 
 // Grade boundaries and component weights come from the regulation engine
@@ -87,9 +133,17 @@ export default function AdminResults() {
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentResult[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [candidateFilter, setCandidateFilter] = useState<
+    "all" | "regular" | "repeat"
+  >("all");
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<
+    "publish" | "unpublish" | null
+  >(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
@@ -154,6 +208,7 @@ export default function AdminResults() {
   const fetchStudentResults = async () => {
     if (!selectedCourse || !selectedYear) return;
     setLoading(true);
+    setFetchError(null);
 
     // Roster comes from a SECURITY DEFINER RPC rather than a client-side
     // join: students' RLS scopes a dept admin to their own department's
@@ -161,35 +216,52 @@ export default function AdminResults() {
     // department, so a direct join can only resolve a fraction of the
     // names. The RPC validates course ownership server-side and also
     // includes students with historical result rows but no enrollment row.
-    const { data: roster } = await supabase.rpc("get_course_roster", {
-      p_course_id: selectedCourse.id,
-      p_academic_year: selectedYear,
-    });
+    const { data: roster, error: rosterError } = await supabase.rpc(
+      "get_course_roster",
+      { p_course_id: selectedCourse.id, p_academic_year: selectedYear },
+    );
 
-    if (!roster) {
+    if (rosterError) {
+      console.error("[AdminResults] failed to load roster", rosterError);
+      setFetchError("Unable to load students for this course and batch.");
+      setStudents([]);
       setLoading(false);
       return;
     }
 
     // Get existing results
-    const { data: existingResults } = await supabase
+    const { data: existingResults, error: resultsError } = await supabase
       .from("results")
       .select("*")
       .eq("course_id", selectedCourse.id)
       .eq("academic_year", selectedYear);
+
+    if (resultsError) {
+      console.error("[AdminResults] failed to load results", resultsError);
+      setFetchError("Unable to load existing marks for this course.");
+      setStudents([]);
+      setLoading(false);
+      return;
+    }
 
     const resultMap: Record<string, any> = {};
     existingResults?.forEach((r: any) => {
       resultMap[r.student_id] = r;
     });
 
-    const studentList: StudentResult[] = roster.map((s: any) => {
+    const studentList: StudentResult[] = (roster ?? []).map((s: any) => {
       const existing = resultMap[s.student_id];
       return {
         resultId: existing?.id ?? null,
         studentId: s.student_id,
         name: s.name ?? "—",
+        indexNumber: s.index_number ?? "—",
         regNumber: formatRegNumber(s.reg_number),
+        batchYear: s.batch_year ?? null,
+        isRepeat:
+          s.batch_year !== null &&
+          selectedBatch !== null &&
+          s.batch_year !== selectedBatch,
         midSem: existing?.mid_sem_mark?.toString() ?? "",
         ca: existing?.ca_mark?.toString() ?? "",
         ese: existing?.ese_mark?.toString() ?? "",
@@ -198,10 +270,11 @@ export default function AdminResults() {
         gpv: existing?.gpv ?? null,
         isPublished: existing?.is_published ?? false,
         isDirty: false,
+        errors: {},
       };
     });
 
-    studentList.sort((a, b) => a.name.localeCompare(b.name));
+    studentList.sort((a, b) => a.indexNumber.localeCompare(b.indexNumber));
     setStudents(studentList);
     setLoading(false);
   };
@@ -215,15 +288,35 @@ export default function AdminResults() {
       prev.map((s) => {
         if (s.studentId !== studentId) return s;
 
-        const updated = { ...s, [field]: value, isDirty: true };
+        const fieldError = validateMark(field, value);
+        const updated = {
+          ...s,
+          [field]: value,
+          isDirty: true,
+          errors: { ...s.errors, [field]: fieldError },
+        };
 
-        // Auto-calculate OA and grade if all three are filled
-        const mid =
-          field === "midSem" ? parseFloat(value) : parseFloat(s.midSem);
-        const ca = field === "ca" ? parseFloat(value) : parseFloat(s.ca);
-        const ese = field === "ese" ? parseFloat(value) : parseFloat(s.ese);
+        const midRaw = field === "midSem" ? value : s.midSem;
+        const caRaw = field === "ca" ? value : s.ca;
+        const eseRaw = field === "ese" ? value : s.ese;
+        const midErr = field === "midSem" ? fieldError : s.errors.midSem;
+        const caErr = field === "ca" ? fieldError : s.errors.ca;
+        const eseErr = field === "ese" ? fieldError : s.errors.ese;
 
-        if (!isNaN(mid) && !isNaN(ca) && !isNaN(ese)) {
+        const mid = parseFloat(midRaw);
+        const ca = parseFloat(caRaw);
+        const ese = parseFloat(eseRaw);
+
+        // Never derive a grade from a value outside its configured range —
+        // an invalid mark must block the grade, not silently feed into it.
+        if (
+          !isNaN(mid) &&
+          !isNaN(ca) &&
+          !isNaN(ese) &&
+          !midErr &&
+          !caErr &&
+          !eseErr
+        ) {
           const oa = calculateOA(mid, ca, ese);
           const { grade, gpv } = calculateGrade(oa);
           updated.oaMark = oa;
@@ -240,85 +333,145 @@ export default function AdminResults() {
     );
   };
 
+  /** Rows with a validation error are never sent to the database, whether
+   *  saving a draft or publishing — an invalid mark should block both. */
+  const dirtyValidRows = () =>
+    students.filter(
+      (s) => s.isDirty && !s.errors.midSem && !s.errors.ca && !s.errors.ese,
+    );
+  const invalidRowCount = students.filter(
+    (s) => s.errors.midSem || s.errors.ca || s.errors.ese,
+  ).length;
+
   const handleSaveDraft = async () => {
     if (!selectedCourse || !selectedYear) return;
     setSaving(true);
     setSavedMessage(null);
 
-    const dirty = students.filter((s) => s.isDirty);
+    const dirty = dirtyValidRows();
+    let failed = 0;
 
-    try {
-      for (const student of dirty) {
-        const payload = {
-          student_id: student.studentId,
-          course_id: selectedCourse.id,
-          academic_year: selectedYear,
-          mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
-          ca_mark: student.ca ? parseFloat(student.ca) : null,
-          ese_mark: student.ese ? parseFloat(student.ese) : null,
-          oa_mark: student.oaMark,
-          grade: student.grade,
-          gpv: student.gpv,
-          is_published: false,
-        };
+    for (const student of dirty) {
+      const payload = {
+        student_id: student.studentId,
+        course_id: selectedCourse.id,
+        academic_year: selectedYear,
+        mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
+        ca_mark: student.ca ? parseFloat(student.ca) : null,
+        ese_mark: student.ese ? parseFloat(student.ese) : null,
+        oa_mark: student.oaMark,
+        grade: student.grade,
+        gpv: student.gpv,
+        is_published: false,
+      };
 
-        if (student.resultId) {
-          await supabase
+      const { error } = student.resultId
+        ? await supabase
             .from("results")
             .update(payload)
-            .eq("id", student.resultId);
-        } else {
-          await supabase.from("results").insert(payload);
-        }
-      }
+            .eq("id", student.resultId)
+        : await supabase.from("results").insert(payload);
 
-      setSavedMessage(`Draft saved for ${dirty.length} student(s).`);
-      await fetchStudentResults();
-    } catch (err) {
-      setSavedMessage("Error saving. Please try again.");
+      if (error) {
+        console.error("[AdminResults] failed to save draft", student.studentId, error);
+        failed++;
+      }
     }
 
+    if (failed > 0) {
+      setSavedMessage(
+        `Saved ${dirty.length - failed} of ${dirty.length}. ${failed} could not be saved — please try again.`,
+      );
+    } else if (dirty.length > 0) {
+      setSavedMessage(`Draft saved for ${dirty.length} student(s).`);
+    } else {
+      setSavedMessage("No changes to save.");
+    }
+
+    await fetchStudentResults();
     setSaving(false);
   };
 
-  const handlePublish = async () => {
+  // Publishing never touches a row with no grade — an incomplete row (missing
+  // or invalid marks) has nothing valid to show a student, so it's silently
+  // excluded from the update rather than pushed through half-finished.
+  const publishableCount = students.filter((s) => s.grade !== null).length;
+  const incompleteCount = students.length - publishableCount;
+
+  const confirmPublish = async () => {
     if (!selectedCourse || !selectedYear) return;
+    setConfirmDialog(null);
     setPublishing(true);
     setSavedMessage(null);
 
-    try {
-      // First save any dirty records
-      await handleSaveDraft();
+    await handleSaveDraft();
 
-      // Then publish all results for this course + year
-      await supabase
-        .from("results")
-        .update({ is_published: true })
-        .eq("course_id", selectedCourse.id)
-        .eq("academic_year", selectedYear);
+    const { error } = await supabase
+      .from("results")
+      .update({ is_published: true })
+      .eq("course_id", selectedCourse.id)
+      .eq("academic_year", selectedYear)
+      .not("grade", "is", null);
 
-      setSavedMessage(
-        `Results published for ${students.length} students. Students can now view their grades.`,
-      );
-      await fetchStudentResults();
-    } catch (err) {
+    if (error) {
+      console.error("[AdminResults] failed to publish", error);
       setSavedMessage("Error publishing. Please try again.");
+    } else {
+      setSavedMessage(
+        incompleteCount > 0
+          ? `Published ${publishableCount} result(s). ${incompleteCount} skipped — missing or invalid marks.`
+          : `Results published for ${publishableCount} students. Students can now view their grades.`,
+      );
     }
 
+    await fetchStudentResults();
     setPublishing(false);
   };
 
-  const filteredStudents = students.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.regNumber.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const confirmUnpublish = async () => {
+    if (!selectedCourse || !selectedYear) return;
+    setConfirmDialog(null);
+    setUnpublishing(true);
+    setSavedMessage(null);
+
+    const { error } = await supabase
+      .from("results")
+      .update({ is_published: false })
+      .eq("course_id", selectedCourse.id)
+      .eq("academic_year", selectedYear);
+
+    if (error) {
+      console.error("[AdminResults] failed to unpublish", error);
+      setSavedMessage("Error unpublishing. Please try again.");
+    } else {
+      setSavedMessage(
+        "Results unpublished. They are no longer visible to students.",
+      );
+    }
+
+    await fetchStudentResults();
+    setUnpublishing(false);
+  };
+
+  const filteredStudents = students
+    .filter(
+      (s) =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.regNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.indexNumber.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
+    .filter((s) => {
+      if (candidateFilter === "regular") return !s.isRepeat;
+      if (candidateFilter === "repeat") return s.isRepeat;
+      return true;
+    });
 
   const publishedCount = students.filter((s) => s.isPublished).length;
   const draftCount = students.filter(
     (s) => !s.isPublished && s.resultId !== null,
   ).length;
   const emptyCount = students.filter((s) => s.resultId === null).length;
+  const repeatCount = students.filter((s) => s.isRepeat).length;
   const allPublished =
     students.length > 0 && publishedCount === students.length;
 
@@ -464,19 +617,50 @@ export default function AdminResults() {
                       <EyeOff className="h-3 w-3" />
                       {emptyCount} empty
                     </span>
+                    {repeatCount > 0 && (
+                      <span className="flex items-center gap-1 text-purple-600">
+                        <Users className="h-3 w-3" />
+                        {repeatCount} repeat
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search students..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-card border-border"
+              {fetchError && (
+                <ErrorState
+                  message={fetchError}
+                  onRetry={fetchStudentResults}
+                  size="inline"
+                />
+              )}
+
+              {/* Search + candidate filter */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, index no., or reg no..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-card border-border"
+                  />
+                </div>
+                <SegmentedTabs
+                  aria-label="Filter by candidate type"
+                  value={candidateFilter}
+                  onChange={(v) => setCandidateFilter(v as typeof candidateFilter)}
+                  layoutId="results-candidate-filter"
+                  tabs={[
+                    { value: "all", label: "All", count: students.length },
+                    {
+                      value: "regular",
+                      label: "Regular",
+                      count: students.length - repeatCount,
+                    },
+                    { value: "repeat", label: "Repeat", count: repeatCount },
+                  ]}
                 />
               </div>
 
@@ -485,16 +669,17 @@ export default function AdminResults() {
                 OA = Mid Sem ({Math.round(settings.oaWeights.mid_sem * 100)}%) +
                 CA ({Math.round(settings.oaWeights.ca * 100)}%) + ESE (
                 {Math.round(settings.oaWeights.ese * 100)}%). Grade and GPV are
-                calculated automatically.
+                calculated automatically. Marks outside their valid range are
+                rejected and cannot be saved.
               </div>
 
               {/* Column Headers */}
               <div className="hidden md:grid grid-cols-12 gap-2 px-4 text-xs font-medium text-muted-foreground">
-                <div className="col-span-4">Student</div>
+                <div className="col-span-3">Student</div>
                 <div className="col-span-2 text-center">Mid Sem (/50)</div>
                 <div className="col-span-2 text-center">CA (/50)</div>
                 <div className="col-span-2 text-center">ESE (/100)</div>
-                <div className="col-span-1 text-center">Grade</div>
+                <div className="col-span-2 text-center">OA / Grade / GPV</div>
                 <div className="col-span-1 text-center">Status</div>
               </div>
 
@@ -514,9 +699,11 @@ export default function AdminResults() {
                   <p className="text-muted-foreground">
                     {searchQuery
                       ? "No students match your search."
-                      : `No students enrolled in this course for ${
-                          selectedBatch !== null ? describeBatch(selectedBatch) : "this batch"
-                        }.`}
+                      : candidateFilter !== "all"
+                        ? `No ${candidateFilter} candidates for this course and batch.`
+                        : `No students enrolled in this course for ${
+                            selectedBatch !== null ? describeBatch(selectedBatch) : "this batch"
+                          }.`}
                   </p>
                 </div>
               ) : (
@@ -535,9 +722,9 @@ export default function AdminResults() {
                             : "border-border bg-card"
                       }`}
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-start">
                         {/* Student info */}
-                        <div className="md:col-span-4 flex items-center gap-2.5">
+                        <div className="md:col-span-3 flex items-center gap-2.5">
                           <div
                             className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                             style={{
@@ -552,12 +739,19 @@ export default function AdminResults() {
                               .toUpperCase()
                               .slice(0, 2)}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {student.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {student.regNumber}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {student.name}
+                              </p>
+                              {student.isRepeat && (
+                                <StatusBadge tone="info" className="flex-shrink-0">
+                                  Repeat
+                                </StatusBadge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {student.indexNumber} · {student.regNumber}
                             </p>
                           </div>
                         </div>
@@ -581,8 +775,18 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-8 text-center text-sm bg-card border-border"
+                            aria-invalid={!!student.errors.midSem}
+                            className={`h-8 text-center text-sm bg-card ${
+                              student.errors.midSem
+                                ? "border-destructive focus-visible:ring-destructive/30"
+                                : "border-border"
+                            }`}
                           />
+                          {student.errors.midSem && (
+                            <p className="text-xs text-destructive mt-0.5">
+                              {student.errors.midSem}
+                            </p>
+                          )}
                         </div>
 
                         {/* CA */}
@@ -604,8 +808,18 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-8 text-center text-sm bg-card border-border"
+                            aria-invalid={!!student.errors.ca}
+                            className={`h-8 text-center text-sm bg-card ${
+                              student.errors.ca
+                                ? "border-destructive focus-visible:ring-destructive/30"
+                                : "border-border"
+                            }`}
                           />
+                          {student.errors.ca && (
+                            <p className="text-xs text-destructive mt-0.5">
+                              {student.errors.ca}
+                            </p>
+                          )}
                         </div>
 
                         {/* ESE */}
@@ -627,18 +841,35 @@ export default function AdminResults() {
                               )
                             }
                             disabled={student.isPublished}
-                            className="h-8 text-center text-sm bg-card border-border"
+                            aria-invalid={!!student.errors.ese}
+                            className={`h-8 text-center text-sm bg-card ${
+                              student.errors.ese
+                                ? "border-destructive focus-visible:ring-destructive/30"
+                                : "border-border"
+                            }`}
                           />
+                          {student.errors.ese && (
+                            <p className="text-xs text-destructive mt-0.5">
+                              {student.errors.ese}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Grade */}
-                        <div className="md:col-span-1 flex justify-center">
+                        {/* OA / Grade / GPV */}
+                        <div className="md:col-span-2 flex items-center justify-center gap-2">
                           {student.grade ? (
-                            <Badge
-                              className={`${getGradeColor(student.grade)} font-bold text-sm px-2`}
-                            >
-                              {student.grade}
-                            </Badge>
+                            <>
+                              <Badge
+                                className={`${getGradeColor(student.grade)} font-bold text-sm px-2 flex-shrink-0`}
+                              >
+                                {student.grade}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {student.oaMark?.toFixed(1)} OA
+                                <br />
+                                {student.gpv?.toFixed(1)} GPV
+                              </span>
+                            </>
                           ) : (
                             <span className="text-muted-foreground text-xs">
                               —
@@ -647,13 +878,28 @@ export default function AdminResults() {
                         </div>
 
                         {/* Status */}
-                        <div className="md:col-span-1 flex justify-center">
+                        <div className="md:col-span-1 flex items-center justify-center gap-1">
                           {student.isPublished ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <span
+                              className="flex items-center gap-1 text-green-600 text-xs"
+                              title="Published"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </span>
                           ) : student.resultId ? (
-                            <Clock className="h-4 w-4 text-amber-500" />
+                            <span
+                              className="flex items-center gap-1 text-amber-500 text-xs"
+                              title="Draft — not yet published"
+                            >
+                              <Clock className="h-4 w-4" />
+                            </span>
                           ) : (
-                            <EyeOff className="h-4 w-4 text-muted-foreground opacity-40" />
+                            <span
+                              className="flex items-center gap-1 text-muted-foreground opacity-40 text-xs"
+                              title="No marks entered"
+                            >
+                              <EyeOff className="h-4 w-4" />
+                            </span>
                           )}
                         </div>
                       </div>
@@ -665,10 +911,22 @@ export default function AdminResults() {
               {/* Action Buttons */}
               {students.length > 0 && (
                 <div className="pt-4 border-t border-border space-y-3">
+                  {invalidRowCount > 0 && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg text-sm bg-destructive/10 text-destructive border border-destructive/20">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>
+                        {invalidRowCount} row{invalidRowCount === 1 ? "" : "s"}{" "}
+                        {invalidRowCount === 1 ? "has" : "have"} a mark outside
+                        its valid range — fix{" "}
+                        {invalidRowCount === 1 ? "it" : "them"} before saving.
+                      </span>
+                    </div>
+                  )}
+
                   {savedMessage && (
                     <div
                       className={`p-3 rounded-lg text-sm ${
-                        savedMessage.includes("Error")
+                        savedMessage.startsWith("Error")
                           ? "bg-destructive/10 text-destructive border border-destructive/20"
                           : "bg-green-50 text-green-800 border border-green-200"
                       }`}
@@ -680,9 +938,7 @@ export default function AdminResults() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={handleSaveDraft}
-                      disabled={
-                        saving || students.filter((s) => s.isDirty).length === 0
-                      }
+                      disabled={saving || dirtyValidRows().length === 0}
                       variant="outline"
                       className="flex-1 h-10 border-amber-300 text-amber-700 hover:bg-amber-50"
                     >
@@ -700,8 +956,8 @@ export default function AdminResults() {
                     </Button>
 
                     <Button
-                      onClick={handlePublish}
-                      disabled={publishing || allPublished}
+                      onClick={() => setConfirmDialog("publish")}
+                      disabled={publishing || publishableCount === 0}
                       className="flex-1 h-10 bg-primary hover:bg-primary/90"
                     >
                       {publishing ? (
@@ -721,12 +977,36 @@ export default function AdminResults() {
                         </div>
                       )}
                     </Button>
+
+                    {publishedCount > 0 && (
+                      <Button
+                        onClick={() => setConfirmDialog("unpublish")}
+                        disabled={unpublishing}
+                        variant="outline"
+                        className="h-10 border-destructive/40 text-destructive hover:bg-destructive/10"
+                      >
+                        {unpublishing ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-destructive border-t-transparent rounded-full animate-spin" />
+                            Unpublishing...
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-4 w-4" />
+                            Unpublish
+                          </div>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {!allPublished && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Publishing will make results visible to students
-                      immediately. This cannot be undone.
+                      Publishing sends every complete, graded row to students
+                      immediately.{" "}
+                      {incompleteCount > 0
+                        ? `${incompleteCount} row${incompleteCount === 1 ? "" : "s"} without a grade will be skipped.`
+                        : ""}
                     </p>
                   )}
                 </div>
@@ -735,6 +1015,57 @@ export default function AdminResults() {
           </Card>
         </motion.div>
       )}
+
+      <AlertDialog
+        open={confirmDialog === "publish"}
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish results to students?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {publishableCount} student{publishableCount === 1 ? "" : "s"}{" "}
+              with a complete grade will be published and can immediately see
+              their result.
+              {incompleteCount > 0 &&
+                ` ${incompleteCount} row${incompleteCount === 1 ? "" : "s"} without a grade will be skipped, not published.`}{" "}
+              This cannot be undone from the student's side, though you can
+              unpublish afterward if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPublish}>
+              Publish {publishableCount} result{publishableCount === 1 ? "" : "s"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDialog === "unpublish"}
+        onOpenChange={(open) => !open && setConfirmDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unpublish these results?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {publishedCount} published result{publishedCount === 1 ? "" : "s"}{" "}
+              for {selectedCourse?.code} will be hidden from students again.
+              The marks themselves are kept as a draft — nothing is deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmUnpublish}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Unpublish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {!selectedCourse && (
         <motion.div
