@@ -4,14 +4,12 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "comment": "React Router uses createBrowserRouter, so deep links like /app/results are client-side paths with no file on disk. Vercel serves a matching static file first and only falls through to this rule, so /assets/* is unaffected.",
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
     {
-      "comment": "Vite fingerprints these filenames, so a changed file always gets a new URL and can be cached permanently.",
       "source": "/assets/(.*)",
       "headers": [
         {
@@ -21,7 +19,6 @@
       ]
     },
     {
-      "comment": "index.html must never be cached, or a deploy leaves users on stale asset references.",
       "source": "/index.html",
       "headers": [
         {
