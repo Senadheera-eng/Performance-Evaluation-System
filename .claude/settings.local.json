@@ -59,7 +59,14 @@
       "mcp__8ab9ffe7-7162-4577-b1d9-4f73c7e4af24__get_logs",
       "Skill(claude-api)",
       "Skill(claude-api:*)",
-      "Bash(node \"C:/Users/lahir/AppData/Local/Temp/claude/E--Education-PROJECTS-Performanceevaluationsystem/d8aa2b22-5688-46a5-a090-a2b69f71f214/scratchpad/test_course_filter.mjs\")"
+      "Bash(node \"C:/Users/lahir/AppData/Local/Temp/claude/E--Education-PROJECTS-Performanceevaluationsystem/d8aa2b22-5688-46a5-a090-a2b69f71f214/scratchpad/test_course_filter.mjs\")",
+      "Bash(python -c ' *)",
+      "PowerShell(Get-Command python,python3,py,pdftotext,pdftoppm -ErrorAction SilentlyContinue | Select-Object Name,Source | Format-Table -AutoSize; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\\\\Python\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell($sp=\"C:\\\\Users\\\\lahir\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Education-PROJECTS-Performanceevaluationsystem\\\\db67eb4f-c767-4fd6-a4c3-26c997dd5d87\\\\scratchpad\"; New-Item -ItemType Directory -Force $sp | Out-Null; & \"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -layout \"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\22ENG079_Data_Management_Proposal.pdf\" \"$sp\\\\proposal.txt\"; & \"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -layout \"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\PES_Report.pdf\" \"$sp\\\\report.txt\"; Get-ChildItem $sp | Select Name,Length)",
+      "PowerShell($sp=\"C:\\\\Users\\\\lahir\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Education-PROJECTS-Performanceevaluationsystem\\\\db67eb4f-c767-4fd6-a4c3-26c997dd5d87\\\\scratchpad\"; & \"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin\\\\pdftotext.exe\" -layout \"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\Faculty Handbook 2026 new.pdf\" \"$sp\\\\handbook.txt\"; \\(Get-Item \"$sp\\\\handbook.txt\"\\).Length; \\(Get-Content \"$sp\\\\handbook.txt\" | Measure-Object -Line\\).Lines)",
+      "PowerShell(Get-ChildItem \"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\pes_app\\\\src\\\\app\\\\pages\",\"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\pes_app\\\\src\\\\app\\\\pages\\\\admin\",\"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\pes_app\\\\src\\\\lib\",\"E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\pes_app\\\\src\\\\app\\\\components\\\\layout\" -File | Select-Object @{n='Path';e={$_.FullName.Replace\\('E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem\\\\pes_app\\\\src\\\\',''\\)}},@{n='Lines';e={\\(Get-Content $_.FullName | Measure-Object -Line\\).Lines}} | Sort-Object Lines -Descending | Format-Table -AutoSize)",
+      "mcp__8ab9ffe7-7162-4577-b1d9-4f73c7e4af24__list_migrations",
+      "WebFetch(domain:pes-usj.vercel.app)"
     ]
   }
 }
