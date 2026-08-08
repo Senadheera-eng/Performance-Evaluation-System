@@ -42,6 +42,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import { ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
+import { PendingResultReviews } from "../../components/admin/PendingResultReviews";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
@@ -564,10 +565,19 @@ export default function AdminResults() {
           Results Management
         </h1>
         <p className="text-muted-foreground text-sm">
-          Enter student marks, save as draft, then publish to make them visible
-          to students.
+          Review sheets submitted by lecturers, or enter marks directly and
+          publish them to students.
         </p>
       </motion.div>
+
+      {/* Sheets lecturers have handed over. Publication is the department's
+          decision — the database refuses it to anyone else — so this is where
+          that decision gets made. */}
+      <PendingResultReviews
+        onChanged={() => {
+          if (selectedCourse && selectedYear) fetchStudentResults();
+        }}
+      />
 
       {/* Course and Batch Selection */}
       <Card className="border-border">

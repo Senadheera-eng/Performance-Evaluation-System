@@ -93,29 +93,22 @@ export default function GraduationPlanner() {
     setLoading(true);
 
     const { data: results } = await supabase
-      .from("results")
+      .from("my_published_results")
       .select(
-        `
-        id, grade,
-        courses ( id, course_code, title, semester, credits, contributes_to_gpa )
-      `,
+        "id, grade, course_id, course_code, course_title, semester, credits, contributes_to_gpa",
       )
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
       .not("gpv", "is", null);
 
-    const courseRows: CourseResult[] = (results ?? [])
-      .filter((r: any) => r.courses)
-      .map((r: any) => ({
-        resultRowId: r.id,
-        courseId: r.courses.id,
-        code: r.courses.course_code,
-        title: r.courses.title,
-        semester: r.courses.semester,
-        credits: r.courses.credits,
-        contributesToGpa: r.courses.contributes_to_gpa,
-        actualGrade: r.grade,
-      }));
+    const courseRows: CourseResult[] = (results ?? []).map((r: any) => ({
+      resultRowId: r.id,
+      courseId: r.course_id,
+      code: r.course_code,
+      title: r.course_title,
+      semester: r.semester,
+      credits: r.credits,
+      contributesToGpa: r.contributes_to_gpa,
+      actualGrade: r.grade,
+    }));
 
     setAllCourses(courseRows);
 

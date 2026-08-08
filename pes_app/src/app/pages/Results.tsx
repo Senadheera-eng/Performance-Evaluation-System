@@ -56,8 +56,9 @@ interface CourseResult {
   credits: number;
   mid_sem: number | null;
   ca: number | null;
-  ese: number | null;
-  oa: number | null;
+  // ese_mark and oa_mark are deliberately absent, not merely unused: the
+  // student-facing source is the `my_published_results` view, which does not
+  // expose either. See the view's own comment for why OA goes with ESE.
   grade: string | null;
   gpv: number | null;
   contributes_to_gpa: boolean;
@@ -134,30 +135,15 @@ export default function Results() {
     setLoading(true);
     setError(null);
 
+    // `my_published_results`, not `results`: the view self-scopes to the
+    // signed-in student's own published rows and withholds ese_mark/oa_mark,
+    // which RLS cannot do because it filters rows, not columns. Course
+    // details come back already joined, so there is no embed here.
     const { data, error: queryError } = await supabase
-      .from("results")
+      .from("my_published_results")
       .select(
-        `
-        course_id,
-        academic_year,
-        mid_sem_mark,
-        ca_mark,
-        ese_mark,
-        oa_mark,
-        grade,
-        gpv,
-        is_published,
-        courses (
-          course_code,
-          title,
-          credits,
-          semester,
-          contributes_to_gpa
-        )
-      `,
+        "course_id, academic_year, mid_sem_mark, ca_mark, grade, gpv, course_code, course_title, credits, semester, contributes_to_gpa",
       )
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
       .order("academic_year", { ascending: true });
 
     if (queryError) {
@@ -186,8 +172,7 @@ export default function Results() {
     > = {};
 
     data.forEach((r: any) => {
-      const course = r.courses;
-      const semNum = course.semester;
+      const semNum = r.semester;
       const key = `sem_${semNum}`;
 
       if (!semesterMap[key]) {
@@ -199,16 +184,14 @@ export default function Results() {
       }
 
       semesterMap[key].courses.push({
-        code: course.course_code,
-        name: course.title,
-        credits: course.credits,
+        code: r.course_code,
+        name: r.course_title,
+        credits: r.credits,
         mid_sem: r.mid_sem_mark,
         ca: r.ca_mark,
-        ese: r.ese_mark,
-        oa: r.oa_mark,
         grade: r.grade,
         gpv: r.gpv,
-        contributes_to_gpa: course.contributes_to_gpa,
+        contributes_to_gpa: r.contributes_to_gpa,
       });
     });
 
@@ -339,15 +322,16 @@ export default function Results() {
     semesters.find((s) => s.semesterKey === activeSemesterTab) ?? null;
 
   /**
-   * Component marks (Mid Sem / CA / ESE) are optional in this dataset — the
-   * historical import carries grades and grade points only. Showing four
-   * permanently empty columns made the table look broken, so they appear
-   * only for semesters that actually have component data.
+   * Continuous-assessment marks are optional in this dataset — the historical
+   * import carries grades and grade points only. Showing permanently empty
+   * columns made the table look broken, so they appear only for semesters
+   * that actually have them.
+   *
+   * The End-Semester Examination mark is not among them by design: students
+   * see their components and their grade, not the ESE mark itself.
    */
   const showComponentMarks = activeSemester
-    ? activeSemester.courses.some(
-        (c) => c.mid_sem !== null || c.ca !== null || c.ese !== null,
-      )
+    ? activeSemester.courses.some((c) => c.mid_sem !== null || c.ca !== null)
     : false;
 
   const handleDownloadTranscript = () => {
@@ -710,9 +694,6 @@ export default function Results() {
                         <TableHead className="text-center w-[70px]">
                           CA
                         </TableHead>
-                        <TableHead className="text-center w-[70px]">
-                          ESE
-                        </TableHead>
                       </>
                     )}
                     <TableHead className="text-center w-[90px]">
@@ -745,9 +726,6 @@ export default function Results() {
                           </TableCell>
                           <TableCell className="text-center tabular-nums text-muted-foreground">
                             {course.ca ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums text-muted-foreground">
-                            {course.ese ?? "—"}
                           </TableCell>
                         </>
                       )}

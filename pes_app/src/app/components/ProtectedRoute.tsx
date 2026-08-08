@@ -45,13 +45,25 @@ export default function ProtectedRoute({
     );
   }
 
-  // Wrong role → redirect
+  // Wrong role → send them to the portal their own role owns, rather than
+  // bouncing everyone to /app where a lecturer or admin has nothing.
   if (allowedRoles && (!student || !allowedRoles.includes(student.role))) {
-    if (student?.role === "dept_admin" || student?.role === "super_admin") {
-      return <Navigate to="/admin" replace />;
-    }
-    return <Navigate to="/app" replace />;
+    return <Navigate to={homeFor(student?.role)} replace />;
   }
 
   return <>{children}</>;
+}
+
+/** The portal a role belongs to. Kept next to the guard so a new role can
+ *  never be added to `Role` without a home being decided for it. */
+export function homeFor(role: Role | undefined): string {
+  switch (role) {
+    case "dept_admin":
+    case "super_admin":
+      return "/admin";
+    case "lecturer":
+      return "/staff";
+    default:
+      return "/app";
+  }
 }

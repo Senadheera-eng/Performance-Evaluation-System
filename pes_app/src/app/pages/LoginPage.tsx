@@ -6,6 +6,8 @@ import { Input } from "../components/ui/input";
 import { Checkbox } from "../components/ui/checkbox";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { homeFor } from "../components/ProtectedRoute";
+import type { Role } from "../../lib/types";
 import universityLogo from "../../assets/logo.jpg";
 
 export default function LoginPage() {
@@ -31,11 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (role === "dept_admin" || role === "super_admin") {
-      navigate("/admin");
-    } else {
-      navigate("/app");
-    }
+    navigate(homeFor((role ?? undefined) as Role | undefined));
 
     setLoading(false);
   };

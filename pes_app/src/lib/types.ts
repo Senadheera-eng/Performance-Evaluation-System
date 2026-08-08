@@ -1,5 +1,11 @@
-export type Role = 'student' | 'dept_admin' | 'super_admin'
+export type Role = 'student' | 'lecturer' | 'dept_admin' | 'super_admin'
 
+/**
+ * The signed-in user's profile, normalised across the three tables an
+ * identity can live in (`students`, `admins`, `lecturers`). Fields that do
+ * not apply to a given identity are null rather than absent, so every
+ * existing consumer keeps working regardless of who is signed in.
+ */
 export interface Student {
   id: string
   reg_number: string | null
@@ -13,6 +19,23 @@ export interface Student {
   status: 'active' | 'withdrawn' | 'transferred' | 'graduated'
   created_at: string
   avatar_url?: string | null
+}
+
+/**
+ * Academic-staff context, present only when the signed-in user is a lecturer.
+ *
+ * HOD is deliberately not a role: it is an appointment a lecturer holds, so
+ * it appears here as a department rather than changing `role`. That keeps a
+ * head of department a lecturer everywhere else in the system — they still
+ * teach, still get their own feedback — and makes handing over the headship
+ * an appointment change rather than an account change.
+ */
+export interface StaffContext {
+  lecturerId: string
+  department: string
+  title: string | null
+  /** The department this lecturer heads, or null if they hold no headship. */
+  hodDepartment: string | null
 }
 
 export interface Course {

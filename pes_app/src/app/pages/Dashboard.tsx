@@ -98,13 +98,11 @@ export default function Dashboard() {
 
   const fetchGPAData = async () => {
     // Fetch all published results with course credits
+    // Student-facing reads go through `my_published_results`, which
+    // self-scopes to the caller and withholds ese_mark/oa_mark.
     const { data } = await supabase
-      .from("results")
-      .select(
-        "gpv, academic_year, course_id, courses(semester, credits, contributes_to_gpa)",
-      )
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
+      .from("my_published_results")
+      .select("gpv, academic_year, course_id, semester, credits, contributes_to_gpa")
       .not("gpv", "is", null);
 
     if (!data || data.length === 0) return;
@@ -116,17 +114,16 @@ export default function Dashboard() {
       {};
 
     data.forEach((r: any) => {
-      const course = r.courses;
-      if (!course?.contributes_to_gpa) return;
+      if (!r.contributes_to_gpa) return;
 
-      totalWeighted += r.gpv * course.credits;
-      totalCredits += course.credits;
+      totalWeighted += r.gpv * r.credits;
+      totalCredits += r.credits;
 
-      const semKey = `Sem ${course.semester}`;
+      const semKey = `Sem ${r.semester}`;
       if (!semesterMap[semKey])
         semesterMap[semKey] = { weighted: 0, credits: 0 };
-      semesterMap[semKey].weighted += r.gpv * course.credits;
-      semesterMap[semKey].credits += course.credits;
+      semesterMap[semKey].weighted += r.gpv * r.credits;
+      semesterMap[semKey].credits += r.credits;
     });
 
     const cgpaVal = totalCredits > 0 ? totalWeighted / totalCredits : 0;
@@ -190,12 +187,13 @@ export default function Dashboard() {
         courseAttMap[a.course_id].present++;
     });
 
-    // Get mid-sem progress from results
+    // Continuous-assessment progress on ongoing courses. Only published rows
+    // are readable — an unpublished draft is the lecturer's working copy and
+    // was never actually reachable here, so this query returned nothing even
+    // before the switch to the view.
     const { data: resultsData } = await supabase
-      .from("results")
-      .select("course_id, mid_sem_mark, ca_mark")
-      .eq("student_id", student!.id)
-      .eq("is_published", false);
+      .from("my_published_results")
+      .select("course_id, mid_sem_mark, ca_mark");
 
     const progressMap: Record<string, number> = {};
     resultsData?.forEach((r: any) => {
@@ -265,20 +263,18 @@ export default function Dashboard() {
 
   const fetchRecentResults = async () => {
     const { data } = await supabase
-      .from("results")
-      .select("grade, gpv, courses(title, course_code)")
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
+      .from("my_published_results")
+      .select("grade, gpv, course_title, course_code, published_at")
       .not("grade", "is", null)
-      .order("created_at", { ascending: false })
+      .order("published_at", { ascending: false, nullsFirst: false })
       .limit(5);
 
     if (!data) return;
 
     setRecentResults(
       data.map((r: any) => ({
-        course: r.courses.title,
-        code: r.courses.course_code,
+        course: r.course_title,
+        code: r.course_code,
         grade: r.grade,
         gpv: r.gpv,
       })),

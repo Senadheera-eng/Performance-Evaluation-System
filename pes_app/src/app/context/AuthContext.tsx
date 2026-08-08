@@ -1,13 +1,15 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
-import { Student } from "../../lib/types";
+import { Student, StaffContext } from "../../lib/types";
 import { loadSettings } from "../../lib/settings";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   student: Student | null;
+  /** Set only for lecturers; carries the HOD appointment if they hold one. */
+  staff: StaffContext | null;
   loading: boolean;
   signIn: (
     email: string,
@@ -22,13 +24,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
+  const [staff, setStaff] = useState<StaffContext | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchStudentProfile = async (userId: string) => {
-    // Admins live in a separate table from students — check there first.
-    // Normalized into the same Student shape (with the student-only fields
-    // nulled out) so every existing consumer of `student` keeps working
-    // unchanged regardless of which table the profile came from.
+  /**
+   * Resolve the signed-in user against the three identity tables, in the same
+   * order the database's own get_my_role() helper uses so the client and RLS
+   * can never disagree about who someone is: admins, then lecturers, then
+   * students. Each is normalised into the one Student shape.
+   */
+  const fetchProfile = async (
+    userId: string,
+  ): Promise<{ profile: Student | null; staff: StaffContext | null }> => {
     const { data: admin } = await supabase
       .from("admins")
       .select("*")
@@ -36,25 +43,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
     if (admin) {
       return {
-        id: admin.id,
-        reg_number: null,
-        index_number: null,
-        name: admin.name,
-        email: admin.email,
-        department: admin.department,
-        batch_year: null,
-        role: admin.role,
-        status: admin.status,
-        created_at: admin.created_at,
-      } as Student;
+        profile: {
+          id: admin.id,
+          reg_number: null,
+          index_number: null,
+          name: admin.name,
+          email: admin.email,
+          department: admin.department,
+          batch_year: null,
+          role: admin.role,
+          status: admin.status,
+          created_at: admin.created_at,
+        } as Student,
+        staff: null,
+      };
+    }
+
+    const { data: lecturer } = await supabase
+      .from("lecturers")
+      .select("id, name, title, email, department, status, created_at")
+      .eq("auth_user_id", userId)
+      .maybeSingle();
+    if (lecturer) {
+      // The headship is a separate, time-bounded row rather than a column on
+      // the lecturer, so an appointment can end without touching the person.
+      const { data: appointment } = await supabase
+        .from("hod_appointments")
+        .select("department")
+        .eq("lecturer_id", lecturer.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      return {
+        profile: {
+          id: userId,
+          reg_number: null,
+          index_number: null,
+          name: lecturer.title ? `${lecturer.title} ${lecturer.name}` : lecturer.name,
+          email: lecturer.email,
+          department: lecturer.department,
+          batch_year: null,
+          role: "lecturer",
+          status: lecturer.status === "active" ? "active" : "withdrawn",
+          created_at: lecturer.created_at,
+        } as Student,
+        staff: {
+          lecturerId: lecturer.id,
+          department: lecturer.department,
+          title: lecturer.title ?? null,
+          hodDepartment: appointment?.department ?? null,
+        },
+      };
     }
 
     const { data } = await supabase
       .from("students")
       .select("*")
       .eq("id", userId)
-      .single();
-    return data as Student | null;
+      .maybeSingle();
+    return { profile: (data as Student | null) ?? null, staff: null };
   };
 
   // Pull the regulation engine (attendance thresholds, grading scale, etc.)
@@ -73,17 +120,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // because the client is still processing the auth response.
       setSession(session ?? null);
       setUser(session?.user ?? null);
-      if (!session?.user) setStudent(null);
+      if (!session?.user) {
+        setStudent(null);
+        setStaff(null);
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch student profile whenever the logged-in user changes
+  // Resolve the profile whenever the logged-in user changes
   useEffect(() => {
     if (!user) return;
-    fetchStudentProfile(user.id).then((profile) => setStudent(profile));
+    fetchProfile(user.id).then(({ profile, staff: staffContext }) => {
+      setStudent(profile);
+      setStaff(staffContext);
+    });
   }, [user?.id]);
 
   const signIn = async (email: string, password: string) => {
@@ -93,25 +146,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) return { error: error.message, role: null };
+    if (!data.user) return { error: null, role: "student" };
 
-    if (data.user) {
-      const { data: adminData } = await supabase
-        .from("admins")
-        .select("role")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      if (adminData) return { error: null, role: adminData.role };
+    // Same resolution order as fetchProfile, so the post-login redirect lands
+    // on the portal the profile will actually resolve to.
+    const { data: adminData } = await supabase
+      .from("admins")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (adminData) return { error: null, role: adminData.role };
 
-      const { data: studentData } = await supabase
-        .from("students")
-        .select("role")
-        .eq("id", data.user.id)
-        .single();
+    const { data: lecturerData } = await supabase
+      .from("lecturers")
+      .select("id")
+      .eq("auth_user_id", data.user.id)
+      .maybeSingle();
+    if (lecturerData) return { error: null, role: "lecturer" };
 
-      return { error: null, role: studentData?.role ?? "student" };
-    }
+    const { data: studentData } = await supabase
+      .from("students")
+      .select("role")
+      .eq("id", data.user.id)
+      .maybeSingle();
 
-    return { error: null, role: "student" };
+    return { error: null, role: studentData?.role ?? "student" };
   };
 
   const signOut = async () => {
@@ -120,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, student, loading, signIn, signOut }}
+      value={{ user, session, student, staff, loading, signIn, signOut }}
     >
       {children}
     </AuthContext.Provider>

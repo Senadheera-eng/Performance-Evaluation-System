@@ -34,25 +34,34 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
+type ButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
-  }) {
+  };
+
+/**
+ * forwardRef is required, not cosmetic. Radix `asChild` triggers — Popover,
+ * DropdownMenu, Tooltip, Dialog — clone their child and attach a ref to it to
+ * anchor and position the floating content. A plain function component
+ * silently drops that ref, so `<PopoverTrigger asChild><Button/></PopoverTrigger>`
+ * renders a button whose click toggles state but whose panel has nothing to
+ * anchor to. That is why the existing admin pages reach for a raw <button>
+ * instead of this component whenever they need a Radix trigger.
+ */
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant, size, asChild = false, ...props },
+  ref,
+) {
   const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   );
-}
+});
 
 export { Button, buttonVariants };

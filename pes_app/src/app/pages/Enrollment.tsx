@@ -130,14 +130,12 @@ export default function Enrollment() {
 
     // Determine the student's highest completed semester from published results
     const { data: completedResults } = await supabase
-      .from("results")
-      .select("courses(semester)")
-      .eq("student_id", student!.id)
-      .eq("is_published", true);
+      .from("my_published_results")
+      .select("semester");
 
     const completedSemesters =
       completedResults
-        ?.map((r: any) => r.courses?.semester ?? 0)
+        ?.map((r: any) => r.semester ?? 0)
         .filter((s: number) => s > 0) ?? [];
 
     const highestCompleted =

@@ -103,11 +103,12 @@ export default function Courses() {
 
     const progressMap: Record<string, number> = {};
     if (enrolledIds.length > 0) {
+      // Continuous-assessment progress. Unpublished drafts are the lecturer's
+      // working copy and have never been readable here, so this only ever
+      // shows courses whose marks the department has already released.
       const { data: currentResults } = await supabase
-        .from("results")
+        .from("my_published_results")
         .select("course_id, mid_sem_mark, ca_mark")
-        .eq("student_id", student!.id)
-        .eq("is_published", false)
         .in("course_id", enrolledIds);
 
       currentResults?.forEach((r: any) => {
@@ -141,44 +142,26 @@ export default function Courses() {
     // "did the student finish this course" — unlike `enrollments`, this isn't
     // missing rows for semesters that were bulk-imported directly into `results`.
     const { data: resultsData } = await supabase
-      .from("results")
+      .from("my_published_results")
       .select(
-        `
-        course_id,
-        grade,
-        courses (
-          id,
-          course_code,
-          title,
-          credits,
-          semester,
-          year,
-          category,
-          minor_category
-        )
-      `,
+        "course_id, grade, course_code, course_title, credits, semester, course_year, category, minor_category",
       )
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
       .not("grade", "is", null);
 
     const completedCourses: Course[] = (resultsData ?? [])
-      .filter((r: any) => r.courses && !enrolledIds.includes(r.course_id))
-      .map((r: any) => {
-        const c = r.courses;
-        return {
-          id: c.id,
-          code: c.course_code,
-          name: c.title,
-          credits: c.credits,
-          status: "completed" as const,
-          grade: r.grade,
-          category: c.category,
-          minor_category: c.minor_category,
-          semester: c.semester,
-          year: c.year,
-        };
-      });
+      .filter((r: any) => !enrolledIds.includes(r.course_id))
+      .map((r: any) => ({
+        id: r.course_id,
+        code: r.course_code,
+        name: r.course_title,
+        credits: r.credits,
+        status: "completed" as const,
+        grade: r.grade,
+        category: r.category,
+        minor_category: r.minor_category,
+        semester: r.semester,
+        year: r.course_year,
+      }));
 
     // Remaining catalogue courses: everything in the student's own curriculum
     // (their department plus shared Interdisciplinary Studies courses) that

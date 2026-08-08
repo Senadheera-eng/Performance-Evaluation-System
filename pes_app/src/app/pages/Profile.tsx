@@ -86,30 +86,16 @@ export default function Profile() {
 
     // Fetch published results
     const { data: results } = await supabase
-      .from("results")
-      .select(
-        `
-        gpv,
-        academic_year,
-        courses (
-          semester,
-          credits,
-          contributes_to_gpa
-        )
-      `,
-      )
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
+      .from("my_published_results")
+      .select("gpv, academic_year, semester, credits, contributes_to_gpa")
       .not("gpv", "is", null);
 
     // Completed courses count — sourced from published results, not
     // `enrollments`, since historical semesters were bulk-imported straight
     // into `results` without matching enrollment rows.
     const { count: completedCount } = await supabase
-      .from("results")
+      .from("my_published_results")
       .select("*", { count: "exact", head: true })
-      .eq("student_id", student!.id)
-      .eq("is_published", true)
       .not("grade", "is", null);
 
     // Current enrolled to find current semester
@@ -121,14 +107,14 @@ export default function Profile() {
 
     if (results) {
       const gpaCourses = results.filter(
-        (r: any) => r.courses?.contributes_to_gpa && r.gpv !== null,
+        (r: any) => r.contributes_to_gpa && r.gpv !== null,
       );
       const totalWeighted = gpaCourses.reduce(
-        (sum: number, r: any) => sum + r.gpv * r.courses.credits,
+        (sum: number, r: any) => sum + r.gpv * r.credits,
         0,
       );
       const totalCr = gpaCourses.reduce(
-        (sum: number, r: any) => sum + r.courses.credits,
+        (sum: number, r: any) => sum + r.credits,
         0,
       );
       const cgpa =
@@ -141,11 +127,11 @@ export default function Profile() {
       > = {};
 
       gpaCourses.forEach((r: any) => {
-        const semNum = r.courses.semester;
+        const semNum = r.semester;
         if (!semMap[semNum])
           semMap[semNum] = { weighted: 0, credits: 0, year: r.academic_year };
-        semMap[semNum].weighted += r.gpv * r.courses.credits;
-        semMap[semNum].credits += r.courses.credits;
+        semMap[semNum].weighted += r.gpv * r.credits;
+        semMap[semNum].credits += r.credits;
       });
 
       const semList: SemesterStat[] = Object.entries(semMap)

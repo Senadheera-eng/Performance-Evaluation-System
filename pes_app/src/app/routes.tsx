@@ -26,6 +26,18 @@ import AdminMedical from "./pages/admin/AdminMedical";
 import AdminFeedback from "./pages/admin/AdminFeedback";
 import AdminEnrollment from "./pages/admin/AdminEnrollment";
 
+// Staff (lecturer + HOD) imports. One portal for both: a head of department
+// is a lecturer with an appointment, so they get extra routes, not a
+// different area.
+import StaffLayout from "./layouts/StaffLayout";
+import StaffDashboard from "./pages/staff/StaffDashboard";
+import StaffCourses from "./pages/staff/StaffCourses";
+import StaffAttendance from "./pages/staff/StaffAttendance";
+import StaffResults from "./pages/staff/StaffResults";
+import HodAssignments from "./pages/staff/HodAssignments";
+import StaffStudents from "./pages/staff/StaffStudents";
+import StaffLecturers from "./pages/staff/StaffLecturers";
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -69,6 +81,26 @@ export const router = createBrowserRouter([
       { path: "medical", element: <AdminMedical /> },
       { path: "feedback", element: <AdminFeedback /> },
       { path: "enrollment", element: <AdminEnrollment /> },
+    ],
+  },
+  {
+    path: "/staff",
+    element: (
+      <ProtectedRoute allowedRole="lecturer">
+        <StaffLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <StaffDashboard /> },
+      { path: "courses", element: <StaffCourses /> },
+      { path: "attendance", element: <StaffAttendance /> },
+      { path: "results", element: <StaffResults /> },
+      // HOD-only in the navigation; the pages themselves also refuse a
+      // lecturer who opens the URL directly, and the RPCs behind them refuse
+      // regardless of what the client does.
+      { path: "assignments", element: <HodAssignments /> },
+      { path: "students", element: <StaffStudents /> },
+      { path: "lecturers", element: <StaffLecturers /> },
     ],
   },
   {
