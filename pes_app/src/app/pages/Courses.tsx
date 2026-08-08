@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Search,
   Filter,
@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   FileQuestion,
 } from "lucide-react";
-import { CourseCard } from "../components/dashboard/CourseCard";
+import { CourseListRow } from "../components/courses/CourseListRow";
 import { PillTabs } from "../components/dashboard/PillTabs";
 import { Input } from "../components/ui/input";
 import {
@@ -38,6 +38,7 @@ interface Course {
 
 export default function Courses() {
   const { student } = useAuth();
+  const reduce = useReducedMotion();
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -415,53 +416,71 @@ export default function Courses() {
           layoutId="courses-tab-indicator"
         />
 
-        {/* Tab Content */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-48 rounded-xl bg-muted animate-pulse" />
-            ))}
-          </div>
-        ) : filteredCourses.length === 0 ? (
+        {/* Tab Content — keyed on the active tab so switching tabs plays a
+            real transition (the panel slides out, the new one slides in and
+            its rows stagger). Without the key, rows shared between two tabs
+            stay mounted and nothing visibly happens on the switch. */}
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
+            key={activeTab}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, x: -16 }}
+            transition={{ duration: reduce ? 0 : 0.18, ease: [0.4, 0, 0.2, 1] }}
           >
-            <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              No courses found
-            </h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search or filter criteria.
-            </p>
-          </motion.div>
-        ) : (
-          <div className="space-y-6">
-            {coursesBySemester.map((group) => (
-              <div key={group.semester}>
-                <div className="flex items-center gap-2.5 mb-3">
-                  <h3 className="text-base font-semibold text-foreground">
-                    Semester {group.semester}
-                  </h3>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                    {group.courses.length} course
-                    {group.courses.length !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {group.courses.map((course) => (
-                    <CourseCard
-                      key={course.id}
-                      course={course}
-                      onClick={() => {}}
-                    />
-                  ))}
-                </div>
+            {loading ? (
+              <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2 min-[1700px]:grid-cols-3">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="h-[38px] rounded-lg bg-muted animate-pulse"
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            ) : filteredCourses.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No courses found
+                </h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your search or filter criteria.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {coursesBySemester.map((group) => (
+                  <div key={group.semester}>
+                    {/* Sticky so the semester a row belongs to stays visible
+                        while scrolling a long list — the card grid conveyed
+                        that purely through spacing, which a dense list loses. */}
+                    <div className="sticky top-14 z-10 -mx-1 mb-2 flex items-center gap-2.5 bg-background/90 px-1 py-1.5 backdrop-blur-sm">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Semester {group.semester}
+                      </h3>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        {group.courses.length} course
+                        {group.courses.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    {/* Two across from xl, three only on genuinely wide
+                        screens. Three columns any earlier leaves each cell too
+                        narrow and every course title truncates. */}
+                    <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2 min-[1700px]:grid-cols-3">
+                      {group.courses.map((course, index) => (
+                        <CourseListRow
+                          key={course.id}
+                          course={course}
+                          index={index}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -270,7 +270,8 @@ export default function Results() {
       })),
     );
 
-    // Grade spread across every graded course, ordered best grade first.
+    // Grade spread across every graded course. Ordering is applied at render
+    // time from the regulation engine's grade scale, not here.
     const counts = new Map<string, { count: number; gpv: number }>();
     semList.forEach((s) =>
       s.courses.forEach((c) => {
@@ -283,9 +284,11 @@ export default function Results() {
       }),
     );
     setGradeSpread(
-      Array.from(counts.entries())
-        .map(([grade, v]) => ({ grade, count: v.count, gpv: v.gpv }))
-        .sort((a, b) => b.gpv - a.gpv || a.grade.localeCompare(b.grade)),
+      Array.from(counts.entries()).map(([grade, v]) => ({
+        grade,
+        count: v.count,
+        gpv: v.gpv,
+      })),
     );
 
     setLoading(false);
@@ -310,6 +313,27 @@ export default function Results() {
       settings.honoursClassifications.find((c) => cgpa >= c.threshold) ?? null
     );
   }, [cgpa, totalCredits, settings.honoursClassifications]);
+
+  /**
+   * Grades in academic order — A+, A, A-, B+, B, B-, C+, … — taken from the
+   * regulation engine's own grade scale rather than sorted by grade point.
+   * Sorting by GPV put A above A+: both are worth 4.00, so the tie fell
+   * through to an alphabetical comparison where "A" sorts before "A+".
+   * Grades outside the scale (R, L) keep their existing GPV ordering and
+   * sit at the end.
+   */
+  const orderedGradeSpread = useMemo(() => {
+    const rank = new Map(
+      settings.gradeBoundaries.map((b, index) => [b.grade, index]),
+    );
+    const unranked = settings.gradeBoundaries.length;
+    return [...gradeSpread].sort(
+      (a, b) =>
+        (rank.get(a.grade) ?? unranked) - (rank.get(b.grade) ?? unranked) ||
+        b.gpv - a.gpv ||
+        a.grade.localeCompare(b.grade),
+    );
+  }, [gradeSpread, settings.gradeBoundaries]);
 
   const activeSemester =
     semesters.find((s) => s.semesterKey === activeSemesterTab) ?? null;
@@ -530,15 +554,15 @@ export default function Results() {
           description={`How your ${completedCourses} graded course${completedCourses === 1 ? "" : "s"} break down.`}
           height={250}
           loading={loading}
-          hasData={gradeSpread.length > 0}
+          hasData={orderedGradeSpread.length > 0}
           emptyTitle="No grades recorded yet"
-          summary={`Grade counts: ${gradeSpread
+          summary={`Grade counts: ${orderedGradeSpread
             .map((g) => `${g.grade}: ${g.count}`)
             .join(", ")}.`}
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={gradeSpread}
+              data={orderedGradeSpread}
               layout="vertical"
               margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
             >

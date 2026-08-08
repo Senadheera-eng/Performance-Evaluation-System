@@ -1,6 +1,8 @@
+import { motion, useReducedMotion } from "framer-motion";
 import { BarChart3 } from "lucide-react";
 import { cn } from "../ui/utils";
 import { EmptyState, ErrorState, Skeleton } from "./States";
+import { DURATION, EASE } from "./motion";
 
 interface ChartContainerProps {
   title: string;
@@ -44,6 +46,8 @@ export function ChartContainer({
   children,
   className,
 }: ChartContainerProps) {
+  const reduce = useReducedMotion();
+
   return (
     <section
       className={cn(
@@ -83,9 +87,22 @@ export function ChartContainer({
         ) : (
           <>
             {summary && <p className="sr-only">{summary}</p>}
-            <div style={{ height }} aria-hidden={summary ? "true" : undefined}>
+            {/* The plot fades and lifts in as it replaces the loading
+                skeleton, so the chart reads as arriving rather than snapping
+                into place. This runs alongside the marks' own draw animation
+                — Recharts starts that on mount, which is this same moment. */}
+            <motion.div
+              initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reduce ? 0 : DURATION.slow,
+                ease: EASE,
+              }}
+              style={{ height }}
+              aria-hidden={summary ? "true" : undefined}
+            >
               {children}
-            </div>
+            </motion.div>
           </>
         )}
       </div>

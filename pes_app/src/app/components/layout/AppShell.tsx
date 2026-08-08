@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   LogOut,
@@ -79,6 +79,11 @@ export function AppShell({
 }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  // The matched route's element, rather than <Outlet />: AnimatePresence has
+  // to hold on to the *previous* page's element while it animates out, and it
+  // can only do that if the element is a child it was handed. <Outlet /> would
+  // re-resolve to the incoming route mid-exit and the old page would vanish.
+  const outlet = useOutlet();
   const { theme, setTheme, isDark } = useTheme();
   const reduce = useReducedMotion();
 
@@ -478,9 +483,35 @@ export function AppShell({
               </div>
             </header>
 
+            {/* Route transition. Navigating from the sidebar used to swap
+                the page in with no transition at all, so every chart on the
+                incoming page snapped into place at once. Keying on the path
+                gives each page a short lift-and-fade entrance, and — because
+                the page genuinely remounts — the Recharts draw animations
+                play in step with it rather than before the page is visible. */}
             <main className="p-4 lg:p-6">
               <div className="max-w-screen-2xl mx-auto">
-                <Outlet />
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={location.pathname}
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    // Leaving is quicker than arriving: with mode="wait" the
+                    // exit is dead time before the new page can even start
+                    // fetching, so it stays short.
+                    exit={
+                      reduce
+                        ? { opacity: 0, transition: { duration: 0 } }
+                        : { opacity: 0, y: -8, transition: { duration: 0.12 } }
+                    }
+                    transition={{
+                      duration: reduce ? 0 : 0.24,
+                      ease: [0.4, 0, 0.2, 1],
+                    }}
+                  >
+                    {outlet}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </main>
           </div>

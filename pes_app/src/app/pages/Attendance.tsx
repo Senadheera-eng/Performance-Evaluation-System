@@ -2,13 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
-  Award,
   BookOpen,
   CalendarCheck2,
   CalendarX2,
-  CalendarClock,
   CheckCircle2,
-  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 import {
@@ -24,6 +21,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  SegmentedTabs,
   Skeleton,
   SkeletonRows,
   SkeletonStatGrid,
@@ -35,6 +33,12 @@ import {
   AttendanceCalendar,
   type AttendanceRecord,
 } from "../components/attendance/AttendanceCalendar";
+import {
+  AttendanceOverview,
+  TIER_ICON,
+  TIER_TONE,
+  type CourseAttendanceSummary,
+} from "../components/attendance/AttendanceOverview";
 import {
   AttendanceHistoryList,
   type HistoryRecord,
@@ -60,21 +64,11 @@ interface CourseInfo {
   name: string;
 }
 
-const TIER_TONE: Record<AttendanceTier, StatusTone> = {
-  excellent: "success",
-  safe: "info",
-  at_risk: "warning",
-  critical: "danger",
-  pending: "neutral",
-};
-
-const TIER_ICON = {
-  excellent: Award,
-  safe: ShieldCheck,
-  at_risk: AlertTriangle,
-  critical: ShieldAlert,
-  pending: CalendarClock,
-};
+const TABS = [
+  { value: "overview", label: "Attendance" },
+  { value: "calendar", label: "Calendar View" },
+] as const;
+type TabValue = (typeof TABS)[number]["value"];
 
 export default function Attendance() {
   const { student } = useAuth();
@@ -90,6 +84,10 @@ export default function Attendance() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Opens on the all-course overview: "am I in trouble anywhere?" is the
+  // question students arrive with, and the calendar can only answer it one
+  // course at a time.
+  const [tab, setTab] = useState<TabValue>("overview");
 
   useEffect(() => {
     if (!student?.id) return;
@@ -174,41 +172,70 @@ export default function Attendance() {
     setLoading(false);
   };
 
+  /**
+   * Per-course attendance, derived once. The overview list, the glance chart
+   * and the selected-course stat cards all read from this rather than each
+   * re-deriving the same percentages from the raw records.
+   */
+  const courseSummaries: CourseAttendanceSummary[] = useMemo(
+    () =>
+      courses.map((c) => {
+        const counts = toCounts(recordsByCourse[c.id] ?? []);
+        const total = totalCount(counts);
+        const compliant = compliantCount(counts);
+        const percentage = percentageOf(counts);
+        return {
+          id: c.id,
+          code: c.code,
+          name: c.name,
+          counts,
+          total,
+          percentage,
+          tier: classifyTier(percentage, total, threshold, prewarning),
+          absencesAllowed: getAbsencesAllowed(compliant, total, threshold),
+          lecturesNeeded: getLecturesNeededToRecover(
+            compliant,
+            total,
+            threshold,
+          ),
+        };
+      }),
+    [courses, recordsByCourse, threshold, prewarning],
+  );
+
+  const selectedSummary =
+    courseSummaries.find((s) => s.id === selectedCourseId) ?? null;
   const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
   const selectedRecords = selectedCourseId
     ? recordsByCourse[selectedCourseId] ?? []
     : [];
-  const selectedCounts = toCounts(selectedRecords);
-  const selectedTotal = totalCount(selectedCounts);
-  const selectedCompliant = compliantCount(selectedCounts);
-  const selectedPercentage = percentageOf(selectedCounts);
-  const selectedTier = classifyTier(
-    selectedPercentage,
-    selectedTotal,
-    threshold,
-    prewarning,
-  );
-  const absencesAllowed = getAbsencesAllowed(selectedCompliant, selectedTotal, threshold);
-  const lecturesNeeded = getLecturesNeededToRecover(
-    selectedCompliant,
-    selectedTotal,
-    threshold,
-  );
+  const selectedCounts = selectedSummary?.counts ?? {
+    present: 0,
+    absent: 0,
+    excused: 0,
+  };
+  const selectedTotal = selectedSummary?.total ?? 0;
+  const selectedPercentage = selectedSummary?.percentage ?? 0;
+  const selectedTier: AttendanceTier = selectedSummary?.tier ?? "pending";
+  const absencesAllowed = selectedSummary?.absencesAllowed ?? 0;
+  const lecturesNeeded = selectedSummary?.lecturesNeeded ?? 0;
 
   // "All courses at a glance" chart — courses with no recorded lecture yet
   // are excluded and counted separately, same rule the summary math uses.
   const attendanceChartData = useMemo(
     () =>
-      courses
-        .map((c) => ({
-          code: c.code,
-          counts: toCounts(recordsByCourse[c.id] ?? []),
-        }))
-        .filter((c) => totalCount(c.counts) > 0)
-        .map((c) => ({ code: c.code, percentage: percentageOf(c.counts) })),
-    [courses, recordsByCourse],
+      courseSummaries
+        .filter((s) => s.total > 0)
+        .map((s) => ({ code: s.code, percentage: s.percentage })),
+    [courseSummaries],
   );
   const coursesAwaiting = courses.length - attendanceChartData.length;
+
+  /** Overview → calendar, with the course the student tapped preselected. */
+  const openCalendarFor = (courseId: string) => {
+    setSelectedCourseId(courseId);
+    setTab("calendar");
+  };
 
   const allHistoryRecords: HistoryRecord[] = useMemo(
     () =>
@@ -258,163 +285,201 @@ export default function Attendance() {
         description={`Monitor your attendance and stay above the ${threshold}% requirement, course by course.`}
       />
 
-      {/* Course selector — deliberately its own full-width, clearly labelled
-          row rather than a small control tucked into the header, which
-          students found easy to miss and didn't read as a dropdown at all. */}
-      {loading ? (
-        <Skeleton className="h-[52px] w-full" />
-      ) : (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
-          <label
-            htmlFor="attendance-course-select"
-            className="flex items-center gap-2 text-sm font-medium text-foreground sm:w-36 flex-shrink-0"
-          >
-            <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Viewing course
-          </label>
-          <Select
-            value={selectedCourseId ?? undefined}
-            onValueChange={setSelectedCourseId}
-          >
-            <SelectTrigger
-              id="attendance-course-select"
-              className="w-full sm:max-w-md h-11 text-sm"
-            >
-              <SelectValue placeholder="Select a course" />
-            </SelectTrigger>
-            <SelectContent>
-              {courses.map((c) => {
-                const counts = toCounts(recordsByCourse[c.id] ?? []);
-                const total = totalCount(counts);
-                const pct = percentageOf(counts);
-                return (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      <span className="font-medium">{c.code}</span>
-                      <span className="text-muted-foreground truncate">
-                        {c.name}
-                      </span>
-                      {total > 0 && (
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          ({pct}%)
-                        </span>
-                      )}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <SegmentedTabs
+        aria-label="Attendance view"
+        value={tab}
+        onChange={(v) => setTab(v as TabValue)}
+        layoutId="attendance-view-tabs"
+        tabs={TABS.map((t) => ({ value: t.value, label: t.label }))}
+      />
 
-      {loading ? (
-        <SkeletonStatGrid count={6} />
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-          <StatCard
-            index={0}
-            label="Attendance"
-            value={`${selectedPercentage}%`}
-            icon={TIER_ICON[selectedTier]}
-            tone={TIER_TONE[selectedTier]}
-            hint={TIER_LABEL[selectedTier]}
-          />
-          <StatCard
-            index={1}
-            label="Total Lectures"
-            value={selectedTotal}
-            icon={CalendarCheck2}
-            tone="neutral"
-          />
-          <StatCard
-            index={2}
-            label="Present"
-            value={selectedCounts.present}
-            icon={CheckCircle2}
-            tone="success"
-          />
-          <StatCard
-            index={3}
-            label="Absent"
-            value={selectedCounts.absent}
-            icon={CalendarX2}
-            tone="danger"
-          />
-          <StatCard
-            index={4}
-            label="Excused"
-            value={selectedCounts.excused}
-            icon={ShieldCheck}
-            tone="info"
-          />
-          <StatCard
-            index={5}
-            label="Absences Allowed"
-            value={absencesAllowed}
-            icon={AlertTriangle}
-            tone={absencesAllowed === 0 && selectedTotal > 0 ? "danger" : "neutral"}
-            hint={`Before dropping below ${threshold}%`}
-          />
-        </div>
-      )}
-
-      {!loading && selectedCourse && (
-        <StatusMessage
-          tier={selectedTier}
-          threshold={threshold}
-          percentage={selectedPercentage}
-          absencesAllowed={absencesAllowed}
-          lecturesNeeded={lecturesNeeded}
-        />
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-        <div className="lg:col-span-3">
-          {loading ? (
-            <Skeleton className="h-[480px] w-full" />
+      {/* Keyed on the active tab so each switch plays a real transition
+          rather than swapping the panel in instantly. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={tab}
+          initial={reduce ? { opacity: 0 } : { opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={reduce ? { opacity: 0 } : { opacity: 0, x: -16 }}
+          transition={{ duration: reduce ? 0 : 0.18, ease: [0.4, 0, 0.2, 1] }}
+          className="space-y-5"
+        >
+          {tab === "overview" ? (
+          loading ? (
+            <div className="space-y-4">
+              <SkeletonStatGrid count={5} />
+              <SkeletonRows count={6} height="h-16" />
+            </div>
           ) : (
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedCourseId ?? "none"}
-                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                transition={{ duration: reduce ? 0 : 0.2 }}
-              >
-                {selectedCourse && (
-                  <AttendanceCalendar
-                    courseCode={selectedCourse.code}
-                    courseName={selectedCourse.name}
-                    records={selectedRecords}
-                  />
-                )}
-              </motion.div>
-            </AnimatePresence>
-          )}
-        </div>
-
-        <div className="lg:col-span-2">
-          {loading ? (
-            <Skeleton className="h-[300px] w-full" />
-          ) : (
-            <CourseAttendanceChart
-              title="All courses at a glance"
-              description="How attendance compares across your enrolled courses"
-              data={attendanceChartData}
+            <AttendanceOverview
+              summaries={courseSummaries}
               threshold={threshold}
-              prewarning={prewarning}
-              awaitingCount={coursesAwaiting}
+              onOpenCalendar={openCalendarFor}
+            />
+          )
+        ) : (
+          <>
+          {/* Course selector — deliberately its own full-width, clearly labelled
+              row rather than a small control tucked into the header, which
+              students found easy to miss and didn't read as a dropdown at all. */}
+          {loading ? (
+            <Skeleton className="h-[52px] w-full" />
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+              <label
+                htmlFor="attendance-course-select"
+                className="flex items-center gap-2 text-sm font-medium text-foreground sm:w-36 flex-shrink-0"
+              >
+                <BookOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                Viewing course
+              </label>
+              <Select
+                value={selectedCourseId ?? undefined}
+                onValueChange={setSelectedCourseId}
+              >
+                <SelectTrigger
+                  id="attendance-course-select"
+                  className="w-full sm:max-w-md h-11 text-sm"
+                >
+                  <SelectValue placeholder="Select a course" />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses.map((c) => {
+                    const counts = toCounts(recordsByCourse[c.id] ?? []);
+                    const total = totalCount(counts);
+                    const pct = percentageOf(counts);
+                    return (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium">{c.code}</span>
+                          <span className="text-muted-foreground truncate">
+                            {c.name}
+                          </span>
+                          {total > 0 && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              ({pct}%)
+                            </span>
+                          )}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {loading ? (
+            <SkeletonStatGrid count={6} />
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+              <StatCard
+                index={0}
+                label="Attendance"
+                value={`${selectedPercentage}%`}
+                icon={TIER_ICON[selectedTier]}
+                tone={TIER_TONE[selectedTier]}
+                hint={TIER_LABEL[selectedTier]}
+              />
+              <StatCard
+                index={1}
+                label="Total Lectures"
+                value={selectedTotal}
+                icon={CalendarCheck2}
+                tone="neutral"
+              />
+              <StatCard
+                index={2}
+                label="Present"
+                value={selectedCounts.present}
+                icon={CheckCircle2}
+                tone="success"
+              />
+              <StatCard
+                index={3}
+                label="Absent"
+                value={selectedCounts.absent}
+                icon={CalendarX2}
+                tone="danger"
+              />
+              <StatCard
+                index={4}
+                label="Excused"
+                value={selectedCounts.excused}
+                icon={ShieldCheck}
+                tone="info"
+              />
+              <StatCard
+                index={5}
+                label="Absences Allowed"
+                value={absencesAllowed}
+                icon={AlertTriangle}
+                tone={absencesAllowed === 0 && selectedTotal > 0 ? "danger" : "neutral"}
+                hint={`Before dropping below ${threshold}%`}
+              />
+            </div>
+          )}
+
+          {!loading && selectedCourse && (
+            <StatusMessage
+              tier={selectedTier}
+              threshold={threshold}
+              percentage={selectedPercentage}
+              absencesAllowed={absencesAllowed}
+              lecturesNeeded={lecturesNeeded}
             />
           )}
-        </div>
-      </div>
 
-      {loading ? (
-        <SkeletonRows count={5} height="h-12" />
-      ) : (
-        <AttendanceHistoryList records={allHistoryRecords} />
-      )}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+            <div className="lg:col-span-3">
+              {loading ? (
+                <Skeleton className="h-[480px] w-full" />
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={selectedCourseId ?? "none"}
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                    transition={{ duration: reduce ? 0 : 0.2 }}
+                  >
+                    {selectedCourse && (
+                      <AttendanceCalendar
+                        courseCode={selectedCourse.code}
+                        courseName={selectedCourse.name}
+                        records={selectedRecords}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              )}
+            </div>
+
+            <div className="lg:col-span-2">
+              {loading ? (
+                <Skeleton className="h-[300px] w-full" />
+              ) : (
+                <CourseAttendanceChart
+                  title="All courses at a glance"
+                  description="How attendance compares across your enrolled courses"
+                  data={attendanceChartData}
+                  threshold={threshold}
+                  prewarning={prewarning}
+                  awaitingCount={coursesAwaiting}
+                />
+              )}
+            </div>
+          </div>
+
+          {loading ? (
+            <SkeletonRows count={5} height="h-12" />
+          ) : (
+            <AttendanceHistoryList records={allHistoryRecords} />
+          )}
+          </>
+        )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
