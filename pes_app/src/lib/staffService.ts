@@ -446,6 +446,106 @@ async function callWorkflow(
 }
 
 /* ------------------------------------------------------------------ */
+/* Department-wide feedback (head of department)                       */
+/* ------------------------------------------------------------------ */
+
+export interface DepartmentFeedbackRow {
+  period_id: string;
+  period_title: string;
+  period_status: FeedbackPeriodStatus;
+  feedback_type: "mid_semester" | "end_semester";
+  offering_id: string;
+  course_code: string;
+  course_title: string;
+  semester: number;
+  batch_year: number;
+  lecturers: string | null;
+  eligible_count: number;
+  response_count: number;
+  response_rate: number;
+  /** Closed and above the anonymity threshold. */
+  results_visible: boolean;
+  below_threshold: boolean;
+  /** Whether the assigned lecturers can see it yet — the department's call. */
+  is_released: boolean;
+  avg_rating: number | null;
+}
+
+export interface DepartmentLecturerRow {
+  lecturer_id: string;
+  lecturer_name: string;
+  is_hod: boolean;
+  course_count: number;
+  courses_counted: number;
+  courses_withheld: number;
+  response_count: number;
+  rated_answers: number;
+  avg_rating: number | null;
+}
+
+export interface DepartmentQuestionResult {
+  question_id: string;
+  question_text: string;
+  question_type: string;
+  section_title: string | null;
+  responses: number;
+  average: number | null;
+  distribution: Record<string, number>;
+}
+
+export interface DepartmentFeedbackDetail {
+  visible: boolean;
+  below_threshold?: boolean;
+  threshold?: number;
+  response_count?: number;
+  message?: string;
+  course_questions?: DepartmentQuestionResult[];
+  lecturer_questions?: {
+    lecturer_id: string;
+    lecturer_name: string;
+    questions: DepartmentQuestionResult[];
+  }[];
+  comments?: {
+    question_text: string;
+    section_title: string | null;
+    about_lecturer: string | null;
+    comment: string;
+  }[];
+}
+
+export async function getDepartmentFeedbackOverview(
+  periodId: string | null = null,
+): Promise<Result<DepartmentFeedbackRow[]>> {
+  const { data, error } = await supabase.rpc("get_department_feedback_overview", {
+    p_period_id: periodId,
+  });
+  if (error) return fail("get_department_feedback_overview", error);
+  return { ok: true, data: (data ?? []) as DepartmentFeedbackRow[] };
+}
+
+export async function getDepartmentLecturerFeedback(
+  periodId: string | null = null,
+): Promise<Result<DepartmentLecturerRow[]>> {
+  const { data, error } = await supabase.rpc("get_department_lecturer_feedback", {
+    p_period_id: periodId,
+  });
+  if (error) return fail("get_department_lecturer_feedback", error);
+  return { ok: true, data: (data ?? []) as DepartmentLecturerRow[] };
+}
+
+export async function getDepartmentFeedbackDetail(
+  periodId: string,
+  offeringId: string,
+): Promise<Result<DepartmentFeedbackDetail>> {
+  const { data, error } = await supabase.rpc("get_department_feedback_detail", {
+    p_period_id: periodId,
+    p_offering_id: offeringId,
+  });
+  if (error) return fail("get_department_feedback_detail", error);
+  return { ok: true, data: (data ?? { visible: false }) as DepartmentFeedbackDetail };
+}
+
+/* ------------------------------------------------------------------ */
 /* Feedback form requests                                              */
 /* ------------------------------------------------------------------ */
 

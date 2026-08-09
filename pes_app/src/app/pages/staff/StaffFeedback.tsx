@@ -19,9 +19,11 @@ import {
   StatusBadge,
   type StatusTone,
 } from "../../components/common";
+import { DepartmentFeedback } from "../../components/staff/DepartmentFeedback";
 import { FeedbackRequests } from "../../components/staff/FeedbackRequests";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
+import { getStaffCapabilities } from "../../../lib/staffScope";
 import {
   getMyFeedbackDetail,
   getMyFeedbackOverview,
@@ -45,11 +47,6 @@ const ratingTone = (avg: number | null): StatusTone => {
   return "danger";
 };
 
-const TABS = [
-  { value: "results", label: "Results" },
-  { value: "forms", label: "My Forms" },
-];
-
 /**
  * A lecturer's own feedback: what came back, and what they asked for.
  *
@@ -62,6 +59,7 @@ const TABS = [
  */
 export default function StaffFeedback() {
   const { staff } = useAuth();
+  const caps = getStaffCapabilities(staff);
   const [tab, setTab] = useState("results");
   const [rows, setRows] = useState<FeedbackOverviewRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +119,14 @@ export default function StaffFeedback() {
       />
 
       <SegmentedTabs
-        tabs={TABS}
+        tabs={[
+          { value: "results", label: "Results" },
+          { value: "forms", label: "My Forms" },
+          // The department view belongs to the appointment, not the role, so
+          // it appears and disappears with the headship. The RPCs behind it
+          // refuse anyone who is not the sitting head regardless.
+          ...(caps.isHod ? [{ value: "department", label: "Department" }] : []),
+        ]}
         value={tab}
         onChange={setTab}
         layoutId="staff-feedback-tabs"
@@ -130,6 +135,8 @@ export default function StaffFeedback() {
 
       {tab === "forms" ? (
         <FeedbackRequests />
+      ) : tab === "department" && caps.isHod ? (
+        <DepartmentFeedback />
       ) : (
         <ResultsTab
           rows={rows}
