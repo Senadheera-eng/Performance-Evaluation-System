@@ -19,6 +19,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "../../components/common";
+import { CoordinatorQuestions } from "../../components/staff/CoordinatorQuestions";
 import { DepartmentFeedback } from "../../components/staff/DepartmentFeedback";
 import { FeedbackRequests } from "../../components/staff/FeedbackRequests";
 import { useAuth } from "../../context/AuthContext";
@@ -134,7 +135,12 @@ export default function StaffFeedback() {
       />
 
       {tab === "forms" ? (
-        <FeedbackRequests />
+        <div className="space-y-5">
+          {/* Only renders for a coordinator with a round covering their
+              course — it returns nothing otherwise. */}
+          <CoordinatorQuestions />
+          <FeedbackRequests />
+        </div>
       ) : tab === "department" && caps.isHod ? (
         <DepartmentFeedback />
       ) : (

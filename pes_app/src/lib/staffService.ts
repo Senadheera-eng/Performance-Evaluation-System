@@ -546,6 +546,72 @@ export async function getDepartmentFeedbackDetail(
 }
 
 /* ------------------------------------------------------------------ */
+/* Course-specific questions (coordinator)                             */
+/* ------------------------------------------------------------------ */
+
+export interface CoordinatedQuestion {
+  id: string;
+  question_text: string;
+  question_type: string;
+  options: { value: string; label: string }[] | null;
+  placeholder: string | null;
+  is_required: boolean;
+}
+
+export interface CoordinatedRound {
+  period_id: string;
+  period_title: string;
+  period_status: FeedbackPeriodStatus;
+  feedback_type: "mid_semester" | "end_semester";
+  opens_at: string;
+  closes_at: string;
+  course_id: string;
+  course_code: string;
+  course_title: string;
+  response_count: number;
+  my_questions: CoordinatedQuestion[];
+}
+
+/** Feedback rounds covering a course this lecturer coordinates. */
+export async function getMyCoordinatedFeedback(): Promise<Result<CoordinatedRound[]>> {
+  const { data, error } = await supabase.rpc("get_my_coordinated_feedback");
+  if (error) return fail("get_my_coordinated_feedback", error);
+  return { ok: true, data: (data ?? []) as CoordinatedRound[] };
+}
+
+export async function addCourseQuestion(args: {
+  periodId: string;
+  courseId: string;
+  questionText: string;
+  questionType: string;
+  options: { value: string; label: string }[] | null;
+  placeholder: string | null;
+  isRequired: boolean;
+}): Promise<Result<WorkflowOutcome>> {
+  return callWorkflow("add_course_feedback_question", {
+    p_period_id: args.periodId,
+    p_course_id: args.courseId,
+    p_question_text: args.questionText,
+    p_question_type: args.questionType,
+    p_options: args.options,
+    p_placeholder: args.placeholder,
+    p_is_required: args.isRequired,
+  });
+}
+
+export async function removeCourseQuestion(
+  periodId: string,
+  courseId: string,
+  questionId: string,
+): Promise<Result<WorkflowOutcome>> {
+  return callWorkflow("remove_course_feedback_question", {
+    p_period_id: periodId,
+    p_course_id: courseId,
+    p_question_id: questionId,
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Feedback form requests                                              */
 /* ------------------------------------------------------------------ */
 
