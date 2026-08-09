@@ -65,7 +65,6 @@ revoke execute on function public.protect_lecturer_feedback_period() from public
 -- feedback_submissions references periods with no cascade, so even if this
 -- policy were widened a period with responses could not be deleted.
 drop policy if exists fp_lecturer_delete_own on public.feedback_periods;
-
 create policy fp_lecturer_delete_own on public.feedback_periods
   for delete to authenticated
   using (

@@ -20,7 +20,6 @@
 -- needed all along.
 
 alter table public.feedback_questions drop constraint if exists feedback_questions_options_shape;
-
 alter table public.feedback_questions
   add constraint feedback_questions_options_shape check (
     case when question_type = 'single_choice'
@@ -31,7 +30,6 @@ alter table public.feedback_questions
   );
 
 alter table public.feedback_questions drop constraint if exists feedback_questions_dependency_shape;
-
 alter table public.feedback_questions
   add constraint feedback_questions_dependency_shape check (
     case when depends_on_question_id is null

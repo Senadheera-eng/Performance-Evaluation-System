@@ -355,13 +355,8 @@ end;
 $$;
 
 revoke execute on function public.get_department_feedback_overview(uuid)        from public, anon;
-
 revoke execute on function public.get_department_lecturer_feedback(uuid)        from public, anon;
-
 revoke execute on function public.get_department_feedback_detail(uuid, uuid)    from public, anon;
-
 grant  execute on function public.get_department_feedback_overview(uuid)        to authenticated;
-
 grant  execute on function public.get_department_lecturer_feedback(uuid)        to authenticated;
-
 grant  execute on function public.get_department_feedback_detail(uuid, uuid)    to authenticated;

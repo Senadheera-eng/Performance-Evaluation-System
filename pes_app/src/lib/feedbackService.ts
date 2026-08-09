@@ -51,6 +51,8 @@ export interface FeedbackQuestion {
   display_order: number;
   is_required: boolean;
   options: FeedbackOption[] | null;
+  /** Grey prompt inside a text box, as the faculty's form words it. */
+  placeholder: string | null;
   /** 'course' is asked once; 'lecturer' once per lecturer on the offering. */
   target_type: "course" | "lecturer";
   section_key: string | null;
@@ -66,8 +68,45 @@ export interface FeedbackQuestion {
 export interface FeedbackSection {
   key: string;
   title: string;
+  /** Subtitle under the heading, e.g. "Assignments, projects and lab work". */
+  description: string | null;
+  icon: string | null;
   target_type: "course" | "lecturer";
   questions: FeedbackQuestion[];
+}
+
+/**
+ * One course a student can give feedback on right now, for one round.
+ *
+ * A course can appear twice — once for a mid-semester round and once for an
+ * end-semester one — which is exactly the choice the faculty's form puts in
+ * front of the student after they pick a course.
+ */
+export interface FeedbackCatalogueRow {
+  period_id: string;
+  period_title: string;
+  feedback_type: "mid_semester" | "end_semester";
+  closes_at: string;
+  allow_editing: boolean;
+  course_id: string;
+  course_code: string;
+  course_title: string;
+  credits: number;
+  semester: number;
+  category: string;
+  department: string;
+  academic_year: string;
+  coordinator_name: string | null;
+  lecturer_count: number;
+  submission_status: FeedbackSubmissionStatus;
+}
+
+export async function getFeedbackCatalogue(): Promise<
+  Result<FeedbackCatalogueRow[]>
+> {
+  const { data, error } = await supabase.rpc("get_student_feedback_catalogue");
+  if (error) return fail("getFeedbackCatalogue", error);
+  return { ok: true, data: (data ?? []) as FeedbackCatalogueRow[] };
 }
 
 export interface FeedbackFormLecturer {
@@ -109,6 +148,11 @@ export interface FeedbackFormData {
    *  records — never typed in by the student, so responses can be aggregated
    *  per lecturer rather than per spelling of a name. */
   lecturers: FeedbackFormLecturer[];
+  /** Shown in the course header, exactly as the faculty's form does. */
+  coordinator_name: string | null;
+  academic_year: string | null;
+  period_title: string | null;
+  closes_at: string | null;
   offering_id: string | null;
   feedback_type: "mid_semester" | "end_semester";
   submission: {

@@ -1,454 +1,655 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  MessageSquareText,
-  Search,
-  Clock,
-  CheckCircle2,
-  FileEdit,
-  Calendar,
-  BookOpen,
-  AlertCircle,
-  Lock,
-} from "lucide-react";
-import { Card, CardContent } from "../components/ui/card";
-import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, CheckCircle2, GraduationCap, Lock, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { PillTabs } from "../components/dashboard/PillTabs";
-import { useAuth } from "../context/AuthContext";
-import { describeBatch } from "../../lib/batch";
 import {
-  getActiveFeedbackPeriods,
-  getEligibleCourses,
-  FeedbackPeriod,
-  EligibleFeedbackCourse,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SkeletonRows,
+  StatusBadge,
+} from "../components/common";
+import { LikertMatrix } from "../components/feedback/LikertMatrix";
+import { QuestionField } from "../components/feedback/QuestionField";
+import { cn } from "../components/ui/utils";
+import {
+  answerKey,
+  getFeedbackCatalogue,
+  getFeedbackForm,
+  isQuestionVisible,
+  submitFeedback,
+  type FeedbackAnswerInput,
+  type FeedbackCatalogueRow,
+  type FeedbackFormData,
+  type FeedbackQuestion,
+  type FeedbackSection,
 } from "../../lib/feedbackService";
 
-const daysBetween = (a: Date, b: Date) =>
-  Math.ceil((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+const MAX_TEXT = 1000;
+const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
+const ORDINAL = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 
-const STATUS_META: Record<
-  string,
-  { label: string; color: string; icon: any; action: string }
-> = {
-  pending: {
-    label: "Pending",
-    color: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
-    icon: Clock,
-    action: "Submit",
-  },
-  draft: {
-    label: "Draft",
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-    icon: FileEdit,
-    action: "Continue Draft",
-  },
-  submitted: {
-    label: "Submitted",
-    color: "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
-    icon: CheckCircle2,
-    action: "View",
-  },
-  closed: {
-    label: "Closed",
-    color: "bg-muted text-muted-foreground",
-    icon: Lock,
-    action: "View",
-  },
+const TYPE_LABEL: Record<string, string> = {
+  mid_semester: "Mid Semester",
+  end_semester: "End Semester",
 };
 
+const TYPE_WINDOW: Record<string, string> = {
+  mid_semester: "Around week 7 of the semester",
+  end_semester: "Week 13 onwards / up to 4 weeks after semester end",
+};
+
+/**
+ * Course feedback, in the three steps the faculty's own portal uses: pick a
+ * semester, pick a course, pick the round. A course can be open for a
+ * mid-semester and an end-semester round at the same time, which is why the
+ * round is a separate choice rather than something the course card decides.
+ *
+ * Responses are recorded without a name. The department's own form promises
+ * strict confidentiality, and nothing here asks a student to weigh that up
+ * mid-form.
+ */
 export default function Feedback() {
-  const navigate = useNavigate();
-  const { student } = useAuth();
-  const [periods, setPeriods] = useState<FeedbackPeriod[]>([]);
-  const [periodId, setPeriodId] = useState<string>("");
-  const [courses, setCourses] = useState<EligibleFeedbackCourse[]>([]);
+  const [rows, setRows] = useState<FeedbackCatalogueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+
+  const [semester, setSemester] = useState<number | null>(null);
+  const [chosenCourse, setChosenCourse] = useState<string | null>(null);
+  const [chosenType, setChosenType] = useState<string | null>(null);
+  const [active, setActive] = useState<FeedbackCatalogueRow | null>(null);
 
   useEffect(() => {
-    if (!student?.id) return;
-    loadPeriods();
-  }, [student?.id]);
+    load();
+  }, []);
 
-  useEffect(() => {
-    if (!periodId) return;
-    loadCourses(periodId);
-  }, [periodId]);
-
-  const loadPeriods = async () => {
+  const load = async () => {
     setLoading(true);
     setError(null);
-
-    const result = await getActiveFeedbackPeriods();
+    const result = await getFeedbackCatalogue();
     if (!result.ok) {
       setError(result.error);
       setLoading(false);
       return;
     }
-
-    setPeriods(result.data);
-    if (result.data.length > 0) {
-      setPeriodId(result.data[0].id);
-    } else {
-      setCourses([]);
-      setLoading(false);
-    }
-  };
-
-  const loadCourses = async (id: string) => {
-    setLoading(true);
-    setError(null);
-
-    const result = await getEligibleCourses(id);
-    if (!result.ok) {
-      setError(result.error);
-      setCourses([]);
-    } else {
-      setCourses(result.data);
-    }
+    setRows(result.data);
     setLoading(false);
   };
 
-  const period = periods.find((p) => p.id === periodId) ?? null;
+  /* Which semesters have anything open, and which courses sit under each. */
+  const bySemester = useMemo(() => {
+    const map = new Map<number, FeedbackCatalogueRow[]>();
+    for (const r of rows) {
+      const found = map.get(r.semester);
+      if (found) found.push(r);
+      else map.set(r.semester, [r]);
+    }
+    return map;
+  }, [rows]);
 
-  const pendingCount = courses.filter(
-    (c) => c.submission_status === "pending",
-  ).length;
-  const draftCount = courses.filter((c) => c.submission_status === "draft").length;
-  const submittedCount = courses.filter(
-    (c) => c.submission_status === "submitted",
-  ).length;
-
-  const filtered = courses.filter((c) => {
-    const q = searchQuery.toLowerCase();
-    const matchSearch =
-      !q ||
-      c.course_code.toLowerCase().includes(q) ||
-      c.title.toLowerCase().includes(q);
-    const matchTab = activeTab === "all" || c.submission_status === activeTab;
-    return matchSearch && matchTab;
-  });
-
-  const remainingDays = period
-    ? Math.max(0, daysBetween(new Date(), new Date(period.closes_at)))
-    : 0;
-
-  const header = (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-    >
-      <h1 className="text-2xl font-bold text-foreground mb-1">
-        Course Feedback
-      </h1>
-      <p className="text-muted-foreground text-sm">
-        Share your course experience and help improve teaching quality and
-        course content.
-      </p>
-    </motion.div>
-  );
-
-  if (loading) {
-    return (
-      <div className="space-y-5">
-        {header}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
-          ))}
-        </div>
-        <div className="h-24 rounded-xl bg-muted animate-pulse" />
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
-          ))}
-        </div>
-      </div>
+  const coursesInSemester = useMemo(() => {
+    if (semester === null) return [];
+    const seen = new Map<string, FeedbackCatalogueRow>();
+    for (const r of bySemester.get(semester) ?? []) {
+      if (!seen.has(r.course_id)) seen.set(r.course_id, r);
+    }
+    return [...seen.values()].sort((a, b) =>
+      a.course_code.localeCompare(b.course_code),
     );
-  }
+  }, [bySemester, semester]);
 
-  if (error) {
-    return (
-      <div className="space-y-5">
-        {header}
-        <Card className="border-destructive/30">
-          <CardContent className="p-6 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-foreground mb-1">
-              Feedback could not be loaded
-            </h3>
-            <p className="text-muted-foreground text-sm mb-4">{error}</p>
-            <Button onClick={loadPeriods} variant="outline">
-              Try again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  /* The rounds open for the course the student just tapped. */
+  const roundsForCourse = useMemo(() => {
+    if (!chosenCourse) return [];
+    return rows.filter((r) => r.course_id === chosenCourse);
+  }, [rows, chosenCourse]);
 
-  if (!period) {
+  if (active) {
     return (
-      <div className="space-y-5">
-        {header}
-        <Card className="border-border">
-          <CardContent className="p-8 text-center">
-            <MessageSquareText className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-1">
-              No feedback period is currently open
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              When your department opens a feedback period for your courses, it
-              will appear here.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <FeedbackFormView
+        row={active}
+        onBack={() => {
+          setActive(null);
+          load();
+        }}
+      />
     );
   }
 
   return (
-    <div className="space-y-5">
-      {header}
+    <div className="space-y-6">
+      <PageHeader
+        title="Course Feedback"
+        description="Your feedback helps us improve course delivery and learning outcomes. Select your semester and course below to begin — all responses are treated with strict confidentiality."
+      />
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Available for Feedback",
-            value: courses.length,
-            icon: BookOpen,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "Pending",
-            value: pendingCount,
-            icon: Clock,
-            color:
-              "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-          },
-          {
-            label: "Submitted",
-            value: submittedCount,
-            icon: CheckCircle2,
-            color:
-              "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300",
-          },
-          {
-            label: "Closing Date",
-            value: new Date(period.closes_at).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-            }),
-            icon: Calendar,
-            color:
-              "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-          },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: i * 0.05 }}
-            className="bg-card rounded-xl p-3 border border-border shadow-sm"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1.5 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xl font-bold text-foreground">
-                  {stat.value}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {stat.label}
-                </p>
-              </div>
+      {error && <ErrorState message={error} onRetry={load} />}
+
+      {loading ? (
+        <SkeletonRows count={4} height="h-20" />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={MessageSquareText}
+          title="No feedback form is open"
+          description="When your department opens a feedback round for a course you took, it appears here."
+        />
+      ) : (
+        <>
+          <section>
+            <StepHeading number={1} title="Select Your Semester" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {SEMESTERS.map((s) => {
+                const available = bySemester.has(s);
+                const selected = semester === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={!available}
+                    aria-pressed={selected}
+                    onClick={() => {
+                      setSemester(s);
+                      setChosenCourse(null);
+                    }}
+                    className={cn(
+                      "rounded-xl border p-4 text-center transition-all",
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground shadow-elevation-sm"
+                        : available
+                          ? "border-border bg-card hover:border-primary/50"
+                          : "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    <span className="block text-2xl font-semibold">{s}</span>
+                    <span className="block text-xs">{ORDINAL[s]} Semester</span>
+                    {!available && (
+                      <span className="mt-0.5 block text-[11px]">
+                        Not available
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          </motion.div>
-        ))}
-      </div>
+          </section>
 
-      {/* Period banner */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="p-4 rounded-xl bg-primary/5 border border-primary/20"
+          {semester !== null && (
+            <section>
+              <StepHeading number={2} title="Select Your Course" />
+                <ul className="grid gap-3 md:grid-cols-2">
+                  {coursesInSemester.map((c) => {
+                    const rounds = rows.filter((r) => r.course_id === c.course_id);
+                    const done = rounds.every(
+                      (r) => r.submission_status === "submitted",
+                    );
+                    return (
+                      <li key={c.course_id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChosenCourse(c.course_id);
+                            setChosenType(null);
+                          }}
+                          className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/50"
+                        >
+                          <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
+                            {c.course_code}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                            {c.course_title}
+                          </span>
+                          {done && (
+                            <StatusBadge tone="success" icon={CheckCircle2}>
+                              Done
+                            </StatusBadge>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+            </section>
+          )}
+        </>
+      )}
+
+      <Dialog
+        open={chosenCourse !== null}
+        onOpenChange={(open) => !open && setChosenCourse(null)}
       >
-        <div className="flex items-start justify-between flex-wrap gap-2">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-foreground">{period.title}</h3>
-              <Badge className="bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-                Open
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {period.batch_year ? `${describeBatch(period.batch_year)} · ` : ""}
-              Semester {period.semester} · Academic Year {period.academic_year}
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Select Feedback Type</DialogTitle>
+          </DialogHeader>
+          {roundsForCourse[0] && (
+            <p className="-mt-2 text-sm text-muted-foreground">
+              <span className="font-semibold text-primary">
+                {roundsForCourse[0].course_code}
+              </span>{" "}
+              — {roundsForCourse[0].course_title}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {new Date(period.opens_at).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-              {" — "}
-              {new Date(period.closes_at).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-            {!period.allow_editing && (
-              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                Responses cannot be edited once submitted in this period.
-              </p>
-            )}
-          </div>
-          <Badge className="bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-            {remainingDays} day{remainingDays !== 1 ? "s" : ""} remaining
-          </Badge>
-        </div>
+          )}
 
-        {periods.length > 1 && (
-          <div className="mt-3">
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Feedback period
-            </label>
-            <select
-              value={periodId}
-              onChange={(e) => setPeriodId(e.target.value)}
-              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm w-full sm:w-auto"
-            >
-              {periods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title}
-                </option>
-              ))}
-            </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(["mid_semester", "end_semester"] as const).map((type) => {
+              const round = roundsForCourse.find((r) => r.feedback_type === type);
+              const submitted = round?.submission_status === "submitted";
+              const selected = chosenType === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={!round}
+                  aria-pressed={selected}
+                  onClick={() => setChosenType(type)}
+                  className={cn(
+                    "rounded-xl border p-4 text-center transition-all",
+                    selected
+                      ? "border-primary bg-primary/10"
+                      : round
+                        ? "border-border hover:border-primary/50"
+                        : "cursor-not-allowed border-border/60 bg-muted/40",
+                  )}
+                >
+                  <GraduationCap
+                    className={cn(
+                      "mx-auto mb-1.5 h-6 w-6",
+                      round ? "text-primary" : "text-muted-foreground",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={cn(
+                      "block text-sm font-semibold",
+                      round ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {TYPE_LABEL[type]}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {round ? TYPE_WINDOW[type] : "Not available yet"}
+                  </span>
+                  {submitted && (
+                    <StatusBadge tone="success" className="mt-1.5">
+                      Already submitted
+                    </StatusBadge>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        )}
-      </motion.div>
 
-      {/* Search + filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by course code or name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 bg-card border-border"
-          />
-        </div>
-        <PillTabs
-          tabs={[
-            { value: "all", label: "All" },
-            { value: "pending", label: `Pending (${pendingCount})` },
-            { value: "draft", label: `Draft (${draftCount})` },
-            { value: "submitted", label: `Submitted (${submittedCount})` },
-          ]}
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          layoutId="feedback-tab-indicator"
+          <Button
+            disabled={!chosenType}
+            onClick={() => {
+              const round = roundsForCourse.find(
+                (r) => r.feedback_type === chosenType,
+              );
+              if (!round) return;
+              setChosenCourse(null);
+              setActive(round);
+            }}
+          >
+            Continue to Feedback Form →
+          </Button>
+          <button
+            type="button"
+            onClick={() => setChosenCourse(null)}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            ← Cancel, go back to course list
+          </button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function StepHeading({ number, title }: { number: number; title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+        {number}
+      </span>
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* The form                                                            */
+/* ------------------------------------------------------------------ */
+
+function FeedbackFormView({
+  row,
+  onBack,
+}: {
+  row: FeedbackCatalogueRow;
+  onBack: () => void;
+}) {
+  const [form, setForm] = useState<FeedbackFormData | null>(null);
+  const [answers, setAnswers] = useState<Record<string, FeedbackAnswerInput>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const result = await getFeedbackForm(row.period_id, row.course_id);
+      if (!result.ok) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      setForm(result.data);
+      const existing: Record<string, FeedbackAnswerInput> = {};
+      for (const a of result.data.submission?.answers ?? []) {
+        existing[answerKey(a.question_id, a.lecturer_target_id)] = a;
+      }
+      setAnswers(existing);
+      setLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.period_id, row.course_id]);
+
+  const disabled = saving || done || (form ? !form.can_edit : true);
+
+  const patch = (
+    question: FeedbackQuestion,
+    lecturerId: string | null,
+    value: Partial<FeedbackAnswerInput>,
+  ) => {
+    const key = answerKey(question.id, lecturerId);
+    setAnswers((prev) => ({
+      ...prev,
+      [key]: {
+        question_id: question.id,
+        lecturer_target_id: lecturerId,
+        ...prev[key],
+        ...value,
+      },
+    }));
+  };
+
+  const submit = async () => {
+    if (!form) return;
+    setSaving(true);
+    setError(null);
+    const result = await submitFeedback(
+      row.period_id,
+      row.course_id,
+      true,
+      Object.values(answers),
+    );
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setDone(true);
+  };
+
+  if (loading) return <SkeletonRows count={6} height="h-16" />;
+
+  if (error && !form) {
+    return (
+      <div className="space-y-4">
+        <BackButton onBack={onBack} />
+        <ErrorState message={error} />
+      </div>
+    );
+  }
+  if (!form) return null;
+
+  if (done) {
+    return (
+      <div className="space-y-4">
+        <BackButton onBack={onBack} />
+        <EmptyState
+          icon={CheckCircle2}
+          title="Thank you — your feedback has been submitted"
+          description={`${row.course_code} · ${TYPE_LABEL[row.feedback_type]}. Your response is recorded without your name.`}
         />
       </div>
+    );
+  }
 
-      {/* Course list */}
-      {courses.length === 0 ? (
-        <div className="text-center py-12">
-          <MessageSquareText className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            No courses available for feedback
-          </h3>
-          <p className="text-muted-foreground text-sm">
-            This feedback period doesn't include any course you have taken.
-          </p>
+  const sections = form.sections ?? [];
+
+  return (
+    <div className="space-y-5">
+      <BackButton onBack={onBack} />
+
+      {/* Course header — auto-filled, exactly as the faculty's form shows it */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
+            {row.course_code}
+          </span>
+          <span className="text-base font-semibold text-foreground">
+            {row.course_title}
+          </span>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            No courses match your filter
-          </h3>
-          <p className="text-muted-foreground text-sm">
-            Try a different search term or tab.
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Feedback Type" value={`${TYPE_LABEL[row.feedback_type]} Feedback`} />
+          <Field label="Course Coordinator" value={form.coordinator_name ?? "Not assigned"} />
+          <Field label="Academic Year" value={form.academic_year ?? "—"} />
+          <Field label="Date" value={new Date().toLocaleDateString()} />
+        </dl>
+      </div>
+
+      <p className="rounded-xl border-l-4 border-primary bg-primary/5 px-4 py-3 text-sm text-foreground">
+        We appreciate your feedback on the{" "}
+        <strong>overall content and delivery methods</strong> of the course. The
+        information provided is treated with <strong>high confidentiality</strong>{" "}
+        for the improvement of future course delivery.
+      </p>
+
+      {!form.can_edit && (
+        <p className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          You have already submitted this form and it can no longer be changed.
+        </p>
+      )}
+
+      {error && <ErrorState message={error} size="inline" />}
+
+      {sections.map((section) => (
+        <SectionCardView
+          key={section.key}
+          section={section}
+          form={form}
+          answers={answers}
+          disabled={disabled}
+          onPatch={patch}
+        />
+      ))}
+
+      <Button
+        size="lg"
+        className="w-full"
+        disabled={disabled}
+        onClick={submit}
+      >
+        {saving ? "Submitting…" : "Submit Feedback"}
+      </Button>
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1.5 text-sm text-foreground">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <Button variant="outline" size="sm" onClick={onBack}>
+      <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+      Back to Course Selection
+    </Button>
+  );
+}
+
+/**
+ * One section. A lecturer section is repeated once per lecturer actually
+ * assigned to this delivery — the faculty's form asks the student to type the
+ * name, which is how the same person ends up counted three ways.
+ */
+function SectionCardView({
+  section,
+  form,
+  answers,
+  disabled,
+  onPatch,
+}: {
+  section: FeedbackSection;
+  form: FeedbackFormData;
+  answers: Record<string, FeedbackAnswerInput>;
+  disabled: boolean;
+  onPatch: (
+    q: FeedbackQuestion,
+    lecturerId: string | null,
+    value: Partial<FeedbackAnswerInput>,
+  ) => void;
+}) {
+  const perLecturer = section.target_type === "lecturer";
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+      <header className="mb-4 border-b border-border/70 pb-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          {section.icon && <span aria-hidden="true">{section.icon}</span>}
+          {section.title}
+        </h2>
+        {section.description && (
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {section.description}
+            {section.questions.some((q) => q.is_required) && (
+              <> — all fields are required <span className="text-destructive">*</span></>
+            )}
           </p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((course, index) => {
-            const meta = STATUS_META[course.submission_status];
-            const StatusIcon = meta.icon;
-            return (
-              <motion.div
-                key={course.course_id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: index * 0.03 }}
+        )}
+      </header>
+
+      {perLecturer ? (
+        form.lecturers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No lecturer is recorded for this course, so there is nobody to rate.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {form.lecturers.map((lecturer, i) => (
+              <div
+                key={lecturer.lecturer_id}
+                className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4"
               >
-                <Card className="border-border hover:border-primary/50 transition-colors">
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
-                      <div className="flex-1 min-w-0 basis-full md:basis-auto">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-sm font-semibold text-foreground truncate">
-                            {course.title}
-                          </h3>
-                          <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
-                            {course.course_code}
-                          </Badge>
-                          <Badge
-                            className={`text-xs flex-shrink-0 ${
-                              course.category === "Compulsory"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                                : "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300"
-                            }`}
-                          >
-                            {course.category}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {course.credits} Credits · Sem {course.semester} ·{" "}
-                          {course.department}
-                          {course.lecturer_name
-                            ? ` · ${course.lecturer_name}`
-                            : ""}
-                        </p>
-                      </div>
+                <p className="text-sm font-semibold text-foreground">
+                  Lecturer {i + 1}
+                </p>
+                <p className="mb-3 text-sm text-primary">
+                  {lecturer.name}
+                  {lecturer.assignment_role === "coordinator" && (
+                    <StatusBadge tone="brand" className="ml-1.5">
+                      Coordinator
+                    </StatusBadge>
+                  )}
+                </p>
+                <QuestionGroup
+                  questions={section.questions}
+                  lecturerId={lecturer.lecturer_id}
+                  answers={answers}
+                  disabled={disabled}
+                  onPatch={onPatch}
+                />
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <QuestionGroup
+          questions={section.questions}
+          lecturerId={null}
+          answers={answers}
+          disabled={disabled}
+          onPatch={onPatch}
+        />
+      )}
+    </section>
+  );
+}
 
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Badge className={`${meta.color} flex-shrink-0`}>
-                          <StatusIcon className="h-3 w-3 mr-1" />
-                          {meta.label}
-                        </Badge>
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            navigate(
-                              `/app/feedback/${course.course_id}?period=${periodId}`,
-                            )
-                          }
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          {meta.action}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
+/**
+ * Renders a section's questions, collapsing consecutive rating statements into
+ * one matrix and leaving everything else as its own control.
+ */
+function QuestionGroup({
+  questions,
+  lecturerId,
+  answers,
+  disabled,
+  onPatch,
+}: {
+  questions: FeedbackQuestion[];
+  lecturerId: string | null;
+  answers: Record<string, FeedbackAnswerInput>;
+  disabled: boolean;
+  onPatch: (
+    q: FeedbackQuestion,
+    lecturerId: string | null,
+    value: Partial<FeedbackAnswerInput>,
+  ) => void;
+}) {
+  const visible = questions.filter((q) =>
+    isQuestionVisible(q, answers, lecturerId),
+  );
+
+  /* Group into runs so a block of statements becomes one grid. */
+  const blocks: { kind: "matrix" | "single"; items: FeedbackQuestion[] }[] = [];
+  for (const q of visible) {
+    const kind = q.question_type === "rating" ? "matrix" : "single";
+    const last = blocks[blocks.length - 1];
+    if (last && last.kind === "matrix" && kind === "matrix") last.items.push(q);
+    else blocks.push({ kind, items: [q] });
+  }
+
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, i) =>
+        block.kind === "matrix" ? (
+          <LikertMatrix
+            key={i}
+            questions={block.items}
+            answers={answers}
+            answerKeyFor={(q) => answerKey(q.id, lecturerId)}
+            disabled={disabled}
+            onChange={(q, value) => onPatch(q, lecturerId, { rating_value: value })}
+          />
+        ) : (
+          block.items.map((q) => (
+            <QuestionField
+              key={answerKey(q.id, lecturerId)}
+              question={q}
+              answer={answers[answerKey(q.id, lecturerId)]}
+              disabled={disabled}
+              maxTextLength={MAX_TEXT}
+              onChange={(value) => onPatch(q, lecturerId, value)}
+            />
+          ))
+        ),
       )}
     </div>
   );

@@ -150,7 +150,7 @@ export function QuestionField({
         }}
         disabled={disabled}
         rows={question.question_type === "short_text" ? 2 : 3}
-        placeholder={disabled ? "" : "Share your thoughts..."}
+        placeholder={disabled ? "" : (question.placeholder ?? "Share your thoughts…")}
       />
       <p className="mt-1 text-right text-xs text-muted-foreground">
         {value.length}/{maxTextLength}
