@@ -94,6 +94,57 @@ const STATUS_COLOR: Record<string, string> = {
   archived: "bg-gray-100 text-gray-500",
 };
 
+/**
+ * Whether students can actually see this period, in one line.
+ *
+ * "Open" is a stored status, not an answer: a period keeps that status after
+ * its closing date passes, and the database also requires now to be inside the
+ * window before a student is shown anything. A row reading "open" while
+ * students saw nothing for the past week is how Open and Release got confused
+ * for each other, so the real answer is stated rather than implied by a badge.
+ */
+function StudentVisibility({
+  period,
+}: {
+  period: { status: string; opens_at: string; closes_at: string };
+}) {
+  const now = Date.now();
+  const opens = new Date(period.opens_at).getTime();
+  const closes = new Date(period.closes_at).getTime();
+
+  let live = false;
+  let message: string;
+
+  if (period.status !== "open") {
+    message =
+      period.status === "closed" || period.status === "archived"
+        ? "Closed — students can no longer fill this in"
+        : "Not open yet — students cannot see this";
+  } else if (now < opens) {
+    message = `Opens ${new Date(period.opens_at).toLocaleString()} — students cannot see it yet`;
+  } else if (now > closes) {
+    message = `The window closed ${new Date(period.closes_at).toLocaleDateString()} — students can no longer see it`;
+  } else {
+    live = true;
+    message = "Students can fill this in now";
+  }
+
+  return (
+    <p
+      className={`mt-1 flex items-center gap-1.5 text-xs ${
+        live ? "text-green-700" : "text-muted-foreground"
+      }`}
+    >
+      {live ? (
+        <Eye className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+      ) : (
+        <EyeOff className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+      )}
+      {message}
+    </p>
+  );
+}
+
 interface SimpleCourse {
   id: string;
   code: string;
@@ -151,14 +202,17 @@ export default function AdminFeedback() {
         ))}
       </div>
 
-      {/* The department's two decisions — approving forms lecturers want to
-          run, and releasing results to the lecturers they are about. Shown
-          above both tabs because they are time-sensitive: a lecturer is
-          waiting on each one. */}
-      <FeedbackReleasePanel />
-
       {viewMode === "analytics" ? (
-        <AnalyticsView />
+        <>
+          {/* Approving forms lecturers asked for, and releasing results to the
+              lecturers they are about. Both belong to Analytics — they act on
+              feedback that has already come back. Showing them above the tabs
+              made the two views look like the same page, and put "Release"
+              next to period management where it reads as the button that
+              opens a form to students. It is not. */}
+          <FeedbackReleasePanel />
+          <AnalyticsView />
+        </>
       ) : (
         <PeriodsView adminId={admin?.id ?? ""} scopeDepartment={scope} />
       )}
@@ -1003,6 +1057,7 @@ function PeriodCard({
               {new Date(period.opens_at).toLocaleString()} →{" "}
               {new Date(period.closes_at).toLocaleString()}
             </p>
+            <StudentVisibility period={period} />
           </div>
           <div className="flex items-center gap-2">
             {period.status === "draft" && (

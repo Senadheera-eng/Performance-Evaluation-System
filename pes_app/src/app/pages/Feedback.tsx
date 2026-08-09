@@ -536,11 +536,11 @@ function SectionCardView({
           {section.title}
         </h2>
         {section.description && (
+          // Stored as written on the faculty's form. Composing the "all fields
+          // are required" half here got it wrong for the two sections whose
+          // follow-ups are optional.
           <p className="mt-0.5 text-sm text-muted-foreground">
             {section.description}
-            {section.questions.some((q) => q.is_required) && (
-              <> — all fields are required <span className="text-destructive">*</span></>
-            )}
           </p>
         )}
       </header>

@@ -1,3 +1,4 @@
+import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { cn } from "../ui/utils";
@@ -139,18 +140,39 @@ export function QuestionField({
   }
 
   const value = answer?.text_value ?? "";
+  const change = (next: string) => {
+    if (next.length > maxTextLength) return;
+    onChange({ text_value: next });
+  };
+  const placeholder = disabled
+    ? ""
+    : (question.placeholder ?? "Share your thoughts…");
+
+  // A one-line answer gets a one-line box. "Place(s) of the field visit" in a
+  // three-row textarea invites a paragraph the question never asked for.
+  if (question.question_type === "short_text") {
+    return (
+      <div>
+        {label}
+        <Input
+          value={value}
+          onChange={(e) => change(e.target.value)}
+          disabled={disabled}
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       {label}
       <Textarea
         value={value}
-        onChange={(e) => {
-          if (e.target.value.length > maxTextLength) return;
-          onChange({ text_value: e.target.value });
-        }}
+        onChange={(e) => change(e.target.value)}
         disabled={disabled}
-        rows={question.question_type === "short_text" ? 2 : 3}
-        placeholder={disabled ? "" : (question.placeholder ?? "Share your thoughts…")}
+        rows={3}
+        placeholder={placeholder}
       />
       <p className="mt-1 text-right text-xs text-muted-foreground">
         {value.length}/{maxTextLength}
