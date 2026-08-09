@@ -354,6 +354,77 @@ export async function saveOfferingAttendance(
   return { ok: true, data: marks.length };
 }
 
+/* ------------------------------------------------------------------ */
+/* Feedback                                                            */
+/* ------------------------------------------------------------------ */
+
+export interface FeedbackOverviewRow {
+  period_id: string;
+  period_title: string;
+  period_status: "draft" | "scheduled" | "open" | "closed" | "archived";
+  feedback_type: "mid_semester" | "end_semester";
+  offering_id: string;
+  course_code: string;
+  course_title: string;
+  semester: number;
+  batch_year: number;
+  eligible_count: number;
+  response_count: number;
+  response_rate: number;
+  is_released: boolean;
+  below_threshold: boolean;
+  /** Null until released and above the anonymity threshold. */
+  avg_rating: number | null;
+}
+
+export interface FeedbackQuestionResult {
+  question_id: string;
+  question_text: string;
+  question_type: string;
+  target_type: "course" | "lecturer";
+  section_title: string | null;
+  responses: number;
+  average: number | null;
+  distribution: Record<string, number>;
+}
+
+export interface FeedbackDetail {
+  released: boolean;
+  below_threshold?: boolean;
+  threshold?: number;
+  response_count?: number;
+  message?: string;
+  questions?: FeedbackQuestionResult[];
+  comments?: {
+    question_text: string;
+    section_title: string | null;
+    comment: string;
+  }[];
+}
+
+/**
+ * Every course the lecturer teaches that has a feedback period, with
+ * response progress always visible and results only once the department has
+ * released them.
+ */
+export async function getMyFeedbackOverview(): Promise<Result<FeedbackOverviewRow[]>> {
+  const { data, error } = await supabase.rpc("get_my_feedback_overview");
+  if (error) return fail("get_my_feedback_overview", error);
+  return { ok: true, data: (data ?? []) as FeedbackOverviewRow[] };
+}
+
+export async function getMyFeedbackDetail(
+  periodId: string,
+  offeringId: string,
+): Promise<Result<FeedbackDetail>> {
+  const { data, error } = await supabase.rpc("get_my_feedback_detail", {
+    p_period_id: periodId,
+    p_offering_id: offeringId,
+  });
+  if (error) return fail("get_my_feedback_detail", error);
+  return { ok: true, data: (data ?? { released: false }) as FeedbackDetail };
+}
+
 export interface WorkflowOutcome {
   ok: boolean;
   message: string;

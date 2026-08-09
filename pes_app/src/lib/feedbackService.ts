@@ -30,19 +30,56 @@ export interface EligibleFeedbackCourse {
   submission_status: FeedbackSubmissionStatus;
 }
 
+export type FeedbackQuestionType =
+  | "rating"
+  | "short_text"
+  | "long_text"
+  | "single_choice"
+  | "yes_no";
+
+/** A named option on a single-choice question. */
+export interface FeedbackOption {
+  value: string;
+  label: string;
+}
+
 export interface FeedbackQuestion {
   id: string;
   question_text: string;
-  question_type: "rating" | "short_text" | "long_text";
+  question_type: FeedbackQuestionType;
   category: string | null;
   display_order: number;
   is_required: boolean;
+  options: FeedbackOption[] | null;
+  /** 'course' is asked once; 'lecturer' once per lecturer on the offering. */
+  target_type: "course" | "lecturer";
+  section_key: string | null;
+  /** Set when this question only appears once another is answered a certain way. */
+  depends_on_question_id: string | null;
+  depends_on_values: string[] | null;
+}
+
+/** Questions grouped for display, in the order the form defines. */
+export interface FeedbackSection {
+  key: string;
+  title: string;
+  target_type: "course" | "lecturer";
+  questions: FeedbackQuestion[];
+}
+
+export interface FeedbackFormLecturer {
+  lecturer_id: string;
+  name: string;
+  assignment_role: "lecturer" | "coordinator";
 }
 
 export interface FeedbackAnswerInput {
   question_id: string;
+  /** Null for a course-level answer; the lecturer being rated otherwise. */
+  lecturer_target_id?: string | null;
   rating_value?: number | null;
   text_value?: string | null;
+  choice_value?: string | null;
 }
 
 export type FeedbackFormError =
@@ -62,7 +99,15 @@ export interface FeedbackFormData {
     department: string;
     lecturer_name: string | null;
   } | null;
+  /** Flat list, kept for callers that do not group. Same set as `sections`. */
   questions: FeedbackQuestion[];
+  sections: FeedbackSection[];
+  /** The lecturers who actually taught this delivery, from the assignment
+   *  records — never typed in by the student, so responses can be aggregated
+   *  per lecturer rather than per spelling of a name. */
+  lecturers: FeedbackFormLecturer[];
+  offering_id: string | null;
+  feedback_type: "mid_semester" | "end_semester";
   submission: {
     id: string;
     status: "draft" | "submitted";
@@ -72,6 +117,48 @@ export interface FeedbackFormData {
   period_open: boolean;
   allow_editing: boolean;
   can_edit: boolean;
+}
+
+/**
+ * The key an answer is stored and submitted under.
+ *
+ * A lecturer-targeted question is asked once per lecturer, so question id
+ * alone is not unique within a submission — keying on it would silently
+ * collapse three lecturers' ratings into one.
+ */
+export function answerKey(
+  questionId: string,
+  lecturerTargetId?: string | null,
+): string {
+  return lecturerTargetId ? `${questionId}::${lecturerTargetId}` : questionId;
+}
+
+/**
+ * Whether a question is currently shown, given the answers so far.
+ *
+ * Mirrors `missing_required_feedback()` in the database: a question whose
+ * gate is unanswered, or answered another way, is neither shown nor required.
+ * The two must agree, or a student sees a form they cannot submit.
+ */
+export function isQuestionVisible(
+  question: FeedbackQuestion,
+  answers: Record<string, FeedbackAnswerInput>,
+  lecturerTargetId?: string | null,
+): boolean {
+  if (!question.depends_on_question_id || !question.depends_on_values) {
+    return true;
+  }
+  // A gate is answered once for the whole form even when it guards a
+  // lecturer section, so look for the course-level answer first.
+  const gate =
+    answers[answerKey(question.depends_on_question_id, lecturerTargetId)] ??
+    answers[answerKey(question.depends_on_question_id)];
+  if (!gate) return false;
+  const given =
+    gate.choice_value ??
+    gate.text_value ??
+    (gate.rating_value != null ? String(gate.rating_value) : null);
+  return given != null && question.depends_on_values.includes(given);
 }
 
 export type Result<T> =

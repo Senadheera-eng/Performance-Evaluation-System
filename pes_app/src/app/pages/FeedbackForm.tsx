@@ -14,29 +14,23 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Switch } from "../components/ui/switch";
-import { Label } from "../components/ui/label";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
+import { QuestionField } from "../components/feedback/QuestionField";
 import {
   getActiveFeedbackPeriods,
   getFeedbackForm,
   saveDraft,
   submitFeedback,
+  answerKey,
+  isQuestionVisible,
   FeedbackPeriod,
   FeedbackFormData,
   FeedbackAnswerInput,
+  FeedbackSection,
 } from "../../lib/feedbackService";
-
-const RATING_LABELS: Record<number, string> = {
-  1: "Strongly Disagree",
-  2: "Disagree",
-  3: "Neutral",
-  4: "Agree",
-  5: "Strongly Agree",
-};
 
 const FORM_ERRORS: Record<string, string> = {
   period_not_found: "No feedback period is currently open.",
@@ -117,7 +111,7 @@ export default function FeedbackForm() {
       setIsAnonymous(data.submission.is_anonymous);
       const initial: Record<string, FeedbackAnswerInput> = {};
       data.submission.answers.forEach((a) => {
-        initial[a.question_id] = a;
+        initial[answerKey(a.question_id, a.lecturer_target_id)] = a;
       });
       setAnswers(initial);
     }
@@ -127,27 +121,89 @@ export default function FeedbackForm() {
   const canEdit = form?.can_edit ?? false;
   const isSubmitted = form?.submission?.status === "submitted";
 
-  const setRating = (questionId: string, value: number) => {
+  /**
+   * Answers are keyed by question *and* target. A lecturer-level question is
+   * asked once per lecturer, so keying on the question alone would let three
+   * lecturers' ratings overwrite one another.
+   */
+  const setAnswer = (
+    questionId: string,
+    lecturerTargetId: string | null,
+    patch: Partial<FeedbackAnswerInput>,
+  ) => {
+    const key = answerKey(questionId, lecturerTargetId);
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: { question_id: questionId, rating_value: value },
+      [key]: {
+        question_id: questionId,
+        lecturer_target_id: lecturerTargetId,
+        ...patch,
+      },
     }));
   };
 
-  const setText = (questionId: string, value: string) => {
-    if (value.length > maxTextLength) return;
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: { question_id: questionId, text_value: value },
-    }));
+  /**
+   * Only what is actually on screen is sent. A question hidden behind an
+   * unanswered gate must not carry a stale answer from before the gate was
+   * changed — the database would accept it, and it would show up in the
+   * analytics for a section the student was never asked.
+   */
+  const buildPayload = (): FeedbackAnswerInput[] => {
+    if (!form) return [];
+    const visibleKeys = new Set<string>();
+    for (const section of form.sections) {
+      const targets =
+        section.target_type === "lecturer"
+          ? form.lecturers.map((l) => l.lecturer_id)
+          : [null];
+      for (const target of targets) {
+        for (const q of section.questions) {
+          if (isQuestionVisible(q, answers, target)) {
+            visibleKeys.add(answerKey(q.id, target));
+          }
+        }
+      }
+    }
+
+    return Object.entries(answers)
+      .filter(([key]) => visibleKeys.has(key))
+      .map(([, a]) => ({
+        question_id: a.question_id,
+        lecturer_target_id: a.lecturer_target_id ?? null,
+        rating_value: a.rating_value ?? null,
+        text_value: a.text_value ?? null,
+        choice_value: a.choice_value ?? null,
+      }));
   };
 
-  const buildPayload = (): FeedbackAnswerInput[] =>
-    Object.values(answers).map((a) => ({
-      question_id: a.question_id,
-      rating_value: a.rating_value ?? null,
-      text_value: a.text_value ?? null,
-    }));
+  /** Required questions with nothing filled in, by the same rules the
+   *  database applies — so the client never blocks a valid submission or
+   *  waves through one the server will reject. */
+  const missingRequired = (): number => {
+    if (!form) return 0;
+    let missing = 0;
+    for (const section of form.sections) {
+      const targets =
+        section.target_type === "lecturer"
+          ? form.lecturers.map((l) => l.lecturer_id)
+          : [null];
+      for (const target of targets) {
+        for (const q of section.questions) {
+          if (!q.is_required) continue;
+          if (!isQuestionVisible(q, answers, target)) continue;
+          const a = answers[answerKey(q.id, target)];
+          const provided =
+            q.question_type === "rating"
+              ? a?.rating_value != null
+              : q.question_type === "single_choice" || q.question_type === "yes_no"
+                ? Boolean(a?.choice_value?.trim())
+                : Boolean(a?.text_value?.trim());
+          if (!provided) missing += 1;
+        }
+      }
+    }
+    return missing;
+  };
 
   const handleSaveDraft = async () => {
     if (!period || !courseId) return;
@@ -172,14 +228,11 @@ export default function FeedbackForm() {
 
   const handleSubmitClick = () => {
     setError(null);
-    const missing = (form?.questions ?? []).some((q) => {
-      if (!q.is_required) return false;
-      const answer = answers[q.id];
-      if (q.question_type === "rating") return !answer?.rating_value;
-      return !answer?.text_value?.trim();
-    });
-    if (missing) {
-      setError("Please answer all required questions.");
+    const missing = missingRequired();
+    if (missing > 0) {
+      setError(
+        `Please answer all required questions — ${missing} still to go.`,
+      );
       return;
     }
     setConfirmOpen(true);
@@ -266,9 +319,41 @@ export default function FeedbackForm() {
     );
   }
 
-  const { course, questions } = form;
-  const ratingQuestions = questions.filter((q) => q.question_type === "rating");
-  const textQuestions = questions.filter((q) => q.question_type !== "rating");
+  const { course, lecturers } = form;
+  // Course sections render once. Lecturer sections render once per lecturer
+  // teaching this delivery, each with its own set of answers.
+  const courseSections = form.sections.filter((s) => s.target_type === "course");
+  const lecturerSections = form.sections.filter(
+    (s) => s.target_type === "lecturer",
+  );
+  const hasRating = form.sections.some((s) =>
+    s.questions.some((q) => q.question_type === "rating"),
+  );
+
+  const renderSection = (
+    section: FeedbackSection,
+    lecturerTargetId: string | null,
+    keyPrefix: string,
+  ) => {
+    const visible = section.questions.filter((q) =>
+      isQuestionVisible(q, answers, lecturerTargetId),
+    );
+    if (visible.length === 0) return null;
+    return (
+      <div key={`${keyPrefix}-${section.key}`} className="space-y-5">
+        {visible.map((q) => (
+          <QuestionField
+            key={answerKey(q.id, lecturerTargetId)}
+            question={q}
+            answer={answers[answerKey(q.id, lecturerTargetId)]}
+            disabled={!canEdit}
+            maxTextLength={maxTextLength}
+            onChange={(patch) => setAnswer(q.id, lecturerTargetId, patch)}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
@@ -333,99 +418,80 @@ export default function FeedbackForm() {
         </div>
       )}
 
-      {/* Rating questions */}
-      {ratingQuestions.length > 0 && (
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-base">Rate Your Experience</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              1 — Strongly Disagree · 2 — Disagree · 3 — Neutral · 4 — Agree · 5
-              — Strongly Agree
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {ratingQuestions.map((q) => {
-              const current = answers[q.id]?.rating_value;
-              return (
-                <div key={q.id}>
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    {q.question_text}
-                    {q.is_required && (
-                      <span className="text-destructive ml-1">*</span>
-                    )}
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {[1, 2, 3, 4, 5].map((val) => (
-                      <button
-                        key={val}
-                        type="button"
-                        disabled={!canEdit}
-                        onClick={() => setRating(q.id, val)}
-                        title={RATING_LABELS[val]}
-                        aria-label={`${q.question_text}: ${RATING_LABELS[val]}`}
-                        className={`w-11 h-11 rounded-full text-sm font-semibold border-2 transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
-                          current === val
-                            ? "text-white shadow-md"
-                            : "border-border text-muted-foreground hover:border-primary/50"
-                        }`}
-                        style={
-                          current === val
-                            ? {
-                                backgroundColor: "#C41E3A",
-                                borderColor: "#C41E3A",
-                              }
-                            : {}
-                        }
-                      >
-                        {val}
-                      </button>
-                    ))}
-                    {current && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        {RATING_LABELS[current]}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+      {hasRating && (
+        <p className="px-1 text-xs text-muted-foreground">
+          Rating scale — 1 Strongly Disagree · 2 Disagree · 3 Neutral · 4 Agree
+          · 5 Strongly Agree
+        </p>
       )}
 
-      {/* Written questions */}
-      {textQuestions.length > 0 && (
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-base">Your Comments</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {textQuestions.map((q) => {
-              const value = answers[q.id]?.text_value ?? "";
-              return (
-                <div key={q.id}>
-                  <Label className="mb-2 block text-sm font-medium">
-                    {q.question_text}
-                    {q.is_required && (
-                      <span className="text-destructive ml-1">*</span>
-                    )}
-                  </Label>
-                  <Textarea
-                    value={value}
-                    onChange={(e) => setText(q.id, e.target.value)}
-                    disabled={!canEdit}
-                    rows={3}
-                    placeholder={canEdit ? "Share your thoughts..." : ""}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1 text-right">
-                    {value.length}/{maxTextLength}
-                  </p>
+      {/* Course-level sections */}
+      {courseSections.map((section) => {
+        const body = renderSection(section, null, "course");
+        if (!body) return null;
+        return (
+          <Card key={section.key} className="border-border">
+            <CardHeader>
+              <CardTitle className="text-base">{section.title}</CardTitle>
+            </CardHeader>
+            <CardContent>{body}</CardContent>
+          </Card>
+        );
+      })}
+
+      {/* One block per lecturer who actually taught this delivery. The names
+          come from the assignment records, so nobody has to type them and
+          every response can be aggregated to the right person. */}
+      {lecturerSections.length > 0 &&
+        (lecturers.length === 0 ? (
+          <Card className="border-border">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground">
+                No lecturer has been assigned to this course yet, so there is
+                nothing to rate in the lecturer sections. The rest of the form
+                can still be submitted.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          lecturers.map((lecturer) => (
+            <Card key={lecturer.lecturer_id} className="border-border">
+              <CardHeader>
+                <div className="flex flex-wrap items-center gap-2">
+                  <CardTitle className="text-base">{lecturer.name}</CardTitle>
+                  {lecturer.assignment_role === "coordinator" && (
+                    <Badge className="bg-primary/10 text-primary">
+                      Course Coordinator
+                    </Badge>
+                  )}
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
+                <p className="text-xs text-muted-foreground">
+                  Answered separately for each lecturer on this course.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {lecturerSections.map((section) => {
+                  const body = renderSection(
+                    section,
+                    lecturer.lecturer_id,
+                    lecturer.lecturer_id,
+                  );
+                  if (!body) return null;
+                  return (
+                    <div key={`${lecturer.lecturer_id}-${section.key}`}>
+                      {lecturerSections.length > 1 && (
+                        <p className="mb-3 text-sm font-semibold text-foreground">
+                          {section.title}
+                        </p>
+                      )}
+                      {body}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ))
+        ))}
 
       {/* Anonymity */}
       <Card className="border-border">

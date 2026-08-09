@@ -34,6 +34,7 @@ import StaffDashboard from "./pages/staff/StaffDashboard";
 import StaffCourses from "./pages/staff/StaffCourses";
 import StaffAttendance from "./pages/staff/StaffAttendance";
 import StaffResults from "./pages/staff/StaffResults";
+import StaffFeedback from "./pages/staff/StaffFeedback";
 import HodAssignments from "./pages/staff/HodAssignments";
 import StaffStudents from "./pages/staff/StaffStudents";
 import StaffLecturers from "./pages/staff/StaffLecturers";
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
       { path: "courses", element: <StaffCourses /> },
       { path: "attendance", element: <StaffAttendance /> },
       { path: "results", element: <StaffResults /> },
+      { path: "feedback", element: <StaffFeedback /> },
       // HOD-only in the navigation; the pages themselves also refuse a
       // lecturer who opens the URL directly, and the RPCs behind them refuse
       // regardless of what the client does.

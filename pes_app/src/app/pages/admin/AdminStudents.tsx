@@ -18,6 +18,8 @@ import {
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
@@ -47,6 +49,12 @@ export default function AdminStudents() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "cgpa" | "attendance">("name");
   const [batchFilter, setBatchFilter] = useState<number | "all">("all");
+  const [movingStudent, setMovingStudent] = useState<{
+    id: string;
+    name: string;
+    batchYear: number;
+  } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -158,6 +166,12 @@ export default function AdminStudents() {
               : `Students in ${describeAdminScope(currentAdmin)}.`}
         </p>
       </motion.div>
+
+      {notice && (
+        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+          {notice}
+        </div>
+      )}
 
       {/* Batch filter */}
       <div className="flex items-center gap-2">
@@ -453,6 +467,26 @@ export default function AdminStudents() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Repeating a year moves a student to a later intake.
+                          The change is recorded with a reason and who made
+                          it — the database refuses any other route. */}
+                      <div className="mt-3 flex justify-end border-t border-border/70 pt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            setMovingStudent({
+                              id: student.id,
+                              name: student.name,
+                              batchYear: student.batchYear,
+                            })
+                          }
+                        >
+                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                          Change intake
+                        </Button>
+                      </div>
                     </motion.div>
                   )}
                 </motion.div>
@@ -461,6 +495,18 @@ export default function AdminStudents() {
           )}
         </CardContent>
       </Card>
+
+      <ChangeBatchDialog
+        open={movingStudent !== null}
+        onOpenChange={(open) => !open && setMovingStudent(null)}
+        student={movingStudent}
+        batches={batches}
+        onChanged={(message) => {
+          setMovingStudent(null);
+          setNotice(message);
+          fetchStudents();
+        }}
+      />
     </div>
   );
 }

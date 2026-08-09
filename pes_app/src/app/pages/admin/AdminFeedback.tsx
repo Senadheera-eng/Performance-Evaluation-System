@@ -41,6 +41,7 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
+import { FeedbackReleasePanel } from "../../components/admin/FeedbackReleasePanel";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
@@ -138,6 +139,12 @@ export default function AdminFeedback() {
           </button>
         ))}
       </div>
+
+      {/* The department's two decisions — approving forms lecturers want to
+          run, and releasing results to the lecturers they are about. Shown
+          above both tabs because they are time-sensitive: a lecturer is
+          waiting on each one. */}
+      <FeedbackReleasePanel />
 
       {viewMode === "analytics" ? (
         <AnalyticsView />

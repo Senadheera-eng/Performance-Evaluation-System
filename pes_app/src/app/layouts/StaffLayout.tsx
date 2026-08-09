@@ -4,6 +4,7 @@ import {
   BookOpen,
   Calendar,
   TrendingUp,
+  MessageSquareText,
   GraduationCap,
   Users,
   UserSquare,
@@ -31,6 +32,7 @@ export default function StaffLayout() {
     { name: "My Courses", href: "/staff/courses", icon: BookOpen },
     { name: "Attendance", href: "/staff/attendance", icon: Calendar },
     { name: "Results", href: "/staff/results", icon: TrendingUp },
+    { name: "Feedback", href: "/staff/feedback", icon: MessageSquareText },
     ...(caps.isHod
       ? [
           {
