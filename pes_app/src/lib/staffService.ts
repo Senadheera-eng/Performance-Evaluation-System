@@ -445,6 +445,268 @@ async function callWorkflow(
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Feedback form requests                                              */
+/* ------------------------------------------------------------------ */
+
+export type FeedbackApprovalStatus =
+  | "not_required"
+  | "pending"
+  | "approved"
+  | "rejected";
+
+export type FeedbackPeriodStatus =
+  | "draft"
+  | "scheduled"
+  | "open"
+  | "closed"
+  | "archived";
+
+export interface FeedbackRequest {
+  id: string;
+  title: string;
+  academic_year: string;
+  semester: number;
+  batch_year: number | null;
+  feedback_type: "mid_semester" | "end_semester";
+  opens_at: string;
+  closes_at: string;
+  status: FeedbackPeriodStatus;
+  allow_editing: boolean;
+  approval_status: FeedbackApprovalStatus;
+  approval_notes: string | null;
+  approved_at: string | null;
+  created_at: string;
+  course_ids: string[];
+  question_ids: string[];
+}
+
+export interface FeedbackRequestDraft {
+  title: string;
+  feedback_type: "mid_semester" | "end_semester";
+  academic_year: string;
+  semester: number;
+  batch_year: number;
+  opens_at: string;
+  closes_at: string;
+  allow_editing: boolean;
+  course_ids: string[];
+  question_ids: string[];
+}
+
+/**
+ * The database refuses in sentences no lecturer can act on — a policy name, a
+ * constraint. Each rule below is one a lecturer can actually hit, so it is
+ * answered with what they can do about it.
+ */
+function friendlyRequestError(raw: string): string {
+  if (/needs department approval/i.test(raw)) {
+    return "Your department has not approved this form yet, so it cannot open.";
+  }
+  if (/row-level security|permission denied/i.test(raw)) {
+    return "You can only change your own form, and only before your department approves it.";
+  }
+  if (/duplicate key|unique constraint/i.test(raw)) {
+    return "That course is already on this form.";
+  }
+  return "Something went wrong. Please try again.";
+}
+
+function requestFail(context: string, error: { message: string }) {
+  console.error(`[staffService] ${context}`, error);
+  return { ok: false as const, error: friendlyRequestError(error.message) };
+}
+
+/**
+ * The forms this lecturer has asked to run.
+ *
+ * Filtered on the author explicitly rather than left to RLS: a separate
+ * policy makes every non-draft period readable to everyone, so an unfiltered
+ * select would return the whole faculty's feedback calendar.
+ */
+export async function getMyFeedbackRequests(
+  lecturerId: string,
+): Promise<Result<FeedbackRequest[]>> {
+  const { data, error } = await supabase
+    .from("feedback_periods")
+    .select(
+      "id, title, academic_year, semester, batch_year, feedback_type, opens_at," +
+        " closes_at, status, allow_editing, approval_status, approval_notes," +
+        " approved_at, created_at," +
+        " feedback_period_courses ( course_id )," +
+        " feedback_period_questions ( question_id )",
+    )
+    .eq("created_by_lecturer_id", lecturerId)
+    .order("created_at", { ascending: false });
+
+  if (error) return fail("getMyFeedbackRequests", error);
+
+  const rows = (data ?? []) as (Omit<
+    FeedbackRequest,
+    "course_ids" | "question_ids"
+  > & {
+    feedback_period_courses: { course_id: string }[] | null;
+    feedback_period_questions: { question_id: string }[] | null;
+  })[];
+
+  return {
+    ok: true,
+    data: rows.map(
+      ({ feedback_period_courses, feedback_period_questions, ...period }) => ({
+        ...period,
+        course_ids: (feedback_period_courses ?? []).map((c) => c.course_id),
+        question_ids: (feedback_period_questions ?? []).map((q) => q.question_id),
+      }),
+    ),
+  };
+}
+
+/** Replace a form's courses and questions with exactly what was chosen. */
+async function setRequestContent(
+  periodId: string,
+  courseIds: string[],
+  questionIds: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await supabase
+    .from("feedback_period_courses")
+    .delete()
+    .eq("feedback_period_id", periodId);
+  await supabase
+    .from("feedback_period_questions")
+    .delete()
+    .eq("feedback_period_id", periodId);
+
+  const { error: courseError } = await supabase
+    .from("feedback_period_courses")
+    .insert(courseIds.map((course_id) => ({ feedback_period_id: periodId, course_id })));
+  if (courseError) return requestFail("setRequestContent courses", courseError);
+
+  const { error: questionError } = await supabase
+    .from("feedback_period_questions")
+    .insert(
+      questionIds.map((question_id, i) => ({
+        feedback_period_id: periodId,
+        question_id,
+        display_order: i + 1,
+      })),
+    );
+  if (questionError) return requestFail("setRequestContent questions", questionError);
+
+  return { ok: true };
+}
+
+/**
+ * Raise a new request. Created as a pending draft — the insert policy accepts
+ * nothing else, so there is no state in which a lecturer's form is live
+ * without the department having seen it.
+ *
+ * If the courses or questions fail to attach, the period is removed again
+ * rather than left behind: an empty form cannot be approved anyway, and it
+ * would sit in the department's queue as a request nobody made.
+ */
+export async function createFeedbackRequest(
+  draft: FeedbackRequestDraft,
+  lecturerId: string,
+  department: string,
+  authUserId: string,
+): Promise<Result<string>> {
+  const { data, error } = await supabase
+    .from("feedback_periods")
+    .insert({
+      title: draft.title,
+      academic_year: draft.academic_year,
+      semester: draft.semester,
+      batch_year: draft.batch_year,
+      department,
+      feedback_type: draft.feedback_type,
+      opens_at: draft.opens_at,
+      closes_at: draft.closes_at,
+      allow_editing: draft.allow_editing,
+      status: "draft",
+      approval_status: "pending",
+      created_by: authUserId,
+      created_by_lecturer_id: lecturerId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return requestFail("createFeedbackRequest", error ?? { message: "" });
+  }
+
+  const content = await setRequestContent(data.id, draft.course_ids, draft.question_ids);
+  if (!content.ok) {
+    await supabase.from("feedback_periods").delete().eq("id", data.id);
+    return content;
+  }
+  return { ok: true, data: data.id };
+}
+
+export async function updateFeedbackRequest(
+  periodId: string,
+  draft: FeedbackRequestDraft,
+): Promise<Result<null>> {
+  const { error } = await supabase
+    .from("feedback_periods")
+    .update({
+      title: draft.title,
+      academic_year: draft.academic_year,
+      semester: draft.semester,
+      batch_year: draft.batch_year,
+      feedback_type: draft.feedback_type,
+      opens_at: draft.opens_at,
+      closes_at: draft.closes_at,
+      allow_editing: draft.allow_editing,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", periodId);
+  if (error) return requestFail("updateFeedbackRequest", error);
+
+  const content = await setRequestContent(periodId, draft.course_ids, draft.question_ids);
+  if (!content.ok) return content;
+  return { ok: true, data: null };
+}
+
+/** Ask the department to look again after a rejection. */
+export async function resubmitFeedbackRequest(
+  periodId: string,
+): Promise<Result<null>> {
+  const { error } = await supabase
+    .from("feedback_periods")
+    .update({ approval_status: "pending", updated_at: new Date().toISOString() })
+    .eq("id", periodId);
+  if (error) return requestFail("resubmitFeedbackRequest", error);
+  return { ok: true, data: null };
+}
+
+/** Take back a request the department has not approved. */
+export async function withdrawFeedbackRequest(
+  periodId: string,
+): Promise<Result<null>> {
+  const { error } = await supabase
+    .from("feedback_periods")
+    .delete()
+    .eq("id", periodId);
+  if (error) return requestFail("withdrawFeedbackRequest", error);
+  return { ok: true, data: null };
+}
+
+/**
+ * Move an approved form between draft, open and closed. The database refuses
+ * to open anything the department has not approved, whatever is asked here.
+ */
+export async function setFeedbackRequestStatus(
+  periodId: string,
+  status: FeedbackPeriodStatus,
+): Promise<Result<null>> {
+  const { error } = await supabase
+    .from("feedback_periods")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", periodId);
+  if (error) return requestFail("setFeedbackRequestStatus", error);
+  return { ok: true, data: null };
+}
+
 export const submitOfferingResults = (offeringId: string) =>
   callWorkflow("submit_offering_results", { p_offering_id: offeringId });
 

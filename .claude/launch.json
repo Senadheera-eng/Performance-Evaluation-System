@@ -2,10 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pes_app",
+      "name": "pes-app",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "cwd": "pes_app",
+      "runtimeArgs": ["--prefix", "pes_app", "run", "dev"],
       "port": 5173
     }
   ]

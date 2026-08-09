@@ -13,11 +13,13 @@ import {
   ErrorState,
   PageHeader,
   SectionCard,
+  SegmentedTabs,
   SkeletonRows,
   StatCard,
   StatusBadge,
   type StatusTone,
 } from "../../components/common";
+import { FeedbackRequests } from "../../components/staff/FeedbackRequests";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import {
@@ -43,8 +45,13 @@ const ratingTone = (avg: number | null): StatusTone => {
   return "danger";
 };
 
+const TABS = [
+  { value: "results", label: "Results" },
+  { value: "forms", label: "My Forms" },
+];
+
 /**
- * A lecturer's own feedback.
+ * A lecturer's own feedback: what came back, and what they asked for.
  *
  * Response progress is always visible — knowing how many people replied
  * identifies nobody, and it is what tells a lecturer whether to chase their
@@ -55,6 +62,7 @@ const ratingTone = (avg: number | null): StatusTone => {
  */
 export default function StaffFeedback() {
   const { staff } = useAuth();
+  const [tab, setTab] = useState("results");
   const [rows, setRows] = useState<FeedbackOverviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +113,59 @@ export default function StaffFeedback() {
     setDetailLoading(null);
   };
 
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Feedback"
+        description="What your students said about the courses you teach, and the forms you have asked your department to run."
+      />
+
+      <SegmentedTabs
+        tabs={TABS}
+        value={tab}
+        onChange={setTab}
+        layoutId="staff-feedback-tabs"
+        aria-label="Feedback view"
+      />
+
+      {tab === "forms" ? (
+        <FeedbackRequests />
+      ) : (
+        <ResultsTab
+          rows={rows}
+          loading={loading}
+          error={error}
+          onRetry={load}
+          expanded={expanded}
+          details={details}
+          detailLoading={detailLoading}
+          onToggle={toggle}
+        />
+      )}
+    </div>
+  );
+}
+
+function ResultsTab({
+  rows,
+  loading,
+  error,
+  onRetry,
+  expanded,
+  details,
+  detailLoading,
+  onToggle,
+}: {
+  rows: FeedbackOverviewRow[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  expanded: string | null;
+  details: Record<string, FeedbackDetail>;
+  detailLoading: string | null;
+  onToggle: (row: FeedbackOverviewRow) => void;
+}) {
+  const rowKey = (r: FeedbackOverviewRow) => `${r.period_id}:${r.offering_id}`;
   const released = rows.filter((r) => r.is_released);
   const awaiting = rows.filter((r) => !r.is_released);
   const overallAvg = useMemo(() => {
@@ -118,12 +179,7 @@ export default function StaffFeedback() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="My Feedback"
-        description="What your students said about the courses you teach. Results appear once your department has released them."
-      />
-
-      {error && <ErrorState message={error} onRetry={load} />}
+      {error && <ErrorState message={error} onRetry={onRetry} />}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
@@ -184,7 +240,7 @@ export default function StaffFeedback() {
                 <li key={key}>
                   <button
                     type="button"
-                    onClick={() => toggle(r)}
+                    onClick={() => onToggle(r)}
                     className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                   >
                     <div className="flex min-w-0 items-start gap-2">

@@ -96,7 +96,10 @@
       "mcp__Claude_Browser__tabs_create",
       "mcp__Claude_Browser__tabs_select",
       "mcp__Claude_Browser__tabs_close",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts\\)\\);\")"
     ]
   }
 }

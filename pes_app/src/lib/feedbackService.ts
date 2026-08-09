@@ -54,6 +54,9 @@ export interface FeedbackQuestion {
   /** 'course' is asked once; 'lecturer' once per lecturer on the offering. */
   target_type: "course" | "lecturer";
   section_key: string | null;
+  section_title: string | null;
+  /** Where this question's section sits on the student's form. */
+  section_order: number;
   /** Set when this question only appears once another is answered a certain way. */
   depends_on_question_id: string | null;
   depends_on_values: string[] | null;
