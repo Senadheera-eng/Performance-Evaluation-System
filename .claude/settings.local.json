@@ -101,7 +101,8 @@
       "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)",
       "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts\\)\\);\")",
       "Bash(python -c ' *)",
-      "Bash(node export_migrations.cjs)"
+      "Bash(node export_migrations.cjs)",
+      "Bash(git fetch *)"
     ]
   }
 }

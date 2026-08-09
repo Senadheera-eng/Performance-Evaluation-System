@@ -1107,6 +1107,13 @@ function PeriodCard({
           </div>
         </div>
 
+        {/* Outside the expanded block on purpose. Open, Close and Archive sit
+            in the header and are clickable while the card is collapsed, and
+            the database refuses some of them for good reasons — a period with
+            no courses cannot open. Rendered only alongside the configuration,
+            that refusal was invisible and the button looked broken. */}
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
         {expanded && (
           <div className="mt-4 pt-4 border-t border-border space-y-4">
             {!loaded ? (
@@ -1259,8 +1266,6 @@ function PeriodCard({
                     </div>
                   )}
                 </div>
-
-                {error && <p className="text-sm text-red-600">{error}</p>}
 
                 {period.status === "draft" && (
                   <Button
