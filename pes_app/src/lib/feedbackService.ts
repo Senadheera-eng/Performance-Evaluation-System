@@ -716,13 +716,54 @@ export async function getQuestionBank(): Promise<FeedbackQuestion[]> {
   return data as FeedbackQuestion[];
 }
 
-export async function createQuestion(payload: {
+export interface QuestionDraft {
   question_text: string;
-  question_type: "rating" | "short_text" | "long_text";
+  question_type: FeedbackQuestionType;
+  target_type: "course" | "lecturer";
+  section_key: string | null;
+  section_title: string | null;
+  section_order: number;
   category: string | null;
   is_required: boolean;
-  created_by: string;
-}): Promise<{ ok: true; question: FeedbackQuestion } | { ok: false; error: string }> {
+  options: FeedbackOption[] | null;
+  depends_on_question_id: string | null;
+  depends_on_values: string[] | null;
+}
+
+/**
+ * Normalises a draft to what the table's constraints accept.
+ *
+ * `options` must be a non-empty array for single_choice and null for
+ * everything else, and a dependency needs both halves or neither. Getting
+ * this wrong surfaces as a check-constraint violation with a message no
+ * admin can act on, so it is fixed here rather than reported.
+ */
+function normaliseQuestion(draft: QuestionDraft) {
+  const isChoice = draft.question_type === "single_choice";
+  const hasDependency =
+    Boolean(draft.depends_on_question_id) &&
+    (draft.depends_on_values?.length ?? 0) > 0;
+
+  return {
+    question_text: draft.question_text.trim(),
+    question_type: draft.question_type,
+    target_type: draft.target_type,
+    section_key:
+      draft.section_key?.trim() ||
+      (draft.section_title?.trim().toLowerCase().replace(/\W+/g, "_") ?? null),
+    section_title: draft.section_title?.trim() || null,
+    section_order: draft.section_order,
+    category: draft.category?.trim() || draft.section_title?.trim() || null,
+    is_required: draft.is_required,
+    options: isChoice ? (draft.options ?? []) : null,
+    depends_on_question_id: hasDependency ? draft.depends_on_question_id : null,
+    depends_on_values: hasDependency ? draft.depends_on_values : null,
+  };
+}
+
+export async function createQuestion(
+  draft: QuestionDraft & { created_by: string },
+): Promise<{ ok: true; question: FeedbackQuestion } | { ok: false; error: string }> {
   const { data: maxOrder } = await supabase
     .from("feedback_questions")
     .select("display_order")
@@ -733,7 +774,8 @@ export async function createQuestion(payload: {
   const { data, error } = await supabase
     .from("feedback_questions")
     .insert({
-      ...payload,
+      ...normaliseQuestion(draft),
+      created_by: draft.created_by,
       display_order: (maxOrder?.display_order ?? 0) + 1,
     })
     .select("*")
@@ -743,6 +785,38 @@ export async function createQuestion(payload: {
     return { ok: false, error: error?.message ?? "Could not create question." };
   }
   return { ok: true, question: data as FeedbackQuestion };
+}
+
+export async function updateQuestion(
+  id: string,
+  draft: QuestionDraft,
+): Promise<{ ok: true; question: FeedbackQuestion } | { ok: false; error: string }> {
+  const { data, error } = await supabase
+    .from("feedback_questions")
+    .update({ ...normaliseQuestion(draft), updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Could not update question." };
+  }
+  return { ok: true, question: data as FeedbackQuestion };
+}
+
+/**
+ * Retires a question rather than deleting it — answers already given point
+ * at it, and a deleted question would take that history with it.
+ */
+export async function retireQuestion(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { error } = await supabase
+    .from("feedback_questions")
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export async function createFeedbackPeriod(payload: {

@@ -42,6 +42,7 @@ import {
   CommandList,
 } from "../../components/ui/command";
 import { FeedbackReleasePanel } from "../../components/admin/FeedbackReleasePanel";
+import { QuestionEditorDialog } from "../../components/admin/QuestionEditorDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
@@ -62,6 +63,8 @@ import {
   getPeriodCourseIds,
   getPeriodQuestionIds,
   createQuestion,
+  updateQuestion,
+  QuestionDraft,
   AdminFeedbackPeriod,
   AdminFeedbackSummary,
   CourseAnalytics,
@@ -74,6 +77,14 @@ import {
   downloadExcel,
 } from "../../../lib/feedbackService";
 
+
+const QUESTION_TYPE_LABEL: Record<string, string> = {
+  rating: "Rating 1–5",
+  single_choice: "Choose one",
+  yes_no: "Yes / No",
+  short_text: "Short answer",
+  long_text: "Long answer",
+};
 
 const STATUS_COLOR: Record<string, string> = {
   draft: "bg-gray-100 text-gray-600",
@@ -862,14 +873,10 @@ function PeriodCard({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
-  const [addingQuestion, setAddingQuestion] = useState(false);
-  const [newQuestionText, setNewQuestionText] = useState("");
-  const [newQuestionType, setNewQuestionType] = useState<
-    "rating" | "short_text" | "long_text"
-  >("rating");
-  const [newQuestionCategory, setNewQuestionCategory] = useState("");
-  const [newQuestionRequired, setNewQuestionRequired] = useState(true);
-  const [addingQuestionSaving, setAddingQuestionSaving] = useState(false);
+  const [questionEditorOpen, setQuestionEditorOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<FeedbackQuestion | null>(
+    null,
+  );
 
   useEffect(() => {
     if (expanded && !loaded) loadConfig();
@@ -914,33 +921,25 @@ function PeriodCard({
     setLoaded(true);
   };
 
-  const handleAddQuestion = async () => {
-    if (!newQuestionText.trim()) {
-      setError("Please enter the question text.");
-      return;
-    }
-    setAddingQuestionSaving(true);
+  /** Create or update, depending on whether the editor was opened on a row.
+   *  A newly created question is selected straight away — an admin who just
+   *  wrote it almost always wants it on the period they are configuring. */
+  const handleSaveQuestion = async (draft: QuestionDraft) => {
     setError(null);
-    const result = await createQuestion({
-      question_text: newQuestionText.trim(),
-      question_type: newQuestionType,
-      category: newQuestionCategory.trim() || null,
-      is_required: newQuestionRequired,
-      created_by: adminId,
-    });
-    setAddingQuestionSaving(false);
-
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    if (editingQuestion) {
+      const result = await updateQuestion(editingQuestion.id, draft);
+      if (!result.ok) return { ok: false, error: result.error };
+      setQuestionBank((prev) =>
+        prev.map((q) => (q.id === result.question.id ? result.question : q)),
+      );
+      return { ok: true };
     }
+
+    const result = await createQuestion({ ...draft, created_by: adminId });
+    if (!result.ok) return { ok: false, error: result.error };
     setQuestionBank((prev) => [...prev, result.question]);
     setSelectedQuestionIds((prev) => [...prev, result.question.id]);
-    setNewQuestionText("");
-    setNewQuestionCategory("");
-    setNewQuestionType("rating");
-    setNewQuestionRequired(true);
-    setAddingQuestion(false);
+    return { ok: true };
   };
 
   const toggleCourse = (id: string) =>
@@ -1151,98 +1150,57 @@ function PeriodCard({
                   <p className="text-sm font-medium text-foreground mb-2">
                     Questions ({selectedQuestionIds.length} selected)
                   </p>
-                  <div className="border border-border rounded-xl max-h-48 overflow-y-auto divide-y divide-border">
+                  <div className="border border-border rounded-xl max-h-64 overflow-y-auto divide-y divide-border">
                     {questionBank.map((q) => (
-                      <label
+                      <div
                         key={q.id}
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                        className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted/50"
                       >
                         <Checkbox
                           checked={selectedQuestionIds.includes(q.id)}
                           onCheckedChange={() => toggleQuestion(q.id)}
                           disabled={period.status !== "draft"}
+                          aria-label={q.question_text}
                         />
-                        <span className="truncate flex-1">
-                          {q.question_text}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{q.question_text}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {QUESTION_TYPE_LABEL[q.question_type] ?? q.question_type}
+                            {q.category ? ` · ${q.category}` : ""}
+                            {q.target_type === "lecturer" && " · per lecturer"}
+                            {q.depends_on_question_id && " · conditional"}
+                            {!q.is_required && " · optional"}
+                          </span>
                         </span>
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
-                          {q.question_type === "rating" ? "Rating" : "Text"}
-                        </Badge>
-                      </label>
+                        {period.status === "draft" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQuestion(q);
+                              setQuestionEditorOpen(true);
+                            }}
+                            className="flex-shrink-0 rounded px-1.5 py-1 text-xs text-muted-foreground hover:text-primary"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
 
                   {period.status === "draft" && (
                     <div className="mt-2">
-                      {!addingQuestion ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAddingQuestion(true)}
-                        >
-                          <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                          Add Custom Question
-                        </Button>
-                      ) : (
-                        <div className="p-3 rounded-xl border border-dashed border-border space-y-2">
-                          <Input
-                            placeholder="Question text..."
-                            value={newQuestionText}
-                            onChange={(e) => setNewQuestionText(e.target.value)}
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <select
-                              value={newQuestionType}
-                              onChange={(e) =>
-                                setNewQuestionType(e.target.value as any)
-                              }
-                              className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
-                            >
-                              <option value="rating">Rating (1-5)</option>
-                              <option value="short_text">Short answer</option>
-                              <option value="long_text">Long answer</option>
-                            </select>
-                            <Input
-                              placeholder="Category (optional)"
-                              value={newQuestionCategory}
-                              onChange={(e) =>
-                                setNewQuestionCategory(e.target.value)
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={newQuestionRequired}
-                              onCheckedChange={(v) =>
-                                setNewQuestionRequired(!!v)
-                              }
-                            />
-                            Required
-                          </label>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1"
-                              onClick={() => {
-                                setAddingQuestion(false);
-                                setNewQuestionText("");
-                              }}
-                              disabled={addingQuestionSaving}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="flex-1 bg-primary hover:bg-primary/90"
-                              onClick={handleAddQuestion}
-                              disabled={addingQuestionSaving}
-                            >
-                              {addingQuestionSaving ? "Adding..." : "Add"}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingQuestion(null);
+                          setQuestionEditorOpen(true);
+                        }}
+                      >
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        New Question
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1264,6 +1222,17 @@ function PeriodCard({
           </div>
         )}
       </CardContent>
+
+      <QuestionEditorDialog
+        open={questionEditorOpen}
+        onOpenChange={(open) => {
+          setQuestionEditorOpen(open);
+          if (!open) setEditingQuestion(null);
+        }}
+        existing={editingQuestion}
+        bank={questionBank}
+        onSave={handleSaveQuestion}
+      />
     </Card>
   );
 }
