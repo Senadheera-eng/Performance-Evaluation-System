@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { homeFor } from "../components/ProtectedRoute";
 import type { Role } from "../../lib/types";
 import universityLogo from "../../assets/logo.jpg";
-import facultyBuilding from "../../assets/faculty-building-clean.png";
+import facultyBuilding from "../../assets/faculty-building-wide.png";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -36,29 +36,29 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] p-3 text-[#111a3a] sm:p-5" style={{ colorScheme: "light" }}>
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] max-w-[1540px] overflow-hidden rounded-[20px] border border-[#e4e7ec] bg-white shadow-[0_16px_55px_rgba(15,23,42,0.08)] sm:min-h-[calc(100vh-2.5rem)]">
+    <main className="h-screen overflow-hidden bg-[#f7f8fa] p-3 text-[#111a3a] sm:p-5" style={{ colorScheme: "light" }}>
+      <div className="mx-auto flex h-full min-h-0 max-w-[1540px] overflow-hidden rounded-[20px] border border-[#e4e7ec] bg-white shadow-[0_16px_55px_rgba(15,23,42,0.08)]">
         <motion.section
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex w-full items-center justify-center bg-white px-6 py-10 lg:w-[48%] lg:px-12 xl:px-20"
+          className="flex min-h-0 w-full items-center justify-center overflow-hidden bg-white px-6 py-5 lg:w-[48%] lg:px-12 xl:px-20"
         >
           <div className="w-full max-w-[520px]">
-            <div className="mb-12 flex items-center gap-4">
-              <img src={universityLogo} alt="University of Sri Jayewardenepura logo" className="h-[72px] w-[72px] rounded-full object-cover shadow-sm" />
+            <div className="mb-8 flex items-center gap-4">
+              <img src={universityLogo} alt="University of Sri Jayewardenepura logo" className="h-16 w-16 rounded-full object-cover shadow-sm" />
               <div>
                 <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-[#111a3a]">PES</h1>
                 <p className="mt-0.5 text-[16px] text-[#7a8198]">Performance Evaluation System</p>
               </div>
             </div>
 
-            <div className="mb-10">
-              <h2 className="text-[36px] font-extrabold tracking-[-0.03em] text-[#111a3a]">Welcome Back</h2>
+            <div className="mb-7">
+              <h2 className="text-[34px] font-extrabold tracking-[-0.03em] text-[#111a3a]">Welcome Back</h2>
               <p className="mt-2 text-[18px] text-[#7a8198]">Sign in to access your academic dashboard</p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-7">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2">
                 <label htmlFor="email" className="block text-[15px] font-semibold text-[#111a3a]">University Email</label>
                 <div className="relative">
@@ -70,7 +70,7 @@ export default function LoginPage() {
                     placeholder="yourname@foe.sjp.ac.lk"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-14 rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
                   <Lock aria-hidden="true" className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#596079]" />
@@ -88,7 +88,7 @@ export default function LoginPage() {
                     placeholder="Enter your LMS password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-14 rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
                   <button
@@ -124,7 +124,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="group h-14 w-full rounded-lg bg-[#d11238] text-[16px] font-bold text-white shadow-[0_8px_20px_rgba(209,18,56,0.18)] transition-all hover:bg-[#ba0f32] hover:shadow-[0_10px_24px_rgba(209,18,56,0.25)]"
+                className="group h-[52px] w-full rounded-lg bg-[#d11238] text-[16px] font-bold text-white shadow-[0_8px_20px_rgba(209,18,56,0.18)] transition-all hover:bg-[#ba0f32] hover:shadow-[0_10px_24px_rgba(209,18,56,0.25)]"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -140,7 +140,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-12 flex items-center gap-4 text-[#a2a8b8]">
+            <div className="mt-7 flex items-center gap-4 text-[#a2a8b8]">
               <span className="h-px flex-1 bg-[#d8dce5]" />
               <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d8dce5]">
                 <GraduationCap className="h-5 w-5 text-[#596079]" />
@@ -148,9 +148,9 @@ export default function LoginPage() {
               <span className="h-px flex-1 bg-[#d8dce5]" />
             </div>
 
-            <footer className="mt-5 text-center text-[15px] text-[#737b91]">
+            <footer className="mt-3 text-center text-[15px] text-[#737b91]">
               <p>University of Sri Jayewardenepura</p>
-              <p className="mt-3">
+              <p className="mt-2">
                 For support, contact{" "}
                 <a href="mailto:support@sjp.ac.lk" className="font-semibold text-[#d11238] hover:underline">support@sjp.ac.lk</a>
               </p>
@@ -162,12 +162,12 @@ export default function LoginPage() {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative hidden min-h-full overflow-hidden lg:block lg:w-[52%]"
+          className="relative hidden h-full min-h-0 overflow-hidden lg:block lg:w-[52%]"
           aria-label="Faculty of Engineering"
         >
-          <img src={facultyBuilding} alt="Faculty of Engineering, University of Sri Jayewardenepura" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(143,9,57,0.86)_0%,rgba(88,19,98,0.76)_48%,rgba(29,22,104,0.84)_100%)] mix-blend-multiply" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(116,11,55,0.18)_0%,rgba(50,17,91,0.18)_46%,rgba(20,12,66,0.66)_100%)]" />
+          <img src={facultyBuilding} alt="Faculty of Engineering, University of Sri Jayewardenepura" className="absolute inset-0 h-full w-full object-cover object-right" />
+          <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(188,9,58,0.82)_0%,rgba(139,14,79,0.72)_48%,rgba(69,27,112,0.76)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(183,11,61,0.18)_0%,rgba(102,15,78,0.24)_45%,rgba(31,13,69,0.66)_100%)]" />
           <div
             className="absolute right-0 top-0 h-[38%] w-[44%] opacity-20"
             style={{
