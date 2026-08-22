@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Lock,
   FileDown,
+  Pencil,
 } from "lucide-react";
 import {
   Card,
@@ -23,6 +24,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { CorrectGradeDialog } from "../../components/admin/CorrectGradeDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -152,6 +154,11 @@ export default function AdminResults() {
   const [batches, setBatches] = useState<number[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentResult[]>([]);
+  const [correcting, setCorrecting] = useState<{
+    id: string;
+    studentName: string;
+    currentGrade: string | null;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState<
     "all" | "regular" | "repeat"
@@ -970,6 +977,28 @@ export default function AdminResults() {
                                 <br />
                                 {student.gpv?.toFixed(1)} GPV
                               </span>
+                              {/* A published row is otherwise locked, which is
+                                  right — but a grade entered in error still has
+                                  to be fixable, and editing an R back clamps to
+                                  C because the row treats it as a re-sit. */}
+                              {student.resultId && student.isPublished && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-1.5"
+                                  title="Correct a grade recorded in error"
+                                  onClick={() =>
+                                    setCorrecting({
+                                      id: student.resultId!,
+                                      studentName: student.name,
+                                      currentGrade: student.grade,
+                                    })
+                                  }
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Correct grade</span>
+                                </Button>
+                              )}
                             </>
                           ) : (
                             <span className="text-muted-foreground text-xs">
@@ -1275,6 +1304,13 @@ export default function AdminResults() {
           </p>
         </motion.div>
       )}
+
+      <CorrectGradeDialog
+        open={correcting !== null}
+        onOpenChange={(open) => !open && setCorrecting(null)}
+        result={correcting}
+        onCorrected={fetchStudentResults}
+      />
     </div>
   );
 }

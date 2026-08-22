@@ -126,7 +126,8 @@
       "Bash(mkdir -p /tmp/pesdoc)",
       "Bash(python __TRACKED_VAR__/scripts/office/soffice.py --headless --convert-to pdf --outdir /tmp/pesdoc PES_System_Functionality_Guide.docx)",
       "PowerShell($so = @\\(\"C:\\\\Program Files\\\\LibreOffice\\\\program\\\\soffice.exe\",\"C:\\\\Program Files \\(x86\\)\\\\LibreOffice\\\\program\\\\soffice.exe\"\\) | Where-Object { Test-Path $_ } | Select-Object -First 1; if \\($so\\) { \"soffice: $so\" } else { \"soffice: not found\" }; if \\(Get-Command pandoc -ErrorAction SilentlyContinue\\) { \"pandoc: yes\" } else { \"pandoc: no\" })",
-      "Bash(grep -n \"import { useAuth }\\\\|from \\\\\"../../../lib/batch\\\\\"\" StaffAttendance.tsx)"
+      "Bash(grep -n \"import { useAuth }\\\\|from \\\\\"../../../lib/batch\\\\\"\" StaffAttendance.tsx)",
+      "Bash(node pes_app/export_migrations.cjs)"
     ]
   }
 }
