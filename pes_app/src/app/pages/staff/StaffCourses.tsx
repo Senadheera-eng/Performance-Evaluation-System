@@ -92,7 +92,7 @@ export default function StaffCourses() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      {batches.length > 1 && (
+      {batches.length > 0 && (
         <SegmentedTabs
           aria-label="Filter by batch"
           value={batchFilter}

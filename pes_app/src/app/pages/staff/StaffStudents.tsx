@@ -206,16 +206,10 @@ export default function StaffStudents() {
         />
       </div>
 
-      {/* With a single batch on record a filter would offer one real choice,
-          so the department is told which batch it is looking at instead. */}
-      {batches.length === 1 && (
-        <p className="text-xs text-muted-foreground">
-          All {students.length} students shown are {describeBatch(batches[0])}.
-          A batch filter appears here once a second batch is on record.
-        </p>
-      )}
-
-      {batches.length > 1 && (
+      {/* Shown from the first batch, not the second. Results and Attendance
+          carry a Batch control whatever is on record, and a department that
+          finds one here and not there reads it as the filter being missing. */}
+      {batches.length > 0 && (
         <SegmentedTabs
           aria-label="Filter by batch"
           value={batchFilter}
