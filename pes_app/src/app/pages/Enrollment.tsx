@@ -32,6 +32,23 @@ interface AvailableCourse {
   alreadyEnrolled: boolean;
 }
 
+/** One row of get_my_enrolment_options — the shape the database decides. */
+interface EnrolmentOption {
+  course_id: string;
+  course_code: string;
+  title: string;
+  credits: number;
+  semester: number;
+  category: string;
+  kind: "regular" | "repeat_r" | "repeat_l";
+  period_title: string;
+  period_academic_year: string;
+  closes_at: string;
+  capacity: number | null;
+  enrolled_count: number;
+  already_enrolled: boolean;
+}
+
 const getCourseStatus = (course: AvailableCourse) => {
   if (course.alreadyEnrolled) {
     return {
@@ -74,40 +91,18 @@ export default function Enrollment() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState("all");
-  const [nextSemester, setNextSemester] = useState<number | null>(null);
+  const [currentSemester, setCurrentSemester] = useState<number | null>(null);
   const [academicYear, setAcademicYear] = useState<string>("");
   const [enrollmentPeriod, setEnrollmentPeriod] = useState<{
     title: string;
-    opens_at: string;
     closes_at: string;
   } | null>(null);
   const [periodChecked, setPeriodChecked] = useState(false);
 
   useEffect(() => {
     if (!student?.id) return;
-    fetchEnrollmentPeriod();
     fetchAvailableCourses();
   }, [student?.id]);
-
-  // Enrolment is only possible while the super admin has an enrolment
-  // period open for this student's batch/department — enforced by RLS on
-  // the enrollments table, mirrored here so the UI explains itself.
-  const fetchEnrollmentPeriod = async () => {
-    const nowIso = new Date().toISOString();
-    const { data } = await supabase
-      .from("enrollment_periods")
-      .select("title, opens_at, closes_at, batch_year, department")
-      .eq("status", "open")
-      .lte("opens_at", nowIso)
-      .gte("closes_at", nowIso)
-      .eq("batch_year", student!.batch_year ?? -1);
-
-    const match = (data ?? []).find(
-      (p: any) => !p.department || p.department === student!.department,
-    );
-    setEnrollmentPeriod(match ?? null);
-    setPeriodChecked(true);
-  };
 
   const enrollmentOpen = enrollmentPeriod !== null;
 
@@ -121,6 +116,19 @@ export default function Enrollment() {
     return `${startYear}/${startYear + 1}`;
   };
 
+  /**
+   * What this student may enrol in, and whether they may enrol at all.
+   *
+   * Both answers come from get_my_enrolment_options, which applies the same
+   * rule the insert policy enforces: a window counts as this student's when
+   * it is for the semester their batch is in now, whatever batch the window
+   * itself names. Reading the window's batch here instead — as this page used
+   * to — let a Semester 2 window opened for Batch 7 unlock the whole of
+   * Semester 7 for every Batch 7 student.
+   *
+   * Modules still owed are not part of this list. They are a different
+   * obligation and OutstandingModules renders them separately.
+   */
   const fetchAvailableCourses = async () => {
     setLoading(true);
 
@@ -129,84 +137,69 @@ export default function Enrollment() {
       return;
     }
 
-    // Determine the student's highest completed semester from published results
-    const { data: completedResults } = await supabase
-      .from("my_published_results")
-      .select("semester");
+    const { data: semesterData } = await supabase.rpc("my_current_semester");
+    const semester = (semesterData as number | null) ?? null;
+    setCurrentSemester(semester);
 
-    const completedSemesters =
-      completedResults
-        ?.map((r: any) => r.semester ?? 0)
-        .filter((s: number) => s > 0) ?? [];
+    const { data: options } = await supabase.rpc("get_my_enrolment_options");
+    const regular = ((options ?? []) as EnrolmentOption[]).filter(
+      (o) => o.kind === "regular",
+    );
 
-    const highestCompleted =
-      completedSemesters.length > 0 ? Math.max(...completedSemesters) : 0;
-    const targetSemester = highestCompleted + 1;
-    const targetYear = Math.ceil(targetSemester / 2);
-
-    setNextSemester(targetSemester);
-    setAcademicYear(semesterToAcademicYear(targetSemester));
-
-    // Interdisciplinary Studies courses are shared general-education
-    // requirements taken by students of every department, so they must be
-    // included alongside the student's own department's courses here.
-    const { data: courses } = await supabase
-      .from("courses")
-      .select("*")
-      .in("department", [student.department, "Interdisciplinary Studies"])
-      .eq("year", targetYear)
-      .eq("semester", targetSemester)
-      .order("course_code");
-
-    if (!courses) {
+    if (regular.length > 0) {
+      setEnrollmentPeriod({
+        title: regular[0].period_title,
+        closes_at: regular[0].closes_at,
+      });
+      setAcademicYear(regular[0].period_academic_year);
+      setAvailableCourses(
+        regular.map((o) => ({
+          id: o.course_id,
+          code: o.course_code,
+          name: o.title,
+          credits: o.credits,
+          category: o.category,
+          minor_category: null,
+          semester: o.semester,
+          year: Math.ceil(o.semester / 2),
+          seats: o.capacity ?? 45,
+          enrolled: o.enrolled_count,
+          alreadyEnrolled: o.already_enrolled,
+        })),
+      );
+      setPeriodChecked(true);
       setLoading(false);
       return;
     }
 
-    // Check which ones the student is already enrolled in
-    const { data: existingEnrollments } = await supabase
-      .from("enrollments")
-      .select("course_id")
-      .eq("student_id", student!.id)
-      .in(
-        "course_id",
-        courses.map((c) => c.id),
-      );
+    // No window for this student's semester. The courses of the semester they
+    // are in are still worth showing — as a prospectus, granting nothing.
+    setEnrollmentPeriod(null);
+    setAcademicYear(semester ? semesterToAcademicYear(semester) : "");
 
-    const enrolledIds = new Set(
-      existingEnrollments?.map((e: any) => e.course_id) ?? [],
+    const { data: courses } = await supabase
+      .from("courses")
+      .select("*")
+      .in("department", [student.department, "Interdisciplinary Studies"])
+      .eq("semester", semester ?? -1)
+      .order("course_code");
+
+    setAvailableCourses(
+      (courses ?? []).map((c: any) => ({
+        id: c.id,
+        code: c.course_code,
+        name: c.title,
+        credits: c.credits,
+        category: c.category,
+        minor_category: c.minor_category,
+        semester: c.semester,
+        year: c.year,
+        seats: 45,
+        enrolled: 0,
+        alreadyEnrolled: false,
+      })),
     );
-
-    // Get enrollment counts per course
-    const { data: enrollmentCounts } = await supabase
-      .from("enrollments")
-      .select("course_id")
-      .in(
-        "course_id",
-        courses.map((c) => c.id),
-      )
-      .eq("status", "enrolled");
-
-    const countMap: Record<string, number> = {};
-    enrollmentCounts?.forEach((e: any) => {
-      countMap[e.course_id] = (countMap[e.course_id] ?? 0) + 1;
-    });
-
-    const result: AvailableCourse[] = courses.map((c) => ({
-      id: c.id,
-      code: c.course_code,
-      name: c.title,
-      credits: c.credits,
-      category: c.category,
-      minor_category: c.minor_category,
-      semester: c.semester,
-      year: c.year,
-      seats: 45,
-      enrolled: countMap[c.id] ?? 0,
-      alreadyEnrolled: enrolledIds.has(c.id),
-    }));
-
-    setAvailableCourses(result);
+    setPeriodChecked(true);
     setLoading(false);
   };
 
@@ -235,6 +228,7 @@ export default function Enrollment() {
         course_id: courseId,
         academic_year: academicYear,
         status: "enrolled",
+        enrollment_kind: "regular",
       }));
 
       const { error } = await supabase.from("enrollments").insert(enrollments);
@@ -281,7 +275,7 @@ export default function Enrollment() {
           Course Enrollment
         </h1>
         <p className="text-muted-foreground text-sm">
-          Enroll in courses for Semester {nextSemester ?? "—"}
+          Enroll in courses for Semester {currentSemester ?? "—"}
           {academicYear ? ` (${academicYear})` : ""} — {availableCourses.length}{" "}
           courses available.
         </p>
@@ -320,9 +314,9 @@ export default function Enrollment() {
             <>
               <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
               <p className="text-sm text-amber-800 font-medium">
-                Enrolment is currently closed. You can browse the available
-                courses below, but selections will open once the faculty
-                announces the next enrolment period.
+                Enrolment is not open for Semester {currentSemester ?? "—"}.
+                You can browse its courses below, but selections open only once
+                the faculty announces the window for your semester.
               </p>
             </>
           )}

@@ -59,7 +59,8 @@ interface EnrollmentPeriod {
   title: string;
   academic_year: string;
   semester: number;
-  batch_year: number;
+  /** Null when no batch is in this semester — a repeat-only window. */
+  batch_year: number | null;
   department: string | null;
   opens_at: string;
   closes_at: string;
@@ -392,8 +393,10 @@ export default function AdminEnrollment() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {p.department ?? "All Departments"} ·{" "}
-                      {describeBatch(p.batch_year)} · Sem {p.semester} ·{" "}
-                      {p.academic_year}
+                      {p.batch_year !== null
+                        ? describeBatch(p.batch_year)
+                        : "Repeat students only"}{" "}
+                      · Sem {p.semester} · {p.academic_year}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(p.opens_at).toLocaleString()} →{" "}
@@ -664,9 +667,12 @@ function PeriodForm({
       `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
   );
   const [semester, setSemester] = useState(editing?.semester ?? 1);
-  const [batchYear, setBatchYear] = useState<number | "">(
-    editing?.batch_year ?? "",
+  /* Derived, never chosen — see the effect below. Null means no batch is in
+     this semester, which makes the window a repeat-only one. */
+  const [batchYear, setBatchYear] = useState<number | null>(
+    editing?.batch_year ?? null,
   );
+  const [batchResolved, setBatchResolved] = useState(false);
   const [department, setDepartment] = useState(editing?.department ?? "");
   const [opensAt, setOpensAt] = useState(
     editing ? toLocalInput(editing.opens_at) : "",
@@ -677,7 +683,6 @@ function PeriodForm({
   const [instructions, setInstructions] = useState(
     editing?.instructions ?? "",
   );
-  const [batches, setBatches] = useState<number[]>([]);
   const [allCourses, setAllCourses] = useState<CourseOption[]>([]);
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [capacities, setCapacities] = useState<Record<string, string>>({});
@@ -687,19 +692,27 @@ function PeriodForm({
   const settings = useSettings();
   const DEPARTMENTS = settings.studentDepartments;
 
+  /* Naming the semester is the whole decision. Which batch is in that semester
+     follows from the results already published, so asking the admin to pick a
+     batch as well was asking them to restate something the system knows — and
+     to get it wrong, which is how a Semester 2 window came to be aimed at a
+     batch sitting Semester 7. */
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("students")
-        .select("batch_year")
-        .eq("role", "student");
-      const distinct = [...new Set((data ?? []).map((s: any) => s.batch_year))]
-        .filter((y): y is number => y !== null)
-        .sort((a, b) => b - a);
-      setBatches(distinct);
-      if (!editing && distinct.length > 0) setBatchYear(distinct[0]);
+      const { data } = await supabase.rpc("batch_currently_in_semester", {
+        p_semester: semester,
+      });
+      if (cancelled) return;
+      setBatchYear((data as number | null) ?? null);
+      setBatchResolved(true);
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [semester]);
 
+  useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("courses")
@@ -744,7 +757,6 @@ function PeriodForm({
       (p) =>
         p.id !== editing?.id &&
         (p.status === "scheduled" || p.status === "open") &&
-        p.batch_year === Number(batchYear) &&
         p.academic_year === academicYear &&
         p.semester === semester &&
         (p.department === (department || null) ||
@@ -755,7 +767,7 @@ function PeriodForm({
 
   const handleSubmit = async () => {
     setError(null);
-    if (!title || !batchYear || !opensAt || !closesAt) {
+    if (!title || !opensAt || !closesAt) {
       setError("Please fill in all fields.");
       return;
     }
@@ -767,7 +779,7 @@ function PeriodForm({
     const conflict = findConflict();
     if (conflict && !conflictAcknowledged) {
       setError(
-        `"${conflict.title}" is already ${conflict.status} for this batch, semester and year. Click again to create anyway.`,
+        `"${conflict.title}" is already ${conflict.status} for this semester and year. Click again to create anyway.`,
       );
       setConflictAcknowledged(true);
       return;
@@ -779,7 +791,7 @@ function PeriodForm({
       title,
       academic_year: academicYear,
       semester,
-      batch_year: Number(batchYear),
+      batch_year: batchYear,
       department: department || null,
       opens_at: new Date(opensAt).toISOString(),
       closes_at: new Date(closesAt).toISOString(),
@@ -899,17 +911,18 @@ function PeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Batch
             </label>
-            <select
-              value={batchYear}
-              onChange={(e) => setBatchYear(Number(e.target.value))}
-              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
-            >
-              {batches.map((b) => (
-                <option key={b} value={b}>
-                  {describeBatch(b)}
-                </option>
-              ))}
-            </select>
+            <div className="w-full min-h-9 px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm text-foreground">
+              {!batchResolved
+                ? "Working it out…"
+                : batchYear !== null
+                  ? describeBatch(batchYear)
+                  : "No batch is in this semester"}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {batchYear !== null
+                ? "Whichever batch is in this semester now — worked out from published results."
+                : `No batch is currently studying Semester ${semester}. Only students repeating a Semester ${semester} module will see this window.`}
+            </p>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
