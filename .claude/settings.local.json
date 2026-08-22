@@ -102,7 +102,17 @@
       "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts\\)\\);\")",
       "Bash(python -c ' *)",
       "Bash(node export_migrations.cjs)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "PowerShell(Get-PSDrive C | Select-Object @{n='UsedGB';e={[math]::Round\\($_.Used/1GB,1\\)}}, @{n='FreeGB';e={[math]::Round\\($_.Free/1GB,1\\)}}, @{n='TotalGB';e={[math]::Round\\(\\($_.Used+$_.Free\\)/1GB,1\\)}})",
+      "PowerShell(Start-Process \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "PowerShell(\"launched, waiting for engine...\")",
+      "PowerShell(docker system df)",
+      "PowerShell(docker volume ls --format \"{{.Name}}\")",
+      "PowerShell(\"=== IMAGES ===\")",
+      "PowerShell(\"=== CONTAINERS \\(all\\) ===\")",
+      "PowerShell(\"=== VOLUMES ===\")",
+      "PowerShell(git -C \"E:\\\\Education\\\\PROJECTS\\\\WorkXel-Dev\\\\WorkXel_Dev\" log --all --since=2026-08-10 --until=2026-08-15 --date=format:\"%Y-%m-%d %H:%M\" --pretty=format:\"%ad | %h | %s\")",
+      "PowerShell(git -C \"E:\\\\Education\\\\PROJECTS\\\\FootScan_Lite_DiabSense\" log --all --since=2026-08-10 --until=2026-08-15 --date=format:\"%Y-%m-%d %H:%M\" --pretty=format:\"%ad | %h | %s\")"
     ]
   }
 }
