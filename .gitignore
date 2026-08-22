@@ -64,3 +64,6 @@ coverage/
 
 # Vite
 .vite/
+
+# Personal Claude Code permissions — machine-local, not shared
+.claude/settings.local.json
