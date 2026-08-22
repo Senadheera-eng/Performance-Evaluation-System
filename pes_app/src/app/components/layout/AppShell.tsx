@@ -29,6 +29,12 @@ export interface ShellNavItem {
   href: string;
   icon: LucideIcon;
   badge?: string;
+  /**
+   * "muted" is a label like New. "attention" is a count of things waiting for
+   * this person, and carries the brand colour — plus a dot on the collapsed
+   * rail, where the label itself has nowhere to render.
+   */
+  badgeTone?: "muted" | "attention";
 }
 
 interface AppShellProps {
@@ -152,6 +158,15 @@ export function AppShell({
           onNavigate?.();
         }}
         aria-current={active ? "page" : undefined}
+        // Collapsed, the icon is the only child and it is aria-hidden, which
+        // leaves the button with no accessible name at all.
+        aria-label={
+          iconOnly
+            ? item.badge
+              ? `${item.name} — ${item.badge}`
+              : item.name
+            : undefined
+        }
         className={cn(
           "relative w-full flex items-center gap-2.5 rounded-xl",
           "min-h-[44px] px-3 text-sm font-medium transition-colors",
@@ -161,14 +176,36 @@ export function AppShell({
             : "text-muted-foreground hover:text-foreground hover:bg-muted",
         )}
       >
-        <item.icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        <span className="relative flex-shrink-0">
+          <item.icon className="h-4 w-4" aria-hidden="true" />
+          {/* Collapsed to the icon rail there is no room for the count, but
+              something still has to say the item needs attention. */}
+          {iconOnly && item.badge && item.badgeTone === "attention" && (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full ring-2",
+                active
+                  ? "bg-primary-foreground ring-primary"
+                  : "bg-primary ring-sidebar",
+              )}
+            />
+          )}
+        </span>
         {!iconOnly && (
           <>
             <span className="flex-1 text-left truncate">{item.name}</span>
             {item.badge && (
               <Badge
                 variant="secondary"
-                className="bg-accent text-accent-foreground text-[10px] px-1.5 flex-shrink-0"
+                className={cn(
+                  "text-[10px] px-1.5 flex-shrink-0",
+                  item.badgeTone === "attention"
+                    ? active
+                      ? "bg-primary-foreground text-primary"
+                      : "bg-primary text-primary-foreground"
+                    : "bg-accent text-accent-foreground",
+                )}
               >
                 {item.badge}
               </Badge>
