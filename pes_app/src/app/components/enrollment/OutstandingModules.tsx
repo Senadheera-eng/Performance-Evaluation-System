@@ -19,7 +19,8 @@ interface Option {
   outstanding_from: string | null;
   period_id: string;
   period_title: string;
-  period_batch: number;
+  /** Null when no batch is in that semester — a sitting laid on for repeats. */
+  period_batch: number | null;
   closes_at: string;
   capacity: number | null;
   enrolled_count: number;
@@ -146,8 +147,8 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
       <div className="flex items-start gap-2 rounded-xl border-l-4 border-primary bg-primary/5 px-4 py-3 text-sm text-foreground">
         <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
         <span>
-          You have modules still to clear, and they are open for enrolment now
-          with a later batch. Enrol in them here.
+          You have modules still to clear and they are open for enrolment now.
+          Enrol in them here.
         </span>
       </div>
 
@@ -191,8 +192,11 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
                       </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         {o.credits} credit{o.credits === 1 ? "" : "s"} · Semester{" "}
-                        {o.semester} · taken with {describeBatch(o.period_batch)} ·
-                        closes {new Date(o.closes_at).toLocaleDateString()}
+                        {o.semester} ·{" "}
+                        {o.period_batch !== null
+                          ? `taken with ${describeBatch(o.period_batch)}`
+                          : "a sitting laid on for repeats"}{" "}
+                        · closes {new Date(o.closes_at).toLocaleDateString()}
                       </span>
                     </span>
                   </label>
