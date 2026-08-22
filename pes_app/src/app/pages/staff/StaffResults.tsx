@@ -31,6 +31,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "../../components/common";
+import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -175,7 +176,6 @@ export default function StaffResults() {
       // Courses they teach first — those are the ones they came to work on.
       list.sort((a, b) => Number(b.canEdit) - Number(a.canEdit));
       setOfferings(list);
-      if (list.length > 0) setSelectedId(list[0].offering_id);
       setLoading(false);
       return;
     }
@@ -199,7 +199,6 @@ export default function StaffResults() {
         canEdit: true,
       })),
     );
-    if (result.data.length > 0) setSelectedId(result.data[0].offering_id);
     setLoading(false);
   };
 
@@ -415,23 +414,16 @@ export default function StaffResults() {
         </div>
       )}
 
-      <SectionCard title="Course">
+      <SectionCard title="Batch & course">
         {loading ? (
           <SkeletonRows count={1} height="h-9" />
         ) : (
-          <select
+          <OfferingPicker
+            offerings={offerings}
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground sm:max-w-2xl"
-          >
-            {offerings.map((o) => (
-              <option key={o.offering_id} value={o.offering_id}>
-                {o.course_code} — {o.course_title} · {describeBatch(o.batch_year)} ·
-                Sem {o.semester}
-                {caps.isHod && !o.canEdit ? "  (view only)" : ""}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedId}
+            showViewOnly={caps.isHod}
+          />
         )}
         {caps.isHod && (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -504,7 +496,7 @@ export default function StaffResults() {
           ) : null}
 
           <SectionCard
-            title={`${selected.course_code} — ${selected.course_title}`}
+            title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
             description={`OA = Mid Sem ${Math.round(settings.oaWeights.mid_sem * 100)}% + CA ${Math.round(settings.oaWeights.ca * 100)}% + ESE ${Math.round(settings.oaWeights.ese * 100)}%. Grade and GPV are calculated for you.`}
             flush
           >
