@@ -19,6 +19,7 @@ import {
   StatCard,
   StatusBadge,
 } from "../../components/common";
+import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -95,7 +96,6 @@ export default function StaffAttendance() {
       return;
     }
     setOfferings(result.data);
-    if (result.data.length > 0) setSelectedId(result.data[0].offering_id);
     setLoading(false);
   };
 
@@ -235,30 +235,31 @@ export default function StaffAttendance() {
         </div>
       )}
 
-      <SectionCard title="Course & lecture date">
+      <SectionCard title="Batch, course & lecture date">
         {loading ? (
           <SkeletonRows count={1} height="h-10" />
         ) : (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="h-10 flex-1 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {offerings.map((o) => (
-                <option key={o.offering_id} value={o.offering_id}>
-                  {o.course_code} — {o.course_title} · {describeBatch(o.batch_year)}
-                </option>
-              ))}
-            </select>
-            <Input
-              type="date"
-              value={date}
-              max={today()}
-              onChange={(e) => setDate(e.target.value)}
-              className="h-10 bg-card sm:w-48"
-              aria-label="Lecture date"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <div className="min-w-0 flex-1">
+              <OfferingPicker
+                offerings={offerings}
+                value={selectedId}
+                onChange={setSelectedId}
+              />
+            </div>
+            <label className="flex flex-col gap-1 lg:w-48">
+              <span className="text-xs font-medium text-muted-foreground">
+                Lecture date
+              </span>
+              <Input
+                type="date"
+                value={date}
+                max={today()}
+                onChange={(e) => setDate(e.target.value)}
+                className="h-10 bg-card"
+                aria-label="Lecture date"
+              />
+            </label>
           </div>
         )}
         {alreadyRecorded && (
@@ -291,7 +292,7 @@ export default function StaffAttendance() {
           </div>
 
           <SectionCard
-            title={`${selected.course_code} — ${selected.course_title}`}
+            title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
             description={`${rows.length} students · ${date}`}
             actions={
               <div className="flex gap-2">

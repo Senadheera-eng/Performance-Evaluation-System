@@ -115,7 +115,18 @@
       "PowerShell(git -C \"E:\\\\Education\\\\PROJECTS\\\\FootScan_Lite_DiabSense\" log --all --since=2026-08-10 --until=2026-08-15 --date=format:\"%Y-%m-%d %H:%M\" --pretty=format:\"%ad | %h | %s\")",
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\Git\\\\mingw64\\\\bin;\" + $env:PATH; cd E:\\\\Education\\\\PROJECTS\\\\Performanceevaluationsystem; git push origin main 2>&1 | Select-Object -Last 4)",
       "PowerShell($g = Get-Command gh -ErrorAction SilentlyContinue; if \\($g\\) { \"gh: $\\($g.Source\\)\"; gh auth status 2>&1 | Select-Object -First 3 } else { \"gh: not installed\" }; \"---\"; git remote -v | Select-Object -First 2; \"---\"; if \\(Test-Path \"$env:USERPROFILE\\\\.ssh\"\\) { Get-ChildItem \"$env:USERPROFILE\\\\.ssh\" -Name } else { \"no .ssh dir\" })",
-      "Bash(node /c/Users/lahir/AppData/Local/Temp/claude/E--Education-PROJECTS-Performanceevaluationsystem/da04382f-837a-4f41-bff9-3868ef3a286a/scratchpad/push_via_api.cjs)"
+      "Bash(node /c/Users/lahir/AppData/Local/Temp/claude/E--Education-PROJECTS-Performanceevaluationsystem/da04382f-837a-4f41-bff9-3868ef3a286a/scratchpad/push_via_api.cjs)",
+      "Read(//c/Users/lahir/AppData/Local/Temp/claude/E--Education-PROJECTS-Performanceevaluationsystem/da04382f-837a-4f41-bff9-3868ef3a286a/scratchpad/**)",
+      "Bash(node gen_docs.cjs)",
+      "Read(//c/Users/lahir/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/d182b6b5-694a-408d-8f05-d98ec502fc44/c41f72bb-6d16-411e-81ba-216062a3265c/skills/docx/**)",
+      "Read(//c/Users/lahir/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/d182b6b5-694a-408d-8f05-d98ec502fc44/c41f72bb-6d16-411e-81ba-216062a3265c/skills/docx/node_modules/**)",
+      "Bash(npm root *)",
+      "Bash(ls -d \"$\\(npm root -g\\)/docx\")",
+      "Bash(npm install *)",
+      "Bash(mkdir -p /tmp/pesdoc)",
+      "Bash(python __TRACKED_VAR__/scripts/office/soffice.py --headless --convert-to pdf --outdir /tmp/pesdoc PES_System_Functionality_Guide.docx)",
+      "PowerShell($so = @\\(\"C:\\\\Program Files\\\\LibreOffice\\\\program\\\\soffice.exe\",\"C:\\\\Program Files \\(x86\\)\\\\LibreOffice\\\\program\\\\soffice.exe\"\\) | Where-Object { Test-Path $_ } | Select-Object -First 1; if \\($so\\) { \"soffice: $so\" } else { \"soffice: not found\" }; if \\(Get-Command pandoc -ErrorAction SilentlyContinue\\) { \"pandoc: yes\" } else { \"pandoc: no\" })",
+      "Bash(grep -n \"import { useAuth }\\\\|from \\\\\"../../../lib/batch\\\\\"\" StaffAttendance.tsx)"
     ]
   }
 }

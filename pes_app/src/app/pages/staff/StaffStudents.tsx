@@ -206,6 +206,15 @@ export default function StaffStudents() {
         />
       </div>
 
+      {/* With a single batch on record a filter would offer one real choice,
+          so the department is told which batch it is looking at instead. */}
+      {batches.length === 1 && (
+        <p className="text-xs text-muted-foreground">
+          All {students.length} students shown are {describeBatch(batches[0])}.
+          A batch filter appears here once a second batch is on record.
+        </p>
+      )}
+
       {batches.length > 1 && (
         <SegmentedTabs
           aria-label="Filter by batch"
