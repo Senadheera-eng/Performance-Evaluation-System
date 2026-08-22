@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
+import {
+  useNotificationCounts,
+  withBadges,
+} from "../hooks/useNotificationCounts";
 import { describeStaffScope, getStaffCapabilities } from "../../lib/staffScope";
 
 /**
@@ -26,6 +30,7 @@ export default function StaffLayout() {
   const navigate = useNavigate();
   const { signOut, student, staff } = useAuth();
   const caps = getStaffCapabilities(staff);
+  const counts = useNotificationCounts();
 
   const navigation: ShellNavItem[] = [
     { name: "Dashboard", href: "/staff", icon: LayoutDashboard },
@@ -55,7 +60,7 @@ export default function StaffLayout() {
     <AppShell
       brandTitle={caps.isHod ? "PES Department" : "PES Staff"}
       brandSubtitle={caps.isHod ? "Head of Department" : "Lecturer Portal"}
-      navigation={navigation}
+      navigation={withBadges(navigation, counts)}
       roleBadge={{
         label: caps.isHod ? "Head of Department" : "Lecturer",
         icon: Presentation,

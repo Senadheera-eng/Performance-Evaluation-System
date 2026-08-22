@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
+import {
+  useNotificationCounts,
+  withBadges,
+} from "../hooks/useNotificationCounts";
 import { formatRegNumber } from "../../lib/format";
 
 const navigation: ShellNavItem[] = [
@@ -36,6 +40,7 @@ const bottomNavigation: ShellNavItem[] = [
 export default function AppLayout() {
   const navigate = useNavigate();
   const { signOut, student } = useAuth();
+  const counts = useNotificationCounts();
 
   const handleLogout = async () => {
     await signOut();
@@ -53,7 +58,7 @@ export default function AppLayout() {
     <AppShell
       brandTitle="PES"
       brandSubtitle="Performance System"
-      navigation={navigation}
+      navigation={withBadges(navigation, counts)}
       bottomNavigation={bottomNavigation}
       userName={student?.name ?? "Student"}
       userMeta={meta || "Student"}

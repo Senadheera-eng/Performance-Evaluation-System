@@ -92,6 +92,17 @@ export default function Feedback() {
     return map;
   }, [rows]);
 
+  /* Forms still owed in each semester — what makes a semester worth opening,
+     and the number the button shows. */
+  const openInSemester = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const r of rows) {
+      if (r.submission_status === "submitted") continue;
+      map.set(r.semester, (map.get(r.semester) ?? 0) + 1);
+    }
+    return map;
+  }, [rows]);
+
   const coursesInSemester = useMemo(() => {
     if (semester === null) return [];
     const seen = new Map<string, FeedbackCatalogueRow>();
@@ -145,6 +156,7 @@ export default function Feedback() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {SEMESTERS.map((s) => {
                 const available = bySemester.has(s);
+                const outstanding = openInSemester.get(s) ?? 0;
                 const selected = semester === s;
                 return (
                   <button
@@ -157,20 +169,40 @@ export default function Feedback() {
                       setChosenCourse(null);
                     }}
                     className={cn(
-                      "rounded-xl border p-4 text-center transition-all",
+                      "relative rounded-xl border p-4 text-center transition-all",
                       selected
                         ? "border-primary bg-primary text-primary-foreground shadow-elevation-sm"
-                        : available
-                          ? "border-border bg-card hover:border-primary/50"
-                          : "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground",
+                        : outstanding > 0
+                          ? // A semester with forms still to fill in is the whole
+                            // reason the student came. It carries the brand
+                            // colour and says how many, rather than being one
+                            // white card among seven grey ones.
+                            "border-primary bg-primary/10 text-primary shadow-elevation-sm hover:bg-primary/15"
+                          : available
+                            ? "border-border bg-card hover:border-primary/50"
+                            : "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground",
                     )}
                   >
+                    {outstanding > 0 && !selected && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+                      >
+                        {outstanding}
+                      </span>
+                    )}
                     <span className="block text-2xl font-semibold">{s}</span>
                     <span className="block text-xs">{ORDINAL[s]} Semester</span>
-                    {!available && (
+                    {!available ? (
                       <span className="mt-0.5 block text-[11px]">
                         Not available
                       </span>
+                    ) : outstanding > 0 ? (
+                      <span className="mt-0.5 block text-[11px] font-medium">
+                        {outstanding} form{outstanding === 1 ? "" : "s"} open
+                      </span>
+                    ) : (
+                      <span className="mt-0.5 block text-[11px]">All done</span>
                     )}
                   </button>
                 );
