@@ -14,6 +14,7 @@ import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Checkbox } from "../components/ui/checkbox";
 import { PillTabs } from "../components/dashboard/PillTabs";
+import { OutstandingModules } from "../components/enrollment/OutstandingModules";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
@@ -285,6 +286,12 @@ export default function Enrollment() {
           courses available.
         </p>
       </motion.div>
+
+      {/* Modules still owed from an earlier year. These are offered by a
+          later batch's window, which the rest of this page — built around the
+          student's own batch — cannot see. Renders nothing when there are
+          none. */}
+      <OutstandingModules onEnrolled={fetchAvailableCourses} />
 
       {/* Enrollment period status */}
       {periodChecked && (

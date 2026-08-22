@@ -8,9 +8,16 @@ export interface NotificationCounts {
   feedback: number;
   results: number;
   medical: number;
+  /** Outstanding R/L modules a student can enrol in right now. */
+  enrolment: number;
 }
 
-const NONE: NotificationCounts = { feedback: 0, results: 0, medical: 0 };
+const NONE: NotificationCounts = {
+  feedback: 0,
+  results: 0,
+  medical: 0,
+  enrolment: 0,
+};
 
 /**
  * What is waiting for the signed-in person, for the sidebar badges.
@@ -57,6 +64,7 @@ export function withBadges(
     if (href.endsWith("/feedback")) return counts.feedback;
     if (href.endsWith("/results")) return counts.results;
     if (href.endsWith("/medical")) return counts.medical;
+    if (href.endsWith("/enrollment")) return counts.enrolment;
     return 0;
   };
 
