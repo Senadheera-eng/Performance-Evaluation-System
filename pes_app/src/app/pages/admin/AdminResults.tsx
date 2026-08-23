@@ -68,6 +68,9 @@ interface Course {
   credits: number;
   department: string;
   contributesToGpa: boolean;
+  /** This course's own split of the overall mark. */
+  caWeight: number;
+  eseWeight: number;
 }
 
 interface StudentResult {
@@ -223,7 +226,7 @@ export default function AdminResults() {
     let courseQuery = supabase
       .from("courses")
       .select(
-        "id, course_code, title, semester, year, credits, department, contributes_to_gpa",
+        "id, course_code, title, semester, year, credits, department, contributes_to_gpa, ca_weight, ese_weight",
       )
       .order("semester")
       .order("course_code");
@@ -243,6 +246,8 @@ export default function AdminResults() {
           credits: c.credits,
           department: c.department,
           contributesToGpa: c.contributes_to_gpa,
+          caWeight: c.ca_weight,
+          eseWeight: c.ese_weight,
         })),
       );
     }
@@ -361,7 +366,13 @@ export default function AdminResults() {
           !caErr &&
           !eseErr
         ) {
-          const oa = calculateOA(mid, ca, ese);
+          // The mid-semester mark is validated above and recorded, but it is
+          // a component of CA, not a term of its own — see the handbook note
+          // on overallMark.
+          const oa = calculateOA(ca, ese, {
+            ca: selectedCourse?.caWeight ?? settings.oaWeights.ca,
+            ese: selectedCourse?.eseWeight ?? settings.oaWeights.ese,
+          });
           const { grade, gpv } = calculateGrade(oa);
           updated.oaMark = oa;
           updated.grade = grade;
@@ -774,9 +785,17 @@ export default function AdminResults() {
 
               {/* Mark Entry Info */}
               <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                OA = Mid Sem ({Math.round(settings.oaWeights.mid_sem * 100)}%) +
-                CA ({Math.round(settings.oaWeights.ca * 100)}%) + ESE (
-                {Math.round(settings.oaWeights.ese * 100)}%). Grade and GPV are
+                OA = CA (
+                {Math.round(
+                  (selectedCourse?.caWeight ?? settings.oaWeights.ca) * 100,
+                )}
+                %) + ESE (
+                {Math.round(
+                  (selectedCourse?.eseWeight ?? settings.oaWeights.ese) * 100,
+                )}
+                %) for this course. The mid-semester mark is one of the
+                components that make up CA, so it is recorded here but does not
+                carry its own share of the overall mark. Grade and GPV are
                 calculated automatically. Marks outside their valid range are
                 rejected and cannot be saved.
               </div>

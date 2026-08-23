@@ -36,6 +36,7 @@ import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
+import { supabase } from "../../../lib/supabase";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import {
   getDepartmentTeaching,
@@ -133,6 +134,30 @@ export default function StaffResults() {
   const [query, setQuery] = useState("");
 
   const selected = offerings.find((o) => o.offering_id === selectedId) ?? null;
+
+  /* The split belongs to the course, so it is read from the course rather
+     than assumed from the faculty default. Falls back to the default only
+     while it is still loading. */
+  const [weights, setWeights] = useState<{ ca: number; ese: number }>(
+    settings.oaWeights,
+  );
+
+  useEffect(() => {
+    if (!selected?.course_id) return setWeights(settings.oaWeights);
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("courses")
+        .select("ca_weight, ese_weight")
+        .eq("id", selected.course_id)
+        .maybeSingle();
+      if (cancelled || !data) return;
+      setWeights({ ca: data.ca_weight, ese: data.ese_weight });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.course_id, settings.oaWeights]);
 
   useEffect(() => {
     if (staff) loadOfferings();
@@ -277,7 +302,9 @@ export default function StaffResults() {
           next.errors.midSem || next.errors.ca || next.errors.ese;
 
         if (!anyError && !isNaN(mid) && !isNaN(ca) && !isNaN(ese)) {
-          const oa = overallMark(mid, ca, ese, settings);
+          // Mid-semester is validated and recorded, but it is a component of
+          // CA rather than a share of the overall mark. See overallMark.
+          const oa = overallMark(ca, ese, weights, settings);
           const { grade, gpv } = gradeForMark(oa, settings);
           next.oaMark = oa;
           next.grade = grade;
@@ -497,7 +524,7 @@ export default function StaffResults() {
 
           <SectionCard
             title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
-            description={`OA = Mid Sem ${Math.round(settings.oaWeights.mid_sem * 100)}% + CA ${Math.round(settings.oaWeights.ca * 100)}% + ESE ${Math.round(settings.oaWeights.ese * 100)}%. Grade and GPV are calculated for you.`}
+            description={`OA = CA ${Math.round(weights.ca * 100)}% + ESE ${Math.round(weights.ese * 100)}% for this course. The mid-semester mark is one of the components of CA, so it is recorded but carries no share of its own. Grade and GPV are calculated for you.`}
             flush
           >
             <div className="border-b border-border/70 p-3">

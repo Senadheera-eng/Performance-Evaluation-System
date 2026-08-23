@@ -38,7 +38,8 @@ export interface Settings {
   interdisciplinaryDepartment: string;
   gpvScale: Record<string, number>;
   gradeBoundaries: GradeBoundary[];
-  oaWeights: { mid_sem: number; ca: number; ese: number };
+  /** Faculty default split for a new course; a course carries its own. */
+  oaWeights: { ca: number; ese: number };
   honoursClassifications: HonoursClassification[];
 }
 
@@ -67,9 +68,8 @@ export const DEFAULT_SETTINGS: Settings = {
     "B-": 2.7,
     "C+": 2.3,
     C: 2.0,
-    "C-": 1.7,
-    "D+": 1.3,
-    D: 1.0,
+    // The handbook's table ends at C: "Any grade 'C' and above (GPV >= 2.0) is
+    // considered as a Pass grade." There is no C-, D+ or D in this faculty.
     F: 0.0,
     R: 0.0,
     L: 0.0,
@@ -83,12 +83,9 @@ export const DEFAULT_SETTINGS: Settings = {
     { grade: "B-", min_oa: 55 },
     { grade: "C+", min_oa: 50 },
     { grade: "C", min_oa: 45 },
-    { grade: "C-", min_oa: 40 },
-    { grade: "D+", min_oa: 35 },
-    { grade: "D", min_oa: 30 },
     { grade: "F", min_oa: 0 },
   ],
-  oaWeights: { mid_sem: 0.4, ca: 0.2, ese: 0.4 },
+  oaWeights: { ca: 0.3, ese: 0.7 },
   honoursClassifications: [
     { key: "first", label: "First Class Honours", threshold: 3.7 },
     { key: "second_upper", label: "Second Class Honours (Upper)", threshold: 3.3 },
@@ -178,15 +175,25 @@ export function gradeForMark(
   return { grade: boundary.grade, gpv: settings.gpvScale[boundary.grade] ?? 0 };
 }
 
-/** Overall assessment mark from its weighted components. */
+/**
+ * Overall assessment mark from its two components.
+ *
+ * Two, not three. The Faculty Handbook is explicit — "Assessment in respect of
+ * each Course consists of CA and ESE" — and the mid-semester paper is one of
+ * the things CA is built from, alongside practicals, assignments and quizzes.
+ * It is recorded, and it reaches the overall mark through CA rather than
+ * beside it.
+ *
+ * The weights belong to the course, because the handbook says the split "may
+ * vary from Course to Course". Callers pass the course's own; the faculty
+ * default is used only when a course has not been given one.
+ */
 export function overallMark(
-  midSem: number,
   ca: number,
   ese: number,
+  weights?: { ca: number; ese: number },
   settings: Settings = cache,
 ): number {
-  const w = settings.oaWeights;
-  return (
-    Math.round((midSem * w.mid_sem + ca * w.ca + ese * w.ese) * 10) / 10
-  );
+  const w = weights ?? settings.oaWeights;
+  return Math.round((ca * w.ca + ese * w.ese) * 10) / 10;
 }

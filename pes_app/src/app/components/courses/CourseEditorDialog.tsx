@@ -26,7 +26,6 @@ export interface EditableCourse {
   minor_category: string | null;
   contributes_to_gpa: boolean;
   ca_weight: number;
-  mid_sem_weight: number;
   ese_weight: number;
 }
 
@@ -69,9 +68,8 @@ export function CourseEditorDialog({
   const [category, setCategory] = useState("Compulsory");
   const [minor, setMinor] = useState("");
   const [countsToGpa, setCountsToGpa] = useState(true);
-  const [ca, setCa] = useState(20);
-  const [midSem, setMidSem] = useState(40);
-  const [ese, setEse] = useState(40);
+  const [ca, setCa] = useState(30);
+  const [ese, setEse] = useState(70);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +86,6 @@ export function CourseEditorDialog({
       setMinor(course.minor_category ?? "");
       setCountsToGpa(course.contributes_to_gpa);
       setCa(pct(course.ca_weight));
-      setMidSem(pct(course.mid_sem_weight));
       setEse(pct(course.ese_weight));
     } else {
       setCode("");
@@ -100,12 +97,11 @@ export function CourseEditorDialog({
       setCountsToGpa(true);
       // A new course starts on the faculty's default split.
       setCa(pct(settings.oaWeights.ca));
-      setMidSem(pct(settings.oaWeights.mid_sem));
       setEse(pct(settings.oaWeights.ese));
     }
   }, [open, course, settings]);
 
-  const total = ca + midSem + ese;
+  const total = ca + ese;
 
   const save = async () => {
     if (!code.trim() || !title.trim()) {
@@ -132,7 +128,6 @@ export function CourseEditorDialog({
       minor_category: minor.trim() || null,
       contributes_to_gpa: countsToGpa,
       ca_weight: ca / 100,
-      mid_sem_weight: midSem / 100,
       ese_weight: ese / 100,
     };
 
@@ -250,16 +245,16 @@ export function CourseEditorDialog({
             How the overall mark is made up
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            OA = CA + Mid-semester + ESE. Set the mid-semester share to 0 for a
-            course that does not sit one.
+            The handbook: "Assessment in respect of each Course consists of CA
+            and ESE." The mid-semester paper is one of the components CA is
+            built from, so it has no share of its own here.
           </p>
 
-          <div className="mt-3 grid grid-cols-3 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3">
             {(
               [
-                ["Continuous assessment", ca, setCa],
-                ["Mid-semester", midSem, setMidSem],
-                ["End-of-semester", ese, setEse],
+                ["Continuous assessment (CA)", ca, setCa],
+                ["End-of-semester (ESE)", ese, setEse],
               ] as const
             ).map(([label, value, set]) => (
               <div key={label}>

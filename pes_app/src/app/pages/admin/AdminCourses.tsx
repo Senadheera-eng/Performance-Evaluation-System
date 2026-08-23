@@ -31,7 +31,6 @@ interface Course {
   contributesToGpa: boolean;
   enrolledCount: number;
   caWeight: number;
-  midSemWeight: number;
   eseWeight: number;
 }
 
@@ -60,7 +59,6 @@ export default function AdminCourses() {
     minor_category: c.minorCategory,
     contributes_to_gpa: c.contributesToGpa,
     ca_weight: c.caWeight,
-    mid_sem_weight: c.midSemWeight,
     ese_weight: c.eseWeight,
   });
 
@@ -110,7 +108,6 @@ export default function AdminCourses() {
       contributesToGpa: c.contributes_to_gpa,
       enrolledCount: enrollMap[c.id] ?? 0,
       caWeight: c.ca_weight,
-      midSemWeight: c.mid_sem_weight,
       eseWeight: c.ese_weight,
     }));
 
@@ -327,8 +324,7 @@ export default function AdminCourses() {
                           — the split is a property of the course now, so it
                           belongs where the course is read. */}
                       <p className="text-xs text-muted-foreground">
-                        CA {Math.round(course.caWeight * 100)}% · Mid{" "}
-                        {Math.round(course.midSemWeight * 100)}% · ESE{" "}
+                        CA {Math.round(course.caWeight * 100)}% · ESE{" "}
                         {Math.round(course.eseWeight * 100)}%
                       </p>
                     </div>
