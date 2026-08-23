@@ -43,6 +43,7 @@ import {
   useChartMotion,
   type StatusTone,
 } from "../components/common";
+import { PublishedResultSheets } from "../components/results/PublishedResultSheets";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
@@ -70,8 +71,17 @@ interface SemesterData {
   academicYear: string;
   semesterNum: number;
   courses: CourseResult[];
-  sgpa: number;
+  /**
+   * Null until the semester is finished. A published course result is a fact
+   * the moment it lands; an SGPA computed from a third of the marks is not
+   * one, so it waits for the rest.
+   */
+  sgpa: number | null;
   totalCredits: number;
+  /** Every course the student is enrolled in this semester has a result. */
+  complete: boolean;
+  enrolled: number;
+  published: number;
 }
 
 interface GpaChartPoint {
@@ -131,126 +141,100 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student?.id]);
 
+  /**
+   * The whole record, from one call.
+   *
+   * This used to read the published rows and infer the shape of the degree
+   * from them, so a semester existed only once it had a result in it and
+   * looked finished the moment its first one arrived. The database decides
+   * both now: eight semesters always, each one saying whether it is done.
+   */
   const fetchResults = async () => {
     setLoading(true);
     setError(null);
 
-    // `my_published_results`, not `results`: the view self-scopes to the
-    // signed-in student's own published rows and withholds ese_mark/oa_mark,
-    // which RLS cannot do because it filters rows, not columns. Course
-    // details come back already joined, so there is no embed here.
-    const { data, error: queryError } = await supabase
-      .from("my_published_results")
-      .select(
-        "course_id, academic_year, mid_sem_mark, ca_mark, grade, gpv, course_code, course_title, credits, semester, contributes_to_gpa",
-      )
-      .order("academic_year", { ascending: true });
+    const { data, error: queryError } = await supabase.rpc(
+      "get_my_academic_record",
+    );
 
-    if (queryError) {
+    if (queryError || !data) {
       console.error("[Results] failed to load results", queryError);
       setError("We could not load your results. Please try again.");
       setLoading(false);
       return;
     }
 
-    if (!data || data.length === 0) {
-      setSemesters([]);
-      setGpaChart([]);
-      setGradeSpread([]);
-      setLoading(false);
-      return;
-    }
+    const record = data as {
+      cgpa: number | null;
+      gpa_credits: number;
+      semesters: {
+        semester: number;
+        academic_year: string;
+        enrolled: number;
+        published: number;
+        complete: boolean;
+        gpa_credits: number;
+        sgpa: number | null;
+        courses: {
+          course_code: string;
+          title: string;
+          credits: number;
+          grade: string | null;
+          gpv: number | null;
+          contributes_to_gpa: boolean;
+        }[];
+      }[];
+    };
 
-    // Group by semester number
-    const semesterMap: Record<
-      string,
-      {
-        academicYear: string;
-        semNum: number;
-        courses: CourseResult[];
-      }
-    > = {};
-
-    data.forEach((r: any) => {
-      const semNum = r.semester;
-      const key = `sem_${semNum}`;
-
-      if (!semesterMap[key]) {
-        semesterMap[key] = {
-          academicYear: r.academic_year,
-          semNum,
-          courses: [],
-        };
-      }
-
-      semesterMap[key].courses.push({
-        code: r.course_code,
-        name: r.course_title,
-        credits: r.credits,
-        mid_sem: r.mid_sem_mark,
-        ca: r.ca_mark,
-        grade: r.grade,
-        gpv: r.gpv,
-        contributes_to_gpa: r.contributes_to_gpa,
-      });
-    });
-
-    // Build semester summaries
-    const semList: SemesterData[] = Object.entries(semesterMap)
-      .sort((a, b) => a[1].semNum - b[1].semNum)
-      .map(([key, val]) => {
-        const gpaCourses = val.courses.filter(
-          (c) => c.contributes_to_gpa && c.gpv !== null,
-        );
-        const weightedSum = gpaCourses.reduce(
-          (sum, c) => sum + (c.gpv ?? 0) * c.credits,
-          0,
-        );
-        const creditSum = gpaCourses.reduce((sum, c) => sum + c.credits, 0);
-        const sgpa =
-          creditSum > 0 ? Math.round((weightedSum / creditSum) * 100) / 100 : 0;
-
-        return {
-          semesterKey: key,
-          label: `Semester ${val.semNum}`,
-          academicYear: val.academicYear,
-          semesterNum: val.semNum,
-          courses: val.courses,
-          sgpa,
-          totalCredits: creditSum,
-        };
-      });
+    const semList: SemesterData[] = record.semesters.map((s) => ({
+      semesterKey: `sem_${s.semester}`,
+      label: `Semester ${s.semester}`,
+      academicYear: s.academic_year,
+      semesterNum: s.semester,
+      complete: s.complete,
+      enrolled: s.enrolled,
+      published: s.published,
+      sgpa: s.sgpa,
+      totalCredits: s.gpa_credits,
+      courses: s.courses.map((c) => ({
+        code: c.course_code,
+        name: c.title,
+        credits: c.credits,
+        // The student-facing record withholds ESE and OA; mid-sem and CA are
+        // not carried here either, so the table shows grade and GPV.
+        mid_sem: null,
+        ca: null,
+        grade: c.grade,
+        gpv: c.gpv,
+        contributes_to_gpa: c.contributes_to_gpa,
+      })),
+    }));
 
     setSemesters(semList);
-    if (semList.length > 0) {
-      // Open on the most recent semester — the one a student actually
-      // came to look at. The old default was Semester 1.
-      setActiveSemesterTab(semList[semList.length - 1].semesterKey);
-    }
 
-    // CGPA
-    const allGpaCourses = semList.flatMap((s) =>
-      s.courses.filter((c) => c.contributes_to_gpa && c.gpv !== null),
+    // Open on the semester the student came to look at: the newest one that
+    // has anything in it, rather than the newest empty one.
+    const withContent = semList.filter((s) => s.courses.length > 0);
+    setActiveSemesterTab(
+      (withContent[withContent.length - 1] ?? semList[0])?.semesterKey ?? "",
     );
-    const totalWeighted = allGpaCourses.reduce(
-      (sum, c) => sum + (c.gpv ?? 0) * c.credits,
-      0,
+
+    setCgpa(record.cgpa ?? 0);
+    setTotalCredits(record.gpa_credits);
+    setCompletedCourses(
+      semList.reduce((n, s) => n + s.courses.length, 0),
     );
-    const totalCr = allGpaCourses.reduce((sum, c) => sum + c.credits, 0);
-    const cgpaVal =
-      totalCr > 0 ? Math.round((totalWeighted / totalCr) * 100) / 100 : 0;
 
-    setCgpa(cgpaVal);
-    setTotalCredits(totalCr);
-    setCompletedCourses(data.length);
-
-    // GPA chart
+    // Only finished semesters go on the trend line. A part-published one
+    // would draw a dip that is an absence of marks, not a fall in results.
     setGpaChart(
-      semList.map((s) => ({
-        semester: `Sem ${s.semesterNum}`,
-        semesterNum: s.semesterNum,
-        gpa: s.sgpa,
-      })),
+      semList
+        .filter((s) => s.sgpa !== null)
+        .map((s) => ({
+          semester: `Sem ${s.semesterNum}`,
+          semesterNum: s.semesterNum,
+          gpa: s.sgpa as number,
+        })),
     );
 
     // Grade spread across every graded course. Ordering is applied at render
@@ -277,8 +261,12 @@ export default function Results() {
     setLoading(false);
   };
 
-  const latest = semesters.length > 0 ? semesters[semesters.length - 1] : null;
-  const previous = semesters.length > 1 ? semesters[semesters.length - 2] : null;
+  /* The last two semesters that actually have a GPA. Every semester of the
+     degree is on the page now, so "the last one" would otherwise be an empty
+     Semester 8 and the comparison would be against nothing. */
+  const graded = semesters.filter((s) => s.sgpa !== null);
+  const latest = graded.length > 0 ? graded[graded.length - 1] : null;
+  const previous = graded.length > 1 ? graded[graded.length - 2] : null;
 
   /**
    * Semester-over-semester SGPA movement. Deliberately kept off the CGPA
@@ -286,7 +274,7 @@ export default function Results() {
    * labelling it "from last sem" under CGPA was the source of confusion.
    */
   const sgpaDelta =
-    latest && previous
+    latest?.sgpa != null && previous?.sgpa != null
       ? Math.round((latest.sgpa - previous.sgpa) * 100) / 100
       : null;
 
@@ -370,16 +358,25 @@ export default function Results() {
       doc.text(describeBatch(student?.batch_year), 14, y);
       y += 10;
 
-      semesters.forEach((sem) => {
+      // A transcript is a record of what has been awarded, so a semester with
+      // nothing published in it does not belong on one.
+      semesters
+        .filter((sem) => sem.courses.length > 0)
+        .forEach((sem) => {
         if (y > 250) {
           doc.addPage();
           y = 20;
         }
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        const deansListTag = sem.sgpa >= 3.8 ? "  (Dean's List)" : "";
+        const deansListTag =
+          sem.sgpa !== null && sem.sgpa >= 3.8 ? "  (Dean's List)" : "";
+        const sgpaText =
+          sem.sgpa !== null
+            ? `SGPA: ${sem.sgpa.toFixed(2)}`
+            : "SGPA: pending — not all results published";
         doc.text(
-          `Semester ${sem.semesterNum} — ${sem.academicYear}   SGPA: ${sem.sgpa.toFixed(2)}${deansListTag}`,
+          `Semester ${sem.semesterNum} — ${sem.academicYear}   ${sgpaText}${deansListTag}`,
           14,
           y,
         );
@@ -496,7 +493,7 @@ export default function Results() {
           <StatCard
             index={1}
             label={latest ? `Semester ${latest.semesterNum} GPA` : "Latest SGPA"}
-            value={latest ? latest.sgpa.toFixed(2) : "—"}
+            value={latest?.sgpa != null ? latest.sgpa.toFixed(2) : "—"}
             icon={TrendingUp}
             tone="info"
             trend={
@@ -654,7 +651,7 @@ export default function Results() {
                   <span className="text-sm text-muted-foreground">
                     {activeSemester.academicYear}
                   </span>
-                  {activeSemester.sgpa >= 3.8 && (
+                  {activeSemester.sgpa !== null && activeSemester.sgpa >= 3.8 && (
                     <StatusBadge tone="warning" icon={Award}>
                       Dean's List
                     </StatusBadge>
@@ -667,16 +664,47 @@ export default function Results() {
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-primary tabular-nums leading-none">
-                  {activeSemester.sgpa.toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Semester GPA
-                </p>
+                {/* A semester GPA is only a fact once the semester is. Until
+                    then this says what is missing rather than averaging the
+                    part that happens to have arrived. */}
+                {activeSemester.sgpa !== null ? (
+                  <>
+                    <div className="text-2xl font-bold text-primary tabular-nums leading-none">
+                      {activeSemester.sgpa.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Semester GPA
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-semibold text-muted-foreground leading-none">
+                      GPA pending
+                    </div>
+                    <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
+                      {activeSemester.published} of {activeSemester.enrolled}{" "}
+                      results published. The semester GPA and your CGPA update
+                      once the rest are.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Course table */}
+            {/* A semester of the degree that has not been marked yet is still
+                a semester. It says so rather than being absent from the page. */}
+            {activeSemester.courses.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No results published for {activeSemester.label} yet
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {activeSemester.enrolled > 0
+                    ? `You are enrolled in ${activeSemester.enrolled} course${activeSemester.enrolled === 1 ? "" : "s"}. Each result appears here as soon as your department publishes it.`
+                    : "Results appear here as soon as your department publishes them."}
+                </p>
+              </div>
+            ) : (
             <div className="rounded-xl border border-border overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -748,9 +776,12 @@ export default function Results() {
                 </TableBody>
               </Table>
             </div>
+            )}
           </div>
         ) : null}
       </SectionCard>
+
+      <PublishedResultSheets />
     </div>
   );
 }
