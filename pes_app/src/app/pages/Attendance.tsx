@@ -29,6 +29,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "../components/common";
+import { SignInToLecture } from "../components/attendance/SignInToLecture";
 import {
   AttendanceCalendar,
   type AttendanceRecord,
@@ -284,6 +285,10 @@ export default function Attendance() {
         title="Attendance Tracker"
         description={`Monitor your attendance and stay above the ${threshold}% requirement, course by course.`}
       />
+
+      {/* Renders nothing unless a lecturer has a register open on one of this
+          student's courses, so it costs an ordinary visit nothing. */}
+      <SignInToLecture onCheckedIn={fetchAttendance} />
 
       <SegmentedTabs
         aria-label="Attendance view"

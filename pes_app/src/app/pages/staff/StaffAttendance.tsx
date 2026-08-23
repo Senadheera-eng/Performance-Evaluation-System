@@ -20,6 +20,7 @@ import {
   StatusBadge,
 } from "../../components/common";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
+import { LectureRegister } from "../../components/attendance/LectureRegister";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -275,6 +276,17 @@ export default function StaffAttendance() {
           </p>
         )}
       </SectionCard>
+
+      {/* Sits above the roster on purpose: opening the register is the first
+          thing that happens in a lecture, and marking by hand is what is left
+          over once it closes. */}
+      {selected && (
+        <LectureRegister
+          offeringId={selected.offering_id}
+          courseLabel={selected.course_code}
+          onClosed={load}
+        />
+      )}
 
       {selected && (
         <>
