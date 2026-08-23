@@ -704,6 +704,14 @@ function CreatePeriodForm({
     `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
   );
   const [semester, setSemester] = useState(1);
+  /* Which round of the semester this is. The two are not interchangeable —
+     mid-semester feedback is meant to change the course the students are
+     still sitting in, and end-of-semester feedback is a verdict on one that
+     has finished. Every screen already distinguishes them; this form was the
+     one place that could not say which it was making. */
+  const [feedbackType, setFeedbackType] = useState<
+    "mid_semester" | "end_semester"
+  >("end_semester");
   const [batchYear, setBatchYear] = useState<number | "">("");
   const [department, setDepartment] = useState(
     scopeDepartment.kind === "department" ? scopeDepartment.department : "",
@@ -757,6 +765,7 @@ function CreatePeriodForm({
       academic_year: academicYear,
       semester,
       batch_year: Number(batchYear),
+      feedback_type: feedbackType,
       department:
         scopeDepartment.kind === "department"
           ? scopeDepartment.department
@@ -816,6 +825,34 @@ function CreatePeriodForm({
                 </option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Feedback round
+            </label>
+            <div className="flex gap-1.5">
+              {(
+                [
+                  ["mid_semester", "Mid semester"],
+                  ["end_semester", "End semester"],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={feedbackType === value ? "default" : "outline"}
+                  onClick={() => setFeedbackType(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {feedbackType === "mid_semester"
+                ? "Asked while the course is still running, so the answers can still change it."
+                : "Asked once the course has finished — a verdict rather than a course correction."}
+            </p>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -1051,7 +1088,14 @@ function PeriodCard({
             <p className="text-xs text-muted-foreground mt-0.5">
               {period.department ?? "All Departments"} ·{" "}
               {period.batch_year ? describeBatch(period.batch_year) : "—"} ·
-              Sem {period.semester} · {period.academic_year}
+              Sem {period.semester} · {period.academic_year} ·{" "}
+              {/* Two rounds can cover the same semester, so the row has to say
+                  which one it is or they read as duplicates. */}
+              <span className="font-medium text-foreground">
+                {period.feedback_type === "mid_semester"
+                  ? "Mid semester"
+                  : "End semester"}
+              </span>
             </p>
             <p className="text-xs text-muted-foreground">
               {new Date(period.opens_at).toLocaleString()} →{" "}
