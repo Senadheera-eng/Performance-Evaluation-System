@@ -1,3 +1,7 @@
+-- enrolment_eligibility_follows_the_students_semester
+-- Applied 20260822170712
+-- Exported from the live project; do not edit by hand.
+
 -- Enrolment eligibility is academic, not a batch label on the window.
 --
 -- A window carried a batch year and a student saw it when that batch matched
