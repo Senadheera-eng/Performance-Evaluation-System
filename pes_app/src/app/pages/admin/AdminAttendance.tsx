@@ -19,6 +19,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { EmptyState, PageHeader } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
@@ -263,6 +264,22 @@ export default function AdminAttendance() {
   const presentCount = students.filter((s) => s.status === "present").length;
   const absentCount = students.filter((s) => s.status === "absent").length;
   const unmarkedCount = students.filter((s) => s.status === null).length;
+
+  // The sidebar does not offer this to a super admin; typing the URL should
+  // not be the way round that. A register belongs to the department that
+  // delivers the course, and reading one student's day by day is its business.
+  if (student?.role === "super_admin") {
+    return (
+      <div className="space-y-5">
+        <PageHeader title="Attendance" />
+        <EmptyState
+          icon={Calendar}
+          title="Attendance is kept by the department"
+          description="Registers are marked against the courses a department delivers, so they are read and corrected there. Faculty-wide attendance figures are on the dashboard."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

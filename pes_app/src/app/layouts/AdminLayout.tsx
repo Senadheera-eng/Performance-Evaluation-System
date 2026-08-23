@@ -37,6 +37,11 @@ const superAdminOnly: ShellNavItem[] = [
   { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
 ];
 
+/* Marking a lecture register is departmental work, done against a course a
+   department delivers. The super admin runs the faculty, not a lecture, and
+   has no reason to read a named student's attendance day by day. */
+const notForSuperAdmin = new Set(["/admin/attendance"]);
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { signOut, student } = useAuth();
@@ -44,7 +49,10 @@ export default function AdminLayout() {
 
   const items =
     student?.role === "super_admin"
-      ? [...navigation, ...superAdminOnly]
+      ? [
+          ...navigation.filter((i) => !notForSuperAdmin.has(i.href)),
+          ...superAdminOnly,
+        ]
       : navigation;
 
   const handleLogout = async () => {
