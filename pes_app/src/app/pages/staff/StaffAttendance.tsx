@@ -21,6 +21,7 @@ import {
 } from "../../components/common";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { LectureRegister } from "../../components/attendance/LectureRegister";
+import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -74,6 +75,13 @@ export default function StaffAttendance() {
   const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [dirty, setDirty] = useState(false);
+  /* Registers left open on any course this lecturer teaches. A forgotten one
+     holds check-ins that never became attendance, and nothing else was ever
+     going to mention it. */
+  const [unclosed, setUnclosed] = useState<
+    { session_id: string; offering_id: string; course_code: string;
+      lecture_date: string; checked_in: number; window_passed: boolean }[]
+  >([]);
 
   const selected = offerings.find((o) => o.offering_id === selectedId) ?? null;
 
@@ -86,6 +94,16 @@ export default function StaffAttendance() {
     if (selectedId) loadSheet(selectedId, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, date]);
+
+  const loadUnclosed = async () => {
+    const { data } = await supabase.rpc("my_unclosed_registers");
+    setUnclosed((data ?? []) as typeof unclosed);
+  };
+
+  useEffect(() => {
+    if (staff) loadUnclosed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staff?.lecturerId, selectedId]);
 
   const loadOfferings = async () => {
     setLoading(true);
@@ -277,6 +295,32 @@ export default function StaffAttendance() {
         )}
       </SectionCard>
 
+      {unclosed.filter((u) => u.offering_id !== selectedId).length > 0 && (
+        <div className="rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
+          <p className="font-medium">
+            You have a register still open on another course.
+          </p>
+          <p className="mt-0.5 text-xs">
+            Its check-ins have not been recorded as attendance yet. Select the
+            course to pick it up and close it.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {unclosed
+              .filter((u) => u.offering_id !== selectedId)
+              .map((u) => (
+                <button
+                  key={u.session_id}
+                  type="button"
+                  onClick={() => setSelectedId(u.offering_id)}
+                  className="rounded-full border border-warning-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-muted"
+                >
+                  {u.course_code} · {u.lecture_date} · {u.checked_in} signed in
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Sits above the roster on purpose: opening the register is the first
           thing that happens in a lecture, and marking by hand is what is left
           over once it closes. */}
@@ -284,6 +328,7 @@ export default function StaffAttendance() {
         <LectureRegister
           offeringId={selected.offering_id}
           courseLabel={selected.course_code}
+          lectureDate={date}
           onClosed={() => loadSheet(selected.offering_id, date)}
         />
       )}

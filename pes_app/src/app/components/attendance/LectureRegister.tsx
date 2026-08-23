@@ -70,10 +70,13 @@ interface TokenPayload {
 export function LectureRegister({
   offeringId,
   courseLabel,
+  lectureDate,
   onClosed,
 }: {
   offeringId: string;
   courseLabel: string;
+  /** The date the page is showing, so the rows land on the sheet below it. */
+  lectureDate?: string;
   onClosed?: () => void;
 }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -151,13 +154,33 @@ export function LectureRegister({
     return () => window.clearInterval(id);
   }, [token?.closes_at]);
 
-  // Offering changed under us — an open register belongs to one course.
+  /* A register lives in the database, not in this tab.
+     Logging out, closing the laptop, or opening the page on the podium
+     machine used to lose it: the session id was state and nothing else knew
+     it. So the first thing this does on any course is ask whether one is
+     already open, and pick it back up. */
   useEffect(() => {
     stopTimers();
     setSessionId(null);
     setToken(null);
     setQrUrl(null);
     setState(null);
+    setNotice(null);
+    if (!offeringId) return;
+
+    let cancelled = false;
+    (async () => {
+      const { data, error: rpcError } = await supabase.rpc(
+        "open_register_for_offering",
+        { p_offering_id: offeringId },
+      );
+      if (cancelled || rpcError || !data) return;
+      setSessionId(data as string);
+      setNotice("Picked up the register you already had open on this course.");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [offeringId]);
 
   const start = async () => {
@@ -175,6 +198,9 @@ export function LectureRegister({
       {
         p_offering_id: offeringId,
         p_minutes: 5,
+        // Without this the rows land on the server's date, which is not
+        // necessarily the date the lecturer is looking at.
+        p_lecture_date: lectureDate ?? undefined,
         p_lat: here?.latitude ?? null,
         p_lng: here?.longitude ?? null,
         p_radius_m: 250,
@@ -241,6 +267,7 @@ export function LectureRegister({
 
   const present = state?.students.filter((s) => s.checked_in_at).length ?? 0;
   const total = state?.students.length ?? 0;
+  const windowPassed = token !== null && !token.open;
 
   if (!sessionId) {
     return (
@@ -271,7 +298,21 @@ export function LectureRegister({
 
       <div className="flex flex-col gap-5 lg:flex-row">
         <div className="flex flex-col items-center gap-3">
-          {qrUrl ? (
+          {/* The scanning window can run out while the register is still open
+              — after a reload, or a lecture that ran long. Showing the last
+              code we happened to fetch would be a lie. */}
+          {windowPassed ? (
+            <div className="flex h-[260px] w-[260px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 p-4 text-center">
+              <Clock className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+              <p className="text-sm font-medium text-foreground">
+                Scanning window has ended
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Add two minutes to let latecomers sign, or close the register to
+                record it.
+              </p>
+            </div>
+          ) : qrUrl ? (
             <img
               src={qrUrl}
               alt="Attendance code. The six digits below it do the same thing."
@@ -281,14 +322,14 @@ export function LectureRegister({
             <div className="h-[260px] w-[260px] animate-pulse rounded-xl bg-muted" />
           )}
 
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              Or type this code
-            </p>
-            <p className="font-mono text-3xl font-bold tracking-[0.25em] text-foreground">
-              {token?.code ?? "······"}
-            </p>
-          </div>
+          {!windowPassed && (
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Or type this code</p>
+              <p className="font-mono text-3xl font-bold tracking-[0.25em] text-foreground">
+                {token?.code ?? "······"}
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
