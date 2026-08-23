@@ -245,6 +245,10 @@ export function LectureRegister({
 
   const close = async () => {
     if (!sessionId) return;
+    // Read off the roster before it is cleared, so the message can say what
+    // the register actually saw.
+    const signedIn = state?.students.filter((s) => s.checked_in_at).length ?? 0;
+    const enrolled = state?.students.length ?? 0;
     setBusy(true);
     setError(null);
     const { data, error: rpcError } = await supabase.rpc(
@@ -254,9 +258,17 @@ export function LectureRegister({
     setBusy(false);
     if (rpcError) return setError(rpcError.message);
     stopTimers();
-    const written = (data as { rows_written: number })?.rows_written ?? 0;
+
+    /* "0 students recorded" is what a lecturer saw when everyone on the sheet
+       was already marked, and it reads as a failure. Say what the register
+       found, what it changed, and why nothing changing is not a fault. */
+    const result = (data ?? {}) as { rows_written?: number };
+    const written = result.rows_written ?? 0;
     setNotice(
-      `Register closed. ${written} student${written === 1 ? "" : "s"} recorded — anyone who could not sign in can still be marked by hand below.`,
+      `Register closed. ${signedIn} of ${enrolled} signed in. ` +
+        (written > 0
+          ? `${written} record${written === 1 ? "" : "s"} written. Anyone whose phone failed can still be marked by hand below.`
+          : `Nothing needed changing — the sheet below already had these students marked. Mark anyone by hand there if it is wrong.`),
     );
     setSessionId(null);
     setToken(null);

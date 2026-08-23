@@ -74,6 +74,8 @@ export default function StaffAttendance() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  /* Kept for the unsaved-changes hint below the roster; it no longer gates
+     the Save button. */
   const [dirty, setDirty] = useState(false);
   /* Registers left open on any course this lecturer teaches. A forgotten one
      holds check-ins that never became attendance, and nothing else was ever
@@ -206,8 +208,11 @@ export default function StaffAttendance() {
       setError(result.error);
       return;
     }
-    setNotice(`Attendance saved for ${result.data} student(s) on ${date}.`);
+    // Reload first. loadSheet clears the notice as it starts, so setting the
+    // message before it meant the save confirmation was wiped a moment after
+    // it appeared — the button looked like it had done nothing at all.
     await loadSheet(selected.offering_id, date);
+    setNotice(`Attendance saved for ${result.data} student(s) on ${date}.`);
   };
 
   const present = rows.filter((r) => r.status === "present").length;
@@ -461,25 +466,24 @@ export default function StaffAttendance() {
 
             {rows.length > 0 && (
               <div className="border-t border-border/70 p-3">
+                {/* Enabled whenever there is something to save, changed or
+                    not. Gating on "has anything changed" was an optimisation,
+                    not a rule, and it made the button look broken every time a
+                    register filled the sheet: forty names marked and Save
+                    dead. Saving the same values again is a harmless upsert. */}
                 <Button
                   className="w-full"
-                  disabled={saving || !dirty || rows.every((r) => r.status === null)}
+                  disabled={saving || rows.every((r) => r.status === null)}
                   onClick={handleSave}
                 >
                   <Save className="mr-1.5 h-4 w-4" />
                   {saving
                     ? "Saving..."
-                    : !dirty && rows.some((r) => r.status !== null)
-                      ? "Attendance recorded — nothing to save"
-                      : `Save attendance (${rows.length - unmarked} marked)`}
+                    : `Save attendance (${rows.length - unmarked} marked)`}
                 </Button>
-                {/* A disabled button with no explanation reads as a broken
-                    one, which is exactly how it looked after a register wrote
-                    the sheet: every name marked, and Save dead. */}
-                {!dirty && rows.some((r) => r.status !== null) && (
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
-                    This sheet matches what is stored. Change a student above to
-                    enable saving.
+                {dirty && (
+                  <p className="mt-2 text-center text-xs text-warning-fg">
+                    You have unsaved changes on this sheet.
                   </p>
                 )}
                 {unmarked > 0 && (
