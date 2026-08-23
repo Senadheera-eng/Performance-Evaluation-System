@@ -25,6 +25,7 @@ import AdminCourses from "./pages/admin/AdminCourses";
 import AdminMedical from "./pages/admin/AdminMedical";
 import AdminFeedback from "./pages/admin/AdminFeedback";
 import AdminEnrollment from "./pages/admin/AdminEnrollment";
+import AdminHods from "./pages/admin/AdminHods";
 
 // Staff (lecturer + HOD) imports. One portal for both: a head of department
 // is a lecturer with an appointment, so they get extra routes, not a
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
       { path: "medical", element: <AdminMedical /> },
       { path: "feedback", element: <AdminFeedback /> },
       { path: "enrollment", element: <AdminEnrollment /> },
+      { path: "hods", element: <AdminHods /> },
     ],
   },
   {
