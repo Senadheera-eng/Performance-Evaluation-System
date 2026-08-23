@@ -92,6 +92,18 @@ export function PublishedResultSheets() {
   if (loading) return <SkeletonRows count={3} height="h-14" />;
   if (sheets.length === 0 && !error) return null;
 
+  /* Grouped by semester, newest first. A flat list of every course a student
+     has ever sat runs to thirty-odd rows and reads as one undifferentiated
+     pile; the semester is the thing anyone is actually looking for. The RPC
+     already returns them in this order, so this only inserts the breaks. */
+  const bySemester = sheets.reduce<Map<number, SheetRef[]>>((acc, s) => {
+    const list = acc.get(s.semester) ?? [];
+    list.push(s);
+    acc.set(s.semester, list);
+    return acc;
+  }, new Map());
+  const semesters = [...bySemester.keys()].sort((a, b) => b - a);
+
   return (
     <SectionCard
       title="Published result sheets"
@@ -104,8 +116,23 @@ export function PublishedResultSheets() {
         </div>
       )}
 
-      <ul className="divide-y divide-border/70">
-        {sheets.map((s) => (
+      {semesters.map((semester) => (
+        <div key={semester}>
+          <div className="flex items-center gap-2.5 border-b border-border/70 bg-muted/40 px-4 py-2">
+            <h3 className="text-sm font-semibold text-foreground">
+              Semester {semester}
+            </h3>
+            <span className="rounded-full bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              {bySemester.get(semester)!.length} course
+              {bySemester.get(semester)!.length === 1 ? "" : "s"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {bySemester.get(semester)![0].academic_year}
+            </span>
+          </div>
+
+          <ul className="divide-y divide-border/70">
+            {bySemester.get(semester)!.map((s) => (
           <li key={s.offering_id}>
             <button
               type="button"
@@ -125,9 +152,10 @@ export function PublishedResultSheets() {
                     {s.course_title}
                   </span>
                 </span>
+                {/* Semester and year are on the group heading now, so the row
+                    carries only what distinguishes it from its neighbours. */}
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  Semester {s.semester} · {s.academic_year}
-                  {s.batch_year ? ` · ${describeBatch(s.batch_year)}` : ""} ·{" "}
+                  {s.batch_year ? `${describeBatch(s.batch_year)} · ` : ""}
                   {s.students} student{s.students === 1 ? "" : "s"}
                 </span>
               </span>
@@ -191,8 +219,10 @@ export function PublishedResultSheets() {
               </div>
             )}
           </li>
-        ))}
-      </ul>
+            ))}
+          </ul>
+        </div>
+      ))}
     </SectionCard>
   );
 }
