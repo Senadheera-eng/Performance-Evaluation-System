@@ -9,6 +9,7 @@ import {
   FileHeart,
   MessageSquareText,
   GraduationCap,
+  UserCog,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -29,10 +30,22 @@ const navigation: ShellNavItem[] = [
   { name: "Enrollment", href: "/admin/enrollment", icon: GraduationCap },
 ];
 
+/* A headship covers a whole department, so it is granted from the faculty
+   level. A department admin has no business appointing their own head, and
+   the RPC refuses them — the sidebar should say so before they click. */
+const superAdminOnly: ShellNavItem[] = [
+  { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
+];
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { signOut, student } = useAuth();
   const counts = useNotificationCounts();
+
+  const items =
+    student?.role === "super_admin"
+      ? [...navigation, ...superAdminOnly]
+      : navigation;
 
   const handleLogout = async () => {
     await signOut();
@@ -43,7 +56,7 @@ export default function AdminLayout() {
     <AppShell
       brandTitle="PES Admin"
       brandSubtitle="Department Management"
-      navigation={withBadges(navigation, counts)}
+      navigation={withBadges(items, counts)}
       roleBadge={{
         label:
           student?.role === "super_admin" ? "Super Admin" : "Department Admin",
