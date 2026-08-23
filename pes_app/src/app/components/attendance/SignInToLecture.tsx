@@ -15,6 +15,31 @@ interface OpenSession {
   already_checked_in: boolean;
 }
 
+interface PendingCheck {
+  pending: boolean;
+  check_id?: string;
+  course_code?: string;
+  seconds_left?: number;
+}
+
+/**
+ * Where this browser thinks it is, or nothing.
+ *
+ * Never blocks and never fails the caller: a denied permission, a phone
+ * indoors with no fix, a browser without the API — all of them return null and
+ * the check-in goes ahead. Location only ever adds a note for the lecturer.
+ */
+async function currentPosition(): Promise<GeolocationCoordinates | null> {
+  if (!navigator.geolocation) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve(p.coords),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+}
+
 /**
  * Signing the lecture register from the student's own phone.
  *
@@ -29,6 +54,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
   const [sessions, setSessions] = useState<OpenSession[]>([]);
   const [active, setActive] = useState<OpenSession | null>(null);
   const [mode, setMode] = useState<"idle" | "camera" | "code">("idle");
+  const [pending, setPending] = useState<PendingCheck | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +84,50 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     return () => window.clearInterval(id);
   }, [load]);
 
+  /* A presence check is a question with a deadline, so it has to be looked for
+     often enough that ninety seconds is not mostly spent waiting to hear it. */
+  useEffect(() => {
+    const poll = async () => {
+      const { data } = await supabase.rpc("my_pending_presence_check");
+      setPending((data as PendingCheck) ?? null);
+    };
+    poll();
+    const id = window.setInterval(poll, 8000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  /* Counts down locally between polls, so the number moves every second
+     rather than in eight-second jumps. */
+  useEffect(() => {
+    if (!pending?.pending) return;
+    const id = window.setInterval(
+      () =>
+        setPending((p) =>
+          p?.pending && (p.seconds_left ?? 0) > 0
+            ? { ...p, seconds_left: (p.seconds_left ?? 0) - 1 }
+            : p,
+        ),
+      1000,
+    );
+    return () => window.clearInterval(id);
+  }, [pending?.pending, pending?.check_id]);
+
+  const confirmPresence = async () => {
+    if (!pending?.check_id) return;
+    setBusy(true);
+    setError(null);
+    const { data, error: rpcError } = await supabase.rpc("confirm_presence", {
+      p_check_id: pending.check_id,
+      p_device_hash: getDeviceId() || null,
+    });
+    setBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    const result = data as { ok: boolean; message: string };
+    if (!result.ok) return setError(result.message);
+    setPending({ pending: false });
+    setDone(result.message);
+  };
+
   const stopCamera = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
@@ -74,14 +144,22 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     setError(null);
 
     const device = getDeviceId();
+    const here = await currentPosition();
+    const place = {
+      p_lat: here?.latitude ?? null,
+      p_lng: here?.longitude ?? null,
+    };
+
     const { data, error: rpcError } = token
       ? await supabase.rpc("check_in_to_lecture", {
           p_token: token,
           p_device_hash: device || null,
+          ...place,
         })
       : await supabase.rpc("check_in_with_code", {
           p_code: typed,
           p_device_hash: device || null,
+          ...place,
         });
 
     setBusy(false);
@@ -158,7 +236,34 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     setError(null);
   };
 
-  if (sessions.length === 0 && !done) return null;
+  if (sessions.length === 0 && !done && !pending?.pending) return null;
+
+  /* A presence check outranks everything else on this card: it has a deadline
+     and the rest does not. */
+  if (pending?.pending) {
+    return (
+      <SectionCard
+        title="Are you still in the lecture?"
+        description={`Your lecturer is checking the room${pending.course_code ? ` for ${pending.course_code}` : ""}. Confirm from the phone you signed in with.`}
+      >
+        {error && <ErrorState message={error} size="inline" />}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={confirmPresence} disabled={busy}>
+            <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            {busy ? "Confirming…" : "Yes, I'm here"}
+          </Button>
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            {pending.seconds_left ?? 0}s left
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          If this runs out, your lecturer sees that you did not answer. Tell
+          them if your phone was the problem — it does not mark you absent on
+          its own.
+        </p>
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard

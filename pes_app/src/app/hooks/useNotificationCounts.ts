@@ -10,6 +10,8 @@ export interface NotificationCounts {
   medical: number;
   /** Outstanding R/L modules a student can enrol in right now. */
   enrolment: number;
+  /** Lecture registers open now that this student has not yet signed. */
+  attendance: number;
 }
 
 const NONE: NotificationCounts = {
@@ -17,6 +19,7 @@ const NONE: NotificationCounts = {
   results: 0,
   medical: 0,
   enrolment: 0,
+  attendance: 0,
 };
 
 /**
@@ -52,6 +55,15 @@ export function useNotificationCounts(): NotificationCounts {
     load();
   }, [load, location.pathname]);
 
+  /* Navigation is the usual way a badge changes, but not the only one: a
+     lecturer opens a register while the student is sitting on one page, and
+     the badge is the only thing that will tell them to scan. */
+  useEffect(() => {
+    if (!user) return;
+    const id = window.setInterval(load, 60000);
+    return () => window.clearInterval(id);
+  }, [user, load]);
+
   return counts;
 }
 
@@ -65,6 +77,7 @@ export function withBadges(
     if (href.endsWith("/results")) return counts.results;
     if (href.endsWith("/medical")) return counts.medical;
     if (href.endsWith("/enrollment")) return counts.enrolment;
+    if (href.endsWith("/attendance")) return counts.attendance;
     return 0;
   };
 

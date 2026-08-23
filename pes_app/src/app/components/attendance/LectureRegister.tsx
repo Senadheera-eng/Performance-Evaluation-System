@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { CheckCircle2, Clock, PlayCircle, Plus, Square, Users } from "lucide-react";
+import {
+  BellRing,
+  CheckCircle2,
+  Clock,
+  MapPinOff,
+  PlayCircle,
+  Plus,
+  Square,
+  Users,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { ErrorState, SectionCard, StatusBadge } from "../common";
 import { supabase } from "../../../lib/supabase";
@@ -10,6 +19,9 @@ interface RosterRow {
   name: string;
   index_number: string | null;
   checked_in_at: string | null;
+  distance_m: number | null;
+  flags: string[];
+  presence_answered: number;
 }
 
 interface SessionState {
@@ -17,7 +29,21 @@ interface SessionState {
   status: "open" | "closed";
   closes_at: string;
   lecture_date: string;
+  presence_checks: number;
+  has_location: boolean;
   students: RosterRow[];
+}
+
+/** Where this browser thinks it is, or nothing. Never blocks the caller. */
+async function currentPosition(): Promise<GeolocationCoordinates | null> {
+  if (!navigator.geolocation) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve(p.coords),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
 }
 
 interface TokenPayload {
@@ -138,9 +164,21 @@ export function LectureRegister({
     setBusy(true);
     setError(null);
     setNotice(null);
+
+    /* Where the lecturer is standing becomes the lecture's location, and a
+       scan far from it is flagged. Refusing the permission is fine: the
+       register opens without one and nothing is flagged at all. */
+    const here = await currentPosition();
+
     const { data, error: rpcError } = await supabase.rpc(
       "start_attendance_session",
-      { p_offering_id: offeringId, p_minutes: 5 },
+      {
+        p_offering_id: offeringId,
+        p_minutes: 5,
+        p_lat: here?.latitude ?? null,
+        p_lng: here?.longitude ?? null,
+        p_radius_m: 250,
+      },
     );
     setBusy(false);
     if (rpcError) {
@@ -148,6 +186,23 @@ export function LectureRegister({
       return;
     }
     setSessionId(data as string);
+  };
+
+  /* Asked at a moment nobody can predict, which is the whole value of it: a
+     phone that signed in and left the room cannot answer. */
+  const presenceCheck = async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    const { error: rpcError } = await supabase.rpc("trigger_presence_check", {
+      p_session_id: sessionId,
+      p_seconds: 90,
+    });
+    setBusy(false);
+    if (rpcError) return setError(rpcError.message);
+    setNotice(
+      "Presence check sent. Everyone who signed in has 90 seconds to confirm on their own phone.",
+    );
+    refreshState(sessionId);
   };
 
   const extend = async () => {
@@ -247,15 +302,30 @@ export function LectureRegister({
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <Button size="sm" variant="outline" onClick={extend} disabled={busy}>
               <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />2 minutes
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={presenceCheck}
+              disabled={busy}
+            >
+              <BellRing className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+              Check presence
             </Button>
             <Button size="sm" onClick={close} disabled={busy}>
               <Square className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
               Close and record
             </Button>
           </div>
+
+          {notice && (
+            <p className="max-w-[260px] text-center text-xs text-muted-foreground">
+              {notice}
+            </p>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -283,11 +353,28 @@ export function LectureRegister({
                   </span>
                 </span>
                 {s.checked_in_at ? (
-                  <span className="whitespace-nowrap text-xs text-success-fg">
-                    {new Date(s.checked_in_at).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <span className="flex flex-wrap items-center justify-end gap-1.5">
+                    {/* Flags describe, they do not decide. A dead battery and
+                        a walk-out look identical from here. */}
+                    {s.flags?.includes("far_from_lecture") && (
+                      <StatusBadge tone="warning" icon={MapPinOff}>
+                        {s.distance_m && s.distance_m > 1000
+                          ? `${(s.distance_m / 1000).toFixed(1)} km away`
+                          : `${s.distance_m ?? "?"} m away`}
+                      </StatusBadge>
+                    )}
+                    {(state?.presence_checks ?? 0) > 0 &&
+                      s.presence_answered < (state?.presence_checks ?? 0) && (
+                        <StatusBadge tone="warning" icon={BellRing}>
+                          missed {(state?.presence_checks ?? 0) - s.presence_answered}
+                        </StatusBadge>
+                      )}
+                    <span className="whitespace-nowrap text-xs text-success-fg">
+                      {new Date(s.checked_in_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </span>
                 ) : (
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
