@@ -3,6 +3,7 @@ import { ChevronDown, FileText } from "lucide-react";
 import {
   ErrorState,
   SectionCard,
+  SegmentedTabs,
   SkeletonRows,
   StatusBadge,
 } from "../common";
@@ -22,6 +23,7 @@ interface SheetRef {
 
 interface SheetRow {
   index_number: string | null;
+  name: string | null;
   grade: string | null;
   is_me: boolean;
 }
@@ -55,6 +57,8 @@ export function PublishedResultSheets() {
   const [loaded, setLoaded] = useState<Record<string, Sheet>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Which semester the bar is showing; -1 until the first load picks one. */
+  const [semester, setSemester] = useState(-1);
 
   const load = useCallback(async () => {
     const { data, error: rpcError } = await supabase.rpc(
@@ -92,10 +96,10 @@ export function PublishedResultSheets() {
   if (loading) return <SkeletonRows count={3} height="h-14" />;
   if (sheets.length === 0 && !error) return null;
 
-  /* Grouped by semester, newest first. A flat list of every course a student
-     has ever sat runs to thirty-odd rows and reads as one undifferentiated
-     pile; the semester is the thing anyone is actually looking for. The RPC
-     already returns them in this order, so this only inserts the breaks. */
+  /* One semester at a time, chosen from a bar at the top.
+     Stacking every semester meant a student wanting Semester 1 scrolled past
+     six of them to reach it. The RPC already returns them newest first, so the
+     bar opens on the most recent. */
   const bySemester = sheets.reduce<Map<number, SheetRef[]>>((acc, s) => {
     const list = acc.get(s.semester) ?? [];
     list.push(s);
@@ -103,12 +107,30 @@ export function PublishedResultSheets() {
     return acc;
   }, new Map());
   const semesters = [...bySemester.keys()].sort((a, b) => b - a);
+  const showing = semesters.includes(semester) ? semester : semesters[0];
+  const rows = bySemester.get(showing) ?? [];
 
   return (
     <SectionCard
       title="Published result sheets"
-      description="The official course sheets, as released by the department. Index numbers and grades for everyone who sat the course."
+      description="The official course sheets, as released by the department, for everyone who sat the course."
       flush
+      actions={
+        semesters.length > 1 ? (
+          <SegmentedTabs
+            aria-label="Semester"
+            value={String(showing)}
+            onChange={(v) => setSemester(Number(v))}
+            layoutId="published-sheets-semester"
+            scrollable
+            tabs={semesters.map((n) => ({
+              value: String(n),
+              label: `Sem ${n}`,
+              count: bySemester.get(n)!.length,
+            }))}
+          />
+        ) : undefined
+      }
     >
       {error && (
         <div className="p-4">
@@ -116,23 +138,20 @@ export function PublishedResultSheets() {
         </div>
       )}
 
-      {semesters.map((semester) => (
-        <div key={semester}>
-          <div className="flex items-center gap-2.5 border-b border-border/70 bg-muted/40 px-4 py-2">
-            <h3 className="text-sm font-semibold text-foreground">
-              Semester {semester}
-            </h3>
-            <span className="rounded-full bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {bySemester.get(semester)!.length} course
-              {bySemester.get(semester)!.length === 1 ? "" : "s"}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {bySemester.get(semester)![0].academic_year}
-            </span>
-          </div>
+      <div className="flex items-center gap-2.5 border-b border-border/70 bg-muted/40 px-4 py-2">
+        <h3 className="text-sm font-semibold text-foreground">
+          Semester {showing}
+        </h3>
+        <span className="rounded-full bg-card px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {rows.length} course{rows.length === 1 ? "" : "s"}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {rows[0]?.academic_year}
+        </span>
+      </div>
 
-          <ul className="divide-y divide-border/70">
-            {bySemester.get(semester)!.map((s) => (
+      <ul className="divide-y divide-border/70">
+        {rows.map((s) => (
           <li key={s.offering_id}>
             <button
               type="button"
@@ -185,6 +204,7 @@ export function PublishedResultSheets() {
                             <th className="pb-1.5 pr-4 font-medium">
                               Index No.
                             </th>
+                            <th className="pb-1.5 pr-4 font-medium">Name</th>
                             <th className="pb-1.5 font-medium">Grade</th>
                           </tr>
                         </thead>
@@ -198,13 +218,16 @@ export function PublishedResultSheets() {
                                   : undefined
                               }
                             >
-                              <td className="py-1.5 pr-4 tabular-nums text-foreground">
+                              <td className="whitespace-nowrap py-1.5 pr-4 tabular-nums text-foreground">
                                 {r.index_number ?? "—"}
                                 {r.is_me && (
                                   <StatusBadge tone="brand" className="ml-2">
                                     You
                                   </StatusBadge>
                                 )}
+                              </td>
+                              <td className="py-1.5 pr-4 text-foreground">
+                                {r.name ?? "—"}
                               </td>
                               <td className="py-1.5 text-foreground">
                                 {r.grade ?? "—"}
@@ -219,10 +242,8 @@ export function PublishedResultSheets() {
               </div>
             )}
           </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+        ))}
+      </ul>
     </SectionCard>
   );
 }
