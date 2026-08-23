@@ -9,6 +9,7 @@ import {
   FileQuestion,
 } from "lucide-react";
 import { CourseListRow } from "../components/courses/CourseListRow";
+import { CourseDetailDialog } from "../components/courses/CourseDetailDialog";
 import { PillTabs } from "../components/dashboard/PillTabs";
 import { Input } from "../components/ui/input";
 import {
@@ -44,6 +45,9 @@ export default function Courses() {
   const [activeTab, setActiveTab] = useState("all");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  /* Opening a course tells the student how it is marked, which is the one
+     thing about a course they cannot work out from their own grade. */
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -455,6 +459,7 @@ export default function Courses() {
                           key={course.id}
                           course={course}
                           index={index}
+                          onClick={() => setDetailId(course.id)}
                         />
                       ))}
                     </div>
@@ -465,6 +470,11 @@ export default function Courses() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <CourseDetailDialog
+        courseId={detailId}
+        onOpenChange={(open) => !open && setDetailId(null)}
+      />
     </div>
   );
 }
