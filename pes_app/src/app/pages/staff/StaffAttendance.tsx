@@ -424,8 +424,19 @@ export default function StaffAttendance() {
                   <Save className="mr-1.5 h-4 w-4" />
                   {saving
                     ? "Saving..."
-                    : `Save attendance (${rows.length - unmarked} marked)`}
+                    : !dirty && rows.some((r) => r.status !== null)
+                      ? "Attendance recorded — nothing to save"
+                      : `Save attendance (${rows.length - unmarked} marked)`}
                 </Button>
+                {/* A disabled button with no explanation reads as a broken
+                    one, which is exactly how it looked after a register wrote
+                    the sheet: every name marked, and Save dead. */}
+                {!dirty && rows.some((r) => r.status !== null) && (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    This sheet matches what is stored. Change a student above to
+                    enable saving.
+                  </p>
+                )}
                 {unmarked > 0 && (
                   <p className="mt-2 text-center text-xs text-muted-foreground">
                     {unmarked} student{unmarked === 1 ? "" : "s"} left unmarked —
