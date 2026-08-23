@@ -284,7 +284,7 @@ export default function StaffAttendance() {
         <LectureRegister
           offeringId={selected.offering_id}
           courseLabel={selected.course_code}
-          onClosed={load}
+          onClosed={() => loadSheet(selected.offering_id, date)}
         />
       )}
 

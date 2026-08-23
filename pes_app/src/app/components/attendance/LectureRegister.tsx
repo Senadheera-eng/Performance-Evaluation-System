@@ -263,7 +263,7 @@ export function LectureRegister({
             <StatusBadge tone="success" icon={CheckCircle2}>
               {present} signed in
             </StatusBadge>
-            <StatusBadge tone="muted" icon={Users}>
+            <StatusBadge tone="neutral" icon={Users}>
               {total} enrolled
             </StatusBadge>
           </div>
