@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Search, BookOpen, Filter } from "lucide-react";
+import { Search, BookOpen, Filter, Pencil, Plus } from "lucide-react";
+import { Button } from "../../components/ui/button";
+import {
+  CourseEditorDialog,
+  type EditableCourse,
+} from "../../components/courses/CourseEditorDialog";
 import {
   Card,
   CardContent,
@@ -25,6 +30,9 @@ interface Course {
   minorCategory: string | null;
   contributesToGpa: boolean;
   enrolledCount: number;
+  caWeight: number;
+  midSemWeight: number;
+  eseWeight: number;
 }
 
 export default function AdminCourses() {
@@ -34,6 +42,27 @@ export default function AdminCourses() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
   const [loading, setLoading] = useState(true);
+  /* A department owns its catalogue: the RLS policy on courses has always let
+     a department admin and its head write it, and nothing on this page ever
+     did. Null means the dialog is creating rather than editing. */
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<EditableCourse | null>(null);
+
+  const toEditable = (c: Course): EditableCourse => ({
+    id: c.id,
+    course_code: c.code,
+    title: c.name,
+    credits: c.credits,
+    semester: c.semester,
+    year: c.year,
+    department: c.department,
+    category: c.category,
+    minor_category: c.minorCategory,
+    contributes_to_gpa: c.contributesToGpa,
+    ca_weight: c.caWeight,
+    mid_sem_weight: c.midSemWeight,
+    ese_weight: c.eseWeight,
+  });
 
   useEffect(() => {
     if (student) fetchCourses();
@@ -80,6 +109,9 @@ export default function AdminCourses() {
       minorCategory: c.minor_category,
       contributesToGpa: c.contributes_to_gpa,
       enrolledCount: enrollMap[c.id] ?? 0,
+      caWeight: c.ca_weight,
+      midSemWeight: c.mid_sem_weight,
+      eseWeight: c.ese_weight,
     }));
 
     setCourses(courseList);
@@ -104,14 +136,29 @@ export default function AdminCourses() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Course Management
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {scope.kind === "all"
-            ? "View all courses in the faculty catalogue."
-            : `Courses belonging to ${describeAdminScope(student)}.`}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground mb-1">
+              Course Management
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {scope.kind === "all"
+                ? "Every course in the faculty catalogue."
+                : `Courses belonging to ${describeAdminScope(student)}.`}
+            </p>
+          </div>
+          {scope.kind === "department" && (
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setEditorOpen(true);
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              New course
+            </Button>
+          )}
+        </div>
       </motion.div>
 
       {/* Stats */}
@@ -276,6 +323,14 @@ export default function AdminCourses() {
                         Sem {course.semester} · {course.credits} credits ·{" "}
                         {course.category} · {course.department}
                       </p>
+                      {/* How the course is marked, on the row that manages it
+                          — the split is a property of the course now, so it
+                          belongs where the course is read. */}
+                      <p className="text-xs text-muted-foreground">
+                        CA {Math.round(course.caWeight * 100)}% · Mid{" "}
+                        {Math.round(course.midSemWeight * 100)}% · ESE{" "}
+                        {Math.round(course.eseWeight * 100)}%
+                      </p>
                     </div>
                   </div>
 
@@ -301,6 +356,19 @@ export default function AdminCourses() {
                     >
                       {course.category}
                     </Badge>
+                    {scope.kind === "department" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditing(toEditable(course));
+                          setEditorOpen(true);
+                        }}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                        Edit
+                      </Button>
+                    )}
                   </div>
                 </motion.div>
               ))}
@@ -308,6 +376,14 @@ export default function AdminCourses() {
           )}
         </CardContent>
       </Card>
+
+      <CourseEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        course={editing}
+        department={scope.kind === "department" ? scope.department : ""}
+        onSaved={fetchCourses}
+      />
     </div>
   );
 }
