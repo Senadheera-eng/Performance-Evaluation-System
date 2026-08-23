@@ -21,7 +21,6 @@ interface CourseDetail {
   minor_category: string | null;
   contributes_to_gpa: boolean;
   ca_weight: number;
-  mid_sem_weight: number;
   ese_weight: number;
   coordinators: string[];
 }
@@ -144,12 +143,9 @@ export function CourseDetailDialog({
                 {(
                   [
                     ["Continuous assessment (CA)", detail.ca_weight],
-                    ["Mid-semester examination", detail.mid_sem_weight],
                     ["End-of-semester examination (ESE)", detail.ese_weight],
                   ] as const
                 )
-                  // A course that sits no mid-semester paper should not show a
-                  // row saying zero per cent of the mark comes from one.
                   .filter(([, w]) => w > 0)
                   .map(([label, w]) => (
                     <div key={label}>
@@ -172,8 +168,9 @@ export function CourseDetailDialog({
                   ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Your overall mark (OA) is these three added together, and your
-                grade comes from that.
+                Your overall mark (OA) is these two added together, and your
+                grade comes from that. CA covers your mid-semester paper,
+                practicals, assignments and quizzes.
               </p>
             </div>
           </>
