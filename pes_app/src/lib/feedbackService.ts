@@ -347,6 +347,7 @@ export interface AdminFeedbackPeriod {
   semester: number;
   batch_year: number | null;
   department: string | null;
+  feedback_type: "mid_semester" | "end_semester";
   opens_at: string;
   closes_at: string;
   status: "draft" | "scheduled" | "open" | "closed" | "archived";
@@ -872,6 +873,12 @@ export async function createFeedbackPeriod(payload: {
   semester: number;
   batch_year: number;
   department: string | null;
+  /**
+   * Which round this is. The column has always existed and every screen that
+   * reads a period shows it; only this form never asked, so a department's
+   * mid-semester round was silently filed as an end-of-semester one.
+   */
+  feedback_type: "mid_semester" | "end_semester";
   opens_at: string;
   closes_at: string;
   allow_editing: boolean;
