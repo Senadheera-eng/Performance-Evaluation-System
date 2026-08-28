@@ -1,0 +1,330 @@
+﻿dept	sem	code	title	credits	category	gpa
+COMMON	1	CE1201	Properties of Materials	2	Compulsory	Yes
+COMMON	1	CO1201	Introduction to Computer Systems	2	Compulsory	Yes
+COMMON	1	EE1201	Electricity	2	Compulsory	Yes
+COMMON	1	ME1301	Engineering Mechanics	3	Compulsory	Yes
+COMMON	1	ME1202	Introduction to Thermodynamics	2	Compulsory	Yes
+COMMON	1	IS1301	Engineering Mathematics I	3	Compulsory	Yes
+COMMON	1	IS1151	English for Communication	1	Compulsory	No
+COMMON	1	IS1171	History of Science and Technology	1	Compulsory	No
+COMMON	1	IS1281	Engineering Measurement	2	Compulsory	Yes
+COMMON	2	CE1202	Introduction to Fluid Mechanics	2	Compulsory	Yes
+COMMON	2	CO1302	Programming for Engineers	3	Compulsory	Yes
+COMMON	2	EE1302	Electronics	3	Compulsory	Yes
+COMMON	2	ME1303	Basic Manufacturing Processes	3	Compulsory	Yes
+COMMON	2	ME1304	Engineering Drawing	3	Compulsory	Yes
+COMMON	2	IS1302	Engineering Mathematics II	3	Compulsory	Yes
+COMMON	2	IS1152	Presentation Skills in English	1	Optional	No
+Civil Engineering	3	CE2301	Structural Mechanics	3	Compulsory	Yes
+Civil Engineering	3	CE2302	Fluid Mechanics	3	Compulsory	Yes
+Civil Engineering	3	CE2203	Building Design Process	2	Compulsory	Yes
+Civil Engineering	3	CE2304	Surveying I	3	Compulsory	Yes
+Civil Engineering	3	IS2301	Engineering Mathematics III	3	Compulsory	Yes
+Civil Engineering	3	IS2202	Engineering Mathematics IV	2	Compulsory	Yes
+Civil Engineering	3	IS2261	Accounting for Engineers	2	Compulsory	Yes
+Civil Engineering	4	CE2305	Structural Analysis I	3	Compulsory	Yes
+Civil Engineering	4	CE2306	Hydraulic Engineering	3	Compulsory	Yes
+Civil Engineering	4	CE2307	Soil Mechanics and Engineering Geology I	3	Compulsory	Yes
+Civil Engineering	4	CE2208	Construction Materials	2	Compulsory	Yes
+Civil Engineering	4	CE2209	Environmental Engineering	2	Compulsory	Yes
+Civil Engineering	4	CE2210	Highway and Transportation Engineering	2	Compulsory	Yes
+Civil Engineering	4	CE2211	Surveying II	2	Compulsory	Yes
+Civil Engineering	4	IS2303	Engineering Mathematics V	3	Compulsory	Yes
+Civil Engineering	4	IS2262	Economics and Management	2	Compulsory	Yes
+Civil Engineering	5	CE3301	Structural Analysis II	3	Compulsory	Yes
+Civil Engineering	5	CE3202	Design of Steel Structures	2	Compulsory	Yes
+Civil Engineering	5	CE3203	Engineering Hydrology	2	Compulsory	Yes
+Civil Engineering	5	CE3204	Soil Mechanics and Engineering Geology II	2	Compulsory	Yes
+Civil Engineering	5	CE3205	Construction Planning and Cost Estimation	2	Compulsory	Yes
+Civil Engineering	5	CE3251	Design of Timber Structures2 YesCE3261Environmental Hydraulics	2	Elective (2)	Yes
+Civil Engineering	5	CE3271	Traffic Engineering	2	Elective (2)	Yes
+Civil Engineering	5	IS3261	Quantitative Methods in Management	2	Compulsory	No
+Civil Engineering	5	IS3162	Intellectual Property	1	Compulsory	No
+Civil Engineering	5	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Civil Engineering	5	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Civil Engineering	5	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Civil Engineering	6	CE3306	Design of Concrete Structures I	3	Compulsory	Yes
+Civil Engineering	6	CE3207	Hydraulic Design	2	Compulsory	Yes
+Civil Engineering	6	CE3308	Geotechnical Engineering	3	Compulsory	Yes
+Civil Engineering	6	CE3209	Construction Management	2	Compulsory	Yes
+Civil Engineering	6	CE3110	Surveying Field Project	1	Compulsory	No
+Civil Engineering	6	CE3252	Design of Masonry Structures2 YesCE3262Environmental Geotechnics	2	Elective (2)	No
+Civil Engineering	6	CE3272	Rail Transport Systems	2	Elective (2)	No
+Civil Engineering	6	IS3263	Industrial Law	2	Compulsory	Yes
+Civil Engineering	6	IS3151	Technical Writing	1	Compulsory	Yes
+Civil Engineering	6	IS3175	Introduction to Philosophy	1	Elective (1)	No
+Civil Engineering	6	IS3176	Scientific Method	1	Elective (1)	No
+Civil Engineering	6	IS3177	Introduction to Psychology and Human Behaviour	1	Elective (1)	No
+Civil Engineering	6	CE3600	Industrial Training	6	Compulsory	No
+Civil Engineering	7	CE4301	Design of Concrete Structures II	3	Compulsory	Yes
+Civil Engineering	7	CE4202	Geotechnical Design	2	Compulsory	Yes
+Civil Engineering	7	CE4603	Research Project	3	Compulsory	Yes
+Civil Engineering	7	CE4404	Comprehensive Design Project	2	Compulsory	Yes
+Civil Engineering	7	CE4351	Advanced Structural Analysis and Design I	3	Elective (6)	Yes
+Civil Engineering	7	CE4352	Bridge Engineering	3	Elective (6)	Yes
+Civil Engineering	7	CE4361	Water and Wastewater Engineering	3	Elective (6)	Yes
+Civil Engineering	7	CE4362	Environmental Pollution Control	3	Elective (6)	Yes
+Civil Engineering	7	CE4371	Highway Engineering Design	3	Elective (6)	Yes
+Civil Engineering	7	CE4372	Transportation Planning and Economics	3	Elective (6)	Yes
+Civil Engineering	7	CE4305	Highway and Transportation Engineering Design	3	Optional	Yes
+Civil Engineering	7	CE4306	Water and Wastewater Treatment	3	Optional	Yes
+Civil Engineering	7	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Civil Engineering	7	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Civil Engineering	7	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Civil Engineering	8	CE4603	Research Project	3	Compulsory	Yes
+Civil Engineering	8	CE4404	Comprehensive Design Project	2	Compulsory	Yes
+Civil Engineering	8	CE4353	Advanced Structural Analysis and Design II	3	Elective (10)	Yes
+Civil Engineering	8	CE4254	Building Services	2	Elective (10)	Yes
+Civil Engineering	8	CE4355	Construction Technology	3	Elective (10)	Yes
+Civil Engineering	8	CE4361	Water and Wastewater Engineering	3	Elective (10)	Yes
+Civil Engineering	8	CE4363	Limnology	3	Elective (10)	Yes
+Civil Engineering	8	CE4365	Environmental Management	3	Elective (10)	Yes
+Civil Engineering	8	CE4371	Highway Engineering Design	3	Elective (10)	Yes
+Civil Engineering	8	CE4373	Traffic Management and Safety	3	Elective (10)	Yes
+Civil Engineering	8	CE4264	Environmental Impact Assessment	2	Elective (10)	Yes
+Civil Engineering	8	CE4374	Air and Water Transport Systems	3	Elective (10)	Yes
+Civil Engineering	8	CE4256	Sustainable Design and Construction	2	Elective (10)	Yes
+Civil Engineering	8	CE4305	Highway and Transportation Engineering Design	3	Optional	Yes
+Civil Engineering	8	CE4306	Water and Wastewater Treatment	3	Optional	Yes
+Civil Engineering	8	IS4171	Ethics in Engineering	1	Compulsory	Yes
+Civil Engineering	8	IS3175	Introduction to Philosophy	1	Elective (1)	No
+Civil Engineering	8	IS3176	Scientific Method	1	Elective (1)	No
+Civil Engineering	8	IS3177	Introduction to Psychology and Human Behaviour	1	Elective (1)	No
+Computer Engineering	3	CO2201	Data Structures and Algorithms	2	Compulsory	Yes
+Computer Engineering	3	CO2202	Computer Organization	2	Compulsory	Yes
+Computer Engineering	3	CO2203	Object Oriented Programming	2	Compulsory	Yes
+Computer Engineering	3	CO2204	Data Communication	2	Compulsory	Yes
+Computer Engineering	3	CO2105	Field Visit	1	Compulsory	Yes
+Computer Engineering	3	EE2206	Circuit Theory	2	Compulsory	Yes
+Computer Engineering	3	IS2301	Engineering Mathematics III	3	Compulsory	Yes
+Computer Engineering	3	IS2202	Engineering Mathematics IV	2	Compulsory	Yes
+Computer Engineering	3	IS2261	Accounting for Engineers	2	Compulsory	Yes
+Computer Engineering	4	CO2206	Operating Systems	2	Compulsory	Yes
+Computer Engineering	4	CO2307	Software Engineering	3	Compulsory	Yes
+Computer Engineering	4	CO2208	Computer Networks	2	Compulsory	Yes
+Computer Engineering	4	CO2209	Embedded Systems	2	Compulsory	Yes
+Computer Engineering	4	CO2210	Programming Quest	2	Compulsory	Yes
+Computer Engineering	4	ME2208	Theory of Control Systems	2	Compulsory	Yes
+Computer Engineering	4	IS2303	Engineering Mathematics V	3	Compulsory	Yes
+Computer Engineering	4	IS2262	Economics and Management	2	Compulsory	Yes
+Computer Engineering	5	CO3201	Database Systems	2	Compulsory	Yes
+Computer Engineering	5	CO3302	Computer Engineering Project	3	Compulsory	Yes
+Computer Engineering	5	CO3203	Computer Security	2	Elective (7)	Yes
+Computer Engineering	5	CO3251	Natural Language Processing	2	Elective (7)	Yes
+Computer Engineering	5	CO3252	Management Information Systems	2	Elective (7)	Yes
+Computer Engineering	5	CO3353	Data Mining	3	Elective (7)	Yes
+Computer Engineering	5	CO3261	Cloud Computing and Applications	2	Elective (7)	Yes
+Computer Engineering	5	CO3262	Advanced Computer Architecture	2	Elective (7)	Yes
+Computer Engineering	5	IS3202	Discrete Mathematics	2	Compulsory	Yes
+Computer Engineering	5	IS3201	Algorithms and Optimization Methods 2 NoIS3	2	Optional	Yes
+Computer Engineering	5	IS3204	Mathematical Modelling and Simulation	2	Optional	Yes
+Computer Engineering	5	IS3261	Quantitative Methods in Management	2	Compulsory	Yes
+Computer Engineering	5	IS3162	Intellectual Property	1	Compulsory	No
+Computer Engineering	5	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Computer Engineering	5	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Computer Engineering	5	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Computer Engineering	6	CO3204	Robotic Design	2	Compulsory	Yes
+Computer Engineering	6	CO3205	Intelligent systems	2	Compulsory	Yes
+Computer Engineering	6	CO3554	Data Management Project	3	Elective (3)	Yes
+Computer Engineering	6	CO3563	High Performance Computing Project	3	Elective (3)	Yes
+Computer Engineering	6	CO3255	Information Security	2	Elective (6)	Yes
+Computer Engineering	6	CO3256	Quality Engineering	2	Elective (6)	Yes
+Computer Engineering	6	CO3264	Advanced Operating Systems	2	Elective (6)	Yes
+Computer Engineering	6	CO3265	Parallel Programming	2	Elective (6)	Yes
+Computer Engineering	6	IS3205	Operations Research	2	Optional	No
+Computer Engineering	6	IS3206	Advanced Probability and Statistical Analysis	2	Optional	No
+Computer Engineering	6	IS3207	Time Series and Stochastic Processes	2	Optional	No
+Computer Engineering	6	IS3208	Linear Models and Multivariate Statistics	2	Optional	No
+Computer Engineering	6	IS3151	Technical Writing	1	Compulsory	Yes
+Computer Engineering	6	IS3263	Industrial Law	2	Compulsory	Yes
+Computer Engineering	6	IS3264	Management for Engineers	2	Compulsory	Yes
+Computer Engineering	6	IS3175	Introduction to Philosophy	1	Elective (0/1)	No
+Computer Engineering	6	IS3176	Scientific Method	1	Elective (0/1)	No
+Computer Engineering	6	IS3177	Introduction to Psychology and Human Behavior Training		Elective (0/1)	No
+Computer Engineering	6	CO3600	Industrial Training	6	Compulsory	No
+Computer Engineering	7	CO4301	Individual Research/Design Project	3	Compulsory	Yes
+Computer Engineering	7	CO4002	Engineering Project	4	Compulsory	Yes
+Computer Engineering	7	CO4203	Microcontrollers and Applications	2	Compulsory	Yes
+Computer Engineering	7	CO4204	Computer Vision and Image Processing	2	Compulsory	Yes
+Computer Engineering	7	CO3554	Data Management Project	2	Elective (2)	Yes
+Computer Engineering	7	CO3563	High Performance Computing Project	2	Elective (2)	Yes
+Computer Engineering	7	CO4351	Advanced Database Systems	3	Elective (3)	Yes
+Computer Engineering	7	CO4352	Advanced Algorithms	3	Elective (3)	Yes
+Computer Engineering	7	CO4361	Concurrent Processing	3	Elective (3)	Yes
+Computer Engineering	7	CO4362	GPU Programming	3	Elective (3)	Yes
+Computer Engineering	7	IS4161	Sustainability and Disaster Management	2	Compulsory	Yes
+Computer Engineering	7	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Computer Engineering	7	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Computer Engineering	7	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Computer Engineering	8	CO4002	Engineering Project	6	Compulsory	Yes
+Computer Engineering	8	CO4205	Compilers	2	Compulsory	Yes
+Computer Engineering	8	CO4306	Software Architecture and Design	3	Compulsory	Yes
+Computer Engineering	8	CO4353	Distributed Systems	3	Elective (5)	Yes
+Computer Engineering	8	CO4254	Machine Learning	2	Elective (5)	Yes
+Computer Engineering	8	CO4255	Bioinformatics	2	Elective (5)	Yes
+Computer Engineering	8	CO4256	Mobile Application Development	2	Elective (5)	Yes
+Computer Engineering	8	CO4263	Scientific Computing	2	Elective (5)	Yes
+Computer Engineering	8	IS4171	Ethics in Engineering	1	Compulsory	Yes
+Computer Engineering	8	IS3175	Introduction to Philosophy	1	Elective (1/0)	No
+Computer Engineering	8	IS3176	Scientific Method	11	Elective (1/0)	No
+Computer Engineering	8	IS3177	Introduction to Psychology and Human Behavior	1	Elective (1/0)	No
+Electrical and Electronic Engineering	3	EE2201	Power Systems I	2	Compulsory	Yes
+Electrical and Electronic Engineering	3	EE2203	Machines and Drives I	2	Compulsory	Yes
+Electrical and Electronic Engineering	3	EE2305	Analog Electronics	3	Compulsory	Yes
+Electrical and Electronic Engineering	3	EE2206	Circuit Theory	2	Compulsory	Yes
+Electrical and Electronic Engineering	3	CO2202	Computer Organization	2	Compulsory	Yes
+Electrical and Electronic Engineering	3	CO2203	Object Oriented Programming	2	Optional	No
+Electrical and Electronic Engineering	3	IS2301	Engineering Mathematics III	3	Compulsory	Yes
+Electrical and Electronic Engineering	3	IS2202	Engineering Mathematics IV	2	Compulsory	Yes
+Electrical and Electronic Engineering	3	IS2261	Accounting for Engineers	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	EE2202	Power Systems II	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	EE2204	Communication I	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	EE2207	Digital Electronics	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	EE2208	Embedded Systems	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	EE2309	Electrical Installations	3	Compulsory	Yes
+Electrical and Electronic Engineering	4	ME2208	Theory of Control Systems	2	Compulsory	Yes
+Electrical and Electronic Engineering	4	IS2303	Engineering Mathematics V	3	Compulsory	Yes
+Electrical and Electronic Engineering	4	IS2262	Economics and Management	2	Compulsory	Yes
+Electrical and Electronic Engineering	5	EE3201	Signal Processing	2	Compulsory	Yes
+Electrical and Electronic Engineering	5	EE3202	Machines and Drives II	2	Compulsory	Yes
+Electrical and Electronic Engineering	5	EE3151	Introduction to Biomedical Engineering	1	Elective (8/7)	Yes
+Electrical and Electronic Engineering	5	EE3252	Anatomy and Control Systems of the Human Body I	2	Elective (8/7)	Yes
+Electrical and Electronic Engineering	5	EE3253	Introduction to Image Processing	2	Elective (8/7)	Yes
+Electrical and Electronic Engineering	5	EE3361	Communication II	3	Elective (8/7)	Yes
+Electrical and Electronic Engineering	5	EE3262	Data Communication	2	Elective (8/7)	Yes
+Electrical and Electronic Engineering	5	CO3201	Database Systems	2	Optional	No
+Electrical and Electronic Engineering	5	IS3201	Algorithms and Optimization Methods	2	Elective (2)	Yes
+Electrical and Electronic Engineering	5	IS3202	Discrete Mathematics	2	Elective (2)	Yes
+Electrical and Electronic Engineering	5	IS3203	Newtonian Mechanics and Lagrangian Dynamics	2	Elective (2)	Yes
+Electrical and Electronic Engineering	5	IS3204	Mathematical Modelling and Simulation	2	Elective (2)	Yes
+Electrical and Electronic Engineering	5	IS3261	Quantitative Methods in Management	2	Compulsory	No
+Electrical and Electronic Engineering	5	IS3162	Intellectual Property	1	Compulsory	No
+Electrical and Electronic Engineering	5	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Electrical and Electronic Engineering	5	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Electrical and Electronic Engineering	5	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Electrical and Electronic Engineering	6	EE3203	Electromagnetics	2	Compulsory	Yes
+Electrical and Electronic Engineering	6	EE3204	Industrial Automation and System Design	2	Compulsory	Yes
+Electrical and Electronic Engineering	6	EE3205	Digital System Design	2	Compulsory	Yes
+Electrical and Electronic Engineering	6	EE3354	Machine Learning	3	Elective (7/8)	Yes
+Electrical and Electronic Engineering	6	EE3255	Anatomy and Control Systems of the Human Body II	2	Elective (7/8)	Yes
+Electrical and Electronic Engineering	6	EE3363	Next Generation Networks	3	Elective (7/8)	Yes
+Electrical and Electronic Engineering	6	EE3264	Digital Communication	2	Elective (7/8)	Yes
+Electrical and Electronic Engineering	6	IS3205	Operations Research	2	Optional	Yes
+Electrical and Electronic Engineering	6	IS3206	Operations Research	2	Optional	Yes
+Electrical and Electronic Engineering	6	IS3207	Time Series and Stochastic Processes	2	Optional	Yes
+Electrical and Electronic Engineering	6	IS3208	Linear Models and Multivariate Statistics	2	Optional	Yes
+Electrical and Electronic Engineering	6	IS3263	Industrial Law	2	Compulsory	Yes
+Electrical and Electronic Engineering	6	IS3264	Management for Engineers	2	Compulsory	Yes
+Electrical and Electronic Engineering	6	IS3151	Technical Writing	1	Compulsory	Yes
+Electrical and Electronic Engineering	6	IS3175	Introduction to Philosophy	1	Elective (0/1)	No
+Electrical and Electronic Engineering	6	IS3176	Scientific Method	1	Elective (0/1)	No
+Electrical and Electronic Engineering	6	IS3177	Introduction to Psychology and Human Behaviour	1	Elective (0/1)	No
+Electrical and Electronic Engineering	6	EE3600	Industrial Training	6	Compulsory	No
+Electrical and Electronic Engineering	7	EE4301	Research and Design Project	3	Compulsory	Yes
+Electrical and Electronic Engineering	7	EE4002	Engineering Project	3	Compulsory	Yes
+Electrical and Electronic Engineering	7	EE4303	Robotics	3	Compulsory	Yes
+Electrical and Electronic Engineering	7	EE4204	Power Electronic Circuit Design	2	Compulsory	Yes
+Electrical and Electronic Engineering	7	EE4205	Electronic Manufacturing Systems	2	Elective (5)	Yes
+Electrical and Electronic Engineering	7	EE4351	Biomedical Image Analysis	3	Elective (5)	Yes
+Electrical and Electronic Engineering	7	EE4252	Biomedical Instrumentation	2	Elective (5)	Yes
+Electrical and Electronic Engineering	7	EE4253	Biomechanics	2	Elective (5)	Yes
+Electrical and Electronic Engineering	7	EE4361	Wireless Communication	3	Elective (5)	Yes
+Electrical and Electronic Engineering	7	EE4262	Internet of Things	2	Elective (5)	Yes
+Electrical and Electronic Engineering	7	IS4161	Sustainability and Disaster Management	1	Compulsory	Yes
+Electrical and Electronic Engineering	7	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Electrical and Electronic Engineering	7	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Electrical and Electronic Engineering	7	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Electrical and Electronic Engineering	8	EE4002	Engineering Project	7	Compulsory	Yes
+Electrical and Electronic Engineering	8	EE4308	VLSI Circuits	3	Elective (3)	Yes
+Electrical and Electronic Engineering	8	EE4354	Mobile Application Development	3	Elective (3)	Yes
+Electrical and Electronic Engineering	8	EE4206	Power Systems III	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4207	High Voltage Engineering	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4255	Genetics	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4256	Medical Informatics	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4263	Information Theory and Coding	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4209	Energy Studies	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	EE4264	Cryptography and Network Security	2	Elective (6)	Yes
+Electrical and Electronic Engineering	8	IS4171	Ethics in Engineering	1	Compulsory	Yes
+Electrical and Electronic Engineering	8	IS3175	Introduction to Philosophy	1	Elective (1/0)	No
+Electrical and Electronic Engineering	8	IS3176	Scientific Method	1	Elective (1/0)	No
+Electrical and Electronic Engineering	8	IS3177	Introduction to Psychology and Human Behaviour 1 The courses offered by the Department of Mechanical Engineering are designed to give students the broad skill set required to pursue their goals, whether that is working as a Mechanical Engineer, Product Design Engineer, Energy Consultant, Entrepreneur, or continuing on to graduate study and research, throughout the globe. This specialization combines a broad-based education in the engineering sciences with a strong grounding in quantitative, problem solving, design, and communication skills. In the Department of Mechanical Engineering, students learn by doing, experiencing a le vel of understanding that only occurs through creative activities. The department offers minors in areas of emerging sciences in Mechanical Engineering. Currently the minors in Mechatronics, Building Services and Manufacturing Engineering are offered by the department. The minor in Mechatronics Engineering covers the areas of robotics, vision systems, control systems, advanced automation, and micro mechatronics. The minor in Manufacturing Engineering covers the areas of production and operations management, advanced manufacturing systems and computer aided designing and manufacturing. Heating,ventilation, and air-conditioning (H VAC) systems, piped services and green building engineering are covered in the minor of Building Services. The curriculum of Mechanical Engineering ranges across the fundamentals of engineering me chanics, thermodynamics, energy engineering, building services, manufacturing, aerodynamics, and computer- ba sed simulations with numerical approaches to designing products with a significant impact to society. D E P A R T M E N T O F M E C H A N I C A L E N G I N E E R I N G 6	0	Elective (1/0)	No
+Mechanical Engineering	3	ME2301	Theory of Machines	3	Compulsory	Yes
+Mechanical Engineering	3	ME2302	Fluid Dynamics	3	Compulsory	Yes
+Mechanical Engineering	3	ME2303	Applied Thermodynamics I	3	Compulsory	Yes
+Mechanical Engineering	3	ME2104	Sensors and Actuators	1	Compulsory	Yes
+Mechanical Engineering	3	EE2191	Electrical Machines	1	Compulsory	Yes
+Mechanical Engineering	3	IS2301	Engineering Mathematics III	3	Compulsory	Yes
+Mechanical Engineering	3	IS2202	Engineering Mathematics IV	2	Compulsory	Yes
+Mechanical Engineering	3	IS2261	Accounting for Engineers	2	Compulsory	Yes
+Mechanical Engineering	4	ME2305	Strength of Materials I	3	Compulsory	Yes
+Mechanical Engineering	4	ME2206	Analysis of Manufacturing Processes	2	Compulsory	Yes
+Mechanical Engineering	4	ME2307	Design of Machine Elements	3	Compulsory	Yes
+Mechanical Engineering	4	ME2208	Theory of Control Systems	2	Compulsory	Yes
+Mechanical Engineering	4	ME2209	Fundamentals of Mechatronics	2	Compulsory	Yes
+Mechanical Engineering	4	IS2303	Engineering Mathematics V	3	Compulsory	Yes
+Mechanical Engineering	4	IS2262	Economics and Management	2	Compulsory	Yes
+Mechanical Engineering	5	ME3201	Strength of Materials II	2	Compulsory	Yes
+Mechanical Engineering	5	ME3202	Fluid Machinery	2	Compulsory	Yes
+Mechanical Engineering	5	ME3203	Dynamics of Mechanical Systems	2	Compulsory	Yes
+Mechanical Engineering	5	ME3205	Automobile Technology	2	Compulsory	Yes
+Mechanical Engineering	5	ME3250	Manufacturing Systems	2	Elective (5)	Yes
+Mechanical Engineering	5	ME3351	Production and Operations Management	3	Elective (5)	Yes
+Mechanical Engineering	5	ME3352	HVAC System	3	Elective (5)	Yes
+Mechanical Engineering	5	ME3253	Piped Services	2	Elective (5)	Yes
+Mechanical Engineering	5	ME3354	Robotics and Vision Systems	3	Elective (5)	Yes
+Mechanical Engineering	5	ME3255	Microcontrollers and Microprocessor Based Systems	2	Elective (5)	Yes
+Mechanical Engineering	5	IS3201	Algorithms and Optimization Methods	2	Elective (2)	Yes
+Mechanical Engineering	5	IS3202	Discrete Mathematics	2	Elective (2)	Yes
+Mechanical Engineering	5	IS3203	Newtonian Mechanicsand Lagrangian Dynamics	2	Elective (2)	Yes
+Mechanical Engineering	5	IS3204	Mathematical Modelling and Simulation	2	Elective (2)	Yes
+Mechanical Engineering	5	IS3261	Quantitative Methodsin Management	2	Compulsory	Yes
+Mechanical Engineering	5	IS3162	Intellectual Property	1	Compulsory	No
+Mechanical Engineering	5	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Mechanical Engineering	5	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Mechanical Engineering	5	IS3173	Sinhala/Tamil	1	Elective (1)	No
+Mechanical Engineering	6	ME3806	Comprehensive Mechanical Engineering Design	8	Compulsory	
+Mechanical Engineering	6	ME3207	Applied Thermodynamics II	2	Compulsory	Yes
+Mechanical Engineering	6	ME3256	Product – Process Design	2	Elective (5)	Yes
+Mechanical Engineering	6	ME3357	Group Project (Manufacturing)	3	Elective (5)	Yes
+Mechanical Engineering	6	ME3258	Electrical Installation, Distribution and Lighting	2	Elective (5)	Yes
+Mechanical Engineering	6	ME3359	Group Project (Building Services)	3	Elective (5)	Yes
+Mechanical Engineering	6	ME3260	Advanced Automation	2	Elective (5)	Yes
+Mechanical Engineering	6	ME3361	Mechatronics Project	3	Elective (5)	Yes
+Mechanical Engineering	6	IS3205	Operations Research	2	Optional	Yes
+Mechanical Engineering	6	IS3206	Advanced Probability and Statistical Analysis	2	Optional	Yes
+Mechanical Engineering	6	IS3207	Time Series and Stochastic Processes	2	Optional	Yes
+Mechanical Engineering	6	IS3208	Linear Models and Multivariate Statistics	2	Optional	Yes
+Mechanical Engineering	6	IS3263	Industrial Law	2	Compulsory	Yes
+Mechanical Engineering	6	IS3151	Technical Writing	1	Compulsory	Yes
+Mechanical Engineering	6	IS3264	Management for Engineers	2	Compulsory	Yes
+Mechanical Engineering	6	IS3175	Introduction to Philosophy	1	Elective (1)	No
+Mechanical Engineering	6	IS3176	Scientific Method	1	Elective (1)	No
+Mechanical Engineering	6	IS3177	Introduction to Psychology and Human Behaviour	1	Elective (1)	No
+Mechanical Engineering	6	ME3600	Industrial Training	6	Compulsory	No
+Mechanical Engineering	7	ME4001	Engineering Project	4	Compulsory	Yes
+Mechanical Engineering	7	ME4102	Solid Mechanics	1	Compulsory	Yes
+Mechanical Engineering	7	ME4404	Individual Research Project	4	Compulsory	Yes
+Mechanical Engineering	7	ME4103	Advanced Fluid Dynamics	1	Compulsory	Yes
+Mechanical Engineering	7	ME4262	Green Engineering and Environmental Compliance	2	Elective (5)	Yes
+Mechanical Engineering	7	ME4363	Advanced Manufacturing Processes	3	Elective (5)	Yes
+Mechanical Engineering	7	ME4364	Building Power Systems and Design	3	Elective (5)	Yes
+Mechanical Engineering	7	ME4265	Energy Performance in Buildings	2	Elective (5)	Yes
+Mechanical Engineering	7	ME4366	Computer-Based Measurement Systems	3	Elective (5)	Yes
+Mechanical Engineering	7	ME4267	Graphical Programing and Virtual Instrumentation	2	Elective (5)	Yes
+Mechanical Engineering	7	IS4161	Sustainability and Disaster Management	1	Compulsory	Yes
+Mechanical Engineering	7	IS3171	Sri Lankan History and Culture	1	Elective (1)	No
+Mechanical Engineering	7	IS3172	Ethnic Cohesion and Social Harmony	1	Elective (1)	No
+Mechanical Engineering	7	IS3173/IS3174	Sinhala/Tamil	1	Elective (1)	No
+Mechanical Engineering	8	ME4001	Engineering Project	6	Compulsory	Yes
+Mechanical Engineering	8	ME4205	Heat Transfer	2	Compulsory	Yes
+Mechanical Engineering	8	ME4106	Advanced Machine Dynamics	1	Compulsory	Yes
+Mechanical Engineering	8	ME4369	Computer Aided Manufacturing	3	Elective (5)	Yes
+Mechanical Engineering	8	ME4270	Industrial Automation	2	Elective (5)	Yes
+Mechanical Engineering	8	ME4271	Building Acoustics	2	Elective (5)	Yes
+Mechanical Engineering	8	ME4372	Facility and Building Environment Management	3	Elective (5)	Yes
+Mechanical Engineering	8	ME4373	Smart Sensors, Actuators and Intelligent Systems	3	Elective (5)	Yes
+Mechanical Engineering	8	ME4274	Introduction to Micro-mechatronics	2	Elective (5)	Yes
+Mechanical Engineering	8	IS4171	Ethics in Engineering	1	Compulsory	Yes
+Mechanical Engineering	8	IS3175	Introduction to Philosophy	1	Elective (1)	No
+Mechanical Engineering	8	IS3176	Scientific Method	1	Elective (1)	No
+Mechanical Engineering	8	IS3177	Introduction to Psychology and Human Behaviour	1	Elective (1)	No
