@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, RotateCcw, Stethoscope } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Lock,
+  Minus,
+  Plus,
+  RotateCcw,
+  Stethoscope,
+} from "lucide-react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { ErrorState, SectionCard, SkeletonRows, StatusBadge } from "../common";
@@ -25,6 +33,8 @@ interface Option {
   capacity: number | null;
   enrolled_count: number;
   already_enrolled: boolean;
+  /** A mark for this sitting is already recorded, so the place is fixed. */
+  locked: boolean;
 }
 
 const GROUPS = [
@@ -57,11 +67,17 @@ const GROUPS = [
  * The two kinds are kept apart on purpose. They are different obligations — a
  * repeat is capped at C, a medical re-sit is not — and a student looking at a
  * mixed list cannot tell which rule applies to which module.
+ *
+ * A repeat can be withdrawn from while the window that carries it is open, on
+ * the same terms as any other course: this list only ever shows modules under
+ * an open window, so anything here is still the student's to change until a
+ * mark lands against the sitting.
  */
-export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) {
+export function OutstandingModules({ onChanged }: { onChanged?: () => void }) {
   const { student } = useAuth();
   const [options, setOptions] = useState<Option[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
+  /** Ticks made since the last save, as course_id → wanted. */
+  const [draft, setDraft] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +85,9 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error: rpcError } = await supabase.rpc("get_my_enrolment_options");
+    const { data, error: rpcError } = await supabase.rpc(
+      "get_my_enrolment_options",
+    );
     if (rpcError) {
       console.error("[enrolment options]", rpcError);
       setError("We could not check your outstanding modules.");
@@ -77,6 +95,7 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
       return;
     }
     setOptions(((data ?? []) as Option[]).filter((o) => o.kind !== "regular"));
+    setDraft(new Map());
     setLoading(false);
   }, []);
 
@@ -84,52 +103,61 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
     if (student) load();
   }, [student, load]);
 
-  const toggle = (courseId: string) =>
-    setSelected((prev) =>
-      prev.includes(courseId)
-        ? prev.filter((id) => id !== courseId)
-        : [...prev, courseId],
-    );
+  const chosen = (o: Option) => draft.get(o.course_id) ?? o.already_enrolled;
 
-  const enrol = async () => {
-    const rows = options.filter((o) => selected.includes(o.course_id));
-    if (rows.length === 0) return;
+  const toggle = (o: Option) => {
+    if (o.locked) return;
+    setDraft((prev) => {
+      const next = new Map(prev);
+      const want = !chosen(o);
+      if (want === o.already_enrolled) next.delete(o.course_id);
+      else next.set(o.course_id, want);
+      return next;
+    });
+  };
 
+  const { adds, removes } = useMemo(() => {
+    const a: Option[] = [];
+    const r: Option[] = [];
+    options.forEach((o) => {
+      const want = draft.get(o.course_id) ?? o.already_enrolled;
+      if (want && !o.already_enrolled) a.push(o);
+      if (!want && o.already_enrolled) r.push(o);
+    });
+    return { adds: a, removes: r };
+  }, [options, draft]);
+
+  const dirty = adds.length + removes.length > 0;
+
+  const save = async () => {
+    if (!dirty) return;
     setSaving(true);
     setError(null);
     setNotice(null);
 
-    // The academic year comes from the window the module is actually offered
-    // in, not from the student's own year — that is the point of a repeat.
-    const { data: periods } = await supabase
-      .from("enrollment_periods")
-      .select("id, academic_year")
-      .in("id", [...new Set(rows.map((r) => r.period_id))]);
-    const yearOf = new Map((periods ?? []).map((p: any) => [p.id, p.academic_year]));
-
-    const { error: insertError } = await supabase.from("enrollments").insert(
-      rows.map((r) => ({
-        student_id: student!.id,
-        course_id: r.course_id,
-        academic_year: yearOf.get(r.period_id),
-        status: "enrolled",
-        enrollment_kind: r.kind,
-        enrolled_with_batch: r.period_batch,
-      })),
-    );
+    // The academic year and the batch a repeat is sat with come from the
+    // window carrying the module, which the function reads for itself.
+    const { error: rpcError } = await supabase.rpc("update_my_enrolment", {
+      p_add: adds.map((o) => o.course_id),
+      p_remove: removes.map((o) => o.course_id),
+    });
     setSaving(false);
 
-    if (insertError) {
-      console.error("[enrolment repeat]", insertError);
-      setError("That enrolment was refused. Please tell your department.");
+    if (rpcError) {
+      console.error("[enrolment repeat]", rpcError);
+      setError(rpcError.message);
       return;
     }
-    setSelected([]);
-    setNotice(
-      `Enrolled in ${rows.length} module${rows.length === 1 ? "" : "s"}. You will take ${rows.length === 1 ? "it" : "them"} with the batch shown.`,
-    );
+
+    const parts = [
+      adds.length > 0 &&
+        `enrolled in ${adds.length} module${adds.length === 1 ? "" : "s"}`,
+      removes.length > 0 &&
+        `withdrew from ${removes.length} module${removes.length === 1 ? "" : "s"}`,
+    ].filter(Boolean);
     await load();
-    onEnrolled?.();
+    onChanged?.();
+    setNotice(`Outstanding modules saved — ${parts.join(" and ")}.`);
   };
 
   if (loading) return <SkeletonRows count={2} height="h-16" />;
@@ -139,7 +167,7 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
     <div className="space-y-4">
       {error && <ErrorState message={error} size="inline" />}
       {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
           {notice}
         </div>
       )}
@@ -163,58 +191,105 @@ export function OutstandingModules({ onEnrolled }: { onEnrolled?: () => void }) 
             flush
           >
             <ul className="divide-y divide-border/70">
-              {rows.map((o) => (
-                <li
-                  key={o.course_id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                >
-                  <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                    <Checkbox
-                      className="mt-0.5"
-                      checked={selected.includes(o.course_id)}
-                      disabled={o.already_enrolled}
-                      onCheckedChange={() => toggle(o.course_id)}
-                    />
-                    <span className="min-w-0">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-primary">
-                          {o.course_code}
-                        </span>
-                        <span className="text-sm text-foreground">{o.title}</span>
-                        <StatusBadge tone={group.tone} icon={group.icon}>
-                          {o.kind === "repeat_r" ? "Repeat (R)" : "Medical (L)"}
-                        </StatusBadge>
-                        {o.already_enrolled && (
-                          <StatusBadge tone="success" icon={CheckCircle2}>
-                            Enrolled
+              {rows.map((o) => {
+                const want = chosen(o);
+                const changed = draft.has(o.course_id);
+                return (
+                  <li
+                    key={o.course_id}
+                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
+                      changed ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <label
+                      className={`flex min-w-0 flex-1 items-start gap-3 ${
+                        o.locked ? "cursor-default" : "cursor-pointer"
+                      }`}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={want}
+                        disabled={o.locked}
+                        onCheckedChange={() => toggle(o)}
+                      />
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-primary">
+                            {o.course_code}
+                          </span>
+                          <span className="text-sm text-foreground">
+                            {o.title}
+                          </span>
+                          <StatusBadge tone={group.tone} icon={group.icon}>
+                            {o.kind === "repeat_r" ? "Repeat (R)" : "Medical (L)"}
                           </StatusBadge>
-                        )}
+                          {o.already_enrolled && !changed && (
+                            <StatusBadge tone="success" icon={CheckCircle2}>
+                              Enrolled
+                            </StatusBadge>
+                          )}
+                          {changed && (
+                            <StatusBadge
+                              tone={want ? "brand" : "warning"}
+                              icon={want ? Plus : Minus}
+                            >
+                              {want ? "Adding" : "Withdrawing"}
+                            </StatusBadge>
+                          )}
+                          {o.locked && (
+                            <StatusBadge tone="neutral" icon={Lock}>
+                              Marks recorded
+                            </StatusBadge>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {o.credits} credit{o.credits === 1 ? "" : "s"} ·
+                          Semester {o.semester} ·{" "}
+                          {o.period_batch !== null
+                            ? `taken with ${describeBatch(o.period_batch)}`
+                            : "a sitting laid on for repeats"}{" "}
+                          · closes {new Date(o.closes_at).toLocaleDateString()}
+                        </span>
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {o.credits} credit{o.credits === 1 ? "" : "s"} · Semester{" "}
-                        {o.semester} ·{" "}
-                        {o.period_batch !== null
-                          ? `taken with ${describeBatch(o.period_batch)}`
-                          : "a sitting laid on for repeats"}{" "}
-                        · closes {new Date(o.closes_at).toLocaleDateString()}
-                      </span>
-                    </span>
-                  </label>
-                </li>
-              ))}
+                    </label>
+                  </li>
+                );
+              })}
             </ul>
           </SectionCard>
         );
       })}
 
-      <Button
-        disabled={selected.length === 0 || saving}
-        onClick={enrol}
-      >
-        {saving
-          ? "Enrolling…"
-          : `Enrol in ${selected.length || ""} outstanding module${selected.length === 1 ? "" : "s"}`.trim()}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={!dirty || saving} onClick={save}>
+          {saving
+            ? "Saving…"
+            : dirty
+              ? "Save outstanding modules"
+              : "No changes"}
+        </Button>
+        {dirty && (
+          <>
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => setDraft(new Map())}
+            >
+              Discard
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {[
+                adds.length > 0 &&
+                  `Adding ${adds.map((o) => o.course_code).join(", ")}`,
+                removes.length > 0 &&
+                  `Withdrawing ${removes.map((o) => o.course_code).join(", ")}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
