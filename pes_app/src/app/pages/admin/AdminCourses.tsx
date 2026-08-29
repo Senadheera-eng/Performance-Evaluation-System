@@ -6,6 +6,7 @@ import {
   CourseEditorDialog,
   type EditableCourse,
 } from "../../components/courses/CourseEditorDialog";
+import { MinorRequirements } from "../../components/courses/MinorRequirements";
 import {
   Card,
   CardContent,
@@ -198,6 +199,18 @@ export default function AdminCourses() {
           </motion.div>
         ))}
       </div>
+
+      {/* Which minors the department offers, and what each is worth. The
+          handbook names the streams but sets no credit total, so it is the
+          department's to state rather than the system's to assume. */}
+      {scope.kind === "department" && (
+        <MinorRequirements
+          department={scope.department}
+          minorsInUse={courses
+            .map((c) => c.minorCategory)
+            .filter((m): m is string => m !== null)}
+        />
+      )}
 
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
