@@ -22,7 +22,6 @@ import {
   GpaTrendChart,
   CourseAttendanceChart,
 } from "../components/common";
-import { MentorCard } from "../components/dashboard/MentorCard";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
@@ -481,10 +480,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </motion.div>
-
-      {/* The one member of staff who follows the whole degree rather than a
-          single course, so their name belongs here and not under a menu. */}
-      <MentorCard />
     </div>
   );
 }

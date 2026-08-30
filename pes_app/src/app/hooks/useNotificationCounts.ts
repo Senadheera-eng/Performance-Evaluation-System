@@ -67,7 +67,31 @@ export function useNotificationCounts(): NotificationCounts {
     return () => window.clearInterval(id);
   }, [user, load]);
 
+  /* Nor is navigation enough on its own. Reading a conversation clears its
+     badge, but the reading happens after the page has already loaded and
+     fetched — so navigating alone would leave the count stale until the next
+     minute ticked over. Whatever did the clearing says so, and the badge
+     catches up immediately. */
+  useEffect(() => {
+    const refresh = () => load();
+    window.addEventListener(NOTIFICATIONS_CHANGED, refresh);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED, refresh);
+  }, [load]);
+
   return counts;
+}
+
+/** Event name for "something I just did changed one of these counts". */
+export const NOTIFICATIONS_CHANGED = "pes:notifications-changed";
+
+/**
+ * Tell the sidebar its counts are out of date.
+ *
+ * Called by whatever cleared the thing — marking a conversation read, signing
+ * a register — rather than by the badge, which has no way of knowing.
+ */
+export function notifyCountsChanged() {
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED));
 }
 
 /** Attaches a count to the nav item whose route owns it. */
@@ -81,7 +105,10 @@ export function withBadges(
     if (href.endsWith("/medical")) return counts.medical;
     if (href.endsWith("/enrollment")) return counts.enrolment;
     if (href.endsWith("/attendance")) return counts.attendance;
-    if (href.endsWith("/mentees")) return counts.mentoring;
+    // Both ends of a mentoring pair count the same thing: messages the other
+    // person sent that I have not read.
+    if (href.endsWith("/mentees") || href.endsWith("/mentor"))
+      return counts.mentoring;
     return 0;
   };
 
