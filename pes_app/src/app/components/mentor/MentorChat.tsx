@@ -3,6 +3,7 @@ import { Lock, Send } from "lucide-react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { ErrorState, SkeletonRows } from "../common";
+import { notifyCountsChanged } from "../../hooks/useNotificationCounts";
 import {
   getMentorThread,
   markThreadRead,
@@ -61,9 +62,12 @@ export function MentorChat({
     else {
       setError(null);
       setThread(result.data);
-      // Opening the conversation is reading it.
+      // Opening the conversation is reading it. The sidebar badge counted
+      // those messages a moment ago and has no way to learn they are read,
+      // so it is told.
       if (result.data && result.data.messages.some((m) => !m.mine && !m.read_at)) {
         await markThreadRead(studentId);
+        notifyCountsChanged();
       }
     }
     setLoading(false);

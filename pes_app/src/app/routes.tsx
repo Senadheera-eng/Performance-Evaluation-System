@@ -13,6 +13,7 @@ import MedicalCertificates from "./pages/MedicalCertificates";
 import Feedback from "./pages/Feedback";
 import FeedbackForm from "./pages/FeedbackForm";
 import GraduationPlanner from "./pages/GraduationPlanner";
+import Mentor from "./pages/Mentor";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Admin imports
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
       { path: "medical", element: <MedicalCertificates /> },
       { path: "feedback", element: <Feedback /> },
       { path: "feedback/:courseId", element: <FeedbackForm /> },
+      { path: "mentor", element: <Mentor /> },
       { path: "planner", element: <GraduationPlanner /> },
       { path: "ai-assistant", element: <AIAssistant /> },
       { path: "profile", element: <Profile /> },
