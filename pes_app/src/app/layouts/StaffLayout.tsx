@@ -6,7 +6,9 @@ import {
   TrendingUp,
   MessageSquareText,
   GraduationCap,
+  HeartHandshake,
   Users,
+  UserRoundCog,
   UserSquare,
   Presentation,
 } from "lucide-react";
@@ -38,8 +40,16 @@ export default function StaffLayout() {
     { name: "Attendance", href: "/staff/attendance", icon: Calendar },
     { name: "Results", href: "/staff/results", icon: TrendingUp },
     { name: "Feedback", href: "/staff/feedback", icon: MessageSquareText },
+    // Mentoring belongs to every lecturer, not only the head — a lecturer
+    // with no mentees sees an empty page rather than a missing one.
+    { name: "My Mentees", href: "/staff/mentees", icon: HeartHandshake },
     ...(caps.isHod
       ? [
+          {
+            name: "Mentor Allocation",
+            href: "/staff/mentors",
+            icon: UserRoundCog,
+          },
           {
             name: "Course Assignments",
             href: "/staff/assignments",
