@@ -317,9 +317,12 @@ export function DepartmentFeedback() {
                               ? "Mid semester"
                               : "End semester"}
                           </StatusBadge>
-                          {r.is_released && (
-                            <StatusBadge tone="success">
-                              Released to lecturers
+                          {/* Lecturers read their own results as soon as the
+                              round opens, so what is worth saying here is
+                              whether it is still collecting. */}
+                          {r.period_status === "open" && (
+                            <StatusBadge tone="success" dot>
+                              Collecting
                             </StatusBadge>
                           )}
                         </div>

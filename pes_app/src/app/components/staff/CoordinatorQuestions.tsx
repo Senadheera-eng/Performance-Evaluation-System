@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Info, ListPlus, Plus, Trash2, X } from "lucide-react";
+import { Info, ListPlus, Lock, Plus, Trash2, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import {
-  EmptyState,
   ErrorState,
   SectionCard,
   SkeletonRows,
@@ -120,6 +119,13 @@ export function CoordinatorQuestions() {
                           {round.course_title}
                         </span>
                         <StatusBadge tone="brand">Coordinator</StatusBadge>
+                        {round.can_edit_questions ? (
+                          <StatusBadge tone="warning">Draft</StatusBadge>
+                        ) : (
+                          <StatusBadge tone="neutral" icon={Lock}>
+                            Form fixed
+                          </StatusBadge>
+                        )}
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {round.period_title} ·{" "}
@@ -131,25 +137,38 @@ export function CoordinatorQuestions() {
                         {round.response_count} response
                         {round.response_count === 1 ? "" : "s"} so far
                       </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={composing === key ? "outline" : "default"}
-                      disabled={busy !== null}
-                      onClick={() => setComposing(composing === key ? null : key)}
-                    >
-                      {composing === key ? (
-                        <>
-                          <X className="mr-1.5 h-3.5 w-3.5" />
-                          Cancel
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-1.5 h-3.5 w-3.5" />
-                          Add a question
-                        </>
+                      {!round.can_edit_questions && (
+                        // The window for shaping the form is the draft. Once
+                        // the department opens it, every student has to be
+                        // answering the same questions.
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Your department has opened this round, so its
+                          questions are now fixed.
+                        </p>
                       )}
-                    </Button>
+                    </div>
+                    {round.can_edit_questions && (
+                      <Button
+                        size="sm"
+                        variant={composing === key ? "outline" : "default"}
+                        disabled={busy !== null}
+                        onClick={() =>
+                          setComposing(composing === key ? null : key)
+                        }
+                      >
+                        {composing === key ? (
+                          <>
+                            <X className="mr-1.5 h-3.5 w-3.5" />
+                            Cancel
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-1.5 h-3.5 w-3.5" />
+                            Add a question
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {round.my_questions.length > 0 && (
@@ -172,23 +191,25 @@ export function CoordinatorQuestions() {
                               )}
                             </span>
                           </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy !== null}
-                            onClick={() =>
-                              act(`rm-${q.id}`, () =>
-                                removeCourseQuestion(
-                                  round.period_id,
-                                  round.course_id,
-                                  q.id,
-                                ),
-                              )
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Remove</span>
-                          </Button>
+                          {round.can_edit_questions && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy !== null}
+                              onClick={() =>
+                                act(`rm-${q.id}`, () =>
+                                  removeCourseQuestion(
+                                    round.period_id,
+                                    round.course_id,
+                                    q.id,
+                                  ),
+                                )
+                              }
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span className="sr-only">Remove</span>
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>

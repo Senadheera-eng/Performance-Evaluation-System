@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  Download,
   Lock,
   MessageSquareText,
-  ShieldCheck,
+  RefreshCw,
   Star,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "../../components/ui/button";
 import {
   EmptyState,
   ErrorState,
@@ -17,46 +20,41 @@ import {
   SkeletonRows,
   StatCard,
   StatusBadge,
-  type StatusTone,
 } from "../../components/common";
 import { CoordinatorQuestions } from "../../components/staff/CoordinatorQuestions";
 import { DepartmentFeedback } from "../../components/staff/DepartmentFeedback";
+import { FeedbackReport, ratingTone } from "../../components/staff/FeedbackReport";
 import { FeedbackRequests } from "../../components/staff/FeedbackRequests";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import {
-  getMyFeedbackDetail,
+  buildFeedbackReportPdf,
+  feedbackReportFilename,
+} from "../../../lib/feedbackReportPdf";
+import {
+  getCourseFeedbackReport,
   getMyFeedbackOverview,
-  type FeedbackDetail,
+  type CourseFeedbackReport,
   type FeedbackOverviewRow,
 } from "../../../lib/staffService";
 
-const RATING_LABELS: Record<string, string> = {
-  "1": "Strongly Disagree",
-  "2": "Disagree",
-  "3": "Neutral",
-  "4": "Agree",
-  "5": "Strongly Agree",
-};
-
-const ratingTone = (avg: number | null): StatusTone => {
-  if (avg === null) return "neutral";
-  if (avg >= 4) return "success";
-  if (avg >= 3) return "info";
-  if (avg >= 2) return "warning";
-  return "danger";
-};
+/** How often an open round's report re-reads itself, in milliseconds. */
+const LIVE_INTERVAL = 30_000;
 
 /**
  * A lecturer's own feedback: what came back, and what they asked for.
  *
  * Response progress is always visible — knowing how many people replied
  * identifies nobody, and it is what tells a lecturer whether to chase their
- * class. Results are not: they appear only once the department has released
- * them, and only when there are enough responses that a single reply cannot
- * be picked out. Both rules are enforced in the database; this page only
- * reflects them.
+ * class. What students actually said waits for two things: the round to be
+ * open, and enough people to have answered that no single reply can be picked
+ * out of the report. Both rules live in the database; this page only reflects
+ * them.
+ *
+ * There is no third gate. Results used to wait on a department admin working
+ * through a release list course by course, which delayed feedback without
+ * deciding anything. Opening the round is the decision.
  */
 export default function StaffFeedback() {
   const { staff } = useAuth();
@@ -66,16 +64,7 @@ export default function StaffFeedback() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [details, setDetails] = useState<Record<string, FeedbackDetail>>({});
-  const [detailLoading, setDetailLoading] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (staff) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [staff?.lecturerId]);
-
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     const result = await getMyFeedbackOverview();
@@ -86,31 +75,11 @@ export default function StaffFeedback() {
     }
     setRows(result.data);
     setLoading(false);
-  };
+  }, []);
 
-  const rowKey = (r: FeedbackOverviewRow) => `${r.period_id}:${r.offering_id}`;
-
-  const toggle = async (r: FeedbackOverviewRow) => {
-    const key = rowKey(r);
-    if (expanded === key) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(key);
-    if (details[key]) return;
-
-    setDetailLoading(key);
-    const result = await getMyFeedbackDetail(r.period_id, r.offering_id);
-    if (result.ok) {
-      setDetails((prev) => ({ ...prev, [key]: result.data }));
-    } else {
-      setDetails((prev) => ({
-        ...prev,
-        [key]: { released: false, message: result.error },
-      }));
-    }
-    setDetailLoading(null);
-  };
+  useEffect(() => {
+    if (staff) load();
+  }, [staff?.lecturerId, load]);
 
   return (
     <div className="space-y-5">
@@ -149,10 +118,6 @@ export default function StaffFeedback() {
           loading={loading}
           error={error}
           onRetry={load}
-          expanded={expanded}
-          details={details}
-          detailLoading={detailLoading}
-          onToggle={toggle}
         />
       )}
     </div>
@@ -164,31 +129,25 @@ function ResultsTab({
   loading,
   error,
   onRetry,
-  expanded,
-  details,
-  detailLoading,
-  onToggle,
 }: {
   rows: FeedbackOverviewRow[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  expanded: string | null;
-  details: Record<string, FeedbackDetail>;
-  detailLoading: string | null;
-  onToggle: (row: FeedbackOverviewRow) => void;
 }) {
-  const rowKey = (r: FeedbackOverviewRow) => `${r.period_id}:${r.offering_id}`;
-  const released = rows.filter((r) => r.is_released);
-  const awaiting = rows.filter((r) => !r.is_released);
+  const rowKey = (r: FeedbackOverviewRow) => `${r.period_id}:${r.course_id}`;
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const visible = rows.filter((r) => r.results_visible);
   const overallAvg = useMemo(() => {
-    const rated = released.filter((r) => r.avg_rating !== null);
+    const rated = visible.filter((r) => r.avg_rating !== null);
     if (rated.length === 0) return null;
     return (
       rated.reduce((sum, r) => sum + (r.avg_rating ?? 0), 0) / rated.length
     );
-  }, [released]);
+  }, [visible]);
   const totalResponses = rows.reduce((sum, r) => sum + r.response_count, 0);
+  const collecting = rows.filter((r) => r.period_status === "open").length;
 
   return (
     <div className="space-y-5">
@@ -215,20 +174,21 @@ function ResultsTab({
           value={overallAvg !== null ? overallAvg.toFixed(2) : "—"}
           icon={Star}
           tone={ratingTone(overallAvg)}
-          hint="Across released results"
+          hint="Across the results you can see"
         />
         <StatCard
           index={3}
-          label="Awaiting Release"
-          value={awaiting.length}
-          icon={Lock}
-          tone={awaiting.length > 0 ? "warning" : "neutral"}
+          label="Still Collecting"
+          value={collecting}
+          icon={RefreshCw}
+          tone={collecting > 0 ? "warning" : "neutral"}
+          hint="Rounds open now"
         />
       </div>
 
       <SectionCard
         title="Course by course"
-        description="Select a course to see its questions and comments."
+        description="Select a course to see its report. While a round is open the figures update as responses arrive."
         flush
       >
         {loading ? (
@@ -240,7 +200,7 @@ function ResultsTab({
             <EmptyState
               icon={MessageSquareText}
               title="No feedback yet"
-              description="Once a feedback period covers a course you teach, its response progress appears here."
+              description="Once a feedback round covers a course you teach, its response progress appears here."
             />
           </div>
         ) : (
@@ -248,12 +208,11 @@ function ResultsTab({
             {rows.map((r) => {
               const key = rowKey(r);
               const open = expanded === key;
-              const detail = details[key];
               return (
                 <li key={key}>
                   <button
                     type="button"
-                    onClick={() => onToggle(r)}
+                    onClick={() => setExpanded(open ? null : key)}
                     className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                   >
                     <div className="flex min-w-0 items-start gap-2">
@@ -298,33 +257,24 @@ function ResultsTab({
                           </p>
                         </div>
                       )}
-                      {r.is_released ? (
-                        <StatusBadge tone="success" icon={ShieldCheck}>
-                          Released
+                      {r.period_status === "draft" ? (
+                        <StatusBadge tone="neutral">Not open yet</StatusBadge>
+                      ) : r.period_status === "open" ? (
+                        <StatusBadge tone="success" dot>
+                          Collecting
                         </StatusBadge>
                       ) : (
+                        <StatusBadge tone="info">Closed</StatusBadge>
+                      )}
+                      {!r.results_visible && r.period_status !== "draft" && (
                         <StatusBadge tone="neutral" icon={Lock}>
-                          Not released
+                          {r.response_count} so far
                         </StatusBadge>
                       )}
                     </div>
                   </button>
 
-                  {open && (
-                    <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
-                      {detailLoading === key ? (
-                        <SkeletonRows count={3} height="h-8" />
-                      ) : !detail ? null : !detail.released ||
-                        detail.below_threshold ? (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                          <span>{detail.message}</span>
-                        </div>
-                      ) : (
-                        <FeedbackDetailView detail={detail} />
-                      )}
-                    </div>
-                  )}
+                  {open && <ReportPanel row={r} />}
                 </li>
               );
             })}
@@ -335,92 +285,103 @@ function ResultsTab({
   );
 }
 
-function FeedbackDetailView({ detail }: { detail: FeedbackDetail }) {
-  const questions = detail.questions ?? [];
-  const comments = detail.comments ?? [];
+/**
+ * One course's report, loaded when opened and kept current while the round is.
+ *
+ * A lecturer watching responses come in is the point of showing results
+ * before the round closes, so an open round re-reads itself on a timer. A
+ * closed one is finished and never will change, so it is fetched once and the
+ * timer never starts.
+ */
+function ReportPanel({ row }: { row: FeedbackOverviewRow }) {
+  const [report, setReport] = useState<CourseFeedbackReport | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const live = row.period_status === "open";
+  // Kept in a ref so the polling effect does not restart on every fetch.
+  const loadRef = useRef<() => Promise<void>>();
+
+  const load = useCallback(async () => {
+    const result = await getCourseFeedbackReport(row.period_id, row.course_id);
+    if (!result.ok) {
+      setError(result.error);
+    } else {
+      setError(null);
+      setReport(result.data);
+      setRefreshedAt(new Date());
+    }
+    setLoading(false);
+  }, [row.period_id, row.course_id]);
+
+  loadRef.current = load;
+
+  useEffect(() => {
+    setLoading(true);
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!live) return;
+    const id = window.setInterval(() => loadRef.current?.(), LIVE_INTERVAL);
+    return () => window.clearInterval(id);
+  }, [live]);
+
+  const download = () => {
+    if (!report) return;
+    setDownloading(true);
+    try {
+      buildFeedbackReportPdf(report).save(feedbackReportFilename(report));
+    } catch (e) {
+      console.error("[feedback pdf]", e);
+      toast.error("We could not build the PDF. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        {detail.response_count} response
-        {detail.response_count === 1 ? "" : "s"}.
-      </p>
+    <div className="border-t border-border/70 bg-muted/20 px-4 py-4">
+      {loading ? (
+        <SkeletonRows count={4} height="h-10" />
+      ) : error ? (
+        <ErrorState message={error} size="inline" onRetry={load} />
+      ) : !report ? null : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {live ? (
+                <>
+                  Updating as responses arrive
+                  {refreshedAt &&
+                    ` · last checked ${refreshedAt.toLocaleTimeString()}`}
+                </>
+              ) : (
+                "This round has closed — these are the final results."
+              )}
+            </p>
+            <div className="flex gap-2">
+              {live && (
+                <Button size="sm" variant="outline" onClick={load}>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  Refresh
+                </Button>
+              )}
+              {/* The PDF is the record of a finished round. Offering it while
+                  responses are still arriving would put a figure on paper
+                  that the next student changes. */}
+              {!live && report.visible && (
+                <Button size="sm" onClick={download} disabled={downloading}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                  {downloading ? "Building…" : "Download PDF"}
+                </Button>
+              )}
+            </div>
+          </div>
 
-      {questions.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border/70 text-left text-muted-foreground">
-                <th className="pb-1.5 pr-3 font-medium">Question</th>
-                <th className="pb-1.5 pr-3 font-medium">Responses</th>
-                <th className="pb-1.5 pr-3 font-medium">Average</th>
-                <th className="pb-1.5 font-medium">Spread</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {questions.map((q) => (
-                <tr key={q.question_id}>
-                  <td className="py-1.5 pr-3 text-foreground">
-                    {q.question_text}
-                    {q.target_type === "lecturer" && (
-                      <StatusBadge tone="brand" className="ml-1.5">
-                        About you
-                      </StatusBadge>
-                    )}
-                  </td>
-                  <td className="py-1.5 pr-3 tabular-nums text-muted-foreground">
-                    {q.responses}
-                  </td>
-                  <td className="py-1.5 pr-3">
-                    {q.average !== null ? (
-                      <StatusBadge tone={ratingTone(q.average)}>
-                        {q.average.toFixed(2)}
-                      </StatusBadge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="py-1.5 text-muted-foreground">
-                    {Object.entries(q.distribution)
-                      .sort((a, b) => a[0].localeCompare(b[0]))
-                      .map(([val, n]) => `${RATING_LABELS[val] ?? val}: ${n}`)
-                      .join(" · ") || "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <FeedbackReport report={report} />
         </div>
-      )}
-
-      {comments.length > 0 && (
-        <div>
-          <p className="mb-1.5 text-xs font-semibold text-foreground">
-            Comments
-          </p>
-          {/* No identity is attached here, whatever the student chose about
-              anonymity — that choice concerns the department, not the person
-              being rated. */}
-          <ul className="space-y-2">
-            {comments.map((c, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-border/70 bg-card px-3 py-2"
-              >
-                <p className="text-[11px] text-muted-foreground">
-                  {c.question_text}
-                </p>
-                <p className="mt-0.5 text-sm text-foreground">{c.comment}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {questions.length === 0 && comments.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No answers were recorded for this course.
-        </p>
       )}
     </div>
   );

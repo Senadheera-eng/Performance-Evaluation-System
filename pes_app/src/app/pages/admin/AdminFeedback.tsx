@@ -41,7 +41,7 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
-import { FeedbackReleasePanel } from "../../components/admin/FeedbackReleasePanel";
+import { FeedbackApprovals } from "../../components/admin/FeedbackApprovals";
 import { QuestionEditorDialog } from "../../components/admin/QuestionEditorDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -204,13 +204,12 @@ export default function AdminFeedback() {
 
       {viewMode === "analytics" ? (
         <>
-          {/* Approving forms lecturers asked for, and releasing results to the
-              lecturers they are about. Both belong to Analytics — they act on
-              feedback that has already come back. Showing them above the tabs
-              made the two views look like the same page, and put "Release"
-              next to period management where it reads as the button that
-              opens a form to students. It is not. */}
-          <FeedbackReleasePanel />
+          {/* Approving forms lecturers asked to run. It belongs to Analytics
+              rather than above the tabs, where it made the two views look
+              like one page. Releasing results used to sit beside it and no
+              longer exists: opening a round is what makes its results
+              readable, so there is nothing left to release. */}
+          <FeedbackApprovals />
           <AnalyticsView />
         </>
       ) : (

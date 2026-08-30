@@ -364,6 +364,7 @@ export interface FeedbackOverviewRow {
   period_status: "draft" | "scheduled" | "open" | "closed" | "archived";
   feedback_type: "mid_semester" | "end_semester";
   offering_id: string;
+  course_id: string;
   course_code: string;
   course_title: string;
   semester: number;
@@ -371,41 +372,83 @@ export interface FeedbackOverviewRow {
   eligible_count: number;
   response_count: number;
   response_rate: number;
-  is_released: boolean;
+  /** Answering has begun and enough people have answered to be anonymous. */
+  results_visible: boolean;
   below_threshold: boolean;
-  /** Null until released and above the anonymity threshold. */
+  /** Null while the results are withheld. */
   avg_rating: number | null;
 }
 
-export interface FeedbackQuestionResult {
+/* The report comes back as sections of three uniform shapes, so a question a
+   coordinator added arrives through the same pipe as the faculty's own. */
+
+export interface ReportRating {
   question_id: string;
-  question_text: string;
-  question_type: string;
-  target_type: "course" | "lecturer";
-  section_title: string | null;
-  responses: number;
-  average: number | null;
-  distribution: Record<string, number>;
+  question: string;
+  average: number;
+  answered: number;
 }
 
-export interface FeedbackDetail {
-  released: boolean;
-  below_threshold?: boolean;
-  threshold?: number;
-  response_count?: number;
-  message?: string;
-  questions?: FeedbackQuestionResult[];
-  comments?: {
-    question_text: string;
-    section_title: string | null;
-    comment: string;
-  }[];
+export interface ReportTally {
+  value: string;
+  label: string;
+  count: number;
+  /** Share of the students who answered this question, not of the ticks. */
+  pct: number;
+}
+
+export interface ReportChoice {
+  question_id: string;
+  question: string;
+  question_type: "single_choice" | "multi_select" | "yes_no";
+  answered: number;
+  tallies: ReportTally[];
+}
+
+export interface ReportText {
+  question_id: string;
+  question: string;
+  answers: string[];
+  answered: number;
+}
+
+export interface ReportSection {
+  section_key: string;
+  section_title: string;
+  section_icon: string | null;
+  ratings: ReportRating[];
+  choices: ReportChoice[];
+  texts: ReportText[];
+  average: number | null;
+}
+
+export interface CourseFeedbackReport {
+  course_code: string;
+  course_title: string;
+  lecturer_name: string;
+  feedback_type: "mid_semester" | "end_semester";
+  period_title: string;
+  period_status: FeedbackPeriodStatus;
+  semester: number;
+  batch_year: number | null;
+  academic_year: string;
+  closes_at: string;
+  response_count: number;
+  threshold: number;
+  generated_on: string;
+  /** False below the privacy threshold: counts only, nothing anyone said. */
+  visible: boolean;
+  sections: ReportSection[];
+  scores: {
+    lecturer_overall: number | null;
+    course_content: number | null;
+  };
 }
 
 /**
- * Every course the lecturer teaches that has a feedback period, with
- * response progress always visible and results only once the department has
- * released them.
+ * Every course the lecturer teaches that has a feedback period. Response
+ * progress is always visible; what students said waits for the round to open
+ * and for enough people to have answered.
  */
 export async function getMyFeedbackOverview(): Promise<Result<FeedbackOverviewRow[]>> {
   const { data, error } = await supabase.rpc("get_my_feedback_overview");
@@ -413,16 +456,17 @@ export async function getMyFeedbackOverview(): Promise<Result<FeedbackOverviewRo
   return { ok: true, data: (data ?? []) as FeedbackOverviewRow[] };
 }
 
-export async function getMyFeedbackDetail(
+/** The full report for one course in one round, as the faculty prints it. */
+export async function getCourseFeedbackReport(
   periodId: string,
-  offeringId: string,
-): Promise<Result<FeedbackDetail>> {
-  const { data, error } = await supabase.rpc("get_my_feedback_detail", {
+  courseId: string,
+): Promise<Result<CourseFeedbackReport>> {
+  const { data, error } = await supabase.rpc("get_course_feedback_report", {
     p_period_id: periodId,
-    p_offering_id: offeringId,
+    p_course_id: courseId,
   });
-  if (error) return fail("get_my_feedback_detail", error);
-  return { ok: true, data: (data ?? { released: false }) as FeedbackDetail };
+  if (error) return fail("get_course_feedback_report", error);
+  return { ok: true, data: data as CourseFeedbackReport };
 }
 
 export interface WorkflowOutcome {
@@ -463,11 +507,9 @@ export interface DepartmentFeedbackRow {
   eligible_count: number;
   response_count: number;
   response_rate: number;
-  /** Closed and above the anonymity threshold. */
+  /** Open or closed, and above the anonymity threshold. */
   results_visible: boolean;
   below_threshold: boolean;
-  /** Whether the assigned lecturers can see it yet — the department's call. */
-  is_released: boolean;
   avg_rating: number | null;
 }
 
@@ -569,6 +611,8 @@ export interface CoordinatedRound {
   course_code: string;
   course_title: string;
   response_count: number;
+  /** True only while the round is a draft — after that the form is fixed. */
+  can_edit_questions: boolean;
   my_questions: CoordinatedQuestion[];
 }
 
