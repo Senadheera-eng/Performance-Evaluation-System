@@ -139,6 +139,59 @@ export function QuestionField({
     );
   }
 
+  // Several answers at once. Rendered as squares rather than circles, because
+  // the shape is the only thing telling a student they may pick more than one.
+  if (question.question_type === "multi_select") {
+    const current = answer?.choice_values ?? [];
+    const toggle = (value: string) =>
+      onChange({
+        choice_values: current.includes(value)
+          ? current.filter((v) => v !== value)
+          : [...current, value],
+      });
+    return (
+      <div>
+        {label}
+        <div className="flex flex-wrap gap-2">
+          {(question.options ?? []).map((opt) => {
+            const active = current.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="checkbox"
+                aria-checked={active}
+                disabled={disabled}
+                onClick={() => toggle(opt.value)}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all",
+                  "disabled:cursor-not-allowed disabled:opacity-60",
+                  active
+                    ? "border-primary bg-primary/10 font-medium text-primary"
+                    : "border-border text-foreground hover:border-primary/40",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-3.5 w-3.5 flex-shrink-0 rounded border-2",
+                    active
+                      ? "border-primary bg-primary"
+                      : "border-muted-foreground/40",
+                  )}
+                />
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          Pick as many as apply.
+        </p>
+      </div>
+    );
+  }
+
   const value = answer?.text_value ?? "";
   const change = (next: string) => {
     if (next.length > maxTextLength) return;

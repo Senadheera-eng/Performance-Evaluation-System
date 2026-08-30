@@ -35,6 +35,7 @@ export type FeedbackQuestionType =
   | "short_text"
   | "long_text"
   | "single_choice"
+  | "multi_select"
   | "yes_no";
 
 /** A named option on a single-choice question. */
@@ -122,6 +123,8 @@ export interface FeedbackAnswerInput {
   rating_value?: number | null;
   text_value?: string | null;
   choice_value?: string | null;
+  /** Several picks at once, for a multi-select. */
+  choice_values?: string[] | null;
 }
 
 export type FeedbackFormError =
@@ -201,6 +204,13 @@ export function isQuestionVisible(
     answers[answerKey(question.depends_on_question_id, lecturerTargetId)] ??
     answers[answerKey(question.depends_on_question_id)];
   if (!gate) return false;
+  // A multi-select gate is satisfied by any one of its picks, so it is
+  // checked as a set rather than folded into the single-value chain below.
+  if (gate.choice_values && gate.choice_values.length > 0) {
+    return gate.choice_values.some((v) =>
+      question.depends_on_values!.includes(v),
+    );
+  }
   const given =
     gate.choice_value ??
     gate.text_value ??
