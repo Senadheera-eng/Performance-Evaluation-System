@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
+  CalendarOff,
   CheckCircle2,
   GraduationCap,
   Lock,
@@ -25,13 +26,19 @@ export interface PlanCourse {
   already_passed: boolean;
   /** A mark has been recorded against this attempt: no longer the student's to undo. */
   locked: boolean;
+  /** Whether an open window is actually carrying this course right now. */
+  enrollable: boolean;
 }
 
 export interface Basket {
   basket: string;
   required_credits: number | null;
   selected_credits: number;
+  /** Credits from this basket the student already holds. */
+  earned_credits: number;
   available_credits: number;
+  /** Whether this round has anything left in the basket to tick. */
+  offered_now: boolean;
   courses: PlanCourse[];
 }
 
@@ -123,7 +130,11 @@ export function SemesterBaskets({
   }, [plan]);
 
   const chosen = (c: PlanCourse) => draft.get(c.course_id) ?? c.selected;
-  const editable = (c: PlanCourse) => open && !c.already_passed && !c.locked;
+  // A course the round is not carrying is not a choice the student can make.
+  // Asking `enrollable` here is what keeps the checkbox and the Save button
+  // agreeing: both are reading the same answer from the same function.
+  const editable = (c: PlanCourse) =>
+    open && !c.already_passed && !c.locked && c.enrollable;
 
   const toggle = (c: PlanCourse) => {
     if (!editable(c)) return;
@@ -176,13 +187,15 @@ export function SemesterBaskets({
 
   const dirty = adds.length + removes.length > 0;
 
-  /* Live totals per category, counting what is enrolled plus what has been
-     ticked but not yet saved, less what has been unticked. */
+  /* Live totals per category: what is enrolled, plus what has been ticked but
+     not yet saved, less what has been unticked -- and plus what the student
+     already passed out of the basket. A basket asks for credits, and a credit
+     earned two years ago is still a credit it has. */
   const totals = useMemo(() => {
     const map = new Map<string, number>();
     rows.forEach((c) => {
-      const want = draft.get(c.course_id) ?? c.selected;
-      map.set(c.basket, (map.get(c.basket) ?? 0) + (want ? c.credits : 0));
+      const counts = c.already_passed || (draft.get(c.course_id) ?? c.selected);
+      map.set(c.basket, (map.get(c.basket) ?? 0) + (counts ? c.credits : 0));
     });
     return map;
   }, [rows, draft]);
@@ -201,13 +214,20 @@ export function SemesterBaskets({
     return map;
   }, [adds, removes]);
 
-  const warnings = useMemo(() => {
+  /* Two different things to say. What the student still has to decide, and
+     what this round simply is not offering -- which is not their problem to
+     solve and must not read as if it were. */
+  const { warnings, notOffered } = useMemo(() => {
     const out: string[] = [];
+    const absent: string[] = [];
     plan.baskets.forEach((b) => {
       const have = totals.get(b.basket) ?? 0;
       if (b.basket === "Compulsory") {
         const missing = b.courses.filter(
-          (c) => !(draft.get(c.course_id) ?? c.selected) && !c.already_passed,
+          (c) =>
+            !(draft.get(c.course_id) ?? c.selected) &&
+            !c.already_passed &&
+            c.enrollable,
         );
         if (missing.length > 0) {
           out.push(
@@ -217,12 +237,16 @@ export function SemesterBaskets({
           );
         }
       } else if (b.required_credits && have < b.required_credits) {
-        out.push(
-          `${b.basket} needs ${b.required_credits} credit${b.required_credits === 1 ? "" : "s"} — you have ${have}.`,
-        );
+        if (b.offered_now) {
+          out.push(
+            `${b.basket} needs ${b.required_credits} credit${b.required_credits === 1 ? "" : "s"} — you have ${have}.`,
+          );
+        } else {
+          absent.push(b.basket);
+        }
       }
     });
-    return out;
+    return { warnings: out, notOffered: absent };
   }, [plan, totals, draft]);
 
   const save = async () => {
@@ -444,6 +468,18 @@ export function SemesterBaskets({
                             Marks recorded
                           </StatusBadge>
                         )}
+                        {/* On the sheet because the handbook puts it there,
+                            but not on offer in this round. Saying so is the
+                            difference between a course a student chose not to
+                            take and one they were never able to. */}
+                        {open &&
+                          !c.enrollable &&
+                          !c.already_passed &&
+                          !c.selected && (
+                            <StatusBadge tone="neutral" icon={CalendarOff}>
+                              Not in this round
+                            </StatusBadge>
+                          )}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center align-top tabular-nums text-foreground">
@@ -489,6 +525,22 @@ export function SemesterBaskets({
           </table>
         </div>
       </SectionCard>
+
+      {open && notOffered.length > 0 && (
+        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+          <p className="flex items-center gap-1.5 font-medium text-foreground">
+            <CalendarOff className="h-4 w-4" aria-hidden="true" />
+            Not part of this enrolment round
+          </p>
+          <p className="mt-1 text-xs">
+            {notOffered.join(" and ")}{" "}
+            {notOffered.length === 1 ? "is" : "are"} in your semester's
+            curriculum but this round is not carrying{" "}
+            {notOffered.length === 1 ? "it" : "them"}. Your department opens
+            these separately — there is nothing for you to do here.
+          </p>
+        </div>
+      )}
 
       {open && warnings.length > 0 && (
         <div className="rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
