@@ -37,6 +37,8 @@ import StaffAttendance from "./pages/staff/StaffAttendance";
 import StaffResults from "./pages/staff/StaffResults";
 import StaffFeedback from "./pages/staff/StaffFeedback";
 import HodAssignments from "./pages/staff/HodAssignments";
+import HodMentors from "./pages/staff/HodMentors";
+import StaffMentees from "./pages/staff/StaffMentees";
 import StaffStudents from "./pages/staff/StaffStudents";
 import StaffLecturers from "./pages/staff/StaffLecturers";
 
@@ -99,9 +101,14 @@ export const router = createBrowserRouter([
       { path: "attendance", element: <StaffAttendance /> },
       { path: "results", element: <StaffResults /> },
       { path: "feedback", element: <StaffFeedback /> },
+      // Every lecturer may mentor, so this one is not HOD-gated. The RPC
+      // behind it returns only the caller's own mentees, so a lecturer with
+      // none simply sees an empty page.
+      { path: "mentees", element: <StaffMentees /> },
       // HOD-only in the navigation; the pages themselves also refuse a
       // lecturer who opens the URL directly, and the RPCs behind them refuse
       // regardless of what the client does.
+      { path: "mentors", element: <HodMentors /> },
       { path: "assignments", element: <HodAssignments /> },
       { path: "students", element: <StaffStudents /> },
       { path: "lecturers", element: <StaffLecturers /> },
