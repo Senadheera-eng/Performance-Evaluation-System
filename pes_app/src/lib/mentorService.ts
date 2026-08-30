@@ -243,6 +243,89 @@ export async function clearMentor(
 }
 
 /* ------------------------------------------------------------------ */
+/* Conversation                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface MentorMessage {
+  id: string;
+  sender_role: "student" | "mentor";
+  body: string;
+  sent_at: string;
+  read_at: string | null;
+  /** Whether the signed-in person wrote it. */
+  mine: boolean;
+}
+
+export interface MentorThread {
+  assignment_id: string;
+  my_role: "student" | "mentor";
+  /** False once the assignment has ended: readable, but nothing more can be said. */
+  is_current: boolean;
+  other: {
+    name: string;
+    email: string;
+    role: "student" | "mentor";
+    index_number?: string | null;
+  };
+  messages: MentorMessage[];
+}
+
+/**
+ * The conversation for one assignment. Omit the student id and you get your
+ * own, which is how a student asks.
+ *
+ * A thread belongs to an assignment rather than to a pair of people, so a
+ * student who is reassigned starts a fresh conversation with the new mentor
+ * and the old one keeps theirs. Null when the caller has no mentoring
+ * relationship with that student at all.
+ */
+export async function getMentorThread(
+  studentId?: string,
+): Promise<Result<MentorThread | null>> {
+  const { data, error } = await supabase.rpc("get_mentor_thread", {
+    p_student_id: studentId ?? null,
+  });
+  if (error) return fail("get_mentor_thread", error);
+  return {
+    ok: true,
+    data: ((data as { thread: MentorThread | null } | null)?.thread ??
+      null) as MentorThread | null,
+  };
+}
+
+export async function sendMentorMessage(
+  body: string,
+  studentId?: string,
+): Promise<Result<{ ok: boolean; message_id: string }>> {
+  const { data, error } = await supabase.rpc("send_mentor_message", {
+    p_body: body,
+    p_student_id: studentId ?? null,
+  });
+  if (error) return fail("send_mentor_message", error);
+  return { ok: true, data: data as { ok: boolean; message_id: string } };
+}
+
+export async function markThreadRead(studentId?: string): Promise<void> {
+  const { error } = await supabase.rpc("mark_mentor_thread_read", {
+    p_student_id: studentId ?? null,
+  });
+  if (error) console.error("[mentorService] mark_mentor_thread_read", error);
+}
+
+export interface MenteeUnread {
+  student_id: string;
+  unread: number;
+  last_message_at: string | null;
+}
+
+/** Which of a mentor's conversations are waiting on them. */
+export async function getMenteeUnread(): Promise<Result<MenteeUnread[]>> {
+  const { data, error } = await supabase.rpc("my_mentee_unread");
+  if (error) return fail("my_mentee_unread", error);
+  return { ok: true, data: (data ?? []) as MenteeUnread[] };
+}
+
+/* ------------------------------------------------------------------ */
 /* Shared presentation                                                 */
 /* ------------------------------------------------------------------ */
 

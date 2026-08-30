@@ -6,6 +6,7 @@ import {
   ChevronRight,
   GraduationCap,
   Mail,
+  MessageSquare,
   TrendingDown,
   Users,
 } from "lucide-react";
@@ -21,8 +22,10 @@ import {
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
+import { MentorChat } from "../../components/mentor/MentorChat";
 import {
   getMenteeOverview,
+  getMenteeUnread,
   getMyMentees,
   RISK_LABEL,
   RISK_REASON,
@@ -58,17 +61,30 @@ export default function StaffMentees() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Mentee | null>(null);
+  const [batch, setBatch] = useState<number | "all">("all");
+  const [band, setBand] = useState<RiskBand | "all">("all");
+
+  /** Unread count per student, so the list says who is waiting on a reply. */
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await getMyMentees();
+    const [result, waiting] = await Promise.all([
+      getMyMentees(),
+      getMenteeUnread(),
+    ]);
     if (!result.ok) {
       setError("We could not load your mentees. Please try again.");
       setLoading(false);
       return;
     }
     setMentees(result.data);
+    if (waiting.ok) {
+      setUnread(
+        Object.fromEntries(waiting.data.map((w) => [w.student_id, w.unread])),
+      );
+    }
     setLoading(false);
   }, []);
 
@@ -76,15 +92,32 @@ export default function StaffMentees() {
     if (staff) load();
   }, [staff?.lecturerId, load]);
 
+  /* Every batch the mentor has someone in, so the filter offers only the
+     years that would actually return anybody. */
+  const batches = useMemo(
+    () => [...new Set(mentees.map((m) => m.batch_year))].sort((a, b) => b - a),
+    [mentees],
+  );
+
+  const visible = useMemo(
+    () =>
+      mentees.filter(
+        (m) =>
+          (batch === "all" || m.batch_year === batch) &&
+          (band === "all" || m.risk_band === band),
+      ),
+    [mentees, batch, band],
+  );
+
   const byBatch = useMemo(() => {
     const map = new Map<number, Mentee[]>();
-    mentees.forEach((m) => {
+    visible.forEach((m) => {
       const list = map.get(m.batch_year) ?? [];
       list.push(m);
       map.set(m.batch_year, list);
     });
     return [...map.entries()].sort((a, b) => b[0] - a[0]);
-  }, [mentees]);
+  }, [visible]);
 
   const counts = useMemo(() => {
     const c: Record<RiskBand, number> = {
@@ -145,6 +178,55 @@ export default function StaffMentees() {
         />
       </div>
 
+      {/* Batch first, because a mentor usually works through one year group
+          at a time; then the bands, so "show me only the ones in trouble" is
+          one click rather than a scroll. */}
+      {!loading && mentees.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={batch === "all" ? "default" : "outline"}
+            onClick={() => setBatch("all")}
+          >
+            All batches
+          </Button>
+          {batches.map((b) => (
+            <Button
+              key={b}
+              size="sm"
+              variant={batch === b ? "default" : "outline"}
+              onClick={() => setBatch(b)}
+            >
+              {describeBatch(b)}
+              <span className="ml-1.5 text-xs opacity-70">
+                {mentees.filter((m) => m.batch_year === b).length}
+              </span>
+            </Button>
+          ))}
+
+          <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+
+          <Button
+            size="sm"
+            variant={band === "all" ? "default" : "outline"}
+            onClick={() => setBand("all")}
+          >
+            Everyone
+          </Button>
+          {RISK_ORDER.filter((b) => counts[b] > 0).map((b) => (
+            <Button
+              key={b}
+              size="sm"
+              variant={band === b ? "default" : "outline"}
+              onClick={() => setBand(band === b ? "all" : b)}
+            >
+              {RISK_LABEL[b]}
+              <span className="ml-1.5 text-xs opacity-70">{counts[b]}</span>
+            </Button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonRows count={4} height="h-20" />
       ) : mentees.length === 0 ? (
@@ -152,6 +234,12 @@ export default function StaffMentees() {
           icon={GraduationCap}
           title="No students assigned to you yet"
           description="Your head of department assigns academic mentees. Once they do, your students appear here."
+        />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={GraduationCap}
+          title="Nobody matches that filter"
+          description="No students in this batch carry that flag. Try another batch, or show everyone."
         />
       ) : (
         byBatch.map(([batch, list]) => (
@@ -184,6 +272,11 @@ export default function StaffMentees() {
                           <StatusBadge tone={RISK_TONE[m.risk_band]} dot>
                             {RISK_LABEL[m.risk_band]}
                           </StatusBadge>
+                          {(unread[m.student_id] ?? 0) > 0 && (
+                            <StatusBadge tone="brand" icon={MessageSquare}>
+                              {unread[m.student_id]} new
+                            </StatusBadge>
+                          )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {m.index_number ?? m.reg_number} · Semester{" "}
@@ -265,6 +358,16 @@ function MenteeDetail({
       </div>
 
       {error && <ErrorState message={error} onRetry={load} />}
+
+      {/* Above the academic detail on purpose: a mentor who opened this
+          student because they wrote should not have to scroll past six
+          semesters of results to answer them. */}
+      <SectionCard
+        title="Conversation"
+        description="Only you and this student can read it."
+      >
+        <MentorChat studentId={mentee.student_id} />
+      </SectionCard>
 
       {loading ? (
         <SkeletonRows count={5} height="h-16" />
