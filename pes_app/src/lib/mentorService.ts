@@ -326,6 +326,76 @@ export async function getMenteeUnread(): Promise<Result<MenteeUnread[]>> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Private notes                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface MentorNote {
+  note_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string | null;
+  assignment_id: string;
+  /** False for a note written while mentoring a student who has since moved. */
+  written_while_current: boolean;
+}
+
+/**
+ * The caller's own notes about one student.
+ *
+ * Private to whoever wrote them: not the head of department, not an admin,
+ * and not the student. Gathered across every assignment the caller has had
+ * with this student, so a mentor who loses a student and gets them back still
+ * sees everything they themselves wrote.
+ */
+export async function getMentorNotes(
+  studentId: string,
+): Promise<Result<MentorNote[]>> {
+  const { data, error } = await supabase.rpc("get_mentor_notes", {
+    p_student_id: studentId,
+  });
+  if (error) return fail("get_mentor_notes", error);
+  return { ok: true, data: (data ?? []) as MentorNote[] };
+}
+
+/** Omit noteId to add; pass one of your own to rewrite it. */
+export async function saveMentorNote(
+  studentId: string,
+  body: string,
+  noteId?: string,
+): Promise<Result<{ ok: boolean; note_id: string; message: string }>> {
+  const { data, error } = await supabase.rpc("save_mentor_note", {
+    p_student_id: studentId,
+    p_body: body,
+    p_note_id: noteId ?? null,
+  });
+  if (error) return fail("save_mentor_note", error);
+  return { ok: true, data: data as { ok: boolean; note_id: string; message: string } };
+}
+
+export async function deleteMentorNote(
+  noteId: string,
+): Promise<Result<{ ok: boolean; message: string }>> {
+  const { data, error } = await supabase.rpc("delete_mentor_note", {
+    p_note_id: noteId,
+  });
+  if (error) return fail("delete_mentor_note", error);
+  return { ok: true, data: data as { ok: boolean; message: string } };
+}
+
+export interface MenteeNoteCount {
+  student_id: string;
+  notes: number;
+}
+
+export async function getMenteeNoteCounts(): Promise<
+  Result<MenteeNoteCount[]>
+> {
+  const { data, error } = await supabase.rpc("my_mentee_note_counts");
+  if (error) return fail("my_mentee_note_counts", error);
+  return { ok: true, data: (data ?? []) as MenteeNoteCount[] };
+}
+
+/* ------------------------------------------------------------------ */
 /* Shared presentation                                                 */
 /* ------------------------------------------------------------------ */
 
