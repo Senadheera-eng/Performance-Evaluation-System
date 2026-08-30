@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Mail, UserRound } from "lucide-react";
+import { Mail, MessageSquare, UserRound } from "lucide-react";
 import { Button } from "../ui/button";
 import { SectionCard, SkeletonRows, StatusBadge } from "../common";
+import { MentorChat } from "../mentor/MentorChat";
 import { getMyMentor, type MyMentor } from "../../../lib/mentorService";
 
 /**
@@ -16,6 +17,7 @@ import { getMyMentor, type MyMentor } from "../../../lib/mentorService";
 export function MentorCard() {
   const [mentor, setMentor] = useState<MyMentor | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatting, setChatting] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -56,12 +58,22 @@ export function MentorCard() {
       title="Academic Mentor"
       description="Your point of contact for anything about your degree."
       actions={
-        <Button size="sm" variant="outline" asChild>
-          <a href={`mailto:${mentor.email}`}>
-            <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
-            Email
-          </a>
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" asChild>
+            <a href={`mailto:${mentor.email}`}>
+              <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Email
+            </a>
+          </Button>
+          <Button
+            size="sm"
+            variant={chatting ? "outline" : "default"}
+            onClick={() => setChatting(!chatting)}
+          >
+            <MessageSquare className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            {chatting ? "Hide chat" : "Message"}
+          </Button>
+        </div>
       }
     >
       <div className="flex items-start gap-3">
@@ -97,6 +109,10 @@ export function MentorCard() {
           </p>
         </div>
       </div>
+
+      {/* Loaded only when opened: most visits to the dashboard are not to
+          read messages, and the thread is a request of its own. */}
+      {chatting && <MentorChat className="mt-4" />}
     </SectionCard>
   );
 }

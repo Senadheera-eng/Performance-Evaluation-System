@@ -12,6 +12,8 @@ export interface NotificationCounts {
   enrolment: number;
   /** Lecture registers open now that this student has not yet signed. */
   attendance: number;
+  /** Unread messages from the other side of a mentoring pair. */
+  mentoring: number;
 }
 
 const NONE: NotificationCounts = {
@@ -20,6 +22,7 @@ const NONE: NotificationCounts = {
   medical: 0,
   enrolment: 0,
   attendance: 0,
+  mentoring: 0,
 };
 
 /**
@@ -78,6 +81,7 @@ export function withBadges(
     if (href.endsWith("/medical")) return counts.medical;
     if (href.endsWith("/enrollment")) return counts.enrolment;
     if (href.endsWith("/attendance")) return counts.attendance;
+    if (href.endsWith("/mentees")) return counts.mentoring;
     return 0;
   };
 
