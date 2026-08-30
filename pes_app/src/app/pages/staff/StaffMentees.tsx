@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Mail,
   MessageSquare,
+  NotebookPen,
   TrendingDown,
   Users,
 } from "lucide-react";
@@ -23,7 +24,9 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { MentorChat } from "../../components/mentor/MentorChat";
+import { MentorNotes } from "../../components/mentor/MentorNotes";
 import {
+  getMenteeNoteCounts,
   getMenteeOverview,
   getMenteeUnread,
   getMyMentees,
@@ -66,13 +69,16 @@ export default function StaffMentees() {
 
   /** Unread count per student, so the list says who is waiting on a reply. */
   const [unread, setUnread] = useState<Record<string, number>>({});
+  /** How many notes the mentor already holds on each student. */
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [result, waiting] = await Promise.all([
+    const [result, waiting, noted] = await Promise.all([
       getMyMentees(),
       getMenteeUnread(),
+      getMenteeNoteCounts(),
     ]);
     if (!result.ok) {
       setError("We could not load your mentees. Please try again.");
@@ -83,6 +89,11 @@ export default function StaffMentees() {
     if (waiting.ok) {
       setUnread(
         Object.fromEntries(waiting.data.map((w) => [w.student_id, w.unread])),
+      );
+    }
+    if (noted.ok) {
+      setNoteCounts(
+        Object.fromEntries(noted.data.map((n) => [n.student_id, n.notes])),
       );
     }
     setLoading(false);
@@ -277,6 +288,11 @@ export default function StaffMentees() {
                               {unread[m.student_id]} new
                             </StatusBadge>
                           )}
+                          {(noteCounts[m.student_id] ?? 0) > 0 && (
+                            <StatusBadge tone="neutral" icon={NotebookPen}>
+                              {noteCounts[m.student_id]}
+                            </StatusBadge>
+                          )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {m.index_number ?? m.reg_number} · Semester{" "}
@@ -367,6 +383,13 @@ function MenteeDetail({
         description="Only you and this student can read it."
       >
         <MentorChat studentId={mentee.student_id} />
+      </SectionCard>
+
+      <SectionCard
+        title="Private notes"
+        description="Your own record. Nobody else can read it."
+      >
+        <MentorNotes studentId={mentee.student_id} canWrite />
       </SectionCard>
 
       {loading ? (
