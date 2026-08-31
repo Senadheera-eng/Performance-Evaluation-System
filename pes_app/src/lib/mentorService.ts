@@ -246,14 +246,30 @@ export async function clearMentor(
 /* Conversation                                                        */
 /* ------------------------------------------------------------------ */
 
+export interface MessageAttachment {
+  /** Storage key under the private bucket; signed on demand, never stored. */
+  path: string;
+  name: string;
+  size: number;
+  type: string | null;
+}
+
 export interface MentorMessage {
   id: string;
   sender_role: "student" | "mentor";
-  body: string;
+  /** Null for a message that is only a file. */
+  body: string | null;
   sent_at: string;
   read_at: string | null;
   /** Whether the signed-in person wrote it. */
   mine: boolean;
+  attachment: MessageAttachment | null;
+  /**
+   * Set only on a message this client has not yet had confirmed by the
+   * server — it shows a clock instead of ticks. Never comes from the
+   * database.
+   */
+  pending?: boolean;
 }
 
 export interface MentorThread {
@@ -296,13 +312,86 @@ export async function getMentorThread(
 export async function sendMentorMessage(
   body: string,
   studentId?: string,
-): Promise<Result<{ ok: boolean; message_id: string }>> {
+  attachment?: MessageAttachment,
+): Promise<Result<{ ok: boolean; message_id: string; sent_at: string }>> {
   const { data, error } = await supabase.rpc("send_mentor_message", {
-    p_body: body,
+    p_body: body || null,
     p_student_id: studentId ?? null,
+    p_attachment_path: attachment?.path ?? null,
+    p_attachment_name: attachment?.name ?? null,
+    p_attachment_size: attachment?.size ?? null,
+    p_attachment_type: attachment?.type ?? null,
   });
   if (error) return fail("send_mentor_message", error);
-  return { ok: true, data: data as { ok: boolean; message_id: string } };
+  return {
+    ok: true,
+    data: data as { ok: boolean; message_id: string; sent_at: string },
+  };
+}
+
+/** One message in the shape the thread returns it, for a realtime row. */
+export async function getMentorMessage(
+  messageId: string,
+): Promise<MentorMessage | null> {
+  const { data, error } = await supabase.rpc("get_mentor_message", {
+    p_message_id: messageId,
+  });
+  if (error) {
+    console.error("[mentorService] get_mentor_message", error);
+    return null;
+  }
+  return (data ?? null) as MentorMessage | null;
+}
+
+export const ATTACHMENT_BUCKET = "mentor-attachments";
+export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Puts a file in the conversation's own folder and hands back what the
+ * message needs to reference it.
+ *
+ * The path leads with the assignment id because that is what the storage
+ * policy checks — and what the send function re-checks, since the client
+ * chose the path and a client's choice is not evidence.
+ */
+export async function uploadAttachment(
+  assignmentId: string,
+  file: File,
+): Promise<Result<MessageAttachment>> {
+  if (file.size > ATTACHMENT_MAX_BYTES) {
+    return { ok: false, error: "That file is larger than 10 MB." };
+  }
+  // Keep the name readable but harmless: the original is stored alongside
+  // for display, so the key itself only has to be unique and safe.
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
+  const path = `${assignmentId}/${crypto.randomUUID()}-${safe}`;
+
+  const { error } = await supabase.storage
+    .from(ATTACHMENT_BUCKET)
+    .upload(path, file, { contentType: file.type || undefined });
+  if (error) return fail("upload attachment", error);
+
+  return {
+    ok: true,
+    data: {
+      path,
+      name: file.name,
+      size: file.size,
+      type: file.type || null,
+    },
+  };
+}
+
+/** A short-lived link to one attachment, signed when the reader asks. */
+export async function attachmentUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(ATTACHMENT_BUCKET)
+    .createSignedUrl(path, 3600);
+  if (error) {
+    console.error("[mentorService] signed url", error);
+    return null;
+  }
+  return data?.signedUrl ?? null;
 }
 
 export async function markThreadRead(studentId?: string): Promise<void> {
