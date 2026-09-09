@@ -223,23 +223,24 @@ export default function AdminAttendance() {
     const marked = students.filter((s) => s.status !== null);
 
     try {
-      for (const student of marked) {
-        if (student.existingRecordId) {
-          // Update existing
-          await supabase
-            .from("attendance")
-            .update({ status: student.status })
-            .eq("id", student.existingRecordId);
-        } else {
-          // Insert new
-          await supabase.from("attendance").insert({
-            student_id: student.studentId,
-            course_id: selectedCourse.id,
-            lecture_date: selectedDate,
-            status: student.status,
-          });
-        }
-      }
+      /* One request for the whole register, not one per student.
+         Marking a class of forty used to mean forty sequential round trips,
+         which is slow and, worse, not atomic: a failure halfway left the
+         register half saved with no sign of which half. The table already
+         has a unique key on (student_id, course_id, lecture_date), so the
+         insert-or-update decision belongs to the database. Only the columns
+         sent here are written, so a row's recorded_by and offering_id
+         survive being re-marked. */
+      const { error: saveError } = await supabase.from("attendance").upsert(
+        marked.map((student) => ({
+          student_id: student.studentId,
+          course_id: selectedCourse.id,
+          lecture_date: selectedDate,
+          status: student.status,
+        })),
+        { onConflict: "student_id,course_id,lecture_date" },
+      );
+      if (saveError) throw saveError;
 
       setSavedMessage(
         `Attendance saved for ${marked.length} student(s) on ${selectedDate}.`,

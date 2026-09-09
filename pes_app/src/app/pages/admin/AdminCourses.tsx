@@ -85,15 +85,15 @@ export default function AdminCourses() {
       return;
     }
 
-    // Get enrollment counts
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select("course_id")
-      .eq("status", "enrolled");
+    /* Counted in the database rather than by pulling every enrolled row here
+       and tallying them. Besides the wasted transfer, PostgREST caps how many
+       rows it returns — so past that cap the old approach did not fail, it
+       just reported numbers that were too low. */
+    const { data: counts } = await supabase.rpc("get_course_enrolment_counts");
 
     const enrollMap: Record<string, number> = {};
-    enrollments?.forEach((e: any) => {
-      enrollMap[e.course_id] = (enrollMap[e.course_id] ?? 0) + 1;
+    (counts ?? []).forEach((row: { course_id: string; enrolled: number }) => {
+      enrollMap[row.course_id] = row.enrolled;
     });
 
     const courseList: Course[] = courseData.map((c: any) => ({
