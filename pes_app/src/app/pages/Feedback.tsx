@@ -402,10 +402,15 @@ function FeedbackFormView({
     setAnswers((prev) => ({
       ...prev,
       [key]: {
-        question_id: question.id,
-        lecturer_target_id: lecturerId,
         ...prev[key],
         ...value,
+        /* Which question this answers is decided by the key, not by whatever
+           a field sends: these were written first and then spread over, so
+           the compiler could see they never survived. No field has ever sent
+           them, so the answers are the same — they are simply now stated
+           where they cannot be overwritten. */
+        question_id: question.id,
+        lecturer_target_id: lecturerId,
       },
     }));
   };

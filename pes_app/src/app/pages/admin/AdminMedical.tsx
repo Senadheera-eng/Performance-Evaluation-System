@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   Paperclip,
-  Mail,
   Calendar,
   AlertCircle,
   Users,

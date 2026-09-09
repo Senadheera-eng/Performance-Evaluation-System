@@ -740,11 +740,11 @@ export async function getMyFeedbackRequests(
   const { data, error } = await supabase
     .from("feedback_periods")
     .select(
-      "id, title, academic_year, semester, batch_year, feedback_type, opens_at," +
-        " closes_at, status, allow_editing, approval_status, approval_notes," +
-        " approved_at, created_at," +
-        " feedback_period_courses ( course_id )," +
-        " feedback_period_questions ( question_id )",
+      /* One literal, not several joined with +. The client reads the select
+         at the type level, and a concatenation widens to plain `string`,
+         which it cannot read — so it typed these rows as an error, which is
+         what the cast below was papering over. */
+      "id, title, academic_year, semester, batch_year, feedback_type, opens_at, closes_at, status, allow_editing, approval_status, approval_notes, approved_at, created_at, feedback_period_courses(course_id), feedback_period_questions(question_id)",
     )
     .eq("created_by_lecturer_id", lecturerId)
     .order("created_at", { ascending: false });
