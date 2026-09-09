@@ -87,10 +87,14 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    /* The enrolment list is read once and handed to both the count and the
+       attendance breakdown. They used to fetch it separately — same student,
+       same filter, different columns — which cost two round trips for one
+       answer that cannot disagree with itself. */
+    const enrolled = await fetchEnrollments();
     await Promise.all([
       fetchGPAData(),
-      fetchEnrollments(),
-      fetchAttendance(),
+      fetchAttendance(enrolled),
       fetchRecentResults(),
     ]);
     setLoading(false);
@@ -148,22 +152,16 @@ export default function Dashboard() {
   const fetchEnrollments = async () => {
     const { data } = await supabase
       .from("enrollments")
-      .select("status, courses(id, course_code, title, credits, semester)")
+      .select("course_id, status, courses(id, course_code, title, credits, semester)")
       .eq("student_id", student!.id)
       .eq("status", "enrolled");
 
-    if (!data) return;
+    if (!data) return [];
     setEnrolledCount(data.length);
+    return data;
   };
 
-  const fetchAttendance = async () => {
-    // Get current enrolled courses
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select("course_id, courses(course_code, title, credits)")
-      .eq("student_id", student!.id)
-      .eq("status", "enrolled");
-
+  const fetchAttendance = async (enrollments: any[]) => {
     if (!enrollments || enrollments.length === 0) return;
 
     const courseIds = enrollments.map((e: any) => e.course_id);
