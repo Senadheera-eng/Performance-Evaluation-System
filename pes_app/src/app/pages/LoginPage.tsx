@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { homeFor } from "../components/ProtectedRoute";
 import type { Role } from "../../lib/types";
 import universityLogo from "../../assets/logo.jpg";
-import facultyBuilding from "../../assets/faculty-building-wide.png";
+import facultyBuilding from "../../assets/faculty-building-wide.webp";
 
 export default function LoginPage() {
   const navigate = useNavigate();
