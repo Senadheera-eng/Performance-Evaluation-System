@@ -5,6 +5,7 @@ import {
   Lock,
   Minus,
   Plus,
+  RefreshCw,
   RotateCcw,
   Stethoscope,
 } from "lucide-react";
@@ -23,7 +24,7 @@ interface Option {
   semester: number;
   category: string;
   department: string;
-  kind: "regular" | "repeat_r" | "repeat_l";
+  kind: "regular" | "repeat_r" | "repeat_l" | "repeat_f";
   outstanding_from: string | null;
   period_id: string;
   period_title: string;
@@ -40,11 +41,21 @@ interface Option {
 const GROUPS = [
   {
     kind: "repeat_r" as const,
-    title: "Repeat Modules (R)",
+    title: "Re-sit Modules (R)",
     icon: RotateCcw,
     tone: "warning" as const,
     blurb:
-      "You carry an R in these. The highest grade a repeat can be awarded is C.",
+      "You carry an R in these. You re-sit the end-of-semester exam only — your continuous assessment mark is carried forward. The highest grade obtainable is C.",
+  },
+  {
+    // The Handbook's F is a different obligation from R: the whole course
+    // again, continuous assessment included, not just the exam.
+    kind: "repeat_f" as const,
+    title: "Repeat Modules (F)",
+    icon: RefreshCw,
+    tone: "danger" as const,
+    blurb:
+      "You carry an F in these. You follow the course in full again, including the continuous assessment. The highest grade obtainable is C.",
   },
   {
     kind: "repeat_l" as const,
@@ -221,7 +232,11 @@ export function OutstandingModules({ onChanged }: { onChanged?: () => void }) {
                             {o.title}
                           </span>
                           <StatusBadge tone={group.tone} icon={group.icon}>
-                            {o.kind === "repeat_r" ? "Repeat (R)" : "Medical (L)"}
+                            {o.kind === "repeat_r"
+                              ? "Re-sit (R)"
+                              : o.kind === "repeat_f"
+                                ? "Repeat (F)"
+                                : "Medical (L)"}
                           </StatusBadge>
                           {o.already_enrolled && !changed && (
                             <StatusBadge tone="success" icon={CheckCircle2}>
