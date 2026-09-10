@@ -172,6 +172,30 @@ const TOOLS = [
         },
       },
       {
+        name: "get_my_attendance",
+        description:
+          "The calling student's REAL attendance: overall percentage, the faculty minimum and pre-warning thresholds, how many lectures have been recorded, and a per-course breakdown. Takes no arguments. Excused absences count toward compliance exactly as present does, so do not subtract them. If no lectures have been recorded yet, say that rather than reporting zero percent.",
+        parameters: { type: "OBJECT", properties: {} },
+      },
+      {
+        name: "get_my_minor_progress",
+        description:
+          "Which minor streams the student's own department offers, how many credits each needs, exactly which courses count toward each one, and which of those the student has already passed. This is the ONLY source that knows which specific courses make up a minor — the handbook names the streams but not their courses. Use it for any question about minors or fields of specialization. Takes no arguments.",
+        parameters: { type: "OBJECT", properties: {} },
+      },
+      {
+        name: "my_outstanding_modules",
+        description:
+          "Modules the calling student still owes because they carry an R, F or L grade, and must take again. Takes no arguments. This says what is outstanding, not whether an enrolment window is currently open — for that, send them to the Enrollment page.",
+        parameters: { type: "OBJECT", properties: {} },
+      },
+      {
+        name: "get_my_medical_submissions",
+        description:
+          "The calling student's medical certificate submissions and what happened to each: the dates missed, the submission deadline, the overall status, and the decision per module — each module on a certificate is reviewed separately, so one submission can be approved for some and rejected for others. Takes no arguments.",
+        parameters: { type: "OBJECT", properties: {} },
+      },
+      {
         name: "search_handbook",
         description:
           "Search the Faculty Handbook 2026 for policies and regulations — grading, GPA, re-sits, repeating a course, degree and graduation requirements, class honours, the Dean's List, minors and fields of specialization, industrial training, academic concessions. Pass the student's question as you received it; the search handles a natural sentence and does not need keywords picked out of it. Note the handbook covers regulations only: it does not contain the student's own records, and it has almost nothing about attendance rules.",
@@ -210,7 +234,9 @@ const SYSTEM_INSTRUCTION = `You are the academic assistant inside PES, the Perfo
 
 ## What you cannot do yet
 
-You have no tools for attendance, enrolment, medical certificates, feedback, or which specific courses count toward a named minor. If asked about those, say plainly that you cannot see it yet and point at the page that can: Attendance, Enrollment, Medical, Feedback. Do not guess, and do not use the handbook as a substitute for a record you cannot read.
+You cannot see course feedback, and you cannot tell whether an enrolment window is currently open — my_outstanding_modules says what a student still owes, not whether they can enrol for it today. You also cannot change anything: you read records, you never submit, enrol or withdraw.
+
+For those, say plainly that you cannot see it and name the page that can: Feedback, or Enrollment. Do not guess, and never use the handbook as a substitute for a record you cannot read.
 
 ## Voice
 
@@ -341,6 +367,7 @@ Deno.serve(async (req: Request) => {
 
     const report: Record<string, unknown> = {
       candidates: MODEL_CANDIDATES,
+      tools: TOOLS[0].functionDeclarations.map((t) => t.name),
       max_tool_turns: MAX_TOOL_TURNS,
       per_student_daily: PER_STUDENT_DAILY,
       prompt_sha256_16: promptDigest,
@@ -453,6 +480,22 @@ Deno.serve(async (req: Request) => {
         });
         return error ? { error: error.message } : data;
       }
+      case "get_my_attendance": {
+        const { data, error } = await userClient.rpc("get_my_attendance");
+        return error ? { error: error.message } : data;
+      }
+      case "get_my_minor_progress": {
+        const { data, error } = await userClient.rpc("get_my_minor_progress");
+        return error ? { error: error.message } : data;
+      }
+      case "my_outstanding_modules": {
+        const { data, error } = await userClient.rpc("my_outstanding_modules");
+        return error ? { error: error.message } : { outstanding: data };
+      }
+      case "get_my_medical_submissions": {
+        const { data, error } = await userClient.rpc("get_my_medical_submissions");
+        return error ? { error: error.message } : data;
+      }
       case "search_handbook": {
         /* Hybrid, not the old keyword search. websearch_to_tsquery ANDed
            every word of the question, which found nothing for 15 of 18 real
@@ -491,8 +534,14 @@ Deno.serve(async (req: Request) => {
      real failure and is returned. */
   // deno-lint-ignore no-explicit-any
   async function callGemini(body: Record<string, unknown>): Promise<any> {
-    const tryList = resolvedModel ? [resolvedModel] : MODEL_CANDIDATES;
+    /* When a model is already resolved, keep the rest of the list behind it
+       rather than dropping it: if that model has just run out of its daily
+       allowance, the others are exactly what we need. */
+    const tryList = resolvedModel
+      ? [resolvedModel, ...MODEL_CANDIDATES.filter((m) => m !== resolvedModel)]
+      : MODEL_CANDIDATES;
     let lastError = "";
+    let rateLimitedSomewhere = false;
 
     for (const model of tryList) {
       // Inner loop so a rate-limit retry goes back to the SAME model. A
@@ -540,11 +589,17 @@ Deno.serve(async (req: Request) => {
 
       lastError = await res.text();
 
-      // Still 429 after the waiting above: out of retries or out of time.
+      /* Still 429 after the waiting above. Rate limits are counted PER MODEL
+         — the console shows a separate requests-per-day figure for each — so
+         a candidate that is out of allowance says nothing about the next
+         one. Fall through and try it, exactly as for a model that does not
+         exist. Only when every candidate is exhausted does this become an
+         error the student sees. */
       if (res.status === 429) {
-        const err = new Error("rate limited") as Error & { rateLimited?: boolean };
-        err.rateLimited = true;
-        throw err;
+        rateLimitedSomewhere = true;
+        console.warn(`ai-assistant: model "${model}" is rate limited — trying the next candidate`);
+        if (resolvedModel === model) resolvedModel = null;
+        continue;
       }
 
       const notFound =
@@ -555,6 +610,14 @@ Deno.serve(async (req: Request) => {
         `ai-assistant: model "${model}" is not available to this key — trying the next candidate. ${lastError.slice(0, 200)}`,
       );
       if (resolvedModel === model) resolvedModel = null; // it stopped working
+    }
+
+    if (rateLimitedSomewhere) {
+      const err = new Error(
+        `every model is rate limited (tried ${tryList.join(", ")})`,
+      ) as Error & { rateLimited?: boolean };
+      err.rateLimited = true;
+      throw err;
     }
 
     throw new Error(
