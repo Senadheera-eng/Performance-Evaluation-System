@@ -22,22 +22,27 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-// Gemini's free tier caps at 1,500 requests/day for the whole project —
-// this is a shared resource across every student, so refuse gracefully
-// well before hitting that wall rather than letting one heavy user (or a
-// bug in a retry loop) exhaust everyone else's quota for the day.
-const DAILY_QUOTA = 1400;
-
 /*
-  Per-student cap, on top of the shared one.
+  Our own usage caps, both configurable.
 
-  Now that every message reaches the model, the shared daily quota is no
-  longer spent only on the long tail — it is spent on everything. Without a
-  per-student cap, one student with the page open could exhaust the whole
-  faculty's allowance before lunch. Thirty messages is far more than a normal
-  day's use and still leaves room for well over a hundred students.
+  PES is still in development and the only person using the assistant is the
+  developer, so caps sized for a faculty of 167 were getting in the way of
+  the one person who needs to try it. The defaults are now high enough not to
+  be felt, and AI_DAILY_QUOTA / AI_PER_STUDENT_DAILY tighten them for release
+  without a deploy.
+
+  They are not removed altogether. What they still protect against is not a
+  busy student but a runaway loop — a retry that never stops, or a client bug
+  that sends the same question a thousand times. That failure does not care
+  how many users there are.
+
+  Note these are OUR caps. Gemini's own limit is separate and much lower: the
+  free tier allows a handful of requests per minute, and one question costs
+  several. An earlier comment here claimed 1,500 requests per day, which is
+  not the limit that actually bites.
 */
-const PER_STUDENT_DAILY = 30;
+const DAILY_QUOTA = Number(Deno.env.get("AI_DAILY_QUOTA") ?? 5000);
+const PER_STUDENT_DAILY = Number(Deno.env.get("AI_PER_STUDENT_DAILY") ?? 1000);
 
 /* Raised from 4. With the model choosing its own tools rather than being
    handed a pre-classified intent, a real question often needs two or three
@@ -200,6 +205,7 @@ const SYSTEM_INSTRUCTION = `You are the academic assistant inside PES, the Perfo
 
 - Look things up rather than asking the student for information you can fetch. You already know who they are.
 - A real question often needs more than one lookup. To advise on a target, get their standing first, then the target calculation. Chain them.
+- When you need two lookups that do not depend on each other, ask for them in the SAME turn rather than one after the other. Each turn is a separate request against a tight rate limit, so batching is the difference between an answer and a refusal.
 - Only skip tools entirely for greetings and small talk.
 
 ## What you cannot do yet
@@ -278,6 +284,20 @@ Deno.serve(async (req: Request) => {
       400,
     );
   }
+
+  /* Declared before anything can call Gemini — the health check below does,
+     and these are what bound its waiting.
+
+     The platform kills a worker that runs too long, and a killed worker never
+     reaches an error handler: the caller gets WORKER_RESOURCE_LIMIT and the
+     logs say nothing. Stopping ourselves in time to say something is better
+     than being stopped. */
+  const DEADLINE_MS = 60_000;
+  const RETRY_WAIT_MS = 21_000;
+  const MAX_RATE_LIMIT_RETRIES = 2;
+  const startedAt = Date.now();
+  let rateLimitRetries = 0;
+  let ranOutOfTime = false;
 
   // Scoped to the calling student's own session — every RPC call through
   // this client resolves auth.uid() to the real student server-side, same
@@ -475,14 +495,40 @@ Deno.serve(async (req: Request) => {
     let lastError = "";
 
     for (const model of tryList) {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
+      // Inner loop so a rate-limit retry goes back to the SAME model. A
+      // `continue` on the outer loop would quietly fall through to the next
+      // candidate, which is a different question entirely.
+      let res: Response;
+      for (;;) {
+        res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (res.status !== 429) break;
+
+        /* Gemini's free tier allows only a handful of requests per minute,
+           and one question costs several — the first call plus one per tool
+           turn. So the limit is reached by asking two questions in a row, not
+           by being popular.
+
+           It is also a limit you wait out rather than one you are out of: the
+           window is a minute. Waiting and trying again is what a person would
+           do, so this does it — bounded by the deadline, so it can still
+           answer rather than be killed mid-wait. */
+        const elapsed = Date.now() - startedAt;
+        const roomToWait = elapsed + RETRY_WAIT_MS + 8_000 < DEADLINE_MS;
+        if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES || !roomToWait) break;
+
+        rateLimitRetries++;
+        console.warn(
+          `ai-assistant: rate limited, waiting ${RETRY_WAIT_MS}ms (retry ${rateLimitRetries})`,
+        );
+        await new Promise((r) => setTimeout(r, RETRY_WAIT_MS));
+      }
 
       if (res.ok) {
         if (resolvedModel !== model) {
@@ -494,12 +540,7 @@ Deno.serve(async (req: Request) => {
 
       lastError = await res.text();
 
-      /* Rate limiting is not a bug and must not read like one. The free tier
-         allows five requests per MINUTE across the whole project, and one
-         student question costs several — the first call, then one more per
-         tool turn — so a couple of people asking at once is enough to hit
-         it. Marked so the caller can say "busy, try again" instead of
-         returning a 502 that looks like a crash. */
+      // Still 429 after the waiting above: out of retries or out of time.
       if (res.status === 429) {
         const err = new Error("rate limited") as Error & { rateLimited?: boolean };
         err.rateLimited = true;
@@ -520,16 +561,6 @@ Deno.serve(async (req: Request) => {
       `No usable Gemini model. Tried: ${tryList.join(", ")}. Last error: ${lastError.slice(0, 400)}`,
     );
   }
-
-  /* The platform kills a worker that runs too long, and a killed worker
-     never reaches the catch below — the caller just gets
-     WORKER_RESOURCE_LIMIT with nothing in the logs to explain it. That is
-     what happened when two tools disagreed about the same student and the
-     model kept calling them trying to reconcile the difference. Stopping
-     ourselves, in time to say something, is better than being stopped. */
-  const DEADLINE_MS = 60_000;
-  const startedAt = Date.now();
-  let ranOutOfTime = false;
 
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
@@ -590,7 +621,7 @@ Deno.serve(async (req: Request) => {
       console.warn("ai-assistant: rate limited by Gemini");
       return jsonResponse({
         reply:
-          "Too many people are asking me things at once — the assistant is limited to a few requests a minute. Give it about a minute and ask again.",
+          "I'm being rate limited by the AI service — it allows only a few requests a minute, and one question uses several of them. I already waited and tried again. Give it a minute and ask once more.",
       });
     }
     /* Say what actually failed. The previous version returned a bare
