@@ -521,8 +521,23 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  /* The platform kills a worker that runs too long, and a killed worker
+     never reaches the catch below — the caller just gets
+     WORKER_RESOURCE_LIMIT with nothing in the logs to explain it. That is
+     what happened when two tools disagreed about the same student and the
+     model kept calling them trying to reconcile the difference. Stopping
+     ourselves, in time to say something, is better than being stopped. */
+  const DEADLINE_MS = 60_000;
+  const startedAt = Date.now();
+  let ranOutOfTime = false;
+
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+      if (Date.now() - startedAt > DEADLINE_MS) {
+        ranOutOfTime = true;
+        console.warn(`ai-assistant: deadline hit after ${turn} tool turns`);
+        break;
+      }
       const geminiData = await callGemini({
         contents,
         tools: TOOLS,
@@ -588,8 +603,9 @@ Deno.serve(async (req: Request) => {
 
   if (!finalText) {
     return jsonResponse({
-      reply:
-        "I wasn't able to work out an answer to that — could you try rephrasing, or ask something more specific?",
+      reply: ranOutOfTime
+        ? "That one took me longer than I'm allowed — I was still looking things up when I ran out of time. Try asking it in a smaller piece, like your standing first and then the target."
+        : "I wasn't able to work out an answer to that — could you try rephrasing, or ask something more specific?",
     });
   }
 
