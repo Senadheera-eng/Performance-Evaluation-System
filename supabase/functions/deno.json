@@ -1,0 +1,20 @@
+{
+  "//": "Marks supabase/functions as a Deno project. Without this the editor analyses these files with the Node TypeScript server, which does not know the Deno global or jsr: specifiers and reports errors that do not exist — `deno check` on the same file passes.",
+  "imports": {
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window", "deno.ns"],
+    "strict": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "lineWidth": 90,
+    "semiColons": true,
+    "singleQuote": false
+  }
+}
