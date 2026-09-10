@@ -31,9 +31,10 @@ interface Message {
 const suggestedQuestions = [
   "How am I doing so far?",
   "What do I need for First Class from here?",
+  "What courses do I need for the Data Management minor?",
+  "Is my attendance okay?",
+  "Do I still owe any modules?",
   "What happens if I fail a course?",
-  "What are my courses next semester?",
-  "How do I get a minor?",
 ];
 
 export default function AIAssistant() {
@@ -160,14 +161,14 @@ export default function AIAssistant() {
                   <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  {/* This card used to claim "Attendance Alerts — Real-time".
-                      The assistant has no attendance tool, so that was simply
-                      untrue. Handbook lookup is what it does have. */}
+                  {/* True again: get_my_attendance was added in Phase 3, so
+                      this card no longer promises something the assistant
+                      cannot see. */}
                   <p className="text-sm text-muted-foreground">
-                    Handbook Answers
+                    Attendance
                   </p>
                   <p className="text-lg font-semibold text-foreground">
-                    Cited
+                    Your record
                   </p>
                 </div>
               </div>
@@ -335,11 +336,11 @@ export default function AIAssistant() {
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground text-sm">
-                    Faculty Handbook
+                    Attendance & Minors
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Regulations on grading, re-sits, minors and graduation,
-                    quoted with the page they came from
+                    Your attendance against the 80% rule, the modules you still
+                    owe, and which courses count toward each minor
                   </p>
                 </div>
               </div>
