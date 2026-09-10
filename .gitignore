@@ -67,3 +67,4 @@ coverage/
 
 # Personal Claude Code permissions — machine-local, not shared
 .claude/settings.local.json
+supabase/.temp/
