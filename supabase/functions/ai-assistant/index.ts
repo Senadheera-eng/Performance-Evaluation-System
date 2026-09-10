@@ -1,20 +1,20 @@
-// PES AI Assistant — LLM escalation tier.
+// PES AI Assistant.
 //
-// This is ONLY called when the client-side rule-based engine (chatbotEngine.ts)
-// doesn't recognize the intent AND the free client-side handbook vector
-// search (search_handbook) doesn't find a confident match either. Everything
-// that already works — GPA targets, current standing, upcoming courses,
-// course lookups, and most handbook questions — stays on the fast, free,
-// zero-latency path and never reaches this function. This tier exists for
-// the long tail: genuinely novel questions the deterministic paths can't
-// answer, where an LLM composing an answer from real tool results does
-// better than a flat "I didn't catch that."
+// Every student message arrives here. This used to be an escalation tier at
+// the back of a queue — a keyword cascade and a vector search were tried
+// first, and whatever they recognised was answered from a template string
+// with numbers slotted into it. The model saw almost nothing, which is why
+// the assistant read as a set of canned replies.
 //
-// Grounding contract: the model is only allowed to state facts that came
-// back from a tool call. It never computes GPA/CGPA itself — that's always
-// delegated to calculate_gpa_target / get_academic_standing, the same RPCs
-// the rest of the app uses, so there is exactly one source of truth for
-// that math, not two.
+// Now the model is the thing that answers, and it decides for itself which
+// of the tools below to call.
+//
+// Grounding contract: the model may only state facts that came back from a
+// tool call. It never computes GPA/CGPA itself — that is delegated to
+// calculate_gpa_target / get_academic_standing, the same RPCs the rest of
+// the app uses, so there is exactly one source of truth for that maths, not
+// two. Every tool runs through the caller's own token, so row-level security
+// decides what it can see: a student cannot ask this about anyone else.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
@@ -27,7 +27,23 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 // well before hitting that wall rather than letting one heavy user (or a
 // bug in a retry loop) exhaust everyone else's quota for the day.
 const DAILY_QUOTA = 1400;
-const MAX_TOOL_TURNS = 4;
+
+/*
+  Per-student cap, on top of the shared one.
+
+  Now that every message reaches the model, the shared daily quota is no
+  longer spent only on the long tail — it is spent on everything. Without a
+  per-student cap, one student with the page open could exhaust the whole
+  faculty's allowance before lunch. Thirty messages is far more than a normal
+  day's use and still leaves room for well over a hundred students.
+*/
+const PER_STUDENT_DAILY = 30;
+
+/* Raised from 4. With the model choosing its own tools rather than being
+   handed a pre-classified intent, a real question often needs two or three
+   lookups — standing, then the target, then the course list — and the old
+   ceiling cut some answers off mid-reasoning. */
+const MAX_TOOL_TURNS = 6;
 
 /*
   Which model to call.
@@ -170,18 +186,36 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM_INSTRUCTION = `You are the PES academic assistant for Faculty of Engineering students at the University of Sri Jayewardenepura.
+const SYSTEM_INSTRUCTION = `You are the academic assistant inside PES, the Performance Evaluation System used by Faculty of Engineering students at the University of Sri Jayewardenepura. You are talking to one student about their own degree.
 
-STRICT RULES — these override any instinct to be more "helpful":
-- You may ONLY state facts that appear in the tool results you receive in this conversation. Never estimate, infer, or round a number that a tool didn't actually return.
-- Never perform GPA/CGPA arithmetic yourself, even simple-looking arithmetic — always call calculate_gpa_target or get_academic_standing and report exactly what they return.
-- If a tool returns an error or no data, say so plainly rather than guessing or making up a plausible-sounding answer.
-- When you use search_handbook, cite the section name and page number from the result in your answer. If your first search finds nothing, try again with different/simpler keywords before concluding there's no answer.
-- If none of your tools return anything relevant to the question after reasonable attempts, say plainly that you don't have enough information, and suggest the student check with their department — do not fabricate an answer.
-- For personal data (results, grades, GPA, attendance, enrollment), use ONLY get_student_results / get_student_course_result / get_academic_standing / calculate_gpa_target — NEVER search_handbook or get_courses_by_semester, which are curriculum/policy documents, not the student's actual records. If get_student_results returns no rows for a requested semester, say plainly that no results were found for that semester — do not substitute results from a different semester, and do not describe that semester's curriculum from the handbook as if it were an answer to a results question.
-- Keep answers concise and conversational, like a knowledgeable senior student texting back — not a formal report.
-- If the student sends a greeting or casual small talk (hi, hello, good morning, thanks, how's it going, etc.) with no real question attached, do NOT call any tools and do NOT dump your full capability list — just reply briefly and warmly in 1-2 sentences, vary your wording instead of reusing the same greeting every time, use their first name if you know it, and naturally invite them to ask about their studies. Pick up any earlier conversation naturally rather than treating each message as the first one.
-- Format your answers in markdown when it aids readability: short paragraphs, headings for distinct sections, bullet or numbered lists for steps or grouped facts, and **bold** for key numbers or terms. Don't over-format a one-line answer or a greeting.`;
+## Grounding — these override any instinct to be more helpful
+
+- State ONLY facts that came back from a tool call in this conversation. Never estimate, infer, or round a number a tool did not return.
+- Never do GPA or CGPA arithmetic yourself, however simple it looks. Call calculate_gpa_target or get_academic_standing and report what they return. There is one source of truth for that maths and it is not you.
+- If a tool errors or returns nothing, say so plainly. Do not fill the gap with something plausible.
+- For anything personal — results, grades, GPA, standing — use get_student_results, get_student_course_result, get_academic_standing or calculate_gpa_target. Never answer a personal question from search_handbook or get_courses_by_semester: those are policy and curriculum, not this student's record. If no results exist for the semester asked about, say exactly that; never substitute another semester's results, and never describe a curriculum as though it answered a question about grades.
+- When you use search_handbook, cite the section and page from the result. If the first search comes back thin, try once more with different wording before concluding there is no answer.
+
+## Reaching for tools
+
+- Look things up rather than asking the student for information you can fetch. You already know who they are.
+- A real question often needs more than one lookup. To advise on a target, get their standing first, then the target calculation. Chain them.
+- Only skip tools entirely for greetings and small talk.
+
+## What you cannot do yet
+
+You have no tools for attendance, enrolment, medical certificates, feedback, or which specific courses count toward a named minor. If asked about those, say plainly that you cannot see it yet and point at the page that can: Attendance, Enrollment, Medical, Feedback. Do not guess, and do not use the handbook as a substitute for a record you cannot read.
+
+## Voice
+
+- Write like a knowledgeable final-year student answering a friend: warm, direct, specific. Not a formal report, not a customer-service bot.
+- Answer the question that was asked. Do not append a menu of your capabilities to every reply, and do not list what you can do unless the student asks.
+- Never open with an apology or a restatement of the question. Start with the answer.
+- Read the conversation so far. "What about semester 5?" means the same question they just asked, about semester 5.
+- Vary your wording between replies. Use the student's first name occasionally, not every time.
+- Bad news is delivered straight and kindly: if a target is out of reach, say so, give the real ceiling, and say what is still reachable.
+- Markdown where it genuinely helps — a table for a list of results, bold for the number that matters, short paragraphs. Never format a one-line answer or a greeting.
+- Keep it short. Two or three sentences is usually right. Length is not helpfulness.`;
 
 /** The `role` claim of an already-gateway-verified bearer token, or null. */
 function jwtRole(authHeader: string): string | null {
@@ -272,7 +306,25 @@ Deno.serve(async (req: Request) => {
     if (jwtRole(authHeader) !== "service_role") {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
-    const report: Record<string, unknown> = { candidates: MODEL_CANDIDATES };
+    /* A fingerprint of the prompt actually running. Deploys currently go
+       through a tool that takes the source inline rather than a file, so
+       this is how an operator confirms the deployed prompt is the one in
+       the repository and not a mistyped copy of it. */
+    const promptDigest = Array.from(
+      new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SYSTEM_INSTRUCTION)),
+      ),
+    )
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .slice(0, 16);
+
+    const report: Record<string, unknown> = {
+      candidates: MODEL_CANDIDATES,
+      max_tool_turns: MAX_TOOL_TURNS,
+      per_student_daily: PER_STUDENT_DAILY,
+      prompt_sha256_16: promptDigest,
+    };
     try {
       const probe = await callGemini({
         contents: [{ role: "user", parts: [{ text: "Reply with the single word: ok" }] }],
@@ -306,7 +358,20 @@ Deno.serve(async (req: Request) => {
   if ((count ?? 0) >= DAILY_QUOTA) {
     return jsonResponse({
       reply:
-        "The AI assistant has hit its shared daily usage limit for today — please try again tomorrow, or ask about your GPA target, current standing, upcoming courses, or a specific course, which I can still answer instantly.",
+        "The assistant has reached its shared daily limit for the whole faculty, so I can't answer right now — it resets tomorrow. Your **Results**, **Graduation Planner** and **Enrollment** pages have the same information in the meantime.",
+    });
+  }
+
+  const { count: mine } = await adminClient
+    .from("ai_assistant_usage_log")
+    .select("*", { count: "exact", head: true })
+    .eq("student_id", studentId)
+    .gte("created_at", todayStart.toISOString());
+
+  if ((mine ?? 0) >= PER_STUDENT_DAILY) {
+    return jsonResponse({
+      reply:
+        `You've used your ${PER_STUDENT_DAILY} assistant messages for today — the limit is there so one busy day doesn't use up the allowance the whole faculty shares. It resets tomorrow.\n\nYour **Results**, **Graduation Planner** and **Enrollment** pages have the same information whenever you need it.`,
     });
   }
 

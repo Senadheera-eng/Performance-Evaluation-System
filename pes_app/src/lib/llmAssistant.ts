@@ -5,37 +5,63 @@ export interface ChatHistoryItem {
   content: string;
 }
 
+export type AssistantResult =
+  | { ok: true; reply: string }
+  /** The assistant was reached but could not answer, and said so itself. */
+  | { ok: false; kind: "refused"; reply: string }
+  /** We never got an answer: network down, function error, bad deploy. */
+  | { ok: false; kind: "unreachable"; detail: string };
+
 /**
- * LLM escalation tier (Gemini, via the ai-assistant Edge Function) — called
- * for greetings/small talk (for a natural, varied reply) and whenever the
- * free client-side paths (semantic intent classifier + handbook vector
- * search) both come up empty. See supabase/functions/ai-assistant/index.ts
- * for the actual tool-calling loop and grounding rules; this is just the
- * thin client wrapper.
+ * The assistant.
  *
- * `history` is the last few turns of the conversation so far (oldest
- * first), so follow-ups after a greeting or a prior answer stay coherent
- * instead of every message being answered in isolation.
+ * Every message goes here now. This used to be an escalation tier reached
+ * only after a keyword cascade and a vector search had both failed, which
+ * meant the model almost never saw a question — and the answers students
+ * actually got were assembled from template strings with numbers slotted in.
+ * The model decides for itself which of the database tools to call; see
+ * supabase/functions/ai-assistant/index.ts for the tool list and the rule
+ * that it may only state facts a tool returned.
  *
- * Returns null on any failure (network error, function error, quota
- * exhausted with no reply) so the caller can fall through to a hardcoded
- * fallback rather than show nothing or throw.
+ * `history` is the conversation so far, oldest first, so a follow-up like
+ * "what about semester 5?" resolves against what was already said instead of
+ * being answered in isolation.
+ *
+ * Failure is reported rather than swallowed. The previous version returned
+ * null for every kind of failure alike, so a completely dead LLM tier — which
+ * is what a wrong model name had made it — was indistinguishable from a
+ * question it merely could not answer.
  */
 export async function askLlmAssistant(
   message: string,
   history: ChatHistoryItem[] = [],
-): Promise<string | null> {
+): Promise<AssistantResult> {
   try {
     const { data, error } = await supabase.functions.invoke("ai-assistant", {
       body: { message, history },
     });
+
     if (error) {
-      console.error("ai-assistant function failed:", error);
-      return null;
+      // The function returns its own detail on a 502; surface it to the
+      // console so a broken deploy is diagnosable from the browser.
+      console.error("[ai-assistant]", error);
+      return { ok: false, kind: "unreachable", detail: error.message ?? "unknown" };
     }
-    return (data as { reply?: string } | null)?.reply ?? null;
+
+    const reply = (data as { reply?: string; error?: string } | null)?.reply;
+    if (typeof reply === "string" && reply.trim().length > 0) {
+      return { ok: true, reply };
+    }
+
+    const detail = (data as { error?: string } | null)?.error ?? "empty reply";
+    console.error("[ai-assistant] no reply:", detail);
+    return { ok: false, kind: "unreachable", detail };
   } catch (err) {
-    console.error("ai-assistant function threw:", err);
-    return null;
+    console.error("[ai-assistant] threw:", err);
+    return {
+      ok: false,
+      kind: "unreachable",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }

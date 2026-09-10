@@ -29,11 +29,11 @@ interface Message {
 }
 
 const suggestedQuestions = [
-  "What GPA do I need to graduate with First Class?",
-  "What's my current CGPA?",
+  "How am I doing so far?",
+  "What do I need for First Class from here?",
+  "What happens if I fail a course?",
   "What are my courses next semester?",
-  "Tell me about Mathematics V",
-  "What is CO3554?",
+  "How do I get a minor?",
 ];
 
 export default function AIAssistant() {
@@ -42,7 +42,7 @@ export default function AIAssistant() {
       id: "1",
       role: "assistant",
       content:
-        "Hello! I'm your AI Academic Assistant. I can help with GPA/CGPA planning, your current academic standing, upcoming courses, and module lookups — all based on your real academic records. How can I help today?",
+        "Hi — ask me anything about your degree. I can look up your own results and standing, work out what you need for a target class, explain what the Faculty Handbook says, and tell you what's coming next semester. Everything I quote comes from your real records.",
       timestamp: new Date(),
     },
   ]);
@@ -160,11 +160,14 @@ export default function AIAssistant() {
                   <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
+                  {/* This card used to claim "Attendance Alerts — Real-time".
+                      The assistant has no attendance tool, so that was simply
+                      untrue. Handbook lookup is what it does have. */}
                   <p className="text-sm text-muted-foreground">
-                    Attendance Alerts
+                    Handbook Answers
                   </p>
                   <p className="text-lg font-semibold text-foreground">
-                    Real-time
+                    Cited
                   </p>
                 </div>
               </div>
@@ -332,10 +335,11 @@ export default function AIAssistant() {
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground text-sm">
-                    Smart Alerts
+                    Faculty Handbook
                   </h4>
                   <p className="text-xs text-muted-foreground">
-                    Proactive warnings about attendance and deadlines
+                    Regulations on grading, re-sits, minors and graduation,
+                    quoted with the page they came from
                   </p>
                 </div>
               </div>
