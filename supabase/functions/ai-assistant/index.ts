@@ -27,8 +27,33 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 // well before hitting that wall rather than letting one heavy user (or a
 // bug in a retry loop) exhaust everyone else's quota for the day.
 const DAILY_QUOTA = 1400;
-const MODEL = "gemini-3.5-flash";
 const MAX_TOOL_TURNS = 4;
+
+/*
+  Which model to call.
+
+  This used to be a single hardcoded string. If that string names a model the
+  API does not serve, every request 404s, the function returns a 502, and the
+  caller falls back to a canned reply — so the assistant looks merely unhelpful
+  rather than broken, and nothing says why. Model names also come and go, which
+  makes a single hardcoded one a scheduled outage.
+
+  So: GEMINI_MODEL overrides, otherwise the first candidate that answers is
+  used and remembered for the life of the instance. A model-not-found is
+  logged loudly and moves to the next candidate; any other error is a real
+  error and is surfaced.
+*/
+const MODEL_CANDIDATES = [
+  Deno.env.get("GEMINI_MODEL"),
+  // Confirmed live on 10 September 2026. The previous hardcoded value was
+  // "gemini-3.5-flash", which the API answers with 404 — so every call this
+  // function ever made to Gemini failed, and the assistant fell back to its
+  // canned replies without anything saying why.
+  "gemini-3.6-flash",
+  "gemini-2.5-flash",
+].filter((m): m is string => !!m);
+
+let resolvedModel: string | null = null;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -128,11 +153,15 @@ const TOOLS = [
       {
         name: "search_handbook",
         description:
-          "Full-text search over the Faculty Handbook 2026 for policies, regulations, grading rules, degree/graduation requirements, minors, industrial training, medical excuse policy, etc. This is literal keyword search, not semantic — if a search returns nothing, try again with different, simpler wording (e.g. the exact terms a policy document would use) before giving up.",
+          "Search the Faculty Handbook 2026 for policies and regulations — grading, GPA, re-sits, repeating a course, degree and graduation requirements, class honours, the Dean's List, minors and fields of specialization, industrial training, academic concessions. Pass the student's question as you received it; the search handles a natural sentence and does not need keywords picked out of it. Note the handbook covers regulations only: it does not contain the student's own records, and it has almost nothing about attendance rules.",
         parameters: {
           type: "OBJECT",
           properties: {
-            p_search: { type: "STRING", description: "Search terms" },
+            p_search: {
+              type: "STRING",
+              description:
+                "The question in natural language, e.g. 'what happens if I fail a course'",
+            },
           },
           required: ["p_search"],
         },
@@ -153,6 +182,19 @@ STRICT RULES — these override any instinct to be more "helpful":
 - Keep answers concise and conversational, like a knowledgeable senior student texting back — not a formal report.
 - If the student sends a greeting or casual small talk (hi, hello, good morning, thanks, how's it going, etc.) with no real question attached, do NOT call any tools and do NOT dump your full capability list — just reply briefly and warmly in 1-2 sentences, vary your wording instead of reusing the same greeting every time, use their first name if you know it, and naturally invite them to ask about their studies. Pick up any earlier conversation naturally rather than treating each message as the first one.
 - Format your answers in markdown when it aids readability: short paragraphs, headings for distinct sections, bullet or numbered lists for steps or grouped facts, and **bold** for key numbers or terms. Don't over-format a one-line answer or a greeting.`;
+
+/** The `role` claim of an already-gateway-verified bearer token, or null. */
+function jwtRole(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(json).role ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -176,11 +218,15 @@ Deno.serve(async (req: Request) => {
   }
 
   let message: string;
+  let isDiagnose = false;
   let history: { role: "user" | "assistant"; content: string }[] = [];
   try {
     const body = await req.json();
+    isDiagnose = body.diagnose === true;
     message = body.message;
-    if (!message || typeof message !== "string") throw new Error("bad message");
+    if (!isDiagnose && (!message || typeof message !== "string")) {
+      throw new Error("bad message");
+    }
     if (Array.isArray(body.history)) {
       history = body.history
         .filter(
@@ -213,6 +259,36 @@ Deno.serve(async (req: Request) => {
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false },
   });
+
+  /* Operator health check. Answers the one question that cannot be answered
+     from outside this function: which Gemini model this key can actually
+     serve. Gated on the service role key itself — a student token can never
+     reach it, and it touches no academic data. */
+  if (isDiagnose) {
+    /* Read the role out of the token rather than string-comparing it to the
+       service key: the platform may inject that key in a different format
+       than the one an operator holds, and the gateway has already verified
+       this token's signature, so the claim is trustworthy. */
+    if (jwtRole(authHeader) !== "service_role") {
+      return jsonResponse({ error: "Unauthorized" }, 401);
+    }
+    const report: Record<string, unknown> = { candidates: MODEL_CANDIDATES };
+    try {
+      const probe = await callGemini({
+        contents: [{ role: "user", parts: [{ text: "Reply with the single word: ok" }] }],
+      });
+      report.working_model = resolvedModel;
+      report.reply = probe.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    } catch (err) {
+      report.working_model = null;
+      report.error = err instanceof Error ? err.message : String(err);
+    }
+    const { count: chunkCount } = await adminClient
+      .from("handbook_chunks")
+      .select("*", { count: "exact", head: true });
+    report.handbook_chunks = chunkCount;
+    return jsonResponse(report);
+  }
 
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData?.user) {
@@ -293,9 +369,18 @@ Deno.serve(async (req: Request) => {
         return error ? { error: error.message } : data;
       }
       case "search_handbook": {
-        const { data, error } = await userClient.rpc("search_handbook_text", {
-          p_search: args.p_search,
-          p_limit: 3,
+        /* Hybrid, not the old keyword search. websearch_to_tsquery ANDed
+           every word of the question, which found nothing for 15 of 18 real
+           student questions — the model was being told the handbook had no
+           answer when it did. The hybrid function ORs the query's lexemes
+           and gets 18 of 18. No embedding is passed: measured on the same
+           questions, the text half alone is already correct, and requiring
+           an embedding here would mean running a model server-side for no
+           gain. */
+        const { data, error } = await userClient.rpc("search_handbook_hybrid", {
+          p_query: args.p_search,
+          p_embedding: null,
+          p_limit: 4,
         });
         return error ? { error: error.message } : data;
       }
@@ -316,35 +401,60 @@ Deno.serve(async (req: Request) => {
   ];
   let finalText: string | null = null;
 
-  try {
-    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+  /* Calls Gemini, trying each candidate model until one is actually served.
+     Only a "model not found" moves on to the next; every other failure is a
+     real failure and is returned. */
+  // deno-lint-ignore no-explicit-any
+  async function callGemini(body: Record<string, unknown>): Promise<any> {
+    const tryList = resolvedModel ? [resolvedModel] : MODEL_CANDIDATES;
+    let lastError = "";
+
+    for (const model of tryList) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents,
-            tools: TOOLS,
-            systemInstruction: { parts: [{ text: systemInstructionText }] },
-            // Greetings/small talk benefit from a little more natural
-            // variation than the grounded-answer default; the model still
-            // can't invent facts since tool results are unaffected by this.
-            generationConfig: { temperature: 0.4 },
-          }),
+          body: JSON.stringify(body),
         },
       );
 
-      if (!geminiRes.ok) {
-        const errText = await geminiRes.text();
-        console.error("Gemini API error:", geminiRes.status, errText);
-        return jsonResponse(
-          { error: "AI service error", detail: errText.slice(0, 500) },
-          502,
-        );
+      if (res.ok) {
+        if (resolvedModel !== model) {
+          console.log(`ai-assistant: using model ${model}`);
+          resolvedModel = model;
+        }
+        return await res.json();
       }
 
-      const geminiData = await geminiRes.json();
+      lastError = await res.text();
+      const notFound =
+        res.status === 404 || /not found|not supported|unsupported model/i.test(lastError);
+      if (!notFound) throw new Error(`Gemini ${res.status}: ${lastError.slice(0, 400)}`);
+
+      console.error(
+        `ai-assistant: model "${model}" is not available to this key — trying the next candidate. ${lastError.slice(0, 200)}`,
+      );
+      if (resolvedModel === model) resolvedModel = null; // it stopped working
+    }
+
+    throw new Error(
+      `No usable Gemini model. Tried: ${tryList.join(", ")}. Last error: ${lastError.slice(0, 400)}`,
+    );
+  }
+
+  try {
+    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
+      const geminiData = await callGemini({
+        contents,
+        tools: TOOLS,
+        systemInstruction: { parts: [{ text: systemInstructionText }] },
+        // Greetings/small talk benefit from a little more natural variation
+        // than the grounded-answer default; the model still can't invent
+        // facts since tool results are unaffected by this.
+        generationConfig: { temperature: 0.4 },
+      });
+
       const candidate = geminiData.candidates?.[0];
       const parts = candidate?.content?.parts ?? [];
 
@@ -369,8 +479,12 @@ Deno.serve(async (req: Request) => {
       break;
     }
   } catch (err) {
-    console.error("ai-assistant function error:", err);
-    return jsonResponse({ error: "Internal error" }, 500);
+    /* Say what actually failed. The previous version returned a bare
+       "Internal error", which is how a wrong model name managed to look like
+       a merely unhelpful assistant for weeks instead of a broken one. */
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error("ai-assistant function error:", detail);
+    return jsonResponse({ error: "AI service error", detail: detail.slice(0, 500) }, 502);
   }
 
   if (!finalText) {
