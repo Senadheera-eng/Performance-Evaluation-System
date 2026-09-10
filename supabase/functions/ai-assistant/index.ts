@@ -493,6 +493,19 @@ Deno.serve(async (req: Request) => {
       }
 
       lastError = await res.text();
+
+      /* Rate limiting is not a bug and must not read like one. The free tier
+         allows five requests per MINUTE across the whole project, and one
+         student question costs several — the first call, then one more per
+         tool turn — so a couple of people asking at once is enough to hit
+         it. Marked so the caller can say "busy, try again" instead of
+         returning a 502 that looks like a crash. */
+      if (res.status === 429) {
+        const err = new Error("rate limited") as Error & { rateLimited?: boolean };
+        err.rateLimited = true;
+        throw err;
+      }
+
       const notFound =
         res.status === 404 || /not found|not supported|unsupported model/i.test(lastError);
       if (!notFound) throw new Error(`Gemini ${res.status}: ${lastError.slice(0, 400)}`);
@@ -521,20 +534,34 @@ Deno.serve(async (req: Request) => {
       });
 
       const candidate = geminiData.candidates?.[0];
-      const parts = candidate?.content?.parts ?? [];
+      // deno-lint-ignore no-explicit-any
+      const parts: any[] = candidate?.content?.parts ?? [];
 
       // deno-lint-ignore no-explicit-any
-      const functionCallPart = parts.find((p: any) => p.functionCall);
+      const calls = parts.filter((p: any) => p.functionCall);
 
-      if (functionCallPart) {
-        const { name, args } = functionCallPart.functionCall;
-        const result = await executeTool(name, args ?? {});
+      if (calls.length > 0) {
+        /* Echo the model's turn back exactly as it came.
 
-        contents.push({ role: "model", parts: [{ functionCall: { name, args } }] });
-        contents.push({
-          role: "user",
-          parts: [{ functionResponse: { name, response: { result } } }],
-        });
+           This used to rebuild the part as { functionCall: { name, args } },
+           which drops the thought_signature Gemini 3 attaches to it — and
+           the API rejects the next request outright:
+           "Function call is missing a thought_signature in functionCall
+           parts". Every question that needed a tool failed with a 400, so
+           only greetings, which call no tools, ever worked.
+
+           All calls in the turn are answered, not just the first: the model
+           can ask for two lookups at once, and serving one of them silently
+           dropped the other. */
+        contents.push(candidate.content);
+
+        const responses = [];
+        for (const part of calls) {
+          const { name, args } = part.functionCall;
+          const result = await executeTool(name, args ?? {});
+          responses.push({ functionResponse: { name, response: { result } } });
+        }
+        contents.push({ role: "user", parts: responses });
         continue;
       }
 
@@ -544,6 +571,13 @@ Deno.serve(async (req: Request) => {
       break;
     }
   } catch (err) {
+    if ((err as { rateLimited?: boolean })?.rateLimited) {
+      console.warn("ai-assistant: rate limited by Gemini");
+      return jsonResponse({
+        reply:
+          "Too many people are asking me things at once — the assistant is limited to a few requests a minute. Give it about a minute and ask again.",
+      });
+    }
     /* Say what actually failed. The previous version returned a bare
        "Internal error", which is how a wrong model name managed to look like
        a merely unhelpful assistant for weeks instead of a broken one. */
