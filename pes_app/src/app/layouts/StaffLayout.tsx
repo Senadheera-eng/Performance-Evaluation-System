@@ -5,6 +5,7 @@ import {
   Calendar,
   TrendingUp,
   MessageSquareText,
+  ClipboardList,
   GraduationCap,
   HeartHandshake,
   Users,
@@ -55,6 +56,10 @@ export default function StaffLayout() {
             href: "/staff/assignments",
             icon: GraduationCap,
           },
+          // View-only: a head reviews who enrolled, the Super Admin opens the
+          // windows. A lecturer without the appointment never sees this, and
+          // would be refused by the page and the database if they typed the URL.
+          { name: "Enrolment", href: "/staff/enrollment", icon: ClipboardList },
           { name: "Students", href: "/staff/students", icon: UserSquare },
           { name: "Department Staff", href: "/staff/lecturers", icon: Users },
         ]
