@@ -309,6 +309,17 @@ export default function HodMentors() {
                         ) : (
                           <StatusBadge tone="warning">No mentor</StatusBadge>
                         )}
+                        {/* A student who moved into this department keeps the
+                            mentor they already had. Say so, rather than leaving
+                            the head to recognise an unfamiliar name. */}
+                        {s.mentor_id &&
+                          s.mentor_department &&
+                          s.department &&
+                          s.mentor_department !== s.department && (
+                            <StatusBadge tone="warning">
+                              mentor is in {s.mentor_department}
+                            </StatusBadge>
+                          )}
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {s.index_number ?? s.reg_number} ·{" "}
