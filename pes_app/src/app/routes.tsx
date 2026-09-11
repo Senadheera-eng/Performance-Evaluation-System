@@ -58,6 +58,7 @@ const StaffAttendance = page(() => import("./pages/staff/StaffAttendance"));
 const StaffResults = page(() => import("./pages/staff/StaffResults"));
 const StaffFeedback = page(() => import("./pages/staff/StaffFeedback"));
 const HodAssignments = page(() => import("./pages/staff/HodAssignments"));
+const HodEnrollment = page(() => import("./pages/staff/HodEnrollment"));
 const HodMentors = page(() => import("./pages/staff/HodMentors"));
 const StaffMentees = page(() => import("./pages/staff/StaffMentees"));
 const StaffStudents = page(() => import("./pages/staff/StaffStudents"));
@@ -137,6 +138,7 @@ export const router = createBrowserRouter([
       // regardless of what the client does.
       { path: "mentors", element: held(<HodMentors />) },
       { path: "assignments", element: held(<HodAssignments />) },
+      { path: "enrollment", element: held(<HodEnrollment />) },
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
     ],
