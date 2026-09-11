@@ -152,12 +152,16 @@ export interface MentorRosterRow {
   index_number: string | null;
   reg_number: string | null;
   email: string;
-  department: string;
+  /** Null for a first-year who has not been divided into a department yet. */
+  department: string | null;
   batch_year: number;
   cgpa: number | null;
   /** Null for a student nobody has been assigned to yet. */
   mentor_id: string | null;
   mentor_name: string | null;
+  /** The mentor's own department. Differs from the student's when a student
+   *  moved department and kept the mentor they already had. */
+  mentor_department: string | null;
   assigned_at: string | null;
 }
 

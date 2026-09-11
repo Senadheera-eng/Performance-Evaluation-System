@@ -20,7 +20,8 @@ interface EnrolledStudent {
   index_number: string;
   reg_number: string;
   batch_year: number;
-  department: string;
+  /** Null for a first-year, who is not in a department yet. */
+  department: string | null;
   status: string;
   enrolled_at: string | null;
 }
@@ -206,7 +207,7 @@ export function PeriodCourseBreakdown({
                               {describeBatch(s.batch_year)}
                             </td>
                             <td className="py-1.5 pr-3 text-muted-foreground">
-                              {s.department}
+                              {s.department ?? "Not yet assigned"}
                             </td>
                             <td className="py-1.5 pr-3">
                               <StatusBadge tone="success">{s.status}</StatusBadge>

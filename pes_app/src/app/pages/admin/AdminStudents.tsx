@@ -26,6 +26,11 @@ import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 
+/* A first-year is admitted to the faculty, not to a department, and is
+   divided into one partway through. Until then students.department is null,
+   and saying so is better than rendering a blank after the separator. */
+const NO_DEPARTMENT_YET = "No department yet";
+
 interface Student {
   id: string;
   name: string;
@@ -112,7 +117,7 @@ export default function AdminStudents() {
         name: s.name,
         regNumber: formatRegNumber(s.reg_number),
         email: s.email,
-        department: s.department,
+        department: s.department ?? NO_DEPARTMENT_YET,
         batchYear: s.batch_year,
         cgpa: stats?.cgpa ?? null,
         totalCredits: stats?.credits ?? 0,
@@ -356,6 +361,11 @@ export default function AdminStudents() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {student.regNumber} · {student.department}
+                            {student.department === NO_DEPARTMENT_YET && (
+                              <span className="ml-1 text-xs">
+                                (Super Admin holds their records)
+                              </span>
+                            )}
                           </p>
                         </div>
                       </div>
