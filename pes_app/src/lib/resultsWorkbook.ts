@@ -147,19 +147,48 @@ export async function buildResultsTemplate(
   wb.created = new Date();
 
   const ws = wb.addWorksheet(SHEET_NAME);
+
+  /* Column widths are measured, not guessed.
+     Fixed widths meant a name like KONARA MUDIYANSELAGE LAHIRU NIRMAL
+     SENADHEERA — forty-five characters — arrived clipped, and whoever opened
+     the file had to drag every column before they could read it. So each
+     column is sized to the longest thing actually in it.
+
+     Measured against the table only. The course title and the sheet key sit
+     in the same columns as Registration Number, and letting a forty-character
+     title decide that column's width would make the table absurd; the header
+     block is merged across instead, so it has room without stretching
+     anything. */
+  const widthFor = (header: string, values: string[], max: number): number => {
+    const longest = values.reduce((n, v) => Math.max(n, (v ?? "").length), 0);
+    /* +4 on the header leaves room for the filter arrow Excel draws inside
+       the header cell, which otherwise sits on top of the last word.
+
+       The floor is 11 rather than 9 for a mundane reason: Excel's own default
+       is about 8.43, and a width that lands near it is written as "no width"
+       and comes back as the default — which is how Grade ended up as narrow
+       as the thing we were trying to fix. */
+    return Math.min(max, Math.max(header.length + 4, longest + 3, 11));
+  };
+
   ws.columns = [
-    { width: 16 },
-    { width: 20 },
-    { width: 34 },
-    { width: 12 },
-    { width: 12 },
-    { width: 10 },
+    { width: widthFor("Index Number", students.map((s) => s.indexNumber), 22) },
+    { width: widthFor("Registration Number", students.map((s) => s.regNumber), 26) },
+    { width: widthFor("Name", students.map((s) => s.name), 60) },
+    { width: widthFor("Mid-Sem", [], 14) },
+    { width: widthFor("CA", [], 14) },
+    { width: widthFor("Grade", validGrades, 14) },
   ];
 
+  /* The header block spans the table's columns so a long course title or a
+     36-character key has somewhere to go without widening a column the table
+     below has to live with. */
   const label = (row: number, key: string, value: string) => {
     ws.getCell(`A${row}`).value = key;
     ws.getCell(`A${row}`).font = { bold: true };
+    ws.mergeCells(`B${row}:F${row}`);
     ws.getCell(`B${row}`).value = value;
+    ws.getCell(`B${row}`).alignment = { vertical: "middle" };
   };
 
   label(1, "Course", `${meta.courseCode} — ${meta.courseTitle}`);
@@ -169,13 +198,17 @@ export async function buildResultsTemplate(
      it is somebody else's sheet, and we say so by name rather than importing
      forty marks against the wrong class. */
   label(4, SHEET_KEY_LABEL, meta.sheetKey);
-  ws.getCell("C4").value = "← do not edit or delete this row";
-  ws.getCell("C4").font = { italic: true, color: { argb: "FF888888" } };
+  ws.getCell("B4").font = { color: { argb: "FF888888" } };
 
+  ws.mergeCells("A6:F6");
   ws.getCell("A6").value =
     `Enter Mid-Sem and CA out of ${MARK_MAX.midSem} and ${MARK_MAX.ca}, and choose a Grade. ` +
-    `The grade is yours to decide; it is not calculated from the marks.`;
+    `The grade is yours to decide; it is not calculated from the marks. ` +
+    `Do not edit or delete the ${SHEET_KEY_LABEL} row above — it is how the ` +
+    `system knows which class these marks belong to.`;
   ws.getCell("A6").font = { italic: true, color: { argb: "FF555555" } };
+  ws.getCell("A6").alignment = { wrapText: true, vertical: "top" };
+  ws.getRow(6).height = 30;
 
   const headerRowNumber = 8;
   const headerRow = ws.getRow(headerRowNumber);
