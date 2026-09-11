@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { describeBatch } from "../../../lib/batch";
 
 /** The minimum an offering must carry to be picked from. */
@@ -47,17 +47,39 @@ export function OfferingPicker({
   const selected = offerings.find((o) => o.offering_id === value) ?? null;
   const batch = selected?.batch_year ?? batches[0] ?? null;
 
+  /* A filter, not a selection, so it lives here rather than being lifted:
+     the parent owns which offering is chosen and does not need to know how
+     the person narrowed the list to find it. */
+  const [semesterFilter, setSemesterFilter] = useState<number | "all">("all");
+
+  const semestersInBatch = useMemo(
+    () =>
+      [...new Set(offerings.filter((o) => o.batch_year === batch).map((o) => o.semester))]
+        .sort((a, b) => a - b),
+    [offerings, batch],
+  );
+
+  /* A batch holds a different set of semesters, and carrying the old filter
+     across would show an empty course list for a batch that has plenty. */
+  useEffect(() => {
+    setSemesterFilter("all");
+  }, [batch]);
+
   const coursesInBatch = useMemo(
     () =>
       offerings
-        .filter((o) => o.batch_year === batch)
+        .filter(
+          (o) =>
+            o.batch_year === batch &&
+            (semesterFilter === "all" || o.semester === semesterFilter),
+        )
         .sort(
           (a, b) =>
             Number(b.canEdit ?? true) - Number(a.canEdit ?? true) ||
             a.semester - b.semester ||
             a.course_code.localeCompare(b.course_code),
         ),
-    [offerings, batch],
+    [offerings, batch, semesterFilter],
   );
 
   /* Keep the selection inside the visible batch. This also picks the first
@@ -98,6 +120,33 @@ export function OfferingPicker({
           ))}
         </select>
       </label>
+
+      {/* Only worth showing when the batch actually spans more than one
+          semester — a lecturer with three courses in one semester does not
+          need a control that can only ever do nothing. */}
+      {semestersInBatch.length > 1 && (
+        <label className="flex flex-col gap-1 sm:w-44">
+          <span className="text-xs font-medium text-muted-foreground">
+            Semester
+          </span>
+          <select
+            value={semesterFilter}
+            onChange={(e) =>
+              setSemesterFilter(
+                e.target.value === "all" ? "all" : Number(e.target.value),
+              )
+            }
+            className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+          >
+            <option value="all">All semesters</option>
+            {semestersInBatch.map((s) => (
+              <option key={s} value={s}>
+                Semester {s}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">
