@@ -6,7 +6,6 @@ import {
   Menu,
   X,
   Search,
-  Bell,
   Moon,
   Sun,
   PanelLeftClose,
@@ -19,6 +18,7 @@ import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "../ui/utils";
 import { useTheme } from "../../context/ThemeContext";
+import { NotificationBell } from "./NotificationBell";
 
 const universityLogo = new URL("../../../assets/logo.jpg", import.meta.url).href;
 
@@ -469,18 +469,7 @@ export function AppShell({
                     </div>
                   )}
 
-                  {showNotifications && (
-                    <button
-                      type="button"
-                      aria-label="Notifications"
-                      className="relative h-10 w-10 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
-                    >
-                      <Bell
-                        className="h-4 w-4 text-muted-foreground"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  )}
+                  {showNotifications && <NotificationBell />}
 
                   <Tooltip>
                     <TooltipTrigger asChild>

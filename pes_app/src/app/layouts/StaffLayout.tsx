@@ -85,6 +85,7 @@ export default function StaffLayout() {
       homeHref="/staff"
       headerSubtitle="Faculty of Engineering — USJ"
       onLogout={handleLogout}
+      showNotifications
     />
   );
 }

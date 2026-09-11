@@ -34,6 +34,9 @@ const Feedback = page(() => import("./pages/Feedback"));
 const FeedbackForm = page(() => import("./pages/FeedbackForm"));
 const GraduationPlanner = page(() => import("./pages/GraduationPlanner"));
 const Mentor = page(() => import("./pages/Mentor"));
+/* One page, three portals. What differs per role was already decided
+   when the notification was written, not here. */
+const Notifications = page(() => import("./pages/Notifications"));
 const AppLayout = page(() => import("./layouts/AppLayout"));
 
 /* Admin */
@@ -93,6 +96,7 @@ export const router = createBrowserRouter([
       { path: "mentor", element: held(<Mentor />) },
       { path: "planner", element: held(<GraduationPlanner />) },
       { path: "ai-assistant", element: held(<AIAssistant />) },
+      { path: "notifications", element: held(<Notifications />) },
       { path: "profile", element: held(<Profile />) },
       { path: "settings", element: held(<Settings />) },
     ],
@@ -114,6 +118,7 @@ export const router = createBrowserRouter([
       { path: "feedback", element: held(<AdminFeedback />) },
       { path: "enrollment", element: held(<AdminEnrollment />) },
       { path: "hods", element: held(<AdminHods />) },
+      { path: "notifications", element: held(<Notifications />) },
     ],
   },
   {
@@ -141,6 +146,7 @@ export const router = createBrowserRouter([
       { path: "enrollment", element: held(<HodEnrollment />) },
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
+      { path: "notifications", element: held(<Notifications />) },
     ],
   },
   {
