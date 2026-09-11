@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -177,6 +177,15 @@ export default function AdminResults() {
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
 
+  /* Narrowing the course list, not the data. A super admin sees all five
+     departments and 230 courses in one dropdown, which is not a list anyone
+     can find a course in; a department admin sees only their own, so they
+     get the semester filter alone. Neither filter widens anything — the
+     query behind this page is still scoped by getAdminScope and by the row
+     level security on every table it reads. */
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [filterSemester, setFilterSemester] = useState<number | "all">("all");
+
   // Result-sheet PDF export. Course coordinator, weightage and the board
   // exam date are never persisted to `courses` — that table is deliberately
   // read-only for admins — so these are re-entered per export. The two
@@ -196,6 +205,38 @@ export default function AdminResults() {
     selectedCourse && selectedBatch !== null
       ? deriveAcademicYear(selectedBatch, selectedCourse.year)
       : null;
+
+  /* Offered from what the admin can actually see, rather than from the
+     faculty-wide settings list: a department with no courses loaded should
+     not appear as a choice that returns nothing. */
+  const departmentOptions = useMemo(
+    () => [...new Set(courses.map((c) => c.department))].sort(),
+    [courses],
+  );
+  const semesterOptions = useMemo(
+    () => [...new Set(courses.map((c) => c.semester))].sort((a, b) => a - b),
+    [courses],
+  );
+
+  const visibleCourses = useMemo(
+    () =>
+      courses.filter(
+        (c) =>
+          (filterDepartment === "all" || c.department === filterDepartment) &&
+          (filterSemester === "all" || c.semester === filterSemester),
+      ),
+    [courses, filterDepartment, filterSemester],
+  );
+
+  /* A course that the filters have just hidden must not stay selected, or the
+     sheet below goes on showing marks for something the dropdown no longer
+     lists and the admin has no way to tell what they are looking at. */
+  useEffect(() => {
+    if (selectedCourse && !visibleCourses.some((c) => c.id === selectedCourse.id)) {
+      setSelectedCourse(null);
+      setStudents([]);
+    }
+  }, [visibleCourses, selectedCourse]);
 
   useEffect(() => {
     if (student) fetchCourses();
@@ -602,7 +643,58 @@ export default function AdminResults() {
         <CardHeader>
           <CardTitle>Select Course & Batch</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters. Department is a super admin's only — a department admin
+              is already confined to theirs, so offering it would suggest a
+              choice they do not have. */}
+          <div
+            className={`grid grid-cols-1 gap-4 ${
+              scope.kind === "all" ? "md:grid-cols-2" : ""
+            }`}
+          >
+            {scope.kind === "all" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Department
+                </label>
+                <select
+                  value={filterDepartment}
+                  onChange={(e) => setFilterDepartment(e.target.value)}
+                  className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="all">All departments</option>
+                  {departmentOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Semester
+              </label>
+              <select
+                value={filterSemester}
+                onChange={(e) =>
+                  setFilterSemester(
+                    e.target.value === "all" ? "all" : Number(e.target.value),
+                  )
+                }
+                className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">All semesters</option>
+                {semesterOptions.map((s) => (
+                  <option key={s} value={s}>
+                    Semester {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Course Dropdown */}
             <div className="space-y-2">
@@ -630,7 +722,12 @@ export default function AdminResults() {
 
                 {courseDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                    {courses.map((course) => (
+                    {visibleCourses.length === 0 && (
+                      <p className="px-3 py-3 text-sm text-muted-foreground">
+                        No courses match these filters.
+                      </p>
+                    )}
+                    {visibleCourses.map((course) => (
                       <button
                         key={course.id}
                         onClick={() => {
