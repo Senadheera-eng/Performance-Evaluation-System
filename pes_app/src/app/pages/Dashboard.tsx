@@ -57,7 +57,10 @@ export default function Dashboard() {
   const [cgpa, setCgpa] = useState<number | null>(null);
   const [totalCredits, setTotalCredits] = useState(0);
   const [enrolledCount, setEnrolledCount] = useState(0);
-  const [avgAttendance, setAvgAttendance] = useState(0);
+  /* Null, not zero, until a lecture has actually been recorded. Nought per
+     cent is a real and alarming reading; "nothing marked yet" is not, and the
+     card was showing the first when it meant the second. */
+  const [avgAttendance, setAvgAttendance] = useState<number | null>(null);
   const [ongoingCourses, setOngoingCourses] = useState<CourseWithAttendance[]>(
     [],
   );
@@ -167,13 +170,16 @@ export default function Dashboard() {
     if (!attData) return;
 
     // Calculate per-course attendance
-    const courseAttMap: Record<string, { present: number; total: number }> = {};
+    /* compliant = present + excused. An excused absence counts in the
+       student's favour everywhere else in the system, so it counts here too;
+       the field used to be called "present", which read like it did not. */
+    const courseAttMap: Record<string, { compliant: number; total: number }> = {};
     attData.forEach((a: any) => {
       if (!courseAttMap[a.course_id])
-        courseAttMap[a.course_id] = { present: 0, total: 0 };
+        courseAttMap[a.course_id] = { compliant: 0, total: 0 };
       courseAttMap[a.course_id].total++;
       if (a.status === "present" || a.status === "excused")
-        courseAttMap[a.course_id].present++;
+        courseAttMap[a.course_id].compliant++;
     });
 
     // Continuous-assessment progress on ongoing courses. Only published rows
@@ -196,7 +202,7 @@ export default function Dashboard() {
     // Build ongoing courses list
     const courses: CourseWithAttendance[] = enrollments.map((e: any) => {
       const att = courseAttMap[e.course_id];
-      const percentage = att ? Math.round((att.present / att.total) * 100) : 0;
+      const percentage = att ? Math.round((att.compliant / att.total) * 100) : 0;
       return {
         id: e.course_id,
         code: e.courses.course_code,
@@ -223,14 +229,14 @@ export default function Dashboard() {
     );
     setAwaitingAttendance(courses.length - scoredCourses.length);
 
-    const avg =
+    setAvgAttendance(
       scoredCourses.length > 0
         ? Math.round(
             scoredCourses.reduce((sum, c) => sum + c.attendance, 0) /
               scoredCourses.length,
           )
-        : 0;
-    setAvgAttendance(avg);
+        : null,
+    );
 
   };
 
@@ -300,13 +306,24 @@ export default function Dashboard() {
         />
         <StatCard
           title="Avg. Attendance"
-          value={loading ? "..." : `${avgAttendance}%`}
+          value={loading ? "..." : avgAttendance === null ? "—" : `${avgAttendance}%`}
+          /* Saying "below the required 80%" to a student whose lectures have
+             simply not been marked yet is a warning about nothing, and it is
+             the first thing they read on the page. */
           change={
-            avgAttendance >= threshold
-              ? `Above required ${threshold}%`
-              : `Below required ${threshold}%`
+            avgAttendance === null
+              ? "No lectures recorded yet"
+              : avgAttendance >= threshold
+                ? `Above required ${threshold}%`
+                : `Below required ${threshold}%`
           }
-          changeType={avgAttendance >= threshold ? "positive" : "negative"}
+          changeType={
+            avgAttendance === null
+              ? "neutral"
+              : avgAttendance >= threshold
+                ? "positive"
+                : "negative"
+          }
           icon={Calendar}
           iconColor="text-green-600"
           iconBgColor="bg-green-100"
