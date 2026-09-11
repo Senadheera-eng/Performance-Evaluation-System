@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { StatCard } from "../components/dashboard/StatCard";
 import { CourseCard } from "../components/dashboard/CourseCard";
-import { AlertCard } from "../components/dashboard/AlertCard";
+import { InsightsPanel } from "../components/dashboard/InsightsPanel";
 import {
   Card,
   CardContent,
@@ -34,14 +34,6 @@ interface CourseWithAttendance {
   status: "ongoing" | "completed" | "upcoming";
   attendance: number;
   progress: number;
-}
-
-interface AttendanceAlert {
-  courseCode: string;
-  courseName: string;
-  percentage: number;
-  totalLectures: number;
-  presentCount: number;
 }
 
 interface SemesterGPA {
@@ -75,7 +67,6 @@ export default function Dashboard() {
   const [awaitingAttendance, setAwaitingAttendance] = useState(0);
   const [semesterData, setSemesterData] = useState<SemesterGPA[]>([]);
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
-  const [alerts, setAlerts] = useState<AttendanceAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
   const firstName = student?.name?.split(" ")[0] ?? "Student";
@@ -241,22 +232,6 @@ export default function Dashboard() {
         : 0;
     setAvgAttendance(avg);
 
-    // Alerts for courses below the threshold — only once an admin has actually
-    // recorded at least one lecture for that course. Otherwise every
-    // freshly enrolled course would falsely show up as "0% attendance".
-    const alertList: AttendanceAlert[] = courses
-      .filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0 && c.attendance < threshold)
-      .map((c) => {
-        const att = courseAttMap[c.id];
-        return {
-          courseCode: c.code,
-          courseName: c.name,
-          percentage: c.attendance,
-          totalLectures: att?.total ?? 0,
-          presentCount: att?.present ?? 0,
-        };
-      });
-    setAlerts(alertList);
   };
 
   const fetchRecentResults = async () => {
@@ -347,28 +322,12 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Alerts Section */}
-      {alerts.length > 0 && (
-        <div className="space-y-3">
-          {alerts.map((alert) => {
-            const needed =
-              Math.ceil(alert.totalLectures * (threshold / 100)) -
-              alert.presentCount;
-            return (
-              <AlertCard
-                key={alert.courseCode}
-                type="warning"
-                title={`Low Attendance — ${alert.courseCode} ${alert.courseName}`}
-                message={`Your attendance is ${alert.percentage}%. You need ${needed} more presence(s) to meet the ${threshold}% CCR requirement.`}
-                action={{
-                  label: "View Attendance",
-                  onClick: () => navigate("/app/attendance"),
-                }}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* What the system noticed without being asked — attendance slipping, a
+          semester GPA falling, a medical certificate or enrolment window
+          about to close. This used to be an attendance-only list worked out
+          here in the browser; the rules now live in get_my_insights() so the
+          AI assistant reads exactly the same ones. */}
+      <InsightsPanel />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

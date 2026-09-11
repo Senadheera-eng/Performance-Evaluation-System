@@ -195,6 +195,12 @@ const TOOLS = [
         parameters: { type: "OBJECT", properties: {} },
       },
       {
+        name: "get_my_insights",
+        description:
+          "What the system has noticed about this student without being asked: attendance below or near the faculty minimum, a semester GPA that has fallen or risen sharply, a medical certificate close to or past its deadline, an open enrolment window, and modules still outstanding. Each carries a severity of critical, warning, info or positive. This is the same set the student sees on their Dashboard, so use it when they ask how they are doing, whether anything needs attention, or what they should worry about — and mention a critical one even if they only asked something adjacent. Takes no arguments.",
+        parameters: { type: "OBJECT", properties: {} },
+      },
+      {
         name: "get_my_medical_submissions",
         description:
           "The calling student's medical certificate submissions and what happened to each: the dates missed, the submission deadline, the overall status, and the decision per module — each module on a certificate is reviewed separately, so one submission can be approved for some and rejected for others. Takes no arguments.",
@@ -236,6 +242,7 @@ const SYSTEM_INSTRUCTION = `You are the academic assistant inside PES, the Perfo
 - A real question often needs more than one lookup. To advise on a target, get their standing first, then the target calculation. Chain them.
 - When you need two lookups that do not depend on each other, ask for them in the SAME turn rather than one after the other. Each turn is a separate request against a tight rate limit, so batching is the difference between an answer and a refusal.
 - Only skip tools entirely for greetings and small talk.
+- When a student asks how they are doing, get_my_insights alongside their standing. A CGPA on its own is not how they are doing if their attendance is about to cost them a module. If an insight is marked critical, say it even when they asked about something else.
 
 ## What you cannot do yet
 
@@ -501,6 +508,10 @@ Deno.serve(async (req: Request) => {
       case "my_outstanding_modules": {
         const { data, error } = await userClient.rpc("my_outstanding_modules");
         return error ? { error: error.message } : { outstanding: data };
+      }
+      case "get_my_insights": {
+        const { data, error } = await userClient.rpc("get_my_insights");
+        return error ? { error: error.message } : data;
       }
       case "get_my_medical_submissions": {
         const { data, error } = await userClient.rpc("get_my_medical_submissions");
