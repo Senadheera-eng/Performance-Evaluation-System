@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   TrendingUp,
@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Lock,
   FileDown,
+  FileUp,
   Pencil,
 } from "lucide-react";
 import {
@@ -49,13 +50,24 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
 import { formatRegNumber } from "../../../lib/format";
-import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
+import { useSettings } from "../../../lib/settings";
 import {
   buildResultSheetFilename,
   buildResultSheetPdf,
   type ResultSheetRow,
 } from "../../../lib/resultSheetPdf";
 import { describeBatch } from "../../../lib/batch";
+import { ResultsImportDialog } from "../../components/results/ResultsImportDialog";
+import {
+  MARK_MAX,
+  buildResultsTemplate,
+  parseResultsWorkbook,
+  saveBlob,
+  templateFileName,
+  type ImportReport,
+  type SheetMeta,
+  type SheetStudent,
+} from "../../../lib/resultsWorkbook";
 
 interface Course {
   id: string;
@@ -92,21 +104,18 @@ interface StudentResult {
   isRepeat: boolean;
   midSem: string;
   ca: string;
-  ese: string;
-  oaMark: number | null;
-  grade: string | null;
-  gpv: number | null;
+  /** Awarded by the examiners, not calculated from the marks beside it. */
+  grade: string;
   isPublished: boolean;
   isDirty: boolean;
   /** Per-field validation messages; a row with any entry here cannot be
    *  saved or published. */
-  errors: Partial<Record<"midSem" | "ca" | "ese", string>>;
+  errors: Partial<Record<"midSem" | "ca", string>>;
 }
 
 const MARK_RANGES = {
-  midSem: { max: 50, label: "Mid Sem" },
-  ca: { max: 50, label: "CA" },
-  ese: { max: 100, label: "ESE" },
+  midSem: { max: MARK_MAX.midSem, label: "Mid Sem" },
+  ca: { max: MARK_MAX.ca, label: "CA" },
 } as const;
 
 /** Empty string is valid (mark not yet entered) — only an out-of-range or
@@ -123,12 +132,6 @@ function validateMark(
   }
   return undefined;
 }
-
-// Grade boundaries and component weights come from the regulation engine
-// (system_settings), so a faculty with a different scale can reconfigure
-// them without a code change.
-const calculateGrade = gradeForMark;
-const calculateOA = overallMark;
 
 const getGradeColor = (grade: string | null) => {
   if (!grade) return "bg-gray-100 text-gray-500";
@@ -185,6 +188,17 @@ export default function AdminResults() {
      level security on every table it reads. */
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
+
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  /* The grades this faculty awards. The database refuses anything outside
+     this set, so the dropdown and the spreadsheet's own validation both read
+     it from here rather than keeping their own copies. */
+  const validGrades = useMemo(
+    () => Object.keys(settings.gpvScale),
+    [settings.gpvScale],
+  );
 
   // Result-sheet PDF export. Course coordinator, weightage and the board
   // exam date are never persisted to `courses` — that table is deliberately
@@ -354,10 +368,7 @@ export default function AdminResults() {
           s.batch_year !== selectedBatch,
         midSem: existing?.mid_sem_mark?.toString() ?? "",
         ca: existing?.ca_mark?.toString() ?? "",
-        ese: existing?.ese_mark?.toString() ?? "",
-        oaMark: existing?.oa_mark ?? null,
-        grade: existing?.grade ?? null,
-        gpv: existing?.gpv ?? null,
+        grade: existing?.grade ?? "",
         isPublished: existing?.is_published ?? false,
         isDirty: false,
         errors: {},
@@ -371,61 +382,32 @@ export default function AdminResults() {
 
   const updateMark = (
     studentId: string,
-    field: "midSem" | "ca" | "ese",
+    field: "midSem" | "ca",
     value: string,
   ) => {
     setStudents((prev) =>
-      prev.map((s) => {
-        if (s.studentId !== studentId) return s;
+      prev.map((s) =>
+        s.studentId === studentId
+          ? {
+              ...s,
+              [field]: value,
+              isDirty: true,
+              errors: { ...s.errors, [field]: validateMark(field, value) },
+            }
+          : s,
+      ),
+    );
+  };
 
-        const fieldError = validateMark(field, value);
-        const updated = {
-          ...s,
-          [field]: value,
-          isDirty: true,
-          errors: { ...s.errors, [field]: fieldError },
-        };
-
-        const midRaw = field === "midSem" ? value : s.midSem;
-        const caRaw = field === "ca" ? value : s.ca;
-        const eseRaw = field === "ese" ? value : s.ese;
-        const midErr = field === "midSem" ? fieldError : s.errors.midSem;
-        const caErr = field === "ca" ? fieldError : s.errors.ca;
-        const eseErr = field === "ese" ? fieldError : s.errors.ese;
-
-        const mid = parseFloat(midRaw);
-        const ca = parseFloat(caRaw);
-        const ese = parseFloat(eseRaw);
-
-        // Never derive a grade from a value outside its configured range —
-        // an invalid mark must block the grade, not silently feed into it.
-        if (
-          !isNaN(mid) &&
-          !isNaN(ca) &&
-          !isNaN(ese) &&
-          !midErr &&
-          !caErr &&
-          !eseErr
-        ) {
-          // The mid-semester mark is validated above and recorded, but it is
-          // a component of CA, not a term of its own — see the handbook note
-          // on overallMark.
-          const oa = calculateOA(ca, ese, {
-            ca: selectedCourse?.caWeight ?? settings.oaWeights.ca,
-            ese: selectedCourse?.eseWeight ?? settings.oaWeights.ese,
-          });
-          const { grade, gpv } = calculateGrade(oa);
-          updated.oaMark = oa;
-          updated.grade = grade;
-          updated.gpv = gpv;
-        } else {
-          updated.oaMark = null;
-          updated.grade = null;
-          updated.gpv = null;
-        }
-
-        return updated;
-      }),
+  /* The grade is a decision, not an arithmetic consequence of the two marks
+     beside it — an examiners' meeting awards it and can move it. The grade
+     point is still not a decision: the database derives that from whichever
+     grade lands here, so the pair cannot come apart. */
+  const updateGrade = (studentId: string, grade: string) => {
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.studentId === studentId ? { ...s, grade, isDirty: true } : s,
+      ),
     );
   };
 
@@ -433,10 +415,10 @@ export default function AdminResults() {
    *  saving a draft or publishing — an invalid mark should block both. */
   const dirtyValidRows = () =>
     students.filter(
-      (s) => s.isDirty && !s.errors.midSem && !s.errors.ca && !s.errors.ese,
+      (s) => s.isDirty && !s.errors.midSem && !s.errors.ca,
     );
   const invalidRowCount = students.filter(
-    (s) => s.errors.midSem || s.errors.ca || s.errors.ese,
+    (s) => s.errors.midSem || s.errors.ca,
   ).length;
 
   const handleSaveDraft = async () => {
@@ -454,10 +436,9 @@ export default function AdminResults() {
         academic_year: selectedYear,
         mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
         ca_mark: student.ca ? parseFloat(student.ca) : null,
-        ese_mark: student.ese ? parseFloat(student.ese) : null,
-        oa_mark: student.oaMark,
-        grade: student.grade,
-        gpv: student.gpv,
+        // gpv is absent on purpose: the database derives it from the grade,
+        // so a sheet cannot save the two disagreeing.
+        grade: student.grade === "" ? null : student.grade,
         is_published: false,
       };
 
@@ -488,10 +469,92 @@ export default function AdminResults() {
     setSaving(false);
   };
 
+  /* ---------------- the spreadsheet round trip ---------------- */
+
+  /* A sheet here is a course-and-year pairing rather than one offering, which
+     is what an admin picks. Whatever it is, it goes into the file so a sheet
+     downloaded for one class cannot be uploaded against another. */
+  const sheetMeta = (): SheetMeta | null =>
+    selectedCourse && selectedYear && selectedBatch !== null
+      ? {
+          sheetKey: `${selectedCourse.id}:${selectedYear}`,
+          courseCode: selectedCourse.code,
+          courseTitle: selectedCourse.name,
+          batchLabel: describeBatch(selectedBatch),
+          academicYear: selectedYear,
+        }
+      : null;
+
+  const asSheetStudents = (): SheetStudent[] =>
+    students.map((s) => ({
+      studentId: s.studentId,
+      indexNumber: s.indexNumber,
+      regNumber: s.regNumber,
+      name: s.name,
+      midSem: s.midSem,
+      ca: s.ca,
+      grade: s.grade,
+      locked: s.isPublished,
+    }));
+
+  const handleDownloadTemplate = async () => {
+    const meta = sheetMeta();
+    if (!meta) return;
+    try {
+      const blob = await buildResultsTemplate(meta, asSheetStudents(), validGrades);
+      saveBlob(blob, templateFileName(meta));
+      setSavedMessage(`Downloaded ${templateFileName(meta)}.`);
+    } catch (e) {
+      console.error("[AdminResults] template build failed", e);
+      setSavedMessage("We could not build the spreadsheet. Please try again.");
+    }
+  };
+
+  const handleFilePicked = async (file: File | undefined) => {
+    const meta = sheetMeta();
+    if (!file || !meta) return;
+    setSavedMessage(null);
+    try {
+      setImportReport(
+        await parseResultsWorkbook(file, meta, asSheetStudents(), validGrades),
+      );
+    } catch (e) {
+      console.error("[AdminResults] workbook parse failed", e);
+      setSavedMessage("We could not read that file. It needs to be an .xlsx workbook.");
+    }
+  };
+
+  /* Applied to the sheet on screen, not to the database. The admin saves it
+     themselves, so nothing lands without a person having looked at it. */
+  const applyImport = () => {
+    if (!importReport) return;
+    const byStudent = new Map(
+      importReport.ready.map((r) => [r.studentId as string, r]),
+    );
+    setStudents((prev) =>
+      prev.map((s) => {
+        const incoming = byStudent.get(s.studentId);
+        if (!incoming) return s;
+        return {
+          ...s,
+          midSem: incoming.midSem,
+          ca: incoming.ca,
+          grade: incoming.grade,
+          isDirty: true,
+          errors: {},
+        };
+      }),
+    );
+    setSavedMessage(
+      `Filled in ${importReport.ready.length} row(s) from ${importReport.fileName}. Nothing is saved until you save the draft.`,
+    );
+    setImportReport(null);
+  };
+
   // Publishing never touches a row with no grade — an incomplete row (missing
   // or invalid marks) has nothing valid to show a student, so it's silently
   // excluded from the update rather than pushed through half-finished.
-  const publishableCount = students.filter((s) => s.grade !== null).length;
+  const publishableCount = students.filter((s) => s.grade !== "").length;
   const incompleteCount = students.length - publishableCount;
 
   const confirmPublish = async () => {
@@ -880,30 +943,61 @@ export default function AdminResults() {
                 />
               </div>
 
+              {/* A class of forty is not typed in one box at a time. The
+                  spreadsheet goes out with the roster already in it and is
+                  checked line by line on the way back. */}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleDownloadTemplate}
+                  disabled={students.length === 0}
+                >
+                  <FileDown className="h-4 w-4 mr-1.5" />
+                  Download Excel sheet
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={students.length === 0}
+                >
+                  <FileUp className="h-4 w-4 mr-1.5" />
+                  Upload filled sheet
+                </Button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFilePicked(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
               {/* Mark Entry Info */}
               <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                OA = CA (
-                {Math.round(
-                  (selectedCourse?.caWeight ?? settings.oaWeights.ca) * 100,
-                )}
-                %) + ESE (
-                {Math.round(
-                  (selectedCourse?.eseWeight ?? settings.oaWeights.ese) * 100,
-                )}
-                %) for this course. The mid-semester mark is one of the
-                components that make up CA, so it is recorded here but does not
-                carry its own share of the overall mark. Grade and GPV are
-                calculated automatically. Marks outside their valid range are
-                rejected and cannot be saved.
+                Record the Mid Sem and CA marks, then award the grade. The grade
+                is a decision, not a calculation from the marks beside it — the
+                grade point follows from whichever grade is chosen, so the two
+                can never disagree. Marks outside their range are rejected and
+                cannot be saved.
               </div>
 
               {/* Column Headers */}
               <div className="hidden md:grid grid-cols-12 gap-2 px-4 text-xs font-medium text-muted-foreground">
                 <div className="col-span-3">Student</div>
-                <div className="col-span-2 text-center">Mid Sem (/50)</div>
-                <div className="col-span-2 text-center">CA (/50)</div>
-                <div className="col-span-2 text-center">ESE (/100)</div>
-                <div className="col-span-2 text-center">OA / Grade / GPV</div>
+                <div className="col-span-2 text-center">
+                  Mid Sem (/{MARK_MAX.midSem})
+                </div>
+                <div className="col-span-2 text-center">
+                  CA (/{MARK_MAX.ca})
+                </div>
+                <div className="col-span-3 text-center">Grade</div>
                 <div className="col-span-1 text-center">Status</div>
               </div>
 
@@ -1046,58 +1140,26 @@ export default function AdminResults() {
                           )}
                         </div>
 
-                        {/* ESE */}
-                        <div className="md:col-span-2">
-                          <label className="md:hidden text-xs text-muted-foreground mb-1 block">
-                            ESE (/100)
-                          </label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            placeholder="0-100"
-                            value={student.ese}
-                            onChange={(e) =>
-                              updateMark(
-                                student.studentId,
-                                "ese",
-                                e.target.value,
-                              )
-                            }
-                            disabled={student.isPublished}
-                            aria-invalid={!!student.errors.ese}
-                            className={`h-8 text-center text-sm bg-card ${
-                              student.errors.ese
-                                ? "border-destructive focus-visible:ring-destructive/30"
-                                : "border-border"
-                            }`}
-                          />
-                          {student.errors.ese && (
-                            <p className="text-xs text-destructive mt-0.5">
-                              {student.errors.ese}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* OA / Grade / GPV */}
-                        <div className="md:col-span-2 flex items-center justify-center gap-2">
-                          {student.grade ? (
+                        {/* Grade — awarded, not computed */}
+                        <div className="md:col-span-3 flex items-center justify-center gap-2">
+                          {student.isPublished ? (
                             <>
-                              <Badge
-                                className={`${getGradeColor(student.grade)} font-bold text-sm px-2 flex-shrink-0`}
-                              >
-                                {student.grade}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground tabular-nums">
-                                {student.oaMark?.toFixed(1)} OA
-                                <br />
-                                {student.gpv?.toFixed(1)} GPV
-                              </span>
+                              {student.grade ? (
+                                <Badge
+                                  className={`${getGradeColor(student.grade)} font-bold text-sm px-2 flex-shrink-0`}
+                                >
+                                  {student.grade}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">
+                                  —
+                                </span>
+                              )}
                               {/* A published row is otherwise locked, which is
                                   right — but a grade entered in error still has
                                   to be fixable, and editing an R back clamps to
                                   C because the row treats it as a re-sit. */}
-                              {student.resultId && student.isPublished && (
+                              {student.resultId && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -1117,9 +1179,21 @@ export default function AdminResults() {
                               )}
                             </>
                           ) : (
-                            <span className="text-muted-foreground text-xs">
-                              —
-                            </span>
+                            <select
+                              value={student.grade}
+                              aria-label={`Grade for ${student.name}`}
+                              onChange={(e) =>
+                                updateGrade(student.studentId, e.target.value)
+                              }
+                              className="h-8 w-full rounded-xl border border-border bg-card px-2 text-center text-sm text-foreground"
+                            >
+                              <option value="">— no grade —</option>
+                              {validGrades.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
                           )}
                         </div>
 
@@ -1420,6 +1494,12 @@ export default function AdminResults() {
           </p>
         </motion.div>
       )}
+
+      <ResultsImportDialog
+        report={importReport}
+        onApply={applyImport}
+        onClose={() => setImportReport(null)}
+      />
 
       <CorrectGradeDialog
         open={correcting !== null}

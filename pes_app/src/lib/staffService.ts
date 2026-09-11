@@ -277,10 +277,9 @@ export interface ResultUpsert {
   offering_id: string;
   mid_sem_mark: number | null;
   ca_mark: number | null;
-  ese_mark: number | null;
-  oa_mark: number | null;
+  /** Awarded, not calculated. gpv is absent on purpose: the database derives
+   *  it from this grade, so no writer can save the two disagreeing. */
   grade: string | null;
-  gpv: number | null;
 }
 
 /**

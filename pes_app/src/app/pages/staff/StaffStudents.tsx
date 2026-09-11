@@ -342,7 +342,7 @@ function SemesterRecord({
   // Whether any component marks exist at all: the historical import carries
   // grades only, so four permanently empty columns would just look broken.
   const hasComponents = rows.some(
-    (r) => r.mid_sem_mark !== null || r.ca_mark !== null || r.ese_mark !== null,
+    (r) => r.mid_sem_mark !== null || r.ca_mark !== null,
   );
 
   return (
@@ -390,8 +390,6 @@ function SemesterRecord({
                         <>
                           <th className="pb-1 pr-3 font-medium">Mid</th>
                           <th className="pb-1 pr-3 font-medium">CA</th>
-                          <th className="pb-1 pr-3 font-medium">ESE</th>
-                          <th className="pb-1 pr-3 font-medium">OA</th>
                         </>
                       )}
                       <th className="pb-1 pr-3 font-medium">Grade</th>
@@ -420,12 +418,6 @@ function SemesterRecord({
                             </td>
                             <td className="py-1 pr-3 tabular-nums text-muted-foreground">
                               {c.ca_mark ?? "—"}
-                            </td>
-                            <td className="py-1 pr-3 tabular-nums text-muted-foreground">
-                              {c.ese_mark ?? "—"}
-                            </td>
-                            <td className="py-1 pr-3 tabular-nums text-muted-foreground">
-                              {c.oa_mark?.toFixed(1) ?? "—"}
                             </td>
                           </>
                         )}
