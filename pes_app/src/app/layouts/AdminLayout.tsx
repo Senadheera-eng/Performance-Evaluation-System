@@ -75,6 +75,7 @@ export default function AdminLayout() {
       homeHref="/admin"
       headerSubtitle="Faculty of Engineering — USJ"
       onLogout={handleLogout}
+      showNotifications
     />
   );
 }
