@@ -71,7 +71,12 @@ const MODEL_CANDIDATES = [
   // function ever made to Gemini failed, and the assistant fell back to its
   // canned replies without anything saying why.
   "gemini-3.6-flash",
-  "gemini-2.5-flash",
+  // gemini-2.5-flash used to sit here as a fallback. It is gone: the API
+  // answers "no longer available to new users", so every attempt to fall
+  // back to it spent a round trip on a guaranteed 404 and filled the log
+  // with a failure that was not the real one. A candidate that cannot
+  // serve is not a fallback. Add a real second model here, or set
+  // GEMINI_MODEL, if one becomes available.
 ].filter((m): m is string => !!m);
 
 let resolvedModel: string | null = null;
@@ -246,6 +251,7 @@ For those, say plainly that you cannot see it and name the page that can: Feedba
 - Read the conversation so far. "What about semester 5?" means the same question they just asked, about semester 5.
 - Vary your wording between replies. Use the student's first name occasionally, not every time.
 - Bad news is delivered straight and kindly: if a target is out of reach, say so, give the real ceiling, and say what is still reachable.
+- Do not oversell a tight one either. "Feasible" from a tool means arithmetically possible, not likely. If the required average is close to the maximum, or the ceiling is barely above the target, say plainly how little room there is — "you would need near-perfect grades from here, the most you can now reach is X" — rather than calling it definitely reachable. A student who relaxes because you sounded confident is worse off than one you were honest with.
 - Markdown where it genuinely helps — a table for a list of results, bold for the number that matters, short paragraphs. Never format a one-line answer or a greeting.
 - Keep it short. Two or three sentences is usually right. Length is not helpfulness.`;
 
@@ -320,6 +326,10 @@ Deno.serve(async (req: Request) => {
      than being stopped. */
   const DEADLINE_MS = 60_000;
   const RETRY_WAIT_MS = 21_000;
+  /* An overloaded model is not a spent quota — it clears in seconds, not in a
+     rate-limit window, so waiting the full window would burn the deadline for
+     nothing. */
+  const OVERLOAD_WAIT_MS = 4_000;
   const MAX_RATE_LIMIT_RETRIES = 2;
   const startedAt = Date.now();
   let rateLimitRetries = 0;
@@ -557,7 +567,15 @@ Deno.serve(async (req: Request) => {
             body: JSON.stringify(body),
           },
         );
-        if (res.status !== 429) break;
+        /* 429 is "you have had your share this minute"; 503 is "this model
+           is busy right now, try again". The API says so itself, in those
+           words. Both are worth waiting out, and a 503 needs only a moment
+           rather than a whole rate-limit window — treating it as a hard
+           failure turned a transient spike into a visible "I can't reach the
+           assistant" for the student. */
+        const transient = res.status === 429 || res.status === 503;
+        if (!transient) break;
+        const waitMs = res.status === 503 ? OVERLOAD_WAIT_MS : RETRY_WAIT_MS;
 
         /* Gemini's free tier allows only a handful of requests per minute,
            and one question costs several — the first call plus one per tool
@@ -569,14 +587,14 @@ Deno.serve(async (req: Request) => {
            do, so this does it — bounded by the deadline, so it can still
            answer rather than be killed mid-wait. */
         const elapsed = Date.now() - startedAt;
-        const roomToWait = elapsed + RETRY_WAIT_MS + 8_000 < DEADLINE_MS;
+        const roomToWait = elapsed + waitMs + 8_000 < DEADLINE_MS;
         if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES || !roomToWait) break;
 
         rateLimitRetries++;
         console.warn(
-          `ai-assistant: rate limited, waiting ${RETRY_WAIT_MS}ms (retry ${rateLimitRetries})`,
+          `ai-assistant: ${model} returned ${res.status}, waiting ${waitMs}ms (retry ${rateLimitRetries})`,
         );
-        await new Promise((r) => setTimeout(r, RETRY_WAIT_MS));
+        await new Promise((r) => setTimeout(r, waitMs));
       }
 
       if (res.ok) {
@@ -595,9 +613,11 @@ Deno.serve(async (req: Request) => {
          one. Fall through and try it, exactly as for a model that does not
          exist. Only when every candidate is exhausted does this become an
          error the student sees. */
-      if (res.status === 429) {
+      if (res.status === 429 || res.status === 503) {
         rateLimitedSomewhere = true;
-        console.warn(`ai-assistant: model "${model}" is rate limited — trying the next candidate`);
+        console.warn(
+          `ai-assistant: model "${model}" returned ${res.status} after retries — trying the next candidate`,
+        );
         if (resolvedModel === model) resolvedModel = null;
         continue;
       }
