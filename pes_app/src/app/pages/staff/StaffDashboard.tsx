@@ -194,7 +194,7 @@ export default function StaffDashboard() {
           <ActionCard
             index={1}
             label="Enter results"
-            description="Mid-sem, CA and ESE marks, then submit for review"
+            description="Mid-sem and CA marks, award the grade, then submit for review"
             icon={TrendingUp}
             tone="success"
             onClick={() => navigate("/staff/results")}

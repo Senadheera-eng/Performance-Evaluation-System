@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
+  Download,
   Lock,
   Save,
   Search,
   Send,
   TrendingUp,
   Undo2,
+  Upload,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -33,10 +35,20 @@ import {
 } from "../../components/common";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { useAuth } from "../../context/AuthContext";
+import { ResultsImportDialog } from "../../components/results/ResultsImportDialog";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
-import { gradeForMark, overallMark, useSettings } from "../../../lib/settings";
-import { supabase } from "../../../lib/supabase";
+import { useSettings } from "../../../lib/settings";
+import {
+  MARK_MAX,
+  buildResultsTemplate,
+  parseResultsWorkbook,
+  saveBlob,
+  templateFileName,
+  type ImportReport,
+  type SheetMeta,
+  type SheetStudent,
+} from "../../../lib/resultsWorkbook";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import {
   getDepartmentTeaching,
@@ -70,17 +82,23 @@ interface SelectableOffering {
   canEdit: boolean;
 }
 
-/** Component maxima, mirroring the admin entry screen. */
+/**
+ * Two marks are recorded, and the grade is decided.
+ *
+ * The end-of-semester mark is no longer entered here and the grade is no
+ * longer computed from anything: an examiners' meeting awards it, and the
+ * marks beside it are the evidence, not the formula. The database derives the
+ * grade point from whatever grade is saved, so the two can never disagree.
+ */
 const RANGES = {
-  midSem: { max: 50, label: "Mid Sem" },
-  ca: { max: 50, label: "CA" },
-  ese: { max: 100, label: "ESE" },
+  midSem: { max: MARK_MAX.midSem, label: "Mid Sem" },
+  ca: { max: MARK_MAX.ca, label: "CA" },
 } as const;
 
 type Field = keyof typeof RANGES;
 
 /** Empty is valid — a mark simply not entered yet. Anything else must be a
- *  number inside its range, or it is refused rather than fed into the grade. */
+ *  number inside its range, or it is refused rather than saved. */
 function validate(field: Field, value: string): string | undefined {
   if (value.trim() === "") return undefined;
   const n = Number(value);
@@ -97,10 +115,7 @@ interface Row {
   isRepeat: boolean;
   midSem: string;
   ca: string;
-  ese: string;
-  oaMark: number | null;
-  grade: string | null;
-  gpv: number | null;
+  grade: string;
   status: OfferingResultRow["status"] | null;
   dirty: boolean;
   errors: Partial<Record<Field, string>>;
@@ -132,32 +147,19 @@ export default function StaffResults() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const selected = offerings.find((o) => o.offering_id === selectedId) ?? null;
 
-  /* The split belongs to the course, so it is read from the course rather
-     than assumed from the faculty default. Falls back to the default only
-     while it is still loading. */
-  const [weights, setWeights] = useState<{ ca: number; ese: number }>(
-    settings.oaWeights,
+  /* The grades this faculty awards, in the order the handbook lists them.
+     The database refuses anything outside this set, so the dropdown and the
+     spreadsheet's own validation both come from here rather than from three
+     separate lists that could drift apart. */
+  const validGrades = useMemo(
+    () => Object.keys(settings.gpvScale),
+    [settings.gpvScale],
   );
-
-  useEffect(() => {
-    if (!selected?.course_id) return setWeights(settings.oaWeights);
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("courses")
-        .select("ca_weight, ese_weight")
-        .eq("id", selected.course_id)
-        .maybeSingle();
-      if (cancelled || !data) return;
-      setWeights({ ca: data.ca_weight, ese: data.ese_weight });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selected?.course_id, settings.oaWeights]);
 
   useEffect(() => {
     if (staff) loadOfferings();
@@ -266,10 +268,7 @@ export default function StaffResults() {
           isRepeat: s.is_repeat,
           midSem: r?.mid_sem_mark?.toString() ?? "",
           ca: r?.ca_mark?.toString() ?? "",
-          ese: r?.ese_mark?.toString() ?? "",
-          oaMark: r?.oa_mark ?? null,
-          grade: r?.grade ?? null,
-          gpv: r?.gpv ?? null,
+          grade: r?.grade ?? "",
           status: r?.status ?? null,
           dirty: false,
           errors: {},
@@ -281,41 +280,24 @@ export default function StaffResults() {
 
   const update = (studentId: string, field: Field, value: string) => {
     setRows((prev) =>
-      prev.map((row) => {
-        if (row.studentId !== studentId) return row;
+      prev.map((row) =>
+        row.studentId === studentId
+          ? {
+              ...row,
+              [field]: value,
+              dirty: true,
+              errors: { ...row.errors, [field]: validate(field, value) },
+            }
+          : row,
+      ),
+    );
+  };
 
-        const fieldError = validate(field, value);
-        const next: Row = {
-          ...row,
-          [field]: value,
-          dirty: true,
-          errors: { ...row.errors, [field]: fieldError },
-        };
-
-        const mid = parseFloat(field === "midSem" ? value : row.midSem);
-        const ca = parseFloat(field === "ca" ? value : row.ca);
-        const ese = parseFloat(field === "ese" ? value : row.ese);
-
-        // An out-of-range component must block the grade, not quietly feed
-        // into it — the same rule the admin entry screen enforces.
-        const anyError =
-          next.errors.midSem || next.errors.ca || next.errors.ese;
-
-        if (!anyError && !isNaN(mid) && !isNaN(ca) && !isNaN(ese)) {
-          // Mid-semester is validated and recorded, but it is a component of
-          // CA rather than a share of the overall mark. See overallMark.
-          const oa = overallMark(ca, ese, weights, settings);
-          const { grade, gpv } = gradeForMark(oa, settings);
-          next.oaMark = oa;
-          next.grade = grade;
-          next.gpv = gpv;
-        } else {
-          next.oaMark = null;
-          next.grade = null;
-          next.gpv = null;
-        }
-        return next;
-      }),
+  const setGrade = (studentId: string, grade: string) => {
+    setRows((prev) =>
+      prev.map((row) =>
+        row.studentId === studentId ? { ...row, grade, dirty: true } : row,
+      ),
     );
   };
 
@@ -338,17 +320,12 @@ export default function StaffResults() {
   const anyEditable = rows.some(rowEditable);
 
   const invalidCount = rows.filter(
-    (r) => rowEditable(r) && (r.errors.midSem || r.errors.ca || r.errors.ese),
+    (r) => rowEditable(r) && (r.errors.midSem || r.errors.ca),
   ).length;
   const dirtyValid = rows.filter(
-    (r) =>
-      r.dirty &&
-      rowEditable(r) &&
-      !r.errors.midSem &&
-      !r.errors.ca &&
-      !r.errors.ese,
+    (r) => r.dirty && rowEditable(r) && !r.errors.midSem && !r.errors.ca,
   );
-  const graded = rows.filter((r) => r.grade !== null).length;
+  const graded = rows.filter((r) => r.grade !== "").length;
   const ungraded = rows.length - graded;
 
   const handleSave = async () => {
@@ -365,10 +342,10 @@ export default function StaffResults() {
         offering_id: selected.offering_id,
         mid_sem_mark: r.midSem === "" ? null : Number(r.midSem),
         ca_mark: r.ca === "" ? null : Number(r.ca),
-        ese_mark: r.ese === "" ? null : Number(r.ese),
-        oa_mark: r.oaMark,
-        grade: r.grade,
-        gpv: r.gpv,
+        // gpv is deliberately not sent. The database derives it from the
+        // grade, so a sheet cannot save a grade and a grade point that
+        // disagree — see results_01_derive_grade_point.
+        grade: r.grade === "" ? null : r.grade,
       })),
       student?.id ?? "",
     );
@@ -401,6 +378,88 @@ export default function StaffResults() {
     }
     setNotice(result.data.message);
     await loadSheet(selected.offering_id);
+  };
+
+  /* ---------------- the spreadsheet round trip ---------------- */
+
+  const sheetMeta = (): SheetMeta | null =>
+    selected
+      ? {
+          sheetKey: selected.offering_id,
+          courseCode: selected.course_code,
+          courseTitle: selected.course_title,
+          batchLabel: describeBatch(selected.batch_year),
+          academicYear: selected.academic_year,
+        }
+      : null;
+
+  const asSheetStudents = (): SheetStudent[] =>
+    rows.map((r) => ({
+      studentId: r.studentId,
+      indexNumber: r.indexNumber,
+      regNumber: r.regNumber,
+      name: r.name,
+      midSem: r.midSem,
+      ca: r.ca,
+      grade: r.grade,
+      locked: !rowEditable(r),
+    }));
+
+  const handleDownloadTemplate = async () => {
+    const meta = sheetMeta();
+    if (!meta) return;
+    setError(null);
+    try {
+      const blob = await buildResultsTemplate(meta, asSheetStudents(), validGrades);
+      saveBlob(blob, templateFileName(meta));
+      setNotice(`Downloaded ${templateFileName(meta)}.`);
+    } catch (e) {
+      console.error("[StaffResults] template build failed", e);
+      setError("We could not build the spreadsheet. Please try again.");
+    }
+  };
+
+  const handleFilePicked = async (file: File | undefined) => {
+    const meta = sheetMeta();
+    if (!file || !meta) return;
+    setError(null);
+    setNotice(null);
+    try {
+      setImportReport(
+        await parseResultsWorkbook(file, meta, asSheetStudents(), validGrades),
+      );
+    } catch (e) {
+      console.error("[StaffResults] workbook parse failed", e);
+      setError("We could not read that file. It needs to be an .xlsx workbook.");
+    }
+  };
+
+  /* Applied to the sheet on screen, never straight to the database: the person
+     saves and submits it themselves, so the marks get one more look from
+     whoever is answerable for them. */
+  const applyImport = () => {
+    if (!importReport) return;
+    const byStudent = new Map(
+      importReport.ready.map((r) => [r.studentId as string, r]),
+    );
+    setRows((prev) =>
+      prev.map((row) => {
+        const incoming = byStudent.get(row.studentId);
+        if (!incoming) return row;
+        return {
+          ...row,
+          midSem: incoming.midSem,
+          ca: incoming.ca,
+          grade: incoming.grade,
+          dirty: true,
+          errors: {},
+        };
+      }),
+    );
+    setNotice(
+      `Filled in ${importReport.ready.length} row${importReport.ready.length === 1 ? "" : "s"} from ${importReport.fileName}. Nothing is saved until you save the sheet.`,
+    );
+    setImportReport(null);
   };
 
   const visible = useMemo(
@@ -524,10 +583,10 @@ export default function StaffResults() {
 
           <SectionCard
             title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
-            description={`OA = CA ${Math.round(weights.ca * 100)}% + ESE ${Math.round(weights.ese * 100)}% for this course. The mid-semester mark is one of the components of CA, so it is recorded but carries no share of its own. Grade and GPV are calculated for you.`}
+            description="Record the Mid-Sem and CA marks, then award the grade. The grade is your decision, not a calculation from the marks — the grade point follows from whichever grade you choose."
             flush
           >
-            <div className="border-b border-border/70 p-3">
+            <div className="space-y-3 border-b border-border/70 p-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -535,6 +594,48 @@ export default function StaffResults() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="h-9 bg-card pl-9"
+                />
+              </div>
+
+              {/* Forty students are not typed in one box at a time. The
+                  spreadsheet leaves with the class list already in it and is
+                  checked line by line on the way back. */}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleDownloadTemplate}
+                  disabled={rows.length === 0}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  Download Excel sheet
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={!anyEditable}
+                  title={
+                    anyEditable
+                      ? undefined
+                      : "There is nothing on this sheet you can still edit"
+                  }
+                >
+                  <Upload className="mr-1.5 h-4 w-4" />
+                  Upload filled sheet
+                </Button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleFilePicked(e.target.files?.[0]);
+                    // Let the same file be picked again after a correction.
+                    e.target.value = "";
+                  }}
                 />
               </div>
             </div>
@@ -556,11 +657,13 @@ export default function StaffResults() {
                   <thead>
                     <tr className="border-b border-border/70 text-left text-xs text-muted-foreground">
                       <th className="px-4 py-2 font-medium">Student</th>
-                      <th className="w-24 px-2 py-2 text-center font-medium">Mid /50</th>
-                      <th className="w-24 px-2 py-2 text-center font-medium">CA /50</th>
-                      <th className="w-24 px-2 py-2 text-center font-medium">ESE /100</th>
-                      <th className="w-28 px-2 py-2 text-center font-medium">OA</th>
-                      <th className="w-20 px-4 py-2 text-center font-medium">Grade</th>
+                      <th className="w-24 px-2 py-2 text-center font-medium">
+                        Mid /{MARK_MAX.midSem}
+                      </th>
+                      <th className="w-24 px-2 py-2 text-center font-medium">
+                        CA /{MARK_MAX.ca}
+                      </th>
+                      <th className="w-28 px-4 py-2 text-center font-medium">Grade</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
@@ -585,7 +688,7 @@ export default function StaffResults() {
                             {r.indexNumber} · {r.regNumber}
                           </p>
                         </td>
-                        {(["midSem", "ca", "ese"] as Field[]).map((field) => (
+                        {(["midSem", "ca"] as Field[]).map((field) => (
                           <td key={field} className="px-2 py-2">
                             <Input
                               type="number"
@@ -608,11 +711,22 @@ export default function StaffResults() {
                             )}
                           </td>
                         ))}
-                        <td className="px-2 py-2 text-center tabular-nums text-muted-foreground">
-                          {r.oaMark !== null ? r.oaMark.toFixed(1) : "—"}
-                        </td>
                         <td className="px-4 py-2 text-center">
-                          {r.grade ? (
+                          {rowEditable(r) ? (
+                            <select
+                              value={r.grade}
+                              aria-label={`Grade for ${r.name}`}
+                              onChange={(e) => setGrade(r.studentId, e.target.value)}
+                              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-center text-sm text-foreground"
+                            >
+                              <option value="">—</option>
+                              {validGrades.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          ) : r.grade ? (
                             <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
@@ -661,8 +775,8 @@ export default function StaffResults() {
                 </div>
                 {ungraded > 0 && (
                   <p className="text-center text-xs text-muted-foreground">
-                    {ungraded} student{ungraded === 1 ? "" : "s"} still need all
-                    three marks before this sheet can be submitted.
+                    {ungraded} student{ungraded === 1 ? "" : "s"} still need a
+                    grade before this sheet can be submitted.
                   </p>
                 )}
               </div>
@@ -670,6 +784,12 @@ export default function StaffResults() {
           </SectionCard>
         </>
       )}
+
+      <ResultsImportDialog
+        report={importReport}
+        onApply={applyImport}
+        onClose={() => setImportReport(null)}
+      />
 
       <AlertDialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>
         <AlertDialogContent>
