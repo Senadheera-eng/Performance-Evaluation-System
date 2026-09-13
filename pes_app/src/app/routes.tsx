@@ -37,6 +37,12 @@ const Mentor = page(() => import("./pages/Mentor"));
 /* One page, three portals. What differs per role was already decided
    when the notification was written, not here. */
 const Notifications = page(() => import("./pages/Notifications"));
+/* The notice board: one reader page for students, one publisher page
+   shared by everyone who may publish. Which scopes a publisher may use is
+   decided by the database, not by which portal they came in through. */
+const Notices = page(() => import("./pages/Notices"));
+const NoticeDetail = page(() => import("./pages/NoticeDetail"));
+const ManageNotices = page(() => import("./pages/ManageNotices"));
 const AppLayout = page(() => import("./layouts/AppLayout"));
 
 /* Admin */
@@ -97,6 +103,8 @@ export const router = createBrowserRouter([
       { path: "planner", element: held(<GraduationPlanner />) },
       { path: "ai-assistant", element: held(<AIAssistant />) },
       { path: "notifications", element: held(<Notifications />) },
+      { path: "notices", element: held(<Notices />) },
+      { path: "notices/:noticeId", element: held(<NoticeDetail />) },
       { path: "profile", element: held(<Profile />) },
       { path: "settings", element: held(<Settings />) },
     ],
@@ -118,6 +126,7 @@ export const router = createBrowserRouter([
       { path: "feedback", element: held(<AdminFeedback />) },
       { path: "enrollment", element: held(<AdminEnrollment />) },
       { path: "hods", element: held(<AdminHods />) },
+      { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
     ],
   },
@@ -146,6 +155,7 @@ export const router = createBrowserRouter([
       { path: "enrollment", element: held(<HodEnrollment />) },
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
+      { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
     ],
   },

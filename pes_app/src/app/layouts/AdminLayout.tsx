@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   GraduationCap,
   UserCog,
+  Megaphone,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -28,6 +29,7 @@ const navigation: ShellNavItem[] = [
   { name: "Medical", href: "/admin/medical", icon: FileHeart },
   { name: "Feedback", href: "/admin/feedback", icon: MessageSquareText },
   { name: "Enrollment", href: "/admin/enrollment", icon: GraduationCap },
+  { name: "Notices", href: "/admin/notices", icon: Megaphone },
 ];
 
 /* A headship covers a whole department, so it is granted from the faculty
