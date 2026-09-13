@@ -39,6 +39,7 @@ import { supabase } from "../../lib/supabase";
 import { describeBatch } from "../../lib/batch";
 import { useSettings } from "../../lib/settings";
 import {
+  BODY_MAX,
   deleteNotice,
   fetchManageableNotices,
   fetchNotice,
@@ -530,15 +531,43 @@ function NoticeForm({
           </Field>
         </div>
 
-        <Field label="Description (optional)">
+        {/* The message, not a description of one. It was labelled
+            "Description" and sized like a summary field, which read as
+            metadata about the attachment — so notices went out with a title,
+            a file and nothing said. A notice with no document at all is a
+            perfectly good notice, and this is where it lives. */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">
+              Message (optional)
+            </span>
+            {body.length > 0 && (
+              <span
+                className={`text-xs tabular-nums ${
+                  body.length > BODY_MAX - 500
+                    ? "text-warning-fg"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {body.length.toLocaleString()} / {BODY_MAX.toLocaleString()}
+              </span>
+            )}
+          </div>
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={3}
-            maxLength={5000}
-            placeholder="What changed, and anything students need to know before opening the document."
+            rows={6}
+            maxLength={BODY_MAX}
+            placeholder={
+              "Write the notice here.\n\n" +
+              "Line breaks are kept, so you can list dates or steps. A document is optional — a message on its own is a complete notice."
+            }
           />
-        </Field>
+          <p className="text-xs text-muted-foreground">
+            Shown in full on the notice, and as the preview line on the board
+            and in the notification students receive.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {forLecturer ? (

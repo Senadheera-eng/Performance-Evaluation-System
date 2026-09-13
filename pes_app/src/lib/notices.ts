@@ -16,6 +16,10 @@ import { supabase } from "./supabase";
 export const NOTICE_BUCKET = "notice-attachments";
 export const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
 
+/** Matches the length check on notices.body. Kept here so the counter in
+ *  the form and the constraint in the database cannot disagree. */
+export const BODY_MAX = 5000;
+
 /** Kept in step with the bucket's allowed_mime_types, which is the real gate. */
 export const ALLOWED_MIME = [
   "application/pdf",
