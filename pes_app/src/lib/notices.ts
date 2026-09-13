@@ -126,6 +126,21 @@ export async function fetchNotice(id: string): Promise<NoticeDetail | null> {
   return row ?? null;
 }
 
+/**
+ * Opening a notice is what clears its badge.
+ *
+ * The sidebar count is unread notice notifications, so reading the notice
+ * has to mark them read or the number would sit there for ever. Failure is
+ * swallowed on purpose: a badge that stays up one refresh longer is not
+ * worth an error in front of someone trying to read a timetable.
+ */
+export async function markNoticeRead(noticeId: string): Promise<void> {
+  const { error } = await supabase.rpc("mark_notice_read", {
+    p_notice_id: noticeId,
+  });
+  if (error) console.error("[notices] mark read failed", error);
+}
+
 export async function fetchCategories(): Promise<NoticeCategory[]> {
   const { data, error } = await supabase
     .from("notice_categories")

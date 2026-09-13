@@ -14,6 +14,18 @@ export interface NotificationCounts {
   attendance: number;
   /** Unread messages from the other side of a mentoring pair. */
   mentoring: number;
+  /**
+   * Notices this person has not opened yet.
+   *
+   * The odd one out, deliberately. Every other count here is outstanding
+   * work and clears when the work is done — but there is nothing a student
+   * does to a timetable, so "unfinished notices" is not a thing that exists.
+   * What exists is whether they have seen it, so this one is derived from
+   * unread notice notifications and clears when they open it. For a
+   * publisher it counts their own unfinished drafts instead, which is the
+   * equivalent signal on a screen built for writing rather than reading.
+   */
+  notices: number;
 }
 
 const NONE: NotificationCounts = {
@@ -23,6 +35,7 @@ const NONE: NotificationCounts = {
   enrolment: 0,
   attendance: 0,
   mentoring: 0,
+  notices: 0,
 };
 
 /**
@@ -109,6 +122,7 @@ export function withBadges(
     // person sent that I have not read.
     if (href.endsWith("/mentees") || href.endsWith("/mentor"))
       return counts.mentoring;
+    if (href.endsWith("/notices")) return counts.notices;
     return 0;
   };
 
