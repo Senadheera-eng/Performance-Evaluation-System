@@ -16,9 +16,45 @@ import { RouteFallback } from "./components/layout/RouteFallback";
  * sees, and deferring it would only add a spinner in front of the first
  * paint. Everything else arrives when someone navigates to it.
  */
+/**
+ * A tab that was open across a deploy is holding a map to files that no
+ * longer exist.
+ *
+ * Every page here is a separate hashed chunk, and a deploy replaces the lot.
+ * A browser that loaded index.html an hour ago still asks for the old names;
+ * the host answers a 404 with index.html, the browser is handed HTML where it
+ * expected JavaScript, and React Router shows "Failed to fetch dynamically
+ * imported module" — which looks like a broken feature and is really just a
+ * stale tab. It happens on any route, and it happened on Notices only because
+ * that was the new one being clicked.
+ *
+ * So a chunk that fails to load reloads the page once, which fetches the
+ * current index.html and with it the current asset names. Once, because a
+ * genuine failure — the file is really missing, the network is really down —
+ * must be allowed to surface rather than spin. The flag lives in
+ * sessionStorage so the one retry is per tab, and is cleared as soon as any
+ * chunk loads successfully.
+ */
+const RELOAD_FLAG = "pes.chunk-reloaded";
+
 const page = <T extends ComponentType<unknown>>(
   load: () => Promise<{ default: T }>,
-) => lazy(load);
+) =>
+  lazy(() =>
+    load()
+      .then((mod) => {
+        sessionStorage.removeItem(RELOAD_FLAG);
+        return mod;
+      })
+      .catch((error: unknown) => {
+        if (sessionStorage.getItem(RELOAD_FLAG)) throw error;
+        sessionStorage.setItem(RELOAD_FLAG, "1");
+        window.location.reload();
+        /* Never settles: the reload takes the page away before React could
+           render anything from it, and resolving would flash an error first. */
+        return new Promise<{ default: T }>(() => {});
+      }),
+  );
 
 /* Student */
 const Dashboard = page(() => import("./pages/Dashboard"));

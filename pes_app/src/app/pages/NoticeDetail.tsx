@@ -18,9 +18,11 @@ import {
   StatusBadge,
 } from "../components/common";
 import { categoryIcon, noticeAge } from "../components/notices/NoticeCard";
+import { notifyCountsChanged } from "../hooks/useNotificationCounts";
 import {
   describeScope,
   fetchNotice,
+  markNoticeRead,
   formatBytes,
   noticeFileDownloadUrl,
   noticeFileUrl,
@@ -45,9 +47,16 @@ export default function NoticeDetail() {
   useEffect(() => {
     if (!noticeId) return;
     setLoading(true);
-    fetchNotice(noticeId).then((n) => {
+    fetchNotice(noticeId).then(async (n) => {
       setNotice(n);
       setLoading(false);
+      /* Reading it is what clears the sidebar count, and only if there was
+         something to read — marking a notice they were never told about
+         would make the badge lie in the other direction. */
+      if (n) {
+        await markNoticeRead(n.id);
+        notifyCountsChanged();
+      }
     });
   }, [noticeId]);
 
