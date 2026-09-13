@@ -141,10 +141,15 @@ export default function NoticeDetail() {
             <Field label="Academic year">{notice.academic_year ?? "—"}</Field>
           </dl>
 
+          {/* What the publisher actually wrote. Line breaks are preserved
+              because people write dates and steps one per line, and
+              collapsing them turns a schedule into a paragraph. */}
           {notice.body && (
-            <p className="whitespace-pre-wrap text-sm text-foreground">
-              {notice.body}
-            </p>
+            <div className="border-t border-border/60 pt-3">
+              <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-foreground">
+                {notice.body}
+              </p>
+            </div>
           )}
 
           {notice.expires_at && (
