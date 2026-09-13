@@ -679,8 +679,13 @@ function NoticeForm({
               multiple
               className="hidden"
               onChange={(e) => {
-                setQueued((prev) => [...prev, ...Array.from(e.target.files ?? [])]);
+                /* Read the files out before clearing the input, and hand the
+                   array to setState rather than reading e.target inside the
+                   updater: React runs that later, by which point value = ""
+                   has already emptied the FileList and nothing was added. */
+                const picked = Array.from(e.target.files ?? []);
                 e.target.value = "";
+                setQueued((prev) => [...prev, ...picked]);
               }}
             />
           </div>
