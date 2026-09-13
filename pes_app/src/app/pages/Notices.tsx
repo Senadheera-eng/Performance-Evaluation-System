@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   fetchCategories,
   fetchNotices,
+  fetchUnreadNoticeCounts,
   type NoticeCategory,
   type NoticeSummary,
 } from "../../lib/notices";
@@ -49,6 +50,9 @@ export default function Notices() {
 
   const [categories, setCategories] = useState<NoticeCategory[]>([]);
   const [items, setItems] = useState<NoticeSummary[]>([]);
+  const [unreadByCategory, setUnreadByCategory] = useState<
+    Record<string, number>
+  >({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -82,6 +86,12 @@ export default function Notices() {
   useEffect(() => {
     fetchCategories().then(setCategories);
   }, []);
+
+  /* Reloaded whenever the list is, so coming back from a notice the student
+     has just read shows the chip's count already down by one. */
+  useEffect(() => {
+    fetchUnreadNoticeCounts().then(setUnreadByCategory);
+  }, [scope, category, searchTerm, semester, academicYear, includeExpired]);
 
   /* Debounced so typing does not fire a query per keystroke. */
   useEffect(() => {
@@ -192,11 +202,17 @@ export default function Notices() {
           {categories.slice(0, 10).map((c) => {
             const Icon = categoryIcon(c.icon);
             const active = category === c.slug;
+            const unread = unreadByCategory[c.slug] ?? 0;
             return (
               <button
                 key={c.slug}
                 type="button"
                 aria-pressed={active}
+                aria-label={
+                  unread > 0
+                    ? `${c.label}, ${unread} unread`
+                    : c.label
+                }
                 onClick={() => setParam({ category: active ? null : c.slug })}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
                   active
@@ -205,7 +221,17 @@ export default function Notices() {
                 }`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">{c.label}</span>
+                <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                {/* Says which category the sidebar's number is actually in.
+                    Absent rather than zero, so a quiet category stays quiet. */}
+                {unread > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="ml-auto flex h-5 min-w-[1.25rem] flex-shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+                  >
+                    {unread > 99 ? "99+" : unread}
+                  </span>
+                )}
               </button>
             );
           })}

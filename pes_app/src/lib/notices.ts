@@ -141,6 +141,28 @@ export async function markNoticeRead(noticeId: string): Promise<void> {
   if (error) console.error("[notices] mark read failed", error);
 }
 
+/**
+ * How many unread notices sit in each category.
+ *
+ * The same unread notifications the sidebar badge counts, grouped by the
+ * category of the notice they point at — so the chips always add up to the
+ * number beside Notices, rather than being a second tally that could drift.
+ */
+export async function fetchUnreadNoticeCounts(): Promise<
+  Record<string, number>
+> {
+  const { data, error } = await supabase.rpc("get_my_unread_notice_counts");
+  if (error) {
+    console.error("[notices] unread counts failed", error);
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const row of (data ?? []) as { category: string; unread: number }[]) {
+    out[row.category] = row.unread;
+  }
+  return out;
+}
+
 export async function fetchCategories(): Promise<NoticeCategory[]> {
   const { data, error } = await supabase
     .from("notice_categories")
