@@ -11,6 +11,7 @@ import {
 import { StatCard } from "../components/dashboard/StatCard";
 import { CourseCard } from "../components/dashboard/CourseCard";
 import { InsightsPanel } from "../components/dashboard/InsightsPanel";
+import { LatestNotices } from "../components/dashboard/LatestNotices";
 import {
   Card,
   CardContent,
@@ -345,6 +346,8 @@ export default function Dashboard() {
           here in the browser; the rules now live in get_my_insights() so the
           AI assistant reads exactly the same ones. */}
       <InsightsPanel />
+
+      <LatestNotices />
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">

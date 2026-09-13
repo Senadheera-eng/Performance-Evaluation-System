@@ -12,6 +12,7 @@ import {
   Target,
   MessageSquareText,
   UserRound,
+  Megaphone,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -27,6 +28,7 @@ const navigation: ShellNavItem[] = [
   { name: "Attendance", href: "/app/attendance", icon: Calendar },
   { name: "Medical Certificates", href: "/app/medical", icon: FileHeart },
   { name: "Results", href: "/app/results", icon: TrendingUp },
+  { name: "Notices", href: "/app/notices", icon: Megaphone },
   { name: "Enrollment", href: "/app/enrollment", icon: GraduationCap },
   { name: "Feedback", href: "/app/feedback", icon: MessageSquareText },
   { name: "Mentor", href: "/app/mentor", icon: UserRound },

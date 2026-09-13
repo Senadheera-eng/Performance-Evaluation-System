@@ -12,6 +12,7 @@ import {
   UserRoundCog,
   UserSquare,
   Presentation,
+  Megaphone,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -41,6 +42,9 @@ export default function StaffLayout() {
     { name: "Attendance", href: "/staff/attendance", icon: Calendar },
     { name: "Results", href: "/staff/results", icon: TrendingUp },
     { name: "Feedback", href: "/staff/feedback", icon: MessageSquareText },
+    // Every lecturer publishes for the courses they teach; the wider
+    // scopes are refused by the database, not hidden here.
+    { name: "Notices", href: "/staff/notices", icon: Megaphone },
     // Mentoring belongs to every lecturer, not only the head — a lecturer
     // with no mentees sees an empty page rather than a missing one.
     { name: "My Mentees", href: "/staff/mentees", icon: HeartHandshake },
