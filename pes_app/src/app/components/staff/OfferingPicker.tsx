@@ -11,6 +11,9 @@ export interface PickableOffering {
   /** Optional: when false the option is marked view-only (HOD on a course
    *  they do not teach). */
   canEdit?: boolean;
+  /** Optional: the batch is in this course's semester now. Such courses
+   *  are offered first, so the picker opens on what is being taught. */
+  is_current?: boolean;
 }
 
 /**
@@ -76,6 +79,7 @@ export function OfferingPicker({
         .sort(
           (a, b) =>
             Number(b.canEdit ?? true) - Number(a.canEdit ?? true) ||
+            Number(b.is_current ?? false) - Number(a.is_current ?? false) ||
             a.semester - b.semester ||
             a.course_code.localeCompare(b.course_code),
         ),
@@ -98,6 +102,7 @@ export function OfferingPicker({
       .sort(
         (a, b) =>
           Number(b.canEdit ?? true) - Number(a.canEdit ?? true) ||
+          Number(b.is_current ?? false) - Number(a.is_current ?? false) ||
           a.semester - b.semester ||
           a.course_code.localeCompare(b.course_code),
       )[0];
