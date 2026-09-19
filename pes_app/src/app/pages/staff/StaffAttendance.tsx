@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Calendar,
@@ -35,6 +35,11 @@ import {
 } from "../../../lib/attendanceMath";
 import { TIER_TONE } from "../../components/attendance/AttendanceOverview";
 import {
+  localDateISO,
+  OWN_WRITE_ECHO_MS,
+  useAttendanceLive,
+} from "../../../lib/attendanceRegister";
+import {
   getMyTeaching,
   getOfferingAttendance,
   getOfferingRoster,
@@ -55,7 +60,9 @@ interface Row {
   counts: AttendanceCounts;
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
+/* The lecturer's own calendar day. toISOString() is the UTC date, which in
+   Sri Lanka is still yesterday until 5:30 in the morning. */
+const today = () => localDateISO();
 
 export default function StaffAttendance() {
   const { student, staff } = useAuth();
@@ -188,9 +195,27 @@ export default function StaffAttendance() {
     setDirty(true);
   };
 
+  /* The office corrects registers too, and a register closing writes marks
+     while this page is open. Pull those in as they happen — unless the
+     lecturer is part-way through marking, when a reload would throw their
+     work away; then say so and let them choose. */
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  /* This page's own save comes back as change events too, and one can land
+     before the sheet has reloaded — it must not be mistaken for someone
+     else's edit. */
+  const ownWriteAt = useRef(0);
+  useAttendanceLive(selected?.offering_id ?? null, () => {
+    if (!selected) return;
+    if (saving || Date.now() - ownWriteAt.current < OWN_WRITE_ECHO_MS) return;
+    if (dirty) setChangedElsewhere(true);
+    else loadSheet(selected.offering_id, date);
+  });
+  useEffect(() => setChangedElsewhere(false), [selectedId, date]);
+
   const handleSave = async () => {
     if (!selected) return;
     const marked = rows.filter((r) => r.status !== null);
+    ownWriteAt.current = Date.now();
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -203,6 +228,7 @@ export default function StaffAttendance() {
       student?.id ?? "",
     );
 
+    ownWriteAt.current = Date.now();
     setSaving(false);
     if (!result.ok) {
       setError(result.error);
@@ -253,6 +279,25 @@ export default function StaffAttendance() {
       />
 
       {error && <ErrorState message={error} size="inline" />}
+      {changedElsewhere && selected && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <span className="flex-1">
+            Someone else just changed attendance for this course. Reload to see
+            it — your unsaved marks will be lost.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setChangedElsewhere(false);
+              loadSheet(selected.offering_id, date);
+            }}
+          >
+            Reload
+          </Button>
+        </div>
+      )}
       {notice && (
         <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
           {notice}
