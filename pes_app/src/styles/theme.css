@@ -1,0 +1,541 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* Brand Colors - Inspired by University Logo */
+  --brand-red: #C41E3A;
+  --brand-red-dark: #8B1538;
+  --brand-gold: #FDB913;
+  --brand-gold-light: #FFD700;
+  
+  /* Primary Palette */
+  --primary-50: #FFF5F5;
+  --primary-100: #FFE1E6;
+  --primary-200: #FFC7D1;
+  --primary-300: #FF9DB0;
+  --primary-400: #FF6B8A;
+  --primary-500: #F43F5E;
+  --primary-600: #E11D48;
+  --primary-700: #BE123C;
+  --primary-800: #9F1239;
+  --primary-900: #881337;
+  
+  /* Accent Palette */
+  --accent-50: #FFFBEB;
+  --accent-100: #FEF3C7;
+  --accent-200: #FDE68A;
+  --accent-300: #FCD34D;
+  --accent-400: #FBBF24;
+  --accent-500: #F59E0B;
+  --accent-600: #D97706;
+  --accent-700: #B45309;
+  --accent-800: #92400E;
+  --accent-900: #78350F;
+  
+  /* Secondary Palette - Purple/Indigo for variety */
+  --secondary-50: #F5F3FF;
+  --secondary-100: #EDE9FE;
+  --secondary-200: #DDD6FE;
+  --secondary-300: #C4B5FD;
+  --secondary-400: #A78BFA;
+  --secondary-500: #8B5CF6;
+  --secondary-600: #7C3AED;
+  --secondary-700: #6D28D9;
+  --secondary-800: #5B21B6;
+  --secondary-900: #4C1D95;
+  
+  /* Success */
+  --success-50: #ECFDF5;
+  --success-100: #D1FAE5;
+  --success-500: #10B981;
+  --success-600: #059669;
+  --success-700: #047857;
+  
+  /* Warning */
+  --warning-50: #FFFBEB;
+  --warning-100: #FEF3C7;
+  --warning-500: #F59E0B;
+  --warning-600: #D97706;
+  
+  /* Danger */
+  --danger-50: #FEF2F2;
+  --danger-100: #FEE2E2;
+  --danger-500: #EF4444;
+  --danger-600: #DC2626;
+  
+  /* Info */
+  --info-50: #EFF6FF;
+  --info-100: #DBEAFE;
+  --info-500: #3B82F6;
+  --info-600: #2563EB;
+  
+  /* Neutral Palette */
+  --neutral-50: #F9FAFB;
+  --neutral-100: #F3F4F6;
+  --neutral-200: #E5E7EB;
+  --neutral-300: #D1D5DB;
+  --neutral-400: #9CA3AF;
+  --neutral-500: #6B7280;
+  --neutral-600: #4B5563;
+  --neutral-700: #374151;
+  --neutral-800: #1F2937;
+  --neutral-900: #111827;
+  
+  /* Main Theme Variables */
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #C41E3A;
+  --primary-foreground: #FFFFFF;
+  /* Academic navy, not purple — carries structural UI so crimson stays
+     reserved for actions and genuinely critical state. */
+  --secondary: #1E293B;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F3F4F6;
+  --muted-foreground: #5B6472;
+  --accent: #FDB913;
+  --accent-foreground: #78350F;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: transparent;
+  --input-background: #F9FAFB;
+  --switch-background: #D1D5DB;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-normal: 400;
+  --ring: #C41E3A;
+  --chart-1: #C41E3A;
+  --chart-2: #1E293B;
+  --chart-3: #FDB913;
+  --chart-4: #10B981;
+  --chart-5: #3B82F6;
+  --radius: 1rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #C41E3A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F9FAFB;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #C41E3A;
+
+  /**
+   * Semantic status tokens.
+   *
+   * Components previously hardcoded Tailwind literals like
+   * `bg-green-50 text-green-600`, which have no dark-mode counterpart — the
+   * single largest source of unreadable dark UI. Every status surface now
+   * resolves through these, so both themes are designed rather than inverted.
+   */
+  --status-success-bg: #ECFDF5;
+  --status-success-fg: #047857;
+  --status-success-border: #A7F3D0;
+  --status-warning-bg: #FFFBEB;
+  --status-warning-fg: #B45309;
+  --status-warning-border: #FDE68A;
+  --status-danger-bg: #FEF2F2;
+  --status-danger-fg: #B91C1C;
+  --status-danger-border: #FECACA;
+  --status-info-bg: #EFF6FF;
+  --status-info-fg: #1D4ED8;
+  --status-info-border: #BFDBFE;
+  --status-neutral-bg: #F3F4F6;
+  --status-neutral-fg: #4B5563;
+  --status-neutral-border: #E5E7EB;
+
+  /* Elevation — subtle borders carry structure; shadow marks interactivity. */
+  --elevation-none: none;
+  --elevation-sm: 0 1px 2px 0 rgb(16 24 40 / 0.04);
+  --elevation-md: 0 2px 8px -2px rgb(16 24 40 / 0.08), 0 1px 3px -1px rgb(16 24 40 / 0.04);
+  --elevation-lg: 0 12px 28px -8px rgb(16 24 40 / 0.14), 0 4px 10px -4px rgb(16 24 40 / 0.06);
+
+  /* Motion — referenced by components so reduced-motion can zero them out. */
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 400ms;
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark {
+  --background: #0F1419;
+  --foreground: #F9FAFB;
+  --card: #1A1F2E;
+  --card-foreground: #F9FAFB;
+  --popover: #1A1F2E;
+  --popover-foreground: #F9FAFB;
+  /* Crimson lifted just enough for contrast on #0F1419 without going neon. */
+  --primary: #E8455F;
+  --primary-foreground: #FFFFFF;
+  --secondary: #94A3B8;
+  --secondary-foreground: #0F1419;
+  --muted: #1F2937;
+  --muted-foreground: #9CA8B8;
+  --accent: #FBBF24;
+  --accent-foreground: #78350F;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #374151;
+  --input: #1F2937;
+  --ring: #E8455F;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-normal: 400;
+  --chart-1: #E8455F;
+  --chart-2: #7DD3FC;
+  --chart-3: #FBBF24;
+  --chart-4: #10B981;
+  --chart-5: #3B82F6;
+  --sidebar: #1A1F2E;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #E8455F;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #374151;
+  --sidebar-ring: #E8455F;
+
+  /**
+   * Dark status surfaces: low-saturation tinted backgrounds with light
+   * foregrounds, rather than the light theme's pale fills which turn to mud
+   * on a dark card. Contrast on --card (#1A1F2E) clears WCAG AA for text.
+   */
+  --status-success-bg: rgb(16 185 129 / 0.14);
+  --status-success-fg: #6EE7B7;
+  --status-success-border: rgb(16 185 129 / 0.30);
+  --status-warning-bg: rgb(245 158 11 / 0.14);
+  --status-warning-fg: #FCD34D;
+  --status-warning-border: rgb(245 158 11 / 0.30);
+  --status-danger-bg: rgb(239 68 68 / 0.14);
+  --status-danger-fg: #FCA5A5;
+  --status-danger-border: rgb(239 68 68 / 0.30);
+  --status-info-bg: rgb(59 130 246 / 0.14);
+  --status-info-fg: #93C5FD;
+  --status-info-border: rgb(59 130 246 / 0.30);
+  --status-neutral-bg: rgb(148 163 184 / 0.12);
+  --status-neutral-fg: #CBD5E1;
+  --status-neutral-border: rgb(148 163 184 / 0.24);
+
+  /* Shadows read as darker, not lighter, against a dark surface. */
+  --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
+  --elevation-md: 0 2px 8px -2px rgb(0 0 0 / 0.45), 0 1px 3px -1px rgb(0 0 0 / 0.30);
+  --elevation-lg: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 4px 10px -4px rgb(0 0 0 / 0.35);
+}
+
+.light {
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #C41E3A;
+  --primary-foreground: #FFFFFF;
+  /* Academic navy, not purple — carries structural UI so crimson stays
+     reserved for actions and genuinely critical state. */
+  --secondary: #1E293B;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F3F4F6;
+  --muted-foreground: #5B6472;
+  --accent: #FDB913;
+  --accent-foreground: #78350F;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: transparent;
+  --ring: #C41E3A;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-normal: 400;
+  --chart-1: #C41E3A;
+  --chart-2: #1E293B;
+  --chart-3: #FDB913;
+  --chart-4: #10B981;
+  --chart-5: #3B82F6;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #C41E3A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F9FAFB;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #C41E3A;
+}
+
+/**
+ * Compact desktop design system.
+ *
+ * Tailwind v4 derives every spacing utility (p-*, m-*, gap-*, w-*, h-*, etc.)
+ * from --spacing, and every text-* utility from these --text-* tokens. Tuning
+ * them here — instead of hunting down text-3xl/p-6/gap-6 in every page —
+ * is what keeps the whole app's density consistent and reusable: one change
+ * here reaches every page, current and future, automatically.
+ *
+ * --spacing is cut ~12% (0.25rem -> 0.22rem) so paddings, gaps, icon sizes,
+ * and the sidebar width all tighten uniformly. The type scale keeps small
+ * body/label text (xs/sm) untouched for readability, and concentrates the
+ * reduction on the oversized display/heading tiers (lg through 5xl) that
+ * were the actual complaint.
+ */
+@theme {
+  --spacing: 0.22rem;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.4;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.45;
+  --text-lg: 1.0625rem;
+  --text-lg--line-height: 1.4;
+  --text-xl: 1.1875rem;
+  --text-xl--line-height: 1.4;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.3;
+  --text-3xl: 1.625rem;
+  --text-3xl--line-height: 1.25;
+  --text-4xl: 1.875rem;
+  --text-4xl--line-height: 1.2;
+  --text-5xl: 2.25rem;
+  --text-5xl--line-height: 1.15;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Brand colors */
+  --color-brand-red: var(--brand-red);
+  --color-brand-red-dark: var(--brand-red-dark);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-light: var(--brand-gold-light);
+  
+  /* Success colors */
+  --color-success: var(--success-500);
+  --color-success-light: var(--success-50);
+  
+  /* Warning colors */
+  --color-warning: var(--warning-500);
+  --color-warning-light: var(--warning-50);
+  
+  /* Danger colors */
+  --color-danger: var(--danger-500);
+  --color-danger-light: var(--danger-50);
+  
+  /* Info colors */
+  --color-info: var(--info-500);
+  --color-info-light: var(--info-50);
+
+  /* Semantic status surfaces (theme-aware in both light and dark) */
+  --color-success-bg: var(--status-success-bg);
+  --color-success-fg: var(--status-success-fg);
+  --color-success-border: var(--status-success-border);
+  --color-warning-bg: var(--status-warning-bg);
+  --color-warning-fg: var(--status-warning-fg);
+  --color-warning-border: var(--status-warning-border);
+  --color-danger-bg: var(--status-danger-bg);
+  --color-danger-fg: var(--status-danger-fg);
+  --color-danger-border: var(--status-danger-border);
+  --color-info-bg: var(--status-info-bg);
+  --color-info-fg: var(--status-info-fg);
+  --color-info-border: var(--status-info-border);
+  --color-neutral-bg: var(--status-neutral-bg);
+  --color-neutral-fg: var(--status-neutral-fg);
+  --color-neutral-border: var(--status-neutral-border);
+
+  /* Elevation */
+  --shadow-elevation-sm: var(--elevation-sm);
+  --shadow-elevation-md: var(--elevation-md);
+  --shadow-elevation-lg: var(--elevation-lg);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /**
+   * Reduced motion.
+   *
+   * Zeroing the motion tokens covers CSS transitions, and framer-motion is
+   * additionally gated per-component via the useReducedMotion hook, since
+   * JS-driven animation ignores these variables.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --motion-fast: 0ms;
+      --motion-base: 0ms;
+      --motion-slow: 0ms;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Keyboard focus must stay visible everywhere, including on dark cards. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
+
+/* Custom Utility Classes */
+@layer utilities {
+  /* Scrollable tab bars (PillTabs, SegmentedTabs) still scroll — the
+     scrollbar itself is just visually hidden, matching the pill-bar look. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  }
+  
+  .gradient-accent {
+    background: linear-gradient(135deg, var(--accent-500) 0%, var(--accent-600) 100%);
+  }
+  
+  .gradient-secondary {
+    background: linear-gradient(135deg, var(--secondary-500) 0%, var(--secondary-700) 100%);
+  }
+  
+  .gradient-hero {
+    background: linear-gradient(135deg, #C41E3A 0%, #8B1538 50%, #6D28D9 100%);
+  }
+  
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .text-gradient {
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--secondary-600) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(196, 30, 58, 0.3);
+  }
+  
+  .shadow-glow-accent {
+    box-shadow: 0 0 20px rgba(253, 185, 19, 0.3);
+  }
+}

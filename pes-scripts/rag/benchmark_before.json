@@ -1,0 +1,236 @@
+[
+ {
+  "q": "What courses do I need for the Data Management minor?",
+  "expect": "minor",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How do I get a minor in my degree?",
+  "expect": "minor",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What happens if I fail a course?",
+  "expect": "repeat",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "Can I re-sit an exam I failed?",
+  "expect": "re-sit",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What is the highest grade I can get on a re-sit?",
+  "expect": "re-sit",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How is GPA calculated?",
+  "expect": "grade point average",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 1,
+   "hit": true
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What CGPA do I need for First Class honours?",
+  "expect": "honours",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How many credits do I need to graduate?",
+  "expect": "award of the degree",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What is the Dean's List?",
+  "expect": "dean",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 1,
+   "hit": true
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How long do I have to finish my degree?",
+  "expect": "award of the degree",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What is industrial training and how many credits is it?",
+  "expect": "industrial training",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What is continuous assessment?",
+  "expect": "continuous assessment",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 1,
+   "hit": true
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How is the overall assessment mark worked out?",
+  "expect": "overall assessment",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What do I need to be allowed to sit the end of semester exam?",
+  "expect": "end of semester",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "Can I get an academic concession for medical reasons?",
+  "expect": "concession",
+  "vector": {
+   "n": 2,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What are the progression requirements between years?",
+  "expect": "progression",
+  "vector": {
+   "n": 3,
+   "hit": false
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "How many credits is one course worth?",
+  "expect": "credit",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ },
+ {
+  "q": "What fields of specialization can I choose?",
+  "expect": "specializ",
+  "vector": {
+   "n": 3,
+   "hit": true
+  },
+  "text": {
+   "n": 0,
+   "hit": false
+  },
+  "hybrid": null
+ }
+]

@@ -1,0 +1,7 @@
+# Edge function sources keep LF endings on every platform.
+#
+# The deploy path sends this file's contents inline, so a working tree with
+# CRLF ships a prompt that differs from the file byte-for-byte even when the
+# transcription is perfect — which made the deployed-vs-repo hash check
+# report a mismatch that was only line endings.
+* text eol=lf

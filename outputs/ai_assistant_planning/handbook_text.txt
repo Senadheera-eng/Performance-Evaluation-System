@@ -1,0 +1,2492 @@
+--- PAGE 1 ---
+FACULTY OF ENGINEERING
+FACULTY OF ENGINEERING
+UNIVERSITY OF SRI JAYEWARDENEPURA
+UNIVERSITY OF SRI JAYEWARDENEPURA
+S T U D E N T G U I D E
+S T U D E N T G U I D E
+2024
+2026
+
+--- PAGE 2 ---
+TABLE OF CONTENT
+Vice Chancellor's Message 02
+Dean's Message 04
+University of Sri Jayewardenepura 06
+Faculty of Engineering 09
+Study Programme 15
+Departments and the Curriculum 26
+Department of Civil Engineering 30
+Department of Computer Engineering 39
+Department of Electrical and Electronic Engineering 49
+Department of Mechanical Engineering 59
+Department of Interdisciplinary Studies 68
+Office of the Dean 71
+General Information and Facilities 72
+University Student Council, Faculty Union and Societies 77
+Student Life 89
+Contact Information 90
+
+--- PAGE 3 ---
+01
+PROSPER LIVES THROUGH EDUCATION
+Department of Civil Engineering 30
+Department of Computer Engineering
+39
+Department of Electrical and Electronic Engineering 49
+Department of Mechanical Engineering 59
+Department of Interdisciplinary Studies 68
+
+--- PAGE 4 ---
+02
+MESSAGE FROM THE
+VICE-CHANCELLOR
+Prof. Pathmalal M. Manage
+I am delighted to extend my warmest welcome to the newly enrolled students
+of the Faculty of Engineering, one of the most prestigious faculties in our
+university.
+Since its establishment in 2016, the Faculty of Engineering has constantly
+shown a dedication to achieving high standards, resulting in a reputation for
+creating highly skilled engineers who make major contributions to society. The
+university takes pride in the exceptional accomplishments and commitment
+demonstrated by both the faculty and its students in maintaining the
+university’s academic standards.
+The Faculty of Engineering is indeed endowed with exceptional resources,
+encompassing dedicated staff, modern lab facilities, and a well-equipped
+library, among other valuable
+assets. The Faculty of Engineering takes pride in the presence of highly
+qualified academic and non-academic staff who relentlessly work towards
+achieving the university’s major goals. Their efforts extend to providing
+students with a supportive learning environment, ensuring quality education,
+and addressing individual needs.
+
+--- PAGE 5 ---
+03
+As the Vice-Chancellor of the University of Sri Jayewardenepura, I make a
+passionate welcome to all undergraduate students enrolled in 2024. I strongly
+encourage you to take full advantage of the resources of the Faculty of
+Engineering, allowing them to accelerate your study and skill development to
+new heights. By doing so, you not only advance your development but also
+bring honor and distinction to our prestigious university.
+I wish you all the best of luck in your academic activities at the University of Sri
+Jayewardenepura. I hope that each student will grow into a world-class
+engineering professional. Your dedication to academic achievement and skill
+development will undoubtedly benefit the prosperity and advancement of our
+university and our nation.
+I wish you all a successful academic year.
+Senior Professor M. M. Pathmalal
+Vice – Chancellor
+University of Sri Jayewardenepura
+
+--- PAGE 6 ---
+04
+MESSAGE FROM THE
+DEAN
+Dr. Nishan Dharmaweera
+I am delighted to extend a warm welcome to all of you as you embark on your
+journey in the Faculty of Engineering at the University of Sri Jayewardenepura.
+It gives us great pleasure to inform you that our faculty, which was established
+in January 2016 as the most recent addition to
+the engineering faculties of state-owned universities in Sri Lanka, has
+effectively produced three batches of graduates who are exceptionally
+competent and high-quality engineers.
+Our primary goal at the university is to produce engineers who are
+knowledgeable, confident, and innovative, making meaningful contributions
+to society. The Faculty of Engineering has been recognized not only locally but
+also internationally for its exceptional curriculum.
+I am proud to lead a faculty that encompasses five distinguished departments:
+civil engineering, computer engineering, electrical and electronics
+engineering, mechanical engineering, and Interdisciplinary studies. The
+steadfast assistance and direction offered by these departments are crucial in
+influencing the bright prospects of our students and upholding the integrity of
+our educational framework. Our professional academic staff is committed to
+guiding you through your academic path, not just strengthening your
+technical skills but also cultivating your academic and personal integrity.
+
+--- PAGE 7 ---
+05
+We hope you can succeed in our innovative and approachable teaching and
+learning environment, which offers a variety of educational facilities,
+extracurricular activities, and culturally entrenched values.
+As Dean of the Faculty of Engineering, I wish each of you a rewarding and
+meaningful experience. we hope you will contribute significantly to our
+talented student body. On behalf of the academic, academic support, and non-
+academic personnel, I wish you a successful and fulfilling tenure at our Faculty.
+We are excited to guide and support you in attaining your goals.
+May your time here be filled with growth, knowledge gain, and skill
+development, paving the path for a great and successful future.
+Dr. Nishan Dharmaweera
+Dean of the Faculty of Engineering
+University of Sri Jayewardenepura
+
+--- PAGE 8 ---
+06
+UNIVERSITY OF
+SRI JAYEWARDENEPURA
+History
+The University of Sri Jayewardenepura is one of the oldest Universities in Sri
+Lanka. The origin of the University of Sri Jayewardenepura dates back to 1873,
+when Ven. Hikkaduwe Sri Sumangala Nayaka Thero laid the foundation stone
+for the Vidyodaya (meaning “awakening of knowledge”) Pirivena. Vidyodaya
+Pirivena was granted University status in 1959, and the name was changed to
+‘Vidyodaya University of Ceylon’. In 1961, the University was relocated from
+Maligakanda to a beautiful setting at Gangodawila, Nugegoda, in the outskirts
+of Colombo. Later, in 1978, the name of this higher educational institution was
+changed to ‘University of Sri Jayewardenepura’ and was granted an
+autonomous University status.
+
+--- PAGE 9 ---
+07
+University Today
+The University of Sri Jayewardenepura derives its authority from the Universities
+Act No. 16 of 1978 as amended. As one of the Universities established under the
+University Grants Commission, the University is empowered to confer degrees
+on persons who have duly registered to follow a programme of study and have
+satisfactorily completed all the requirements in conformity with the By-laws of
+the University as applicable to the Faculty of Engineering.
+Vice Chancellor is the Chief Executive and Principal Academic Officer of the
+University while the Deans of Faculties, Registrar, Librarian and the Bursar are
+recognized as Officers of the University. The Council, Senate and Faculty Board
+of each Faculty are recognized as authorities of the University. Council is the
+governing authority of the University whereas the Senate is the highest
+academic body. Faculty Boards are responsible for conducting study
+programmes under the directions of the Senate.
+The University of Sri Jayewardenepura consists of eleven Faculties, namely;
+Faculty of Humanities and Social Sciences, Faculty of Applied Sciences, Faculty
+of Management Studies and Commerce, Faculty of Medical Sciences, Faculty of
+Graduate Studies, Faculty of Technology, Faculty of Engineering, Faculty of
+Allied Health Sciences, Faculty of Dental Sciences, Faculty of Computing and
+Faculty of Aquatic Bio-resources. The University commits itself for the pursuit
+and transmission of knowledge through teaching, scholarship, and research. It
+aims to serve the community through producing well-rounded graduates with
+creativity, freedom of intellectual thought and expression, and professional
+growth through nourishing an environment of equal opportunity and fairness.
+In addition, University of Sri Jayewardenepura plays an active role in conducting
+research in areas of national relevance such as Dengue, Cancer, Kidney and
+Water quality.
+All these activities are accomplished with the dedication of academic members
+and the support extended by the administrative divisions such as academic
+and non-academic establishment, general administration, finance,
+examinations, and student welfare.
+
+--- PAGE 10 ---
+08
+
+--- PAGE 11 ---
+09
+FACULTY OF ENGINEERING
+The Faculty of Engineering, University of Sri Jayewardenepura, is the latest
+addition to the faculties of engineering in the state universities coming under
+the purview of the university grants commission. Established in January 2016, it
+consists of five departments of study with a mandate to offer study
+programmes in engineering, and in particular an undergraduate study
+programme in engineering leading to the award of the degree of the ‘Bachelor
+of the Science of Engineering’.
+The government in its budget speeches of 2014 and 2015, made provisions to
+establish a faculty of engineering and technology in the university of Sri
+Jayewardenepura. This is in-line with the national requirement for professionals
+to drive the country towards a knowledge-based economy. Following the
+government initiative, the then vice chancellor of the university, senior
+professor Sampath Amaratunge appointed an advisory board consisting of
+renowned personalities to proceed with modalities in establishing the new
+faculty. This advisory board comprised of professors, D.A.Tantrigoda,
+M.M.Karunanayake, A.M.Abeysekara, K.Deheragoda, P.B.Mandawala and the
+Emeritus professor N.R.Arthenayake who was a former vice chancellor of the
+open university of Sri Lanka (OUSL) ,former dean of the faculty of engineering
+technology of the OUSL and a senior professor in mechanical engineering was
+appointed as the lead consultant to shoulder the task of establishing the faculty
+of engineering and technology.
+
+--- PAGE 12 ---
+10
+After extensive deliberations with regard to the differences in Technology and
+Engineering streams as well as the difference in the admission criteria
+applicable to respective study programmes together with prevailing
+practicalities, then Vice Chancellor proposed to establish two new Faculties,
+namely, Faculty of Engineering and Faculty of Technology. This decision was
+approved by the Senate and the Council of the University. Four Senior
+Lecturers, namely Dr.S.A.A.M. Subasinghe, Dr.C.de Alwis, Dr. M. Mohomed, and
+Dr. K.M.C. Konthesingha, were recruited to the proposed Faculty of
+Engineering to be engaged in the task of developing an Engineering Degree
+Programme, under the guidance of Professor Arthenayake.
+A Consultative Committee in Engineering (CCE) consisting of eminent
+academics in Engineering Education in the country, together with the
+representation of the Institution of Engineers, Sri Lanka (IESL) were appointed
+to spearhead the development of the Engineering Degree Programme.
+Leading industrialists in the country were consulted to incorporate their inputs
+to the curriculum development process and the delivery of the Degree
+programme. This paved the path for the new Faculty of Engineering to build
+enduring relationships with the industry.
+Together with the inputs from the CCE and the Industry, a proposal was
+formulated to be formally submitted to the University Grants Commission. The
+University Grants Commission approved the proposal to establish a new
+Faculty of Engineering at the University of Sri Jayewardenepura in December
+2015. The new Faculty along with its Departments of Study, was gazetted by
+the government in January 2016.
+
+--- PAGE 13 ---
+11
+New Faculty Premises
+The University of Sri Jayewardenepura acquired a 10-acre land in Mattegoda,
+Kottawa, for the establishment of the Faculty of Engineering on the 31st of July
+2017. The acquired land is located very close to the buzzing and growing city
+center of Kottawa, which makes it easily accessible through the Southern
+Highway as well as a multitude of road networks. The land allocation was
+supported through the 2019 National Budget, with an investment of Rs. 1
+billion. This was a momentous occasion for the faculty, which is the youngest
+state-owned Engineering Faculty in Sri Lanka.
+
+--- PAGE 14 ---
+12
+Since the groundbreaking ceremony of the proposed Faculty of Engineering
+building complex was held on 31st December 2020, a major milestone in the
+faculty’s journey is its relocation to a state-of-the-art permanent complex in
+Kottawa (Mattegoda). The new complex has been designed to accommodate
+up to 1,600 students and to provide an exceptional learning environment that
+supports academic excellence, innovation, and student well-being.
+Equipped with cutting-edge technology and advanced infrastructure, the new
+faculty complex features modern modular laboratories that facilitate hands-on
+experimentation, innovation, and research. A fully equipped 800-seat
+auditorium serves as a central venue for academic events, conferences,
+ceremonies, and student showcases. To ensure student and staff well-being
+and convenience, the premises also include a spacious food court, recreational
+facilities such as a badminton court and gymnasium, and a dedicated daycare
+centre, enhancing accessibility and inclusivity for staff and students with
+families.
+
+--- PAGE 15 ---
+13
+Beyond the Classroom: A Holistic Campus Life
+What sets this facility apart, however, is its attention to the human element of
+engineering. Recognizing that innovation requires well-being, the designers
+have integrated features rarely seen in state university faculties.
+Details from the faculty’s profile reveal a campus built for life, not just study.
+The new Engineering Faculty Library has been transformed into a vibrant hub
+with self-check kiosks and security gates, designed to make resources instantly
+accessible. It offers spacious reading areas and relaxing leisure spaces, a
+deliberate move to foster collaborative learning over rote memorization.
+The student experience is further bolstered by dedicated recreational facilities,
+an E-learning and language center, a career guidance unit, and an industrial
+training unit. The complex includes an indoor sports complex and a fully
+equipped gymnasium, ensuring students can balance the rigors of
+engineering with physical health. An open-air amphitheater provides a space
+for cultural events, while a modern food court and multiple canteens offer
+high-quality amenities for social interaction. The addition of a dedicated
+daycare center, alongside a health center and pharmacy, underscores the
+faculty’s commitment to supporting the diverse needs of its community,
+particularly those with families. Accessibility is a key priority, with the premises
+offering substantial parking capacity to ensure hassle-free access for the
+university community.
+
+--- PAGE 16 ---
+14
+The four Departments are responsible for delivery of the Study Programme in
+four specialisations in engineering as “Civil Engineering”, “Computer
+Engineering”, “Electrical and Electronic Engineering”, and “Mechanical
+Engineering”. The Department of Interdisciplinary Studies functions as a
+service department and is responsible for the delivery of courses in
+Engineering Mathematics, Management, and Humanities.
+The Departments of Study in the Faculty and their abbreviations are as follows:
+Civil Engineering CE
+Computer Engineering CO
+Electrical and Electronic Engineering EE
+Mechanical Engineering ME
+Interdisciplinary Studies IS
+Inaugural batch of students of the Faculty was enrolled in November 2016,
+which was followed by eight subsequent batches from 2017 to 2024.
+
+--- PAGE 17 ---
+15
+Research and Innovation
+The Faculty of Engineering is deeply committed to research, innovation, and
+industry collaboration. With a clear vision of becoming a Future Engineering
+Research Hub, the faculty fosters practice-oriented research and encourages
+students to develop real-world solutions to contemporary engineering and
+societal challenges. Under the guidance of a dedicated and dynamic academic
+staff, students actively participate in national and international competitions
+and have already secured multiple awards, an impressive achievement for the
+youngest state-owned engineering faculty in the country.
+The Faculty is initiating collaborations with industry to produce young
+Engineers to fit the contemporary needs of the Engineering sector of the
+country, which is essential for continuing national development. Research
+Committee of the Faculty of Engineering (RCFE) has been established to
+facilitate research and innovation activities. The faculty currently has students
+following Mphil and PhD degrees related to the specialisations of all four
+academic departments.
+Quality Assurance
+The Faculty actively takes measures to improve the academic standards to
+align with international quality standards. This process is facilitated by the
+Internal Quality Assurance Cell (IQAC) of the Faculty.
+IQAC is responsible for carrying out and coordinating quality assurance
+activities of the Faculty in line with national and international standards for an
+engineering degree program, namely the Sri Lanka Qualification Framework
+(SLQF) and the Washington Accord of the International Engineering Alliance,
+for which the IESL is the authorized organization for the accreditation.
+IESL Recognition
+All the degree programs offered by the Faculty of Engineering, University of Sri
+Jayewardenepura have obtained the IESL recognition; Civil Engineering and
+Mechanical Engineering departments are fully recognized, and working
+towards obtaining the IESL accreditation.
+
+--- PAGE 18 ---
+16
+STUDY PROGRAM
+Faculty of Engineering offers a study programme leading to the award of the
+degree of the ‘Bachelor of the Science of Engineering Honours’, in four
+specialisations in Engineering.
+The mission of the study programme is to produce engineering graduates who
+have the knowledge and the aspiration to become competent engineers in a
+wide range of emerging engineering disciplines within the conventional
+engineering spheres, by offering a curriculum with flexibility to meet the
+current and emerging needs of the country and the profession, as acceptable
+to the global community.
+Graduate Profile
+The engineering graduates of the Faculty of Engineering would be able to;
+Investigate, identify, formulate and analyse complex engineering
+problems with creativity and innovative approach,
+Apply the principles of engineering, science, technology and mathematics
+in the design of systems, processes and procedures as solutions to
+complex engineering problems, along with applying intellectual and life
+skills within realistic constraints (economic, environmental, social, political,
+ethical, health and safety) and sustainability through creative and
+innovative approach,
+Recognize the importance of working as an individual, in teams as well as
+in multi-disciplinary settings, depending on specific situations in solving
+complex engineering problems and act accordingly, while maintaining
+high ethical standards in the practice of engineering,
+Engage in lifelong learning for continuous professional development and
+uphold the advancement of engineering with research and scholarship.
+
+--- PAGE 19 ---
+17
+Program outcomes
+Apply knowledge of mathematics, basic sciences and engineering
+fundamentals to the analysis of complex engineering problems.
+Identify, formulate, research literature, conduct investigations and solve
+complex engineering problems to provide valid conclusions.
+Design systems, components or processes that meet specified needs.
+Conduct investigations of complex problems using research based
+knowledge and research methods.
+Create, select and apply appropriate techniques, resources, and modern
+engineering and IT tools to complex engineering activities.
+Assess societal, health, safety, legal, cultural and environmental issues
+related to professional engineering solutions.
+Demonstrate broad knowledge of sustainable development concepts and
+practices required for dealing with contemporary issues related to
+professional engineering practice.
+Demonstrate broad knowledge of ethical responsibilities and professional
+standards.
+Demonstrate ability to function effectively as an individual and in
+multidisciplinary and multi cultural teams, with the capacity to be a leader
+or manager as well as an effective team member.
+Communicate effectively on complex engineering activities with the
+engineering community and with society at large, such as being able to
+comprehend and write effective reports and design documentation, make
+effective presentations, and give and receive clear instructions.
+Demonstrate broad knowledge of management and business practices,
+including financial management, risk and change management.
+Engage in independent and lifelong learning in the broad context of
+technological change.
+
+--- PAGE 20 ---
+18
+Terminology
+The following terminology are in frequent use within the Study Programme.
+Students are requested to be familiar with them.
+In addition, please note that this section is intended to provide with a brief
+understanding of the important terminology only. For comprehensive
+understanding of the information provided, students are advised to refer to
+relevant By-Laws, Rules and Regulations of University of Sri Jayewardenepura.
+Academic Year
+An Academic Year comprises of two teaching semesters followed by a period
+allocated for vacation, industrial training and any other academic activities, as
+applicable to the Faculty of Engineering. Academic Year does not necessarily
+coincide with the normal calendar year. The Programme of Study spans over
+four Academic Years or eight Semesters.
+Semester
+A Semester consists of 20 weeks including time allocated for teaching,
+examinations as well as mid-semester and end-semester vacations.
+Course
+A ‘Course’ is the basic teaching/learning unit (equivalent of a ‘Subject’) and
+includes lectures and other academic activities.
+Course Code
+It is a unique combination of alpha-numeric characters that would identify a
+particular Course. Courses are coded using the Academic Year in order to
+enable the Faculty to offer a particular Course in either of the two Semesters in
+the given Academic Year. Information can be derived from the code of a
+Course as described by the example below.
+ME1301 Engineering Mechanics
+First two characters: Abbreviation of the Department of Study responsible for
+administering the Course [Department of Mechanical
+Engineering]
+Third character: Academic Year [First Academic Year]
+Fourth character: Academic Credits [Three Academic Credits]
+Last two characters: Serial Number of the Course
+
+--- PAGE 21 ---
+19
+First Year Common Curriculum
+All students will follow a Common Curriculum during the first Academic Year
+(first and second Semesters) of study.
+Workload of a Course
+Workload of a Course is expressed in terms of ‘Hours/Week’ and presented as
+Lectures, Practical Work, Tutorials, etc.
+Academic Credits
+Academic Credits (AC) is a measure of the academic workload of a ‘Course’.
+Computation of Academic Credits for a Course is based on “Active Hours
+(AH)”, which is defined according to the requirements stated in the
+Accreditation Manual of the IESL.
+1 hour of lectures = 1.0 AH
+1 hour of lab work = 0.5 AH
+1 hour of tutorials = 0.5 AH
+1 hour of design or field work = 0.5 AH
+NUMBER OF ACTIVE HOURS
+AC =
+14
+For activities in which contact hours cannot be properly identified, 1 AC is
+defined as follows (without considering AH).
+1 week of project work = 1 AC
+2 weeks of work camps = 1 AC
+4 weeks of industrial training. = 1 AC
+Continuous Assessment
+Continuous Assessment(CA) has been introduced for every Course in order to
+maintain the motivation in the learning process as well as to guide the student
+towards achieving the learning outcomes. This consists of components such as
+mid semester examinations, practical work, fieldwork, assignments, quizzes,
+and mini projects, which evaluate the performance of a student throughout the
+semester. Components of CA vary from Course to Course depending on the
+nature of the Course. The aggregate mark derived from different components
+of CA is referred to as the Continuous Assessment Mark (CA Mark).
+End of Semester Examination
+End of Semester Examination (ESE) is the final assessment component of a
+Course , which is conducted at the end of each semester.
+
+--- PAGE 22 ---
+20
+Overall Assessment Mark
+Overall Assessment Mark (OA Mark) is computed by combining both the CA
+Mark and the ESE Mark according to a pre-defined relationship, which may
+differ from Course to Course. The OA Mark determines the academic standing
+of the student in the Course.
+Compulsory Course Requirements
+Compulsory Course Requirements (CCR), if any, need to be satisfied in order to
+sit the ESE of the Course. These requirements may include successfully
+completing the prescribed CA components, attendance at lectures, etc. This
+information will be made available to the students prior to the commencement
+of academic activities.
+Re-sitting the ESE of a Course
+A student is required to re-sit the ESE without following the Course in full if,
+a. CA Mark is above the pass mark, and
+b. OA Mark is below the pass mark.
+In such cases, the CA Mark may be brought forward while the best grade
+obtainable by the student is limited to ‘C’.
+Repeating a Course
+A student has to repeat a Course if,
+a. both the CA Mark and the OA Mark are below the pass mark, or
+b. CCR is not satisfied, hence not permitted to sit the ESE.
+In this case, the student has to follow the Course in full. This implies that the
+student must satisfy the CCR and successfully complete the CA Component
+and the ESE. The best grade obtainable by repeating a Course is limited to ‘C’.
+Academic Concession
+A student is permitted to postpone academic activities of a Course for a valid
+reason, subject to the approval of the Faculty Board and the Senate. Such
+permission, if granted, is known as an Academic Concession. A student who has
+been granted an Academic Concession is required to fulfil the requirements of
+the Course, as applicable, in the subsequent academic year.
+Learning Management System
+A Learning Management System (LMS) is a software application used to
+facilitate e-learning in the delivery of the Courses.
+
+--- PAGE 23 ---
+1271
+Fields of Specialization
+Selection of students to one of the four fields of specialization will take place at
+the end of the second semester. The selection process is strictly based on the
+preference and performance of the students during the first two semesters.
+Minor
+A student has the option to claim for a ‘Minor’ relevant to his field of
+specialization after successfully completing an approved combination of
+Courses. Students will be made aware of such Courses in advance. Minors on
+offer include emerging fields of Engineering such as ‘Biomedical Engineering’,
+‘Building Services Engineering’, ‘Environmental Engineering’, ‘Mechatronics
+Engineering’ and ‘Data Management’, and may vary from time to time, as
+determined by the Faculty Board.
+Industrial Training
+Industrial Training, which is compulsory, is an integral component of the
+degree programme. The total duration of training is not less than twenty four
+weeks to comply with accreditation requirements of the IESL. At present, the
+training is implemented after the conclusion of the ESE of Semester 6.
+
+--- PAGE 24 ---
+22
+Framework of the Study Program
+The upward mobility of a student after gaining admission to the Faculty is
+depicted in the following diagram.
+Graduation
+SEMESTER 8
+Continue Core Course of the
+(16 AC – 23 AC) Specialization with common
+Complimentary Courses
+Year 4
+Offer Elective Courses leading to sub
+areas of Specialization (Minor)
+SEMESTER 7
+Undertake a major Engineering/Research
+(16 AC – 23 AC)
+Project in the Specialization
+Industrial training*
+SEMESTER 6
+Continue Core Courses of the
+(16 AC – 23 AC)
+Specialization with common
+Complimentary Courses
+Year 3
+Offer Elective Courses leading to sub
+areas of Specialization (Minor)
+SEMESTER 5
+Preparation of students to undergo
+(16 AC – 23 AC)
+Industrial Training
+SEMESTER 4
+Follow Core Courses of the Selected
+(16 AC – 23 AC) Specialization with common
+Complimentary Courses
+Year 2 Obtain an understanding regarding the
+available sub areas of specialization
+SEMESTER 3
+(Minor)
+(16 AC – 23 AC)
+Selection of Field of Specialisation
+SEMESTER 2 Follow preliminary courses in Engineering,
+(18 AC) with complementary courses, especially in
+English Communication and Presentation
+Year 1
+Skills
+SEMESTER 1 Gain a basic knowledge in Engineering and
+(18 AC) prepare to select a field of specialization
+*Industrial training period of 24 weeks
+
+--- PAGE 25 ---
+23
+Enrolment for Courses
+Each student is required to enrol for all Compulsory, Elective and Optional
+Courses he/she intends to follow, prior to the commencement of a given
+Semester. The student has the option to ‘Add’ or ‘Drop’ elective and optional
+Courses within a period of 14 days from the beginning of the semester.
+Elective Courses should be selected as stipulated by the Faculty Board. In the
+selection of Courses, the students are required to ensure that he/she has
+fulfilled the necessary prerequisite requirements to enroll for a Course.
+National and International Standards
+The curriculum of the Study Programme meets both national and
+international standards for engineering education.
+Nationally, the Curriculum has been drawn-up in keeping with the
+requirements of the Sri Lanka Qualification Framework (SLQF) and the IESL,
+which is the apex body for the Engineering Profession in Sri Lanka. In
+addition, the curriculum has been designed in compliance with the
+international standard for an Engineering Degree Programme, namely the
+Washington Accord of the International Engineering Alliance.
+Assessment Criteria
+Assessment of a Course
+Assessment in respect of each Course consists of CA and ESE. Contribution
+from various CA components to the final CA mark as well as the contribution
+to the final grade from CA and ESE may vary from Course to Course. This
+information will be made available to the students prior to the
+commencement of academic activities.
+Requirements to sit the End of Semester Examination
+In order for a student to sit the ESE in a Course, he/she should have satisfied
+the Compulsory Course Requirements (CCR) in that Course.
+Grading the Performance in a Course
+Grade assigned to a student for a Course is based on the Overall Assessment
+Mark. This information together with relevant Grade Point Values (GPV) are as
+given in the table below.
+
+--- PAGE 26 ---
+24
+Grade Point
+Grade Implication
+Value(GPV)
+A+ 4.00 Outstanding
+A 4.00
+Excellent
+A- 3.70
+B+ 3.30
+B 3.00 Good
+B- 2.70
+C+ 2.30
+Satisfactory
+C 2.00
+R Referred and Re-sit the ESE
+F Failed and Repeat Course
+Not Applicable
+Resume academic activities in the
+L
+subsequent Academic year
+Any grade ‘C’ and above (GPV ≥ 2.0) is considered as a Pass grade.
+Student Re- sitting ESE or repeating a course cannot secure a grade greater than 'C'
+Grade Point Average (GPA)
+A student’s Grade Point Average (GPA) is computed considering the GPVs of
+all the Courses categorised as ‘Contributing to GPA’.
+∑ {(ACADEMIC CREDITS OF THE COURSE) X (GPV OF THE COURSE)}
+GPA =
+∑ (ACADEMIC CREDITS OF THE COURSE )
+Semester Grade Point Average SGPA calculated considering all Courses, marked as
+(SGPA): ‘Contributing to GPA’, followed by a student during a
+given semester.
+Cumulative Grade Point Average GPA calculated considering all Courses, marked as
+(CGPA): ‘Contributing to GPA’, followed by a student up to a
+given Academic Semester.
+Overall Grade Point Average OGPA is also referred to as ‘GPA’, and is calculated
+(OGPA): considering all Courses, marked as ‘Contributing to
+GPA’, followed by a student during the entire degree
+programme. GPA will be used in deciding the award of
+a ‘Pass’ degree and the ‘Class Honors’, as applicable.
+Progression Requirement
+As stipulated in the By Law with the amendments
+
+--- PAGE 27 ---
+25
+Dean’s List
+A student who achieves an SGPA of 3.80 or higher, after successfully
+completing all Courses prescribed for the purpose of determining the Dean’s
+list for a semester and have no act of indiscipline committed by him, will be
+recommended by the Board of Examiners to be included in the Dean’s List.
+Such an achievement will be recorded in the Student’s Academic Transcript.
+Graduation Requirements
+Requirement for the Award of the Degree
+In order for the award of the degree of the Bachelor of the Science of
+Engineering,
+a student has to fulfil the following requirements.
+1. Obtained pass grades for the Faculty approved combination of Courses
+accounting for a minimum total of 144 Academic Credits, and
+2. Successfully completed Industrial Training Course accounting for 6
+Academic Credits, and
+3. Satisfied the above requirements within a period of not more than eight
+academic years.
+Requirement for Award of Class Honours
+A student will be awarded the degree with Pass or Class Honours according
+to Grade Point Average as given below.
+3.00 > GPA ≥ 2.00 Pass
+3.30 > GPA ≥ 3.00 Second Class Honours (Lower Division)
+3.70 > GPA ≥ 3.30 Second Class Honours (Upper Division)
+GPA ≥ 3.70 First Class Honours
+However, a student is entitled for the award of Class Honours only if he/she
+has successfully completed the above requirements within the minimum
+stipulated time of five Academic Years.
+Faculty approved Course combinations are given in the ‘Departments and the Curriculum’ section.
+
+--- PAGE 28 ---
+26
+Academic Awards
+Faculty Awards
+Most Venerable Balangoda Ananda Maitreya Gold Medal for the Most
+Outstanding Graduand of the Faculty of Engineering awarded to the best
+performing student of Bachelor of the Science of Engineering Honours Degree
+program.
+Qualification Criteria
+In order to qualify for the gold medal, the graduate should satisfy the below
+criteria,
+Successfully completed the Degree Program within four academic years.
+Has obtained an Overall Grade Point Average of 3.80 or above.
+Has not repeated in any of the Compulsory and Elective courses.
+Has no disciplinary action against the student.
+Selection Criteria
+1. The student with the highest OGPA who has fulfilled the above qualification
+criteria will be selected as the awardee.
+2. If there are multiple qualifying candidates with same OGPA, the candidate
+with highest number of ‘Outstanding’ grades (A+), will be selected as the
+awardee.
+3. If there are multiple qualifying candidates with same OGPA, and a same
+number of ‘Outstanding’ grades (A+), the candidate who has the highest
+average mark for all compulsory and elective courses would be selected as the
+awardee.
+Departmental Awards
+Gold Medal for Civil Engineering endowed by the well-wishing academics of
+the department and awarded to the most outstanding Graduand of the
+Department of Civil Engineering.
+Gold Medal for Computer Engineering endowed by the well-wishing
+academics of the department and awarded to the Best Graduand of the
+Department of Computer Engineering.
+Gold Medal for Electrical & Electronic Engineering endowed by the well-
+wishing academics of the department and awarded to the Best Graduand in
+the Department of Electrical & Electronic Engineering.
+Gold Medal for Mechanical Engineering endowed by Emeritus Professor
+Ranjith Arthanayake and awarded to the most outstanding Graduand of the
+Department of Mechanical Engineering.
+Gold Medal by the Department of Interdisciplinary Studies will be awarded
+to the engineering Graduand who successfully completes the Bachelor of the
+Science of Engineering Honours degree with a First Class or a Second Class
+(Upper Division) pass with the most outstanding performance in courses
+offered by the Department of Interdisciplinary Studies at the Faculty of
+Engineering, University of Sri Jayewardenepura.
+*For more details about Departmental Awards refer to page 86
+
+--- PAGE 29 ---
+27
+DEPARTMENTS AND
+CURRICULUMS
+With the aim of producing knowledgeable, competent, confident, and
+innovative engineering graduates, the curriculum offered at the Faculty of
+Engineering of the University of Sri Jayewardenepura has been carefully
+designed by distinguished academics and industry partners to comply with
+the international standard for engineering programmes, namely the
+Washington Accord of the International Engineering Alliance.
+During the first year of the degree programme, every student should follow a
+common curriculum to acquire basic knowledge in engineering and be
+prepared to select a suitable field of specialization at the end of the first
+semester. In the subsequent semesters, students should follow compulsory
+courses of the selected specialization.
+Additionally, the students continue to follow courses in Mathematics, English,
+and complementary interdisciplinary study areas, and will undergo Industrial
+Training that aligns with their specialized field of study. Students will also have
+the opportunity to obtain a minor within their specialized stream by taking
+elective courses in respective streams in the third and fourth years of the
+degree programme. Further, in the fourth year (the final two semesters),
+students will undertake a major engineering/research project in their field of
+specialization.
+
+--- PAGE 30 ---
+28
+First Year Common Curriculum
+The common curriculum consists of preliminary courses in Engineering,
+Mathematics, History, and English communication and presentation skills.
+Semester 1
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE1201 Properties of Materials 2 Compulsory Yes
+CO1201 Introduction to Computer Systems 2 Compulsory Yes
+EE1201 Electricity 2 Compulsory Yes
+ME1301 Engineering Mechanics 3 Compulsory Yes
+ME1202 Introduction to Thermodynamics 2 Compulsory Yes
+IS1301 Engineering Mathematics I 3 Compulsory Yes
+IS1151 English for Communication 1 Compulsory No
+IS1171 History of Science and Technology 1 Compulsory No
+IS1281 Engineering Measurement 2 Compulsory Yes
+Semester 2
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE1202 Introduction to Fluid Mechanics 2 Compulsory Yes
+CO1302 Programming for Engineers 3 Compulsory Yes
+EE1302 Electronics 3 Compulsory Yes
+ME1303 Basic Manufacturing Processes 3 Compulsory Yes
+ME1304 Engineering Drawing 3 Compulsory Yes
+IS1302 Engineering Mathematics II 3 Compulsory Yes
+IS1152 Presentation Skills in English 1 Compulsory No
+
+--- PAGE 31 ---
+25
+29
+At the end of the first semester, selection of students to the four fields of
+specialization will take place. The selection process is strictly based on the
+preference and performance of the students during the first semester.
+The following four fields of specialization are offered by the respective
+departments.
+Civil Engineering
+Computer Engineering
+Electrical and Electronic Engineering
+Mechanical Engineering
+Course Selection in Subsequent Years
+Once a student has been assigned a field of specialization by the Faculty,
+he/she is required to take all compulsory courses as stated in the curriculum of
+the relevant department.
+In addition, the student is required to take elective courses from each basket of
+Elective Courses, such that the minimum stipulated credit requirement is
+satisfied.
+Elective Courses on offer may vary from time to time, as determined by the
+Faculty Board.
+Optional Courses taken by a student will be indicated in the academic
+transcript upon request.
+
+--- PAGE 32 ---
+
+
+--- PAGE 33 ---
+31
+DEPARTMENT OF
+CIVIL ENGINEERING
+Civil Engineering specializes in a broad spectrum of engineering aspects,
+including envisioning, planning, designing and construction of buildings,
+highways and bridges, reservoirs, dams and irrigation schemes, power houses
+and transmission systems, water supply and sewerage schemes, tunnels and
+underground structures, and so on. The graduates can choose from a wide
+range of opportunities in industry and consulting practices as well as in
+research and development, which has both local and global significance. They
+also would have the option of pursuing an academic career combined with
+research, innovation, and development work among local and international
+research communities.
+Amongst its many courses, the Department of Civil Engineering offers subjects
+that cover the key specialization areas in Civil Engineering, such as Structural,
+Geotechnical, Transportation and Highways, Hydraulics, and Environmental
+Engineering, while bestowing an in-depth knowledge in Sustainable Designs,
+Construction Technology, and management as well as Surveying. These
+streams are taught in an intertwined manner so that the students gain a
+thorough grounding of the diverse subject areas and their cross-applicability,
+which would enable them to be competent and innovative engineers in
+whichever specialized area they engage in the future as Civil Engineering
+professionals.
+
+--- PAGE 34 ---
+32
+Academic Staff
+Dr. Praween Madusanka Prof. Chaminda Konthesingha Prof. Ganga Samarasekara
+B.Sc.Eng.(Hons) (UOP) B.Sc.Eng.(Hons) (UOM) B.Sc.Eng.(Hons) (UOM)
+M.Eng. (Hokkaido, Japan) M.Sc. (UOM) M.Eng. (Saitama)
+Ph.D. (Hokkaido, Japan) Ph.D. (Newcastle) Ph.D. (Saitama)
+Head/Senior Lecturer Professor Professor
+praweenmadusanka@sjp.ac.lk konthesingha@sjp.ac.lk gangas@sjp.ac.lk
+Research interests: Research interests: Research interests:
+Solid Waste Management, Water, Structural Masonry, walkability in Street Network,
+Wastewater and Septage Lightweight Concrete, Fire Safety of Green Boundary Walls &
+Treatment Buildings, Retrofitting and Vehicle Emissions, Traffic
+Strengthening of Masonry Calming, Engineering
+Education
+Dr. Nilan Weerakoon Dr. Irindu Upasiri Mr. Wasantha Kumara
+B.Sc.Eng.(Hons) (UOP) B.Sc.Eng.(Hons) (UOP) B.Sc.Eng.(Hons) (UOM)
+M.Eng. (Hokkaido, Japan) Ph.D. (USJ) M.B.A in PM (UOM)
+Ph.D. (Hokkaido, Japan) Ph.D. (Reading) (USJ)
+Senior Lecturer Senior Lecturer Lecturer
+weerakoon@sjp.ac.lk irinduupasiri@sjp.ac.lk pmwpkumara@sjp.ac.lk
+Research interests: Research interests: Research interests:
+Solidification of Soils, Rheological Structural Fire performance; Construction Materials,
+Properties of Soils, Peat Soils, Lightweight Concrete & Finite Applicability of Modern
+Ground Improvement, Slope element modelling Project Management Methods
+Stability for Construction Projects
+
+--- PAGE 35 ---
+33
+Mr. Avishka Siriwardana Ms. Dilini Dissanayake Mrs. Kobika Mathushan
+B.Sc.Eng.(Hons) (KDU) B.Sc.Eng.(Hons) (USJ) B.Sc.Eng.(Hons) (UOJ)
+Ph.D. (Reading) (UOM) Ph.D (Reading) (USJ) MSustBltEnv Reading (UOP)
+Ph.D. Reading (USJ)
+Lecturer Lecturer Lecturer
+avishkasiriwardana@sjp.ac.lk dilinidissanayake@sjp.ac.lk kobithaya@sjp.ac.lk
+Research interests: Research interests: Research interests:
+sustainable water distribution Finite Element modelling, Construction Materials,
+systems & water safety approaches Fire performance, Cracking Sustainable Construction
+and Durability of masonry Practices, Fire Safety of
+structures buildings, and Green Buildings
+Mr. Chathura Amarasinghe
+B.Sc.Eng.(Hons) (USJ)
+M.Sc. (Reading) (UOP)
+Lecturer
+chathuraamarasinghe@sjp.ac.lk
+Research interests:
+Geo transportation, Slope stability
+
+--- PAGE 36 ---
+34
+Academic Support Staff
+Ms. R.A.I. Devindi - Temporary Demonstrator
+Ms. I.L. Roshilda - Temporary Demonstrator
+Ms. M.D.P.I. Jayasena - Temporary Demonstrator
+Mr. R.Anushan - Temporary Demonstrator
+Mr. T.M.D.P. Thennakoon - Temporary Demonstrator
+Ms. B.H.M.K. Herath- Temporary Demonstrator
+Non-academic Staff
+Ms. Diska Madushani - Technical Officer
+Mr. Darshana Sandaruwan Adikari - Technical Officer
+Ms. Erandi Kalanika - Technical Officer
+Mr. L.N. Kumarasekara - Management Assistant
+Ms. Koshila Soysa - Lab Attendant
+Mr. K.A. Anuruddha - Lab Attendant
+Mr. Ruwan Herath - Works Aid
+
+--- PAGE 37 ---
+35
+Curriculum of Civil Engineering
+Semester 3
+Contributin
+Course Credit
+Title Category g
+Code Value
+to GPA
+CE2301 Structural Mechanics 3 Compulsory Yes
+CE2302 Fluid Mechanics 3 Compulsory Yes
+CE2203 Building Design Process 2 Compulsory Yes
+CE2304 Surveying I 3 Compulsory Yes
+IS2301 Engineering Mathematics III 3 Compulsory Yes
+IS2202 Engineering Mathematics IV 2 Compulsory Yes
+IS2261 Accounting for Engineers 2 Compulsory Yes
+Semester 4
+Contributi
+Course Credit
+Title Category ng
+Code Value
+to GPA
+CE2305 Structural Analysis I 3 Compulsory Yes
+CE2306 Hydraulic Engineering 3 Compulsory Yes
+Soil Mechanics and Engineering
+CE2307 3 Compulsory Yes
+Geology I
+CE2208 Construction Materials 2 Compulsory Yes
+CE2209 Environmental Engineering 2 Compulsory Yes
+Highway and Transportation
+CE2210 2 Compulsory Yes
+Engineering
+CE2211 Surveying II 2 Compulsory Yes
+IS2303 Engineering Mathematics V 3 Compulsory Yes
+IS2262 Economics and Management 2 Compulsory Yes
+
+--- PAGE 38 ---
+36
+Semester 5
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE3301 Structural Analysis II 3 Compulsory Yes
+CE3202 Design of Steel Structures 2 Compulsory Yes
+CE3203 Engineering Hydrology 2 Compulsory Yes
+Soil Mechanics and Engineering
+CE3204 2 Compulsory Yes
+Geology II
+Construction Planning and Cost
+CE3205 2 Compulsory Yes
+Estimation
+CE3251 Design of Timber Structures 2
+CE3261 Environmental Hydraulics 2 Elective (2) Yes
+CE3271 Traffic Engineering 2
+IS3261 Quantitative Methods in Management 2 Compulsory No
+IS3162 Intellectual Property 1 Compulsory No
+IS3171 Sri Lankan History and Culture 1
+IS3172 Ethnic Cohesion and Social Harmony 1
+Elective (1) No
+IS3173/
+Sinhala/Tamil 1
+IS3174
+Semester 6
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE3306 Design of Concrete Structures I 3 Compulsory Yes
+CE3207 Hydraulic Design 2 Compulsory Yes
+CE3308 Geotechnical Engineering 3 Compulsory Yes
+CE3209 Construction Management 2 Compulsory Yes
+CE3110 Surveying Field Project 1 Compulsory No
+CE3252 Design of Masonry Structures 2
+CE3262 Environmental Geotechnics 2 Elective (2) Yes
+CE3272 Rail Transport Systems 2
+IS3263 Industrial Law 2 Compulsory Yes
+IS3151 Technical Writing 1 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1
+Elective (1) No
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+
+--- PAGE 39 ---
+37
+Industrial Training
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE3600 Industrial Training 6 Compulsory No
+Semester 7
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE4301 Design of Concrete Structures II 3 Compulsory Yes
+CE4202 Geotechnical Design 2 Compulsory Yes
+CE4603 Research Project 3 Compulsory Yes
+CE4404 Comprehensive Design Project 2 Compulsory Yes
+Advanced Structural Analysis and
+CE4351 3
+Design I
+CE4352 Bridge Engineering 3
+Water and Wastewater
+CE4361 3
+Engineering
+Elective (6) Yes
+CE4362 Environmental Pollution Control 3
+CE4371 Highway Engineering Design 3
+Transportation Planning and
+CE4372 3
+Economics
+Highway and Transportation
+CE4305 3
+Engineering Design
+Optional No
+CE4306 Water and Wastewater Treatment 3
+IS3171 Sri Lankan History and Culture 1
+Ethnic Cohesion and Social
+IS3172 1
+Harmony Elective (1) No
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 40 ---
+38
+Semester 8
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CE4603 Research Project 3 Compulsory Yes
+CE4404 Comprehensive Design Project 2 Compulsory Yes
+Advanced Structural Analysis and
+CE4353 3
+Design II
+CE4254 Building Services 2
+CE4355 Construction Technology 3
+CE4361 Water and Wastewater Engineering 3
+CE4363 Limnology 3
+CE4365 Environmental Management 3 Elective (10) Yes
+CE4371 Highway Engineering Design 3
+CE4373 Traffic Management and Safety 3
+CE4264 Environmental Impact Assessment 2
+CE4374 Air and Water Transport Systems 3
+Sustainable Design and
+CE4256 2
+Construction
+Highway and Transportation
+CE4305 3
+Engineering Design
+Optional No
+CE4306 Water and Wastewater Treatment 3
+IS4171 Ethics in Engineering 1 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1
+Elective (1) No
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+
+--- PAGE 41 ---
+
+
+--- PAGE 42 ---
+40
+DEPARTMENT OF
+COMPUTER ENGINEERING
+The Department of Computer Engineering offers courses to undergraduates
+from fundamentals to complex and advanced topics in modern computer
+engineering such as computer hardware and embedded system design,
+software engineering, bioinformatics, artificial intelligence, computer vision,
+robotics, parallel computing, networking, computer security, cloud
+computing, and database systems.
+Minor speciality areas such as Data Management and High-Performance
+Computing have been introduced with the degree programme. Students who
+follow Data Management shall explore the topics of natural language
+processing, quality engineering, and machine learning, where it integrates
+current data science research and data-analytic techniques to find solutions in
+various domains. Students who follow High-Performance Computing shall
+study topics such as cloud computing and applications, advanced computer
+architecture, and GPU programming. Students will be able to gain experience
+in those areas by involving in multiple projects.
+With the knowledge and skills gained, a Computer Engineering
+undergraduate will be provided with countless opportunities to work in the
+industry as a Computer Engineer, System Design Engineer, System Architect,
+Software Engineer, or can continue onto postgraduate studies and research.
+
+--- PAGE 43 ---
+41
+Academic Staff
+Dr. Udaya Wijenayake Dr. Randima Dinalankara Dr. Krishanthmohan Ratnam
+B.Sc. (Hons)(UOC) B.Sc.Eng. (Hons) (UOM) B.Sc.Eng. (Hons)(UOP)
+M.Sc. (KNU, Korea) Ph.D. (University of Missouri) Ph.D. (NUS)
+Ph.D. (KNU, Korea)
+Head/Senior Lecturer Senior Lecturer Senior Lecturer
+udayaw@sjp.ac.lk randima@sjp.ac.lk rkmohan@sjp.ac.lk
+Research interests: Research interests: Research interests:
+Computer Vision, Image Machine Learning, Optical Networks,
+Processing, Machine Image Processing Survivability Issues, Cloud
+Networking
+Learning
+
+--- PAGE 44 ---
+42
+Ms. Dilani Ranaweera Mr. Ishara Dissanayake Ms. Akarshani Amarasinghe
+B.Sc. (Hons) (Wayamba) B.Sc. (Hons) (Middlesex) B.Sc. (Hons) (UOC)
+M.Sc. (UCSC) M.Sc. (Middlesex) Ph.D. (Reading) (USJ)
+M.Phil. (Reading) (UOK)
+Lecturer Lecturer Lecturer
+dilani.ranaweera@sjp.ac.lk isharadissanayake@sjp.ac.lk akarshani.amarasinghe@sjp.ac.lk
+Research interests: Research interests: Research interests:
+Artificial Intelligence, Wireless Sensor Networks, Machine Learning,
+Cryptography, Cyber Security, Artificial Artificial Intelligence,
+HumanComputer Interaction, Intelligence Rainforcement Learning
+Machine Learning, Natural
+Language Processing, Deep
+Learning
+Mr. Lakshan Madhushanka Ms. Sanuri Liyanaarachchi
+B.Sc. Eng. (Hons) (UOP) B.Sc. Eng. (Hons) (USJ)
+Lecturer Lecturer
+lakshan@sjp.ac.lk sanurihimalka@sjp.ac.lk
+Research interests: Research interests:
+Computer Vision, Medical Machine Learning,
+image processing, Robotics, Artificial Intelligence, Human
+Embedded systems Computer Interaction
+
+--- PAGE 45 ---
+43
+Academic Support Staff
+Ms. Ishani Hapuarachchi, Instructor
+Ms. Gayesha Akwaththa, Instructor
+Ms. Ayeshma Nanayakkara, Instructor
+Mr. Thisal Somarathna, Instructor
+Ms. Navodya Rathnasekara, Instructor
+Ms. Laksana Sriharan, Instructor
+Non-academic Staff
+Mr. Yasitha Randula, Technical Officer
+Ms. Shakila Silva, Management Assistant
+Mr. Nalaka Munasinghe, Lab Attendant
+Mr. Ishan Munasinghe, Lab Attendant
+Mr. Samantha Wijenayake, Works Aid
+
+--- PAGE 46 ---
+44
+Curriculum of Computer Engineering
+Semester 3
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO2201 Data Structures and Algorithms 2 Compulsory Yes
+CO2202 Computer Organization 2 Compulsory Yes
+CO2203 Object Oriented Programming 2 Compulsory Yes
+CO2204 Data Communication 2 Compulsory Yes
+CO2105 Field Visit 1 Compulsory Yes
+EE2206 Circuit Theory 2 Compulsory Yes
+IS2301 Engineering Mathematics III 3 Compulsory Yes
+IS2202 Engineering Mathematics IV 2 Compulsory Yes
+IS2261 Accounting for Engineers 2 Compulsory Yes
+Semester 4
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO2206 Operating Systems 2 Compulsory Yes
+CO2307 Software Engineering 3 Compulsory Yes
+CO2208 Computer Networks 2 Compulsory Yes
+CO2209 Embedded Systems 2 Compulsory Yes
+CO2210 Programming Quest 2 Compulsory Yes
+ME2208 Theory of Control Systems 2 Compulsory Yes
+IS2303 Engineering Mathematics V 3 Compulsory Yes
+IS2262 Economics and Management 2 Compulsory Yes
+
+--- PAGE 47 ---
+45
+Semester 5
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO3201 Database Systems 2 Compulsory Yes
+CO3302 Computer Engineering Project 3 Compulsory Yes
+CO3203 Computer Security 2
+CO3251 Natural Language Processing 2
+CO3252 Management Information Systems 2
+Elective (7) Yes
+CO3353 Data Mining 3
+CO3261 Cloud Computing and Applications 2
+CO3262 Advanced Computer Architecture 2
+IS3202 Discrete Mathematics 2 Compulsory Yes
+Algorithms and Optimization
+IS3201 2
+Methods
+Newtonian Mechanics and
+IS3203 2 Optional No
+Lagrangian Dynamics
+Mathematical Modelling and
+IS3204 2
+Simulation
+Quantitative Methods in
+IS3261 2 Compulsory No
+Management
+IS3162 Intellectual Property 1 Compulsory No
+IS3171 Sri Lankan History and Culture 1
+IS3172 Ethnic Cohesion and Social Harmony 1
+Elective (1) No
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 48 ---
+46
+Semester 6
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO3204 Robotic Design 2 Compulsory Yes
+CO3205 Intelligent systems 2 Compulsory Yes
+CO3554 Data Management Project 3
+Elective (3) Yes
+High Performance Computing
+CO3563 3
+Project
+CO3255 Information Security 2
+CO3256 Quality Engineering 2
+Elective (6) Yes
+CO3264 Advanced Operating Systems 2
+CO3265 Parallel Programming 2
+IS3205 Operations Research 2
+Advanced Probability and Statistical
+IS3206 2
+Analysis
+Optional No
+Time Series and Stochastic
+IS3207 2
+Processes
+Linear Models and Multivariate
+IS3208 2
+Statistics
+IS3151 Technical Writing 1 Compulsory Yes
+IS3263 Industrial Law 2 Compulsory Yes
+IS3264 Management for Engineers 2 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1
+Elective (0/1) No
+Introduction to Psychology and
+IS3177
+Human Behavior
+Training
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO3600 Industrial Training 6 Compulsory No
+
+--- PAGE 49 ---
+47
+Semester 7
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+CO4301 Individual Research/Design Project 3 Compulsory Yes
+CO4002 Engineering Project 4 Compulsory Yes
+CO4203 Microcontrollers and Applications 2 Compulsory
+Yes
+Computer Vision and Image
+CO4204 2 Compulsory
+Processing
+CO3554 Data Management Project 2
+Elective (2) Yes
+High Performance Computing
+CO3563 2
+Project
+CO4351 Advanced Database Systems 3
+CO4352 Advanced Algorithms 3
+Elective(3) Yes
+CO4361 Concurrent Processing 3
+CO4362 GPU Programming 3
+Sustainability and Disaster
+IS4161 2 Compulsory Yes
+Management
+IS3171 Sri Lankan History and Culture 1
+Ethnic Cohesion and Social
+IS3172 1
+Harmony Elective (1) No
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 50 ---
+48
+Semester 8
+Course Credit Contributing
+Title Category
+Code Value to GPA
+CO4002 Engineering Project 6 Compulsory Yes
+CO4205 Compilers 2 Compulsory Yes
+CO4306 Software Architecture and Design 3 Compulsory Yes
+CO4353 Distributed Systems 3
+CO4254 Machine Learning 2
+CO4255 Bioinformatics 2 Elective (5) Yes
+CO4256 Mobile Application Development 2
+CO4263 Scientific Computing 2
+IS4171 Ethics in Engineering 1 Yes
+Compulsory
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1 1 Elective
+No
+(1/0)
+Introduction to Psychology and
+IS3177 1
+Human Behavior
+
+--- PAGE 51 ---
+4 “Prosper Lives through Education”
+6
+
+--- PAGE 52 ---
+50
+DEPARTMENT OF
+ELECTRICAL AND ELECTRONIC
+ENGINEERING
+The Department of Electrical and Electronic Engineering offers a specialization
+that spans all scales of Electrical and Electronic Engineering. Courses offered
+by the department are designed and constantly improved with the intention
+that students shall gain knowledge and competence, starting from
+fundamentals of circuits, electronic signals, and signal processing through
+digital electronics and system-on-chips to the designs of large-scale power
+and telecommunication systems. The department offers two minors in
+Biomedical Engineering and Telecommunication Engineering. The students
+who follow the minor in Biomedical Engineering shall acquire state-of-the-art
+knowledge in applying engineering practices to medicine and healthcare. The
+minor in Telecommunication Engineering provides a comprehensive
+understanding of the design and implementation of telecommunication
+systems and provides a vision of upcoming next-generation networks.
+The strong industry and, inter-faculty collaborations cater further
+opportunities to students in enhancing their knowledge and experience.
+Electrical and Electronics Engineering graduates are in high demand in the
+industry and academia, both locally and internationally, in a multitude of areas
+including electronic designing and manufacturing, power generation,
+industrial and power electronics, automation systems, computer
+programming, telecommunications, robotics, health care, manufacturing, and
+water and energy systems.
+
+--- PAGE 53 ---
+51
+Academic Staff
+Dr. Uditha Wijewardhana Dr. Charithri Yapa
+Dr. Nishan Dharmaweera
+B.Sc.Eng. (Hons) (Moratuwa) B.Sc.Eng. (Hons) (Moratuwa)
+B.Eng. (Hons) (Monash)
+M.Eng. (AIT) M.Sc. (Manitoba, Canada)
+Ph.D. (Monash))
+Ph.D. (Oulu, Finland) PhD (USJ)
+Senior Lecturer
+Dean/ Former Head/Senior
+Head /Senior Lecturer charithriyapa@sjp.ac.lk
+Lecturer
+uditha@sjp.ac.lk
+nishanmd@sjp.ac.lk
+Research interests:
+Research interests: Power Systems Stability and
+Research interests:
+Wireless Communication, Control, Power Systems
+Optical Communication,
+Network Optimization, Signal Protection, Electrical
+Network Optimization
+Processing Machines, Smart grids,
+Blockchain
+Dr. Pasan Maduranga
+Mr. Nimantha Madhushan Ms. Umaya Balagalla
+BSc Eng Hons (AIT)
+B.Sc.Eng. (Hons) (Ruhuna) B.Sc.Eng. (Hons) (KDU)
+MSc.Eng (UoP)
+PhD (IICUT) M.Phil. (USJ) M.Phil. (USJ)
+Senior Lecturer
+Lecturer Lecturer
+pasanm@sjp.ac.lk
+nimanthamk@sjp.ac.lk umayabalagalla@sjp.ac.lk
+Research interests: Research interests: Research interests:
+Wireless communication, Energy Monitoring, Power Medical Image/Video
+Radio-based localization and
+Systems, Industrial Processing, Biomechanics
+sensing, AI/ML-based
+Automation, and Smart IoT and Prosthetics, Medical
+communication systems
+Systems Instrumentation
+design
+
+--- PAGE 54 ---
+52
+Ms. Narmada Ranaweera Ms. Dhanushika Darshani
+B.Sc.Eng.(Hons) (Ruhuna) B.Sc.Eng.(Hons)(SEUSL)
+M.Sc (Spain) Ph.D (Reading)
+Lecturer Lecturer
+narmadaranaweera@sjp.ac.lk dhanushikadarshani@sjp.ac.lk
+Research interests: Research interests:
+Power systems, Micro Grids, LiFi technologies, Digital
+Renewable Energy, Electrical Twins, 5G/6G
+Machines Communication
+
+--- PAGE 55 ---
+53
+Academic Supporting Staff
+Ms. Dinika Piyarathna – Temporary Demonstrator
+Ms. Mithara Sathmi – Temporary Demonstrator
+Ms. Senuri Keerthirathna – Temporary Demonstrator
+Ms. Chamodi Peiris – Temporary Demonstrator
+Non-academic Staff
+Mr. Tharusha Nadeeranga - Technical Officer
+Mr. Roshan Mahakumbura - Technical Officer
+Mr. Lakshitha Mendis - Management Assistant
+Mr. Madushanka Priyanjith - Lab Attendant
+Mr. Romesh Lokubogahage - Lab Attendant
+Mr. Kasun Pushpakumara - Works Aid
+
+--- PAGE 56 ---
+54
+Curriculum of Electrical and Electronic Engineering
+Semester 3
+Course Credit Contributing
+Title Category
+Code Value to GPA
+EE2201 Power Systems I 2 Compulsory Yes
+EE2203 Machines and Drives I 2 Compulsory Yes
+EE2305 Analog Electronics 3 Compulsory Yes
+EE2206 Circuit Theory 2 Compulsory Yes
+CO2202 Computer Organization 2 Compulsory Yes
+CO2203 Object Oriented Programming 2 Optional No
+IS2301 Engineering Mathematics III 3 Compulsory Yes
+IS2202 Engineering Mathematics IV 2 Compulsory Yes
+IS2261 Accounting for Engineers 2 Compulsory Yes
+Semester 4
+Credit Contributing
+Course Title Category
+Value to GPA
+Code
+EE2202 Power Systems II 2 Compulsory Yes
+EE2204 Communication I 2 Compulsory Yes
+EE2207 Digital Electronics 2 Compulsory Yes
+EE2208 Embedded Systems 2 Compulsory Yes
+EE2309 Electrical Installations 3 Compulsory Yes
+ME2208 Theory of Control Systems 2 Compulsory Yes
+IS2303 Engineering Mathematics V 3 Compulsory Yes
+IS2262 Economics and Management 2 Compulsory Yes
+
+--- PAGE 57 ---
+55
+Semester 5
+Course Credit Contributing
+Title Category
+Code Value to GPA
+EE3201 Signal Processing 2 Compulsory Yes
+EE3202 Machines and Drives II 2 Compulsory Yes
+Introduction to Biomedical
+EE3151 1
+Engineering
+Anatomy and Control Systems of
+EE3252 2
+the Human Body I Elective
+Yes
+(8/7)
+EE3253 Introduction to Image Processing 2
+EE3361 Communication II 3
+EE3262 Data Communication 2
+CO3201 Database Systems 2 Optional No
+Algorithms and Optimization
+IS3201 2
+Methods
+IS3202 Discrete Mathematics 2
+Elective
+Yes
+Newtonian Mechanics and
+(2)
+IS3203 2
+Lagrangian Dynamics
+Mathematical Modelling and
+IS3204 2
+Simulation
+Quantitative Methods in
+IS3261 2 Compulsory No
+Management
+IS3162 Intellectual Property 1 Compulsory No
+IS3171 Sri Lankan History and Culture 1
+Ethnic Cohesion and Social
+IS3172 1 Elective
+Harmony No
+(1)
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 58 ---
+56
+Semester 6
+Credit
+Course Title Category Contributing
+Value
+Code to GPA
+EE3203 Electromagnetics 2 Compulsory Yes
+Industrial Automation and System
+EE3204 2 Compulsory Yes
+Design
+EE3205 Digital System Design 2 Compulsory Yes
+EE3354 Machine Learning 3
+Anatomy and Control Systems of the
+EE3255 2
+Human Body II Elective
+Yes
+(7/8)
+EE3363 Next Generation Networks 3
+EE3264 Digital Communication 2
+IS3205 Operations Research 2
+IS3206 Operations Research 2
+Time Series and Stochastic
+Optional No
+IS3207 2
+Processes
+Linear Models and Multivariate
+IS3208 2
+Statistics
+IS3263 Industrial Law 2 Compulsory Yes
+IS3264 Management for Engineers 2 Compulsory Yes
+IS3151 Technical Writing 1 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1 Elective
+No
+(0/1)
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+Training
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+EE3600 Industrial Training 6 Compulsory No
+
+--- PAGE 59 ---
+57
+Semester 7
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+EE4301 Research and Design Project 3 Compulsory Yes
+EE4002 Engineering Project 3 Compulsory Yes
+EE4303 Robotics 3 Compulsory Yes
+EE4204 Power Electronic Circuit Design 2 Compulsory Yes
+EE4205 Electronic Manufacturing Systems 2
+EE4351 Biomedical Image Analysis 3
+EE4252 Biomedical Instrumentation 2
+Elective
+Yes
+(5)
+EE4253 Biomechanics 2
+EE4361 Wireless Communication 3
+EE4262 Internet of Things 2
+Sustainability and Disaster
+IS4161 1 Compulsory Yes
+Management
+IS3171 Sri Lankan History and Culture 1
+Ethnic Cohesion and Social
+IS3172 1 Elective
+Harmony No
+(1)
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 60 ---
+58
+Semester 8
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+EE4002 Engineering Project 7 Compulsory Yes
+EE4308 VLSI Circuits 3
+Elective
+Yes
+(3)
+EE4354 Mobile Application Development 3
+EE4206 Power Systems III 2
+EE4207 High Voltage Engineering 2
+EE4255 Genetics 2
+EE4256 Medical Informatics 2 Elective
+Yes
+(6)
+EE4263 Information Theory and Coding 2
+EE4209 Energy Studies 2
+Cryptography and Network
+EE4264 2
+Security
+IS4171 Ethics in Engineering 1 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1 Elective
+No
+(1/0)
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+
+--- PAGE 61 ---
+
+
+--- PAGE 62 ---
+60
+DEPARTMENT OF
+MECHANICAL ENGINEERING
+The courses offered by the Department of Mechanical Engineering are designed to
+give students the broad skill set required to pursue their goals, whether that is
+working as a Mechanical Engineer, Product Design Engineer, Energy Consultant,
+Entrepreneur, or continuing on to graduate study and research, throughout the
+globe. This specialization combines a broad-based education in the engineering
+sciences with a strong grounding in quantitative, problem solving, design, and
+communication skills. In the Department of Mechanical Engineering, students
+learn by doing, experiencing a level of understanding that only occurs through
+creative activities.
+The department offers minors in areas of emerging sciences in Mechanical
+Engineering. Currently the minors in Mechatronics, Building Services and
+Manufacturing Engineering are offered by the department. The minor in
+Mechatronics Engineering covers the areas of robotics, vision systems, control
+systems, advanced automation, and micro mechatronics. The minor in
+Manufacturing Engineering covers the areas of production and operations
+management, advanced manufacturing systems and computer aided designing
+and manufacturing. Heating,ventilation, and air-conditioning (HVAC) systems,
+piped services and green building engineering are covered in the minor of Building
+Services. The curriculum of Mechanical Engineering ranges across the
+fundamentals of engineering mechanics, thermodynamics, energy engineering,
+building services, manufacturing, aerodynamics, and computer- based simulations
+with numerical approaches to designing products with a significant impact to
+society.
+
+--- PAGE 63 ---
+61
+Academic Staff
+Dr. Darshana Makavita
+Dr.Dulini Mudunkotuwa Dr. Geethal Siriwardana
+B.Sc.Eng. (Hons) (UOM)
+B.Sc.Eng. (Hons) (UOM) B.Sc.Eng. (UOR)
+M.Sc. (UOM)
+M.Eng. (UTokyo) M.Eng. (UOM)
+Ph.D. (UTAS)
+Ph.D. (UTokyo) Ph.D (USJ)
+Head/Senior Lecturer
+Senior Lecturer
+Senior Lecturer/Former Head
+makavita@sjp.ac.lk
+geethal@sjp.ac.lk
+dulini@sjp.ac.lk
+Research Interests:
+Research Interests:
+Research Interests:
+Control Systems, Underwater
+Computational Fluid
+Computational Fluid
+Robotics, Engineering
+Dynamics, Microfluidics,
+Dynamics, Numerical Weather
+Education
+Nanofluids, Heat Transfer,
+Prediction, Data Assimilation
+MEMS Biomedical
+Engineering
+Mr. Yasun Sampath Mr. Sayuru Bandara Mr. Anjan Rajapakse
+B.Sc.Eng.(Hons) (KDU) B.Sc.Eng. (Hons) (UOM) B.Sc.Eng. (Hons) (USJ)
+Ph.D. (Reading) (USJ) Ph.D (Reading) (USJ) M.Phil (Reading) (USJ)
+Lecturer Lecturer Lecturer
+yasun@sjp.ac.lk sayurudilan@sjp.ac.lk anjanrajapakse@sjp.ac.lk
+Research Interests: Research Interests: Research Interests:
+Computational Fluid Mechatronics, Robotics, Microfluidics, Computational
+Dynamics, Automobile Automation Fluid Dynamics,
+Engineering, Design, Manufacturing
+Manufacturing
+
+--- PAGE 64 ---
+62
+Ms. Nilani Pathinayake Mr. Kasun Sooriyapperuma Mr. Uvindu Thilakarathne
+B.Sc.Eng. (UOR) B.Sc.Eng. (Hons) (USJ) B.Sc.Eng. (Hons) (USJ)
+MBA in MoT (UOM) M.Phil. (Reading) (USJ) M.Phil. (Reading) (USJ)
+MDA (UOK)
+M.Phil. (Reading) (USJ) Lecturer Lecturer
+kasunchanuka@sjp.ac.lk uvinduthilakarathne@sjp.ac.lk
+Lecturer
+pathinayakenilani@sjp.ac.lk Research Interests: Research Interests:
+Mechatronics, Machine Green Hydrogen,
+Research Interests: learning, Robotics, Electrolysers, Fuel Cells,
+Technology Management, Automation, Underwater Renewable Energy,
+Engineering Education, Data robotics Thermodynamics,
+analytics, Machine learning Sustainability
+
+--- PAGE 65 ---
+63
+Academic Support Staff
+Mr. Gayath Dayarathne, Temporary Assistant Lecturer
+Ms. Bhagyani Randunuge, Temporary Instructor
+Mr. Ashan Indusara, Temporary Instructor
+Mr. Kodees Rajah, Temporary Instructor
+Ms. Gajaanee Jeyakumar, Temporary Instructor
+Mr. Maduranga Dilshan, Craft Demonstrator
+Non-academic Staff
+Ms. Tharaka Serasinghe, Technical Officer
+Ms. Thilini Liyanage, Management Assistant
+Mr. Pasan Palihena, Lab Attendant
+Mr. Yashodha Hiran, Lab Attendant
+Mr. Ruwan Kumara, Lab Attendant
+Mr. Thisara Bandara, Works Aid
+
+--- PAGE 66 ---
+64
+Curriculum of Mechanical Engineering
+Semester 3
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME2301 Theory of Machines 3 Compulsory Yes
+ME2302 Fluid Dynamics 3 Compulsory Yes
+ME2303 Applied Thermodynamics I 3 Compulsory Yes
+ME2104 Sensors and Actuators 1 Compulsory Yes
+EE2191 Electrical Machines 1 Compulsory Yes
+IS2301 Engineering Mathematics III 3 Compulsory Yes
+IS2202 Engineering Mathematics IV 2 Compulsory Yes
+IS2261 Accounting for Engineers 2 Compulsory Yes
+Semester 4
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME2305 Strength of Materials I 3 Compulsory Yes
+Analysis of Manufacturing
+ME2206 2 Compulsory Yes
+Processes
+ME2307 Design of Machine Elements 3 Compulsory Yes
+ME2208 Theory of Control Systems 2 Compulsory Yes
+ME2209 Fundamentals of Mechatronics 2 Compulsory Yes
+IS2303 Engineering Mathematics V 3 Compulsory Yes
+IS2262 Economics and Management 2 Compulsory Yes
+
+--- PAGE 67 ---
+65
+Semester 5
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME3201 Strength of Materials II 2 Compulsory Yes
+ME3202 Fluid Machinery 2 Compulsory Yes
+ME3203 Dynamics of Mechanical Systems 2 Compulsory Yes
+ME3205 Automobile Technology 2 Compulsory Yes
+ME3250 Manufacturing Systems 2
+Production and Operations
+ME3351 3
+Management
+ME3352 HVAC System 3
+Electives (5) Yes
+ME3253 Piped Services 2
+ME3354 Robotics and Vision Systems 3
+Microcontrollers and
+ME3255 2
+Microprocessor Based Systems
+Algorithms and Optimization
+IS3201 2
+Methods
+IS3202 Discrete Mathematics 2
+Yes
+Electives (2)
+Newtonian Mechanicsand
+IS3203 2
+Lagrangian Dynamics
+Mathematical Modelling and
+IS3204 2
+Simulation
+Quantitative Methodsin
+IS3261 2 Compulsory No
+Management
+IS3162 Intellectual Property 1 Compulsory No
+IS3171 Sri Lankan History and Culture 1
+Ethnic Cohesion and Social
+IS3172 1
+Harmony
+Electives (1) No
+IS3173/ Sinhala/Tamil 1
+
+--- PAGE 68 ---
+66
+Semester 6
+Course Credit Contributing
+Title Category
+Code Value to GPA
+Comprehensive Mechanical
+ME3806 8 Compulsory Yes
+Engineering Design
+ME3207 Applied Thermodynamics II 2 Compulsory Yes
+ME3256 Product – Process Design 2
+ME3357 Group Project (Manufacturing) 3
+Electrical Installation,
+ME3258 2
+Distribution and Lighting
+Electives (5) Yes
+ME3359 Group Project (Building Services) 3
+ME3260 Advanced Automation 2
+ME3361 Mechatronics Project 3
+IS3205 Operations Research 2
+Advanced Probability and
+IS3206 2
+Statistical Analysis
+Optional No
+Time Series and Stochastic
+IS3207 2
+Processes
+Linear Models and Multivariate
+IS3208 2
+Statistics
+IS3263 Industrial Law 2 Compulsory Yes
+IS3151 Technical Writing 1 Compulsory Yes
+IS3264 Management for Engineers 2 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1
+Electives (1) No
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+
+--- PAGE 69 ---
+67
+Training
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME3600 Industrial Training 6 Compulsory No
+Semester 7
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME4001 Engineering Project 4 Compulsory Yes
+ME4102 Solid Mechanics 1 Compulsory Yes
+ME4404 Individual Research Project 4 Compulsory Yes
+ME4103 Advanced Fluid Dynamics 1 Compulsory Yes
+Green Engineering and
+ME4262 2
+Environmental Compliance
+ME4363 Advanced Manufacturing Processes 3
+ME4364 Building Power Systems and Design 3
+ME4265 Energy Performance in Buildings 2 Electives (5) Yes
+Computer-Based Measurement
+ME4366 3
+Systems
+Graphical Programing and Virtual
+ME4267 2
+Instrumentation
+Sustainability and Disaster
+IS4161 1 Compulsory Yes
+Management
+IS3171 Sri Lankan History and Culture 1
+IS3172 Ethnic Cohesion and Social Harmony 1
+Electives (1) No
+IS3173/
+Sinhala/Tamil 1
+IS3174
+
+--- PAGE 70 ---
+68
+Semester 8
+Course Credit
+Title Category Contributing
+Code Value
+to GPA
+ME4001 Engineering Project 6 Compulsory Yes
+ME4205 Heat Transfer 2 Compulsory Yes
+ME4106 Advanced Machine Dynamics 1 Compulsory Yes
+ME4369 Computer Aided Manufacturing 3
+ME4270 Industrial Automation 2
+ME4271 Building Acoustics 2
+Facility and Building Environment
+Electives (5) Yes
+ME4372 3
+Management
+Smart Sensors, Actuators and
+ME4373 3
+Intelligent Systems
+ME4274 Introduction to Micro-mechatronics 2
+IS4171 Ethics in Engineering 1 Compulsory Yes
+IS3175 Introduction to Philosophy 1
+IS3176 Scientific Method 1
+Electives (1) No
+Introduction to Psychology and
+IS3177 1
+Human Behaviour
+
+--- PAGE 71 ---
+69
+DEPARTMENT OF
+INTERDICSIPLINARY STUDIES
+The Department of Interdisciplinary Studies caters to all four specializations in
+which the faculty offers its degrees, via offering courses to the undergraduates
+that provide them with a plethora of competencies that a professional
+engineer is expected to possess.The department delivers a wide range of core
+engineering modules such as engineering mathematics, modeling and
+simulation, and measurements while also offering supplementary courses in
+the fields of communication, management, law and humanities. Further, the
+undergraduates are also provided with comprehensive knowledge on
+mathematical and statistical software, which are essential for solving practical
+problems in engineering.
+The Department is also collaborating with the Faculty of Medicine, Faculty of
+Applied Science and Faculty of Humanities and Social Sciences in
+interdisciplinary research activities. As per the department's strategic
+direction, research and industry collaborations are initiated with the
+Department of Archeology, Central Cultural Fund and Sri Lanka Tourism
+Development Authority.
+The department also offers an opportunity for students to initiate
+interdisciplinary research and promotes holistic and trans-boundary nature of
+problem solving that is highly expected from a modern day professional
+engineer. All of the courses are being offered by the department with the aim
+of developing and enhancing soft skills, managerial skills as well as leadership
+skills of the engineering undergraduates which will eventually aid them in
+their career advancement.
+
+--- PAGE 72 ---
+70
+Dr. Shyam Kularathna Dr. Nadika Jayasooriya
+Mr. Gayantha Kodagoda
+B.Sc.Eng. (Hons) (UOM), BSc. Eng (Hons) (UOM), Ph.D.
+B.Sc. Eng. (Hons)(UOM),
+M.Sc. (UTokyo), Ph.D. (UOM), CIMA (UK)- Passed
+Ph.D (Reading) (USJ)
+(UTokyo), CIMA (UK)-Passed Finalist, CMILT
+Finalist
+Lecturer
+Senior Lecturer
+gmkodagoda@sjp.ac.lk
+Head/Senior Lecturer nadikakeshan@gmail.com
+shyamkularathna@sjp.ac.lk
+Research interests:
+Research interests:
+Numerical Modeling, Aerial
+Research interests: Intelligent Transportation
+manipulators, Underwater
+Sustainability, Renewable Systems, Transportation
+Drones, Soft Robotics, AR/VR
+Energy Systems, Agent- Engineering & Economics,
+based modeling, Decision Monitoring & Evaluation,
+Science, Simulation of Project Management, Sports
+Human-Natural systems. Science
+Ms. Sajini Wickramasinghe Mr. Manoj Samarakoon
+B.A. (Hons) (UOK), LLB B.Sc.Eng. (Hons) (USJ),
+(Hons) (University of M.Phil. (Reading) (USJ)
+London), M.Phil. (Reading)
+(UOC)
+Lecturer Lecturer
+sajinitharika@sjp.ac.lk smmhsamarakoon@sjp.ac.lk
+Research interests: Research interests :
+Sociolinguistics, Testing and Intelligent Transportation
+Evaluation, Language Systems, Sustainable
+Teaching Methodology Transportation
+
+--- PAGE 73 ---
+71
+Academic Support Staff
+Mr. Thiumi Kaluarachchi, Temporary Instructor
+Non-academic Staff
+Mrs. Panchani Rathnayaka - Management Assistant
+
+--- PAGE 74 ---
+72
+OFFICE OF THE DEAN
+Dean is the academic and administrative head of the Faculty. The office of the
+Dean co-ordinates the academic and administrative activities of the Faculty. Each
+academic department is headed by a Head of Department who functions under
+the supervision of the Dean of the Faculty.
+The main task of the office of the Dean is to provide the administrative mechanism
+and support required for coordinating the departments and the degree program.
+Also, it would be responsible for activities such as programs scheduling (specially
+the common programs of the first year), coordinating, academic advising, and
+maintaining student records.
+The administration division of the faculty is headed by the Assistant Registrar
+under the supervision of the Dean. Similarly, the financial administration of the
+faculty is headed by the Assistant Bursar.
+Staff of the Office of the Dean
+Ms. Kumari Dassanayake Mr. E.M. Gunarathne
+Senior Assistant Registrar Deputy Bursar
+Dr. P.H.G.W.M. Maheepa, Medical Officer
+Dr. Kasun Indunil Wijethilaka, Student Counselor
+Mr. Randeep Handunwala, Assistant Network Manager
+Ms. S.B.M.A. Semasinghe, Nursing Officer
+Ms. P.K.W. Nuwanthika, Pharmacist
+Ms. Gothami Kularathna, Senior Staff Management Assistant
+Mr. Sanka Samaraweera, Technical Officer (ICT)
+Mr. D T Thilakarathne, Works Superintendent
+Ms. Deshani Kandekumbura, Management Assistant
+Ms. Subashini Dissanayaka, Management Assistant
+Ms. Prasadini Sooriyaarachchi, Management Assistant
+Mr. Rukman Manjula, Electrician
+Mr. Lakshman Jayasekara, Carpenter
+Mr. Dananjaya Bandara, Works Aid
+Mr. P.A.G.S.B.P. Arachchi, Works Aid
+
+--- PAGE 75 ---
+73
+GENERAL INFORMATION
+AND FACILITIES
+Student Record Book
+Each student registered to follow the Degree Programme in Engineering will be
+issued with a Student Record Book (SRB) by the University. The SRB must be updated
+as the student progresses in the study programme. This book contains basic
+information of the student, such as his name, registration number, date of
+registration, contact information, and national identity card number.
+The SRB is the property of the University and should not be abused, altered and
+tampered with or transferred to a third party. In the event of the loss of the SRB, a
+student should immediately report the loss to the Students Affairs Division/ Dean of
+the Faculty. In the event a duplicate SRB is to be issued, the student concerned will be
+liable to pay a surcharge and the cost of issuing the record book.
+Student Identity Card
+All students are provided with an Identity Card issued by the University. Each student
+is required to carry the Identity Card in person at all times within the University
+premises. Student should produce the Identity Card and prove his identity on being
+asked to do so by any Academic Staff member, security personnel or any other person
+authorized to do so by the Vice Chancellor. The Identity Card is the property of the
+University and should not be abused, altered and tampered with or transferred to a
+third party. In the event of the loss of the Identity Card, the student should
+immediately report the loss to the Students Affairs Division/ Dean of the Faculty. The
+student concerned will be liable to pay a surcharge and the cost of issuing a duplicate
+Identity Card.
+By-laws on Student Discipline
+Students are expected to behave responsibly without disrupting activities of the
+faculty. In case a student behaves otherwise, he/she may be subjected to disciplinary
+action by the University in accordance with the ‘By-laws on Student Discipline’. It is
+the declared policy of the University that there will be zero tolerance on “Ragging”. All
+students must be aware of the provisions in the “Prohibition of Ragging and Other
+Forms of Violence in Educational Institutions Act, No. 20 of 1998”.
+
+--- PAGE 76 ---
+74
+Policy on Excusing from Academic Activities
+A student may be excused from academic activities such as lectures, tutorials,
+practical work, and assignments due to the demise of a parent, a sibling, or spouse, or
+due to any valid medical reason. The student is responsible for submitting authentic
+evidence, within fourteen (14) days of the event due to which ‘excuse’ is being sought.
+The acceptability of such evidence would be determined by the Faculty.
+Examination Procedure
+The procedure a student should follow during examinations are described in the
+“Examination criteria, rules and regulations, examination irregularities, punishments
+applicable to candidates sitting first degrees, postgraduate degrees and external
+degrees conducted by the University” in Student Handbook of University of Sri
+Jayewardenepura. Violation of the provisions described in the document under
+reference, will result in the student being disciplinarily dealt with. All students are
+required to educate themselves about the examination procedure and the respective
+Rules and Regulations of the University of Sri Jayewardenepura.
+Financial Assistance for Students
+Mahapola Scholarships
+Mahapola scholarships are awarded to selected students based on merit or need
+where they would receive financial assistance as determined by the Mahapola Trust
+Fund. Students are informed via public notice by the Welfare Division about the dates
+on which the instalments will be paid.
+University Bursaries
+Those who are not eligible for the Mahapola scholarship may apply for University
+Bursaries for financial assistance. Further information will be available with the
+Welfare Division of the University, who will receive and process the applications.
+Library
+The Library plays an important role in the university’s education, supporting the three
+main pillars of the university: teaching, learning, and research. In the Main Library of
+the Sri Jayewardenepura University, there is a collection of more than two hundred
+thousand books, and hundreds of journals and electronic databases. The library has
+acquired a number of electronic resources such as e-books, e-journals, bibliographies
+and full text databases covering varieties of subject areas. All these databases and free
+sources are listed under e-resources in the library website.
+
+--- PAGE 77 ---
+75
+Students from the Faculty of Engineering can use both the Main Library located
+within the main campus premises and the branch Faculty Library located within the
+Engineering Faculty premises.
+Library of the Faculty of Engineering
+The library of the Faculty of Engineering contains all the relevant textbooks in the four
+major disciplinary streams of Engineering along with supportive subject areas and
+other relevant reading materials. Students could also use the computers in the
+Faculty Library to access electronic databases and journals.
+The usual opening hours of the library are from 8.15 am to 4.15 pm on weekdays.
+However, opening hours could be extended based on special requirements.
+
+--- PAGE 78 ---
+76
+Industrial Training Division (ITD)
+The Industrial Training Division (ITD) of the Faculty of Engineering, University of Sri
+Jayewardenepura is functioning directly under the Dean of the Faculty of Engineering
+and is located at the Faculty of Engineering, Lumbini Avenue, Ratmalana.
+Students following the Bachelor of Science of Engineering Honours degree
+conducted by the Faculty of Engineering, University of Sri Jayewardenepura are
+required to undergo 24 weeks of industrial training in an industrial establishment as a
+compulsory requirement of the study programme.
+The ITD in collaboration with the respective departments of the Faculty and the
+National Apprentice and Industrial Training Authority (NAITA) make arrangements to
+place the students in suitable establishments for idustrial training. The ITD is also
+responsible for managing and monitoring matters related to industrial training,
+coordinating with training providers, supervising the students during training and
+conducting assessments.
+Computer Center
+The students could access the Computer Center of the Faculty of Engineering, which
+is equipped with modern computers that are networked and provided with internet
+facilities. The Computer Centre is equipped to facilitate both the first-year common
+courses and some of the courses taken under specialized streams.
+All students will be provided with a university student email account upon request.
+Free Wi-Fi is available within the faculty premises to all the students.
+
+--- PAGE 79 ---
+77
+Canteen and Convenience Store
+The faculty canteen provides cooked meals, hot/cold beverages, and other food items
+for the students at concession rates.
+The Convenience Store offers products such as confectioneries, snacks, cold
+beverages, stationary items, printed media, and other daily commodities. A photocopy
+service is also available at the Convenience Store.
+Hostel Facility
+Separate hostel accommodation is available for both male and female students of the
+faculty. The priority is given to first year and fourth year students. Since
+accommodation in hostels is limited, please be noted that university authorities may
+not be able to provide accommodation to all applicants.
+Mentors
+Each student is assigned with an academic staff member as his/her mentor to
+support smooth engagement in academic activities. Students are encouraged to
+discuss the academic/personal issues that hinder his/her studies with the assigned
+mentor.
+77
+
+--- PAGE 80 ---
+78
+UNIVERSITY STUDENT COUNCIL,
+FACULTY UNION, AND SOCIETIES
+As provided in the Universities Act No. 16 of 1978 and as amended, there exist
+University Student Council, Faculty Unions and other societies, which function under
+By-laws approved by the University. Further, there is a multitude of University
+approved learned societies, which will engage students in religious, educational and
+recreational activities.
+IESL Student Chapter
+IESL Student Chapter in the University of Sri Jayewardenepura is one of the most
+active student chapters which is established in collaboration with the IESL Young
+Members’ Section. The objectives of the chapter are to disseminate knowledge,
+theory and practice of aspects related to the relevant discipline of engineering while
+professionally developing the students and encouraging them to be socially
+responsible people. The initial foundation for the Chapter was laid by Dr. Akila
+Subasinghe, the founding Dean of the Faculty and Dr. Chamitha de Alwis in 2017. The
+formal establishment of the IESL Student Chapter took place on 9th of September
+2019 under the guidance of Prof. K.M.C. Konthesingha and Dr. G.N. Samarasekara.
+Since the establishment, the chapter has been actively incorporating with the faculty
+undergraduates by supplementing them with educational, professional and soft skills
+development activities to help them to mold themselves into skilled engineers. The
+chapter’s activities include seminars focusing on various disciplines of engineering
+and soft skill development, webinars with the cooperation of academics and industry
+experts, CSR projects, activities with the cooperation of IESL Sri Lanka, etc.
+All the undergraduate and postgraduate students of the Faculty of Engineering are
+eligible to be members of the IESL Student Chapter. The students can take part in
+various activities and events such as IESL day, IESL Techno, Techno Games, IESL YMS
+Technical Conference, Inter University Debate Competition, Talk to School programs
+which are conducted in collaboration with the IESL, Sri Lanka.
+
+--- PAGE 81 ---
+79
+IET Sri Lanka Network
+The Institution of Engineering &amp; Technology (IET) is one of the premier
+professional engineering organizations in Sri Lanka with headquarters in the
+UK. As a professional organization, IET plays a major role in the career
+development of engineering professionals throughout the world. IET global
+network has a membership of over 167,000 qualified engineers representing
+150 countries over the world gaining support and recognition from the
+IET.
+The IET Sri Lanka is the 9th local network in the South Asian region and it has
+been set up to serve the members of IET who live in Sri Lanka and to
+coordinate local activities. The local network’s activities include evening
+forums, committee meetings, technical sessions, workshops, international
+conferences/symposiums, field visits, conducting radio/TV programs for public
+awareness, and younger member sessions. The IET has had members in Sri
+Lanka for over 80 years, with a current growing membership of over 1,000
+engineers. IET Sri Lanka collaborates with the Institution of Engineers Sri
+Lanka (IESL), the Institute of Electrical and Electronics Engineers (IEEE), the
+British Computer Society (BCS), the Computer Society of Sri Lanka (CSSL), the
+Institute of Physics Sri Lanka (IPSL) and the engineering faculties of the
+universities in Sri Lanka for many activities in the electrical, electronics &amp;
+telecommunications and computer engineering related fields.
+IET Young Professionals
+The IET Young Professionals Sri Lanka Network (IET YP SLN) consists of young
+IET members who are below the age of 35 and student members
+(undergraduates). The Young Woman Engineer (YWE) Award, which was
+initiated in 2017, is the key event of the YP SLN. Apart from that, several
+workshops, guest lectures, competitions, technical conferences, and field visits
+are organized for the younger members and undergraduate students.
+Annually, the Young Professional Technical Conference (YPTC) is organized for
+students to showcase their research works. IET YP SLN supports students to
+build a community as a society or student organization within the university
+by providing resources and funding for extracurricular events. Under the IET
+YP SLN, there are nine on-campus. The IET On-Campus at the University of Sri
+Jayewardenepura is the 8th one that was initiated in 2022, and in that short
+period too, it was awarded the Best IET On-Campus in that year.
+
+--- PAGE 82 ---
+80
+IEEE Student Branch
+IEEE, founded in 1884, stands as the world’s largest technical professional
+society, born during a transformative era when electricity was reshaping
+society. Visionaries like Alexander Graham Bell and Thomas Edison were early
+contributors. In 1963, the merger of the American Institute of Electrical
+Engineers (AIEE) and the Institute of Radio Engineers (IRE) gave rise to IEEE,
+now connecting brilliant minds across diverse fields to advance science and
+technology for humanity's benefit.
+The IEEE Student Branch at the University of Sri Jayewardenepura, part of
+IEEE Sri Lanka Section, was established in 2018 under the leadership of Mr.
+Dulan Dias. It aims to advance technology and professionalism, offering
+educational, technical, and professional advantages to its members. Notably,
+in 2022, the branch earned the IEEE Regional Exemplary Student Branch
+Award, led by current Chairperson Ms. Wasana Shalini and Branch Counselor
+Prof. Lasith Gunawardena.
+Dedicated to fostering connections, our branch hosts various events to
+promote community and collaboration among members and with other
+branches. From the Annual General Meeting (AGM) to celebrating IEEE Day,
+our focus is on showcasing IEEE's importance, enticing new members, and
+encouraging active involvement. JamborIEEE camps unite multiple SBs,
+enhancing inter-branch connections, while initiatives like Road to Legacy
+guide first-year IT undergraduates. J’Pura Expedition 2024 featured tech talks
+by esteemed speakers, spanning AI to robotics, providing insights into
+cutting-edge technologies.
+With an exciting event lineup ahead, we remain committed to our mission of
+fostering connections and creating memorable experiences. Join us on this
+journey of learning, growth, and community-building within the IEEE Student
+Branch.
+
+--- PAGE 83 ---
+81
+Department Societies/ Clubs
+Civil Engineering Society
+The Civil Engineering Society (CES) is the main society within the Department
+of Civil Engineering that consists of the academic staff, undergraduate and
+postgraduate students. The society has been established with broader aims of
+promoting the civil engineering profession among students, enhancing the
+networking opportunities among the members and with the wider civil
+engineering community, promoting the professional development of students,
+and improving the student’s life in the department. Apart, CES represents the
+department in inter-university, national, and international Level activities
+including IESL TECHNO exhibitions and design competitions. Intra university
+level spaghetti bridge competitions are organized by the CES annually. In
+addition, the society organizes guest lectures by inviting key personnel from
+the industry and research organizations. Apart from the activities related to the
+Civil Engineering field CES promote and encourage students to serve
+underprivileged sectors of the society.
+
+--- PAGE 84 ---
+82
+Computer Engineering Society
+Computer Engineering Society (CENSOC) of the University of Sri
+Jayewardenepura was established as the main society of the Department of
+Computer Engineering. Membership of CENSOC is open to all undergraduate
+and postgraduate students and academic/ academic support/ technical staff
+attached to the Department of Computer Engineering. CENSOC aims to
+establish interaction among members and to promote professional interest in
+the field of Computer Engineering. The society explores and provides
+opportunities to fulfill its societal responsibilities to the community. Further,
+CENSOC will act as the social arm that identifies inherent capabilities of
+students and promote their leadership skills and professionalism.
+
+--- PAGE 85 ---
+83
+E 2 CLUB
+Electrical and Electronic Engineering Club (E 2 Club) of the University of Sri
+Jayewardenepura is the prestigious social arm of the Department of Electrical
+and Electronic Engineering. Membership of E 2 Club is open to all
+undergraduate/postgraduate students and members of the
+academic/academic support/technical staff attached to the Department of
+Electrical and Electronic Engineering.
+2
+E Club promotes professional interest in the area of Electrical and Electronic
+Engineering and establishes closer interactions among members. The club
+intend to inspire its members towards personal and societal developments as
+applicable to Electrical and Electronic Engineering. The activities of the E2 Club
+include, but not limited to, organizing guest talks, presentations, field visits,
+workshops, competitions, carrier fairs, fun activities and charity projects.
+
+--- PAGE 86 ---
+84
+IMechE - University of Sri Jayewardenepura Student Chapter
+The Institution of Mechanical Engineers (IMechE) Student Chapter of the
+University of Sri Jayewardenepura, established in December 2019, is dedicated
+to promoting the significance of mechanical engineering through various
+innovative initiatives. In addition to organizing sessions featuring keynote
+speeches and engaging panel discussions to underscore the importance of the
+field, the chapter actively fosters hands-on learning experiences.
+Annually, the chapter participates to the Speak Out for Engineers (SOFE)
+competition, providing a dynamic platform for students to showcase their
+talents and innovative ideas. Moreover, recognizing the importance of practical
+exposure, the chapter collaborates with industry experts to conduct
+specialized sessions covering key areas of the engineering profession. These
+sessions offer invaluable insights, practical skills, and networking opportunities,
+enriching the academic journey of its members and preparing them for the
+challenges of the professional world.
+
+--- PAGE 87 ---
+85
+Mechanical Engineering Members Society
+The Mechanical Engineering Members Society (MEMS) at the University of Sri
+Jayewardenepura (USJ) is dedicated to creating a collaborative community
+within the Department of Mechanical Engineering. MEMS aims to exchange
+experiences and knowledge among students, staff, and alumni, and enhance
+industrial collaborations for career guidance. The society organizes
+competitions, exhibitions, and events to showcase outstanding projects and
+skills, and seeks affiliations with other universities and research institutes.
+MEMS also contributes to professional development and research
+advancement through workshops and seminars. The society is committed to
+public outreach, uplifting the local community, and supporting department
+initiatives. Recent endeavors, such as hosting the Stream-Xtream
+computational fluid dynamics (CFD) competition at Techno 2023, demonstrate
+MEMS' dedication to enriching the academic experience for its members.
+
+--- PAGE 88 ---
+86
+Nexus CLUB
+The NEXUS Club of University of Sri Jayewardenepura was established in
+October 2023, with the aim of fostering unity, promoting team building, and
+nurturing leadership qualities among students.
+It serves as a platform to enrich aesthetic appreciation by encouraging
+engagement in various creative pursuits such as music, dancing, drama,
+photography, and exploratory activities. Additionally, the club is dedicated to
+enhancing language and communication skills, fostering personality
+development, and facilitating interdisciplinary discussions related to
+engineering. NEXUS Club is open to all students across the four departments,
+and serves as a nexus, interconnecting individuals from diverse academic
+backgrounds and providing a supportive environment for personal and
+intellectual growth.
+Join the Nexus Club in the journey of exploration, creativity, and collaboration
+as we strive to cultivate well-rounded individuals equipped with the skills and
+mindset to excel both academically and beyond.
+
+--- PAGE 89 ---
+87
+Career Guidance Unit
+The Career Guidance Unit of the University of Sri Jayewardenepura offers
+assistance to students in developing skills that would shape them to be
+productive in the local and international industry.
+Career Guidance Cell - Faculty of Engineering (CGC-FoE)
+Career Guidance Cell (CGC-FoE) of Faculty of Engineering was established
+under the purview of the Career Guidance Unit of the University of Sri
+Jayewardenepura. The CGC-FoE aims to support undergraduates in acquiring
+attributes and soft skills which can assist them in reaching standards matching
+the potential employer’s requirements. The cell comprises of academic career
+advisors from each department and an experienced career guidance counselor
+as a career advisor.
+http://eng.sjp.ac.lk/career-guidance-center/
+Career Guidance Society - Faculty of Engineering (CGC-FoE)-
+Faculty of Engineering (CGC-FoE)
+Career Guidance Society is the student club of the Career Guidance Cell of the
+Faculty of Engineering. Students can join the society upon registration, where
+they can get the exposure to various acitvities organized by the society, to
+enhance their knowledge,, and skills and develop the career path, from the early
+stages of the undargraduate studies. The society organizes several workshops,
+seminars and welfare programmes, having these objectives in mind. Further, as
+the main event of the society, a career fair, followed by a workshop series are
+organized anually, to connect employers with the undergraduate students, to
+facilitate with career opportunities.
+
+--- PAGE 90 ---
+88
+Sports and Recreation
+Sports and recreational activities of the university are managed by the
+Department of Physical Education. The Department of Physical Education
+provides an opportunity for students to take part in different recreational and
+sports activities and to develop personalities and qualities of teamwork
+through such participation. The students may also enjoy a game of carom and
+badminton within the faculty premises.
+Medical Center & Counselling
+The Engineering faculty medical center caters to the university community
+including students, staff and their families free of charge as the first contact
+and coordinate with Colombo South Teaching Hospital for secondary care. The
+medical center provides facilities for students and staff during the daytime.
+Other medical facilities such as, preventive health care (Dengue control
+program), ambulance facilities, dental facilities, etc. are provided by the main
+medical center of the University of Sri Jayewardenepura. The Counselling
+Center of the Faculty of Engineering offers counselling services to the students
+of the faculty to maintain their mental well-being.
+http://eng.sjp.ac.lk/medical-center/
+
+--- PAGE 91 ---
+89
+Student Affairs and Welfare
+Welfare
+To obtain advice for student welfare activities such as hostels, canteens,
+scholarships and bursaries, a welfare committee has been formed by the
+Faculty Board under the approval of the Senate. The following member act as
+Deputy Director of the student welfare committee of the faculty.
+Dr. Shyam Kularathna shyamkularathna@sjp.ac.lk
+Discipline
+The following faculty member act as Deputy Proctor for student related
+disciplinary matters.
+Dr. Shyam Kularathna shyamkularathna@sjp.ac.lk
+
+--- PAGE 92 ---
+STUDENT LIFE
+
+--- PAGE 93 ---
+91
+Editorial Remarks
+The Editorial Committee wishes to acknowledge that certain contents of the
+Student Guide may contain reproductions of previous editions of the faculty
+Student Guide.
+Editorial Supervision
+Dr. Nishan Dharmaweera, Dean, Faculty of Engineering
+Chief Editor
+Dr. Nilan Weerakoon
+Editors
+Mr. Uvindu Thilakarathne
+Mr. Lakshan Madhushanka
+Mrs. Kobika Thayananthan
+Mrs. Sajini Wickramasinghe
+Ms. Dhanushika Darshani
+Layout Design
+Ms. Uvindu Thilakarathne
+Photographs
+Japura Media
+Dr. Akila Subasinghe
+Prof. K.M.C Konthesingha
+Dr. Chamitha de Alwis
+Dr. Irindu Upasiri
+This Student Guide is for informational purposes only.
+The Faculty of Engineering reserves the right to amend this Student Guide
+without prior notice. Authentic information relevant to the degree
+program is available in the By-laws.
+
+--- PAGE 94 ---
+92
+Please read this student guide together with all relevant documents,
+including but not limited to the following;
+Student Handbook, University of Sri Jayewardenepura
+(https://www.sjp.ac.lk/student-hand-book-2020-university-of-sri-
+jayewardenepura/)
+By-laws, Regulations and Rules as approved by the Council of the
+University (University of Sri Jayewardenepura Regulations and Rules for
+the award of Bachelor of Science of Engineering; By-laws for the award of
+Academic Distinctions by the Faculty of Engineering. https://eng.sjp. ac.lk/).
+Faculty Awards
+http://eng.sjp.ac.lk/gold-medal/
+Details of Departmental Awards:
+http://eng.sjp.ac.lk/civileng/gold-medal/
+http://eng.sjp.ac.lk/computereng/gold-medal/
+http://eng.sjp.ac.lk/eeeng/gold-medal/
+http://eng.sjp.ac.lk/mechanicaleng/news/gold-medal-for- mechanical-
+engineering/
+http://eng.sjp.ac.lk/interdisciplinary/gold-medal/
+
+--- PAGE 95 ---
+93
+CONTACT INFORMATION
+Faculty Website Department of Civil Engineering
+http://eng.sjp.ac.lk Tel: 011-3041603
+Email: head.ce@sjp.ac.lk
+Faculty Office
+Tel/Fax: 011-2731582 Department of Computer Engineering
+Email: foe@sjp.ac.lk Tel: 011-3041601
+Email: head.co@sjp.ac.lk
+Student Welfare Division
+University of Sri Jayewardenepura Department of Electrical and Electronic
+Tel: 011-2802010/011-2758270 Engineering
+University Website http://www.sjp.ac.lk/ Tel: 011-3041602
+Email: head.ee@sjp.ac.lk
+General Line
+Tel: 011-2758000/ 011-2802696 Department of Mechanical
+Email: info@sjp.ac.lk Engineering
+Tel: 011-3041604
+Proctor (University of Sri
+Email: head.me@sjp.ac.lk
+Jayewardenepura)
+Tel: 011-2758330 Department of Interdisciplinary Studies
+Tel: 011-3041605
+Deputy Proctors (Faculty of Engineering)
+Email: head.is@sjp.ac.lk
+Tel: 011-3041601
+Main Library
+Tel: 011-2758525/011-2758526
+Library at the Faculty of Engineering
+Tel: 011-3024654
+Medical Officer
+Tel: 011-2758602/011-2758500
+Student Welfare Division
+Faculty of Engineering
+Tel: 011-3041603
+
+--- PAGE 96 ---
+University of Sri Jayewardenepura
+Gangodawila, Nugegoda, Sri Lanka.
+Congratulations
+on being admitted to the
+Faculty of Engineering, University of Sri Jayewardenepura.
+You have gained this rare opportunity as a result of
+your hard work and excellent academic performance.
+We welcome you to the Faculty and
+wish you every success in achieving your career goal of
+becoming a professional engineer.
+Tele: +94 11 2758000, +94 11 2802022, +94 11 2801024, +94 11 2801025
+Email: info@sjp.ac.lk

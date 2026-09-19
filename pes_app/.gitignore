@@ -1,0 +1,5 @@
+node_modules
+pes_app/node_modules
+pes_app/dist
+.env
+.env.local

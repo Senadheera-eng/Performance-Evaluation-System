@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pes-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "pes_app", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

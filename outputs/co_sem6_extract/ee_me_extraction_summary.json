@@ -1,0 +1,12 @@
+{
+  "EE": {
+    "rows": 61,
+    "out": "outputs\\co_sem6_extract\\ee_sem6_extracted_rows.csv",
+    "uncertain": []
+  },
+  "ME": {
+    "rows": 84,
+    "out": "outputs\\co_sem6_extract\\me_sem6_extracted_rows.csv",
+    "uncertain": []
+  }
+}
