@@ -2,6 +2,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
 import { cn } from "../ui/utils";
+import { MissingHint } from "./LikertMatrix";
 import type {
   FeedbackAnswerInput,
   FeedbackQuestion,
@@ -28,18 +29,40 @@ const YES_NO: { value: string; label: string }[] = [
  * key the answer belongs under.
  */
 export function QuestionField({
-  question,
-  answer,
-  disabled,
-  maxTextLength,
-  onChange,
-}: {
+  missing = false,
+  ...props
+}: QuestionFieldProps & {
+  /** A submit found this required question unanswered. */
+  missing?: boolean;
+}) {
+  const control = <QuestionControl {...props} />;
+  if (!missing) return <div className="scroll-mt-24">{control}</div>;
+  return (
+    <div
+      data-missing-answer
+      className="scroll-mt-24 rounded-xl border-2 border-destructive/70 bg-red-50 p-3 dark:bg-red-500/10"
+    >
+      {control}
+      <MissingHint />
+    </div>
+  );
+}
+
+interface QuestionFieldProps {
   question: FeedbackQuestion;
   answer: FeedbackAnswerInput | undefined;
   disabled: boolean;
   maxTextLength: number;
   onChange: (patch: Partial<FeedbackAnswerInput>) => void;
-}) {
+}
+
+function QuestionControl({
+  question,
+  answer,
+  disabled,
+  maxTextLength,
+  onChange,
+}: QuestionFieldProps) {
   const required = question.is_required;
 
   const label = (

@@ -218,6 +218,65 @@ export function isQuestionVisible(
   return given != null && question.depends_on_values.includes(given);
 }
 
+/**
+ * Whether an answer counts as given. Mirrors `feedback_answer_provided()` in
+ * the database, including multi-select — which the old per-page checks
+ * treated as text, so a required multi-select could never be satisfied.
+ */
+export function answerProvided(
+  question: FeedbackQuestion,
+  answer: FeedbackAnswerInput | undefined,
+): boolean {
+  if (!answer) return false;
+  switch (question.question_type) {
+    case "rating":
+      return answer.rating_value != null;
+    case "single_choice":
+    case "yes_no":
+      return Boolean(answer.choice_value?.trim());
+    case "multi_select":
+      return (answer.choice_values?.length ?? 0) > 0;
+    default:
+      return Boolean(answer.text_value?.trim());
+  }
+}
+
+/**
+ * Every required question still unanswered, as answer keys, in the order
+ * they appear on the form — so the first one is the first one the student
+ * will reach scrolling down.
+ *
+ * The same rules `missing_required_feedback()` applies when the form is
+ * submitted: one obligation per course question, one per lecturer for a
+ * lecturer question, and a question behind an unmet condition is not owed.
+ * Checking here first is what lets a form point at the question rather than
+ * only report a count back from the server.
+ */
+export function missingRequiredKeys(
+  form: Pick<FeedbackFormData, "sections" | "lecturers">,
+  answers: Record<string, FeedbackAnswerInput>,
+): string[] {
+  const missing: string[] = [];
+  const sections = form.sections ?? [];
+  // Course sections are asked once each; lecturer sections once per
+  // lecturer. Walk them the way each form lays them out.
+  for (const section of sections) {
+    const targets =
+      section.target_type === "lecturer"
+        ? form.lecturers.map((l) => l.lecturer_id)
+        : [null];
+    for (const target of targets) {
+      for (const q of section.questions) {
+        if (!q.is_required) continue;
+        if (!isQuestionVisible(q, answers, target)) continue;
+        const key = answerKey(q.id, target);
+        if (!answerProvided(q, answers[key])) missing.push(key);
+      }
+    }
+  }
+  return missing;
+}
+
 export type Result<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };

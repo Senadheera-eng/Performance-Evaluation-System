@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, GraduationCap, Lock, MessageSquareText } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  GraduationCap,
+  Lock,
+  MessageSquareText,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -22,6 +29,7 @@ import {
   getFeedbackCatalogue,
   getFeedbackForm,
   isQuestionVisible,
+  missingRequiredKeys,
   submitFeedback,
   type FeedbackAnswerInput,
   type FeedbackCatalogueRow,
@@ -370,6 +378,20 @@ function FeedbackFormView({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  /* Marks stay off until someone tries to submit: a form that opens with
+     every question outlined in red reads as an error before anything has
+     gone wrong. After that attempt they stay on, and each one clears the
+     moment its question is answered. */
+  const [showMissing, setShowMissing] = useState(false);
+
+  const missingKeys = useMemo(
+    () => (form ? missingRequiredKeys(form, answers) : []),
+    [form, answers],
+  );
+  const missingSet = useMemo(
+    () => (showMissing ? new Set(missingKeys) : undefined),
+    [showMissing, missingKeys],
+  );
 
   useEffect(() => {
     (async () => {
@@ -415,8 +437,34 @@ function FeedbackFormView({
     }));
   };
 
+  /* The first unanswered question that is actually on screen. Each rating
+     row exists twice — a table row for wide screens and a card for narrow
+     ones — and only one of the pair is displayed, so the hidden twin is
+     skipped. */
+  const goToFirstMissing = () => {
+    requestAnimationFrame(() => {
+      const first = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-missing-answer]"),
+      ).find((el) => el.offsetParent !== null);
+      first?.scrollIntoView({ behavior: "smooth", block: "center" });
+      first?.querySelector<HTMLElement>("button, input, textarea")?.focus({
+        preventScroll: true,
+      });
+    });
+  };
+
   const submit = async () => {
     if (!form) return;
+    /* Checked here, by the same rules the database applies, so the page can
+       point at the question. Left to the server alone, all a student got
+       back was a count — "1 still to go" — and a form of forty questions to
+       search by eye. */
+    if (missingKeys.length > 0) {
+      setError(null);
+      setShowMissing(true);
+      goToFirstMissing();
+      return;
+    }
     setSaving(true);
     setError(null);
     const result = await submitFeedback(
@@ -506,8 +554,13 @@ function FeedbackFormView({
           answers={answers}
           disabled={disabled}
           onPatch={patch}
+          missingKeys={missingSet}
         />
       ))}
+
+      {showMissing && (
+        <MissingSummary count={missingKeys.length} onShow={goToFirstMissing} />
+      )}
 
       <Button
         size="lg"
@@ -516,6 +569,46 @@ function FeedbackFormView({
         onClick={submit}
       >
         {saving ? "Submitting…" : "Submit Feedback"}
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Next to the submit button, because that is where the student is looking
+ * when they find out. Says how many are left and takes them to the first.
+ */
+function MissingSummary({
+  count,
+  onShow,
+}: {
+  count: number;
+  onShow: () => void;
+}) {
+  if (count === 0) {
+    return (
+      <p
+        role="status"
+        className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+      >
+        <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+        All required questions are answered. You can submit now.
+      </p>
+    );
+  }
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300"
+    >
+      <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+      <span className="flex-1">
+        {count === 1
+          ? "1 required question is still unanswered. It is marked in red above."
+          : `${count} required questions are still unanswered. They are marked in red above.`}
+      </span>
+      <Button size="sm" variant="outline" onClick={onShow}>
+        Show me
       </Button>
     </div>
   );
@@ -552,6 +645,7 @@ function SectionCardView({
   answers,
   disabled,
   onPatch,
+  missingKeys,
 }: {
   section: FeedbackSection;
   form: FeedbackFormData;
@@ -562,8 +656,15 @@ function SectionCardView({
     lecturerId: string | null,
     value: Partial<FeedbackAnswerInput>,
   ) => void;
+  missingKeys?: Set<string>;
 }) {
   const perLecturer = section.target_type === "lecturer";
+  /* How many of the marked questions are in this section, so a student
+     scrolling past it can tell it still needs something. */
+  const sectionIds = new Set(section.questions.map((q) => q.id));
+  const missingHere = missingKeys
+    ? [...missingKeys].filter((k) => sectionIds.has(k.split("::")[0])).length
+    : 0;
 
   return (
     <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -571,6 +672,11 @@ function SectionCardView({
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           {section.icon && <span aria-hidden="true">{section.icon}</span>}
           {section.title}
+          {missingHere > 0 && (
+            <StatusBadge tone="danger" className="ml-auto">
+              {missingHere} to answer
+            </StatusBadge>
+          )}
         </h2>
         {section.description && (
           // Stored as written on the faculty's form. Composing the "all fields
@@ -611,6 +717,7 @@ function SectionCardView({
                   answers={answers}
                   disabled={disabled}
                   onPatch={onPatch}
+                  missingKeys={missingKeys}
                 />
               </div>
             ))}
@@ -623,6 +730,7 @@ function SectionCardView({
           answers={answers}
           disabled={disabled}
           onPatch={onPatch}
+          missingKeys={missingKeys}
         />
       )}
     </section>
@@ -639,6 +747,7 @@ function QuestionGroup({
   answers,
   disabled,
   onPatch,
+  missingKeys,
 }: {
   questions: FeedbackQuestion[];
   lecturerId: string | null;
@@ -649,6 +758,7 @@ function QuestionGroup({
     lecturerId: string | null,
     value: Partial<FeedbackAnswerInput>,
   ) => void;
+  missingKeys?: Set<string>;
 }) {
   const visible = questions.filter((q) =>
     isQuestionVisible(q, answers, lecturerId),
@@ -674,6 +784,7 @@ function QuestionGroup({
             answerKeyFor={(q) => answerKey(q.id, lecturerId)}
             disabled={disabled}
             onChange={(q, value) => onPatch(q, lecturerId, { rating_value: value })}
+            missingKeys={missingKeys}
           />
         ) : (
           block.items.map((q) => (
@@ -684,6 +795,7 @@ function QuestionGroup({
               disabled={disabled}
               maxTextLength={MAX_TEXT}
               onChange={(value) => onPatch(q, lecturerId, value)}
+              missing={missingKeys?.has(answerKey(q.id, lecturerId)) ?? false}
             />
           ))
         ),
