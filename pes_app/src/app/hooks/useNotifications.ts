@@ -8,6 +8,7 @@ import {
   markRead,
   type AppNotification,
 } from "../../lib/notifications";
+import { notifyCountsChanged } from "./useNotificationCounts";
 
 /**
  * One store, not one per component.
@@ -87,6 +88,9 @@ function onInserted(row: AppNotification) {
       : [row, ...state.items],
     unread: state.unread + (row.read_at ? 0 : 1),
   });
+  /* The sidebar's notice badge is derived from these rows, so a new one
+     can move it — tell it now rather than leaving it for the next poll. */
+  notifyCountsChanged();
 }
 
 /* Read somewhere else — another tab, or the phone in their pocket. */
@@ -151,7 +155,7 @@ function start(userId: string) {
      still gets what it had before this change rather than something
      worse, and a healthy connection costs no requests at all. */
   pollTimer = window.setInterval(() => {
-    if (!state.live) refresh();
+    if (!state.live && !document.hidden) refresh();
   }, 60_000);
 }
 

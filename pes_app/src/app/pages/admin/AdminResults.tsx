@@ -421,43 +421,42 @@ export default function AdminResults() {
     (s) => s.errors.midSem || s.errors.ca,
   ).length;
 
-  const handleSaveDraft = async () => {
-    if (!selectedCourse || !selectedYear) return;
+  /** Resolves false when the sheet could not be saved, so publishing can
+   *  stop instead of publishing whatever was stored before the edit. */
+  const handleSaveDraft = async (): Promise<boolean> => {
+    if (!selectedCourse || !selectedYear) return false;
     setSaving(true);
     setSavedMessage(null);
 
     const dirty = dirtyValidRows();
-    let failed = 0;
 
-    for (const student of dirty) {
-      const payload = {
-        student_id: student.studentId,
-        course_id: selectedCourse.id,
-        academic_year: selectedYear,
-        mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
-        ca_mark: student.ca ? parseFloat(student.ca) : null,
-        // gpv is absent on purpose: the database derives it from the grade,
-        // so a sheet cannot save the two disagreeing.
-        grade: student.grade === "" ? null : student.grade,
-        is_published: false,
-      };
+    /* One request for the whole sheet. This used to update-or-insert one
+       student at a time, in sequence — sixty students was sixty round trips
+       and a failure halfway left the sheet half-saved. `results` is unique
+       on (student_id, course_id, academic_year), so an upsert covers both
+       the new and the existing rows, and either all of them land or none. */
+    const { error } =
+      dirty.length === 0
+        ? { error: null }
+        : await supabase.from("results").upsert(
+            dirty.map((student) => ({
+              student_id: student.studentId,
+              course_id: selectedCourse.id,
+              academic_year: selectedYear,
+              mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
+              ca_mark: student.ca ? parseFloat(student.ca) : null,
+              // gpv is absent on purpose: the database derives it from the
+              // grade, so a sheet cannot save the two disagreeing.
+              grade: student.grade === "" ? null : student.grade,
+              is_published: false,
+            })),
+            { onConflict: "student_id,course_id,academic_year" },
+          );
 
-      const { error } = student.resultId
-        ? await supabase
-            .from("results")
-            .update(payload)
-            .eq("id", student.resultId)
-        : await supabase.from("results").insert(payload);
-
-      if (error) {
-        console.error("[AdminResults] failed to save draft", student.studentId, error);
-        failed++;
-      }
-    }
-
-    if (failed > 0) {
+    if (error) {
+      console.error("[AdminResults] failed to save draft", error);
       setSavedMessage(
-        `Saved ${dirty.length - failed} of ${dirty.length}. ${failed} could not be saved — please try again.`,
+        `Could not save the ${dirty.length} changed row(s). Nothing was saved — please try again.`,
       );
     } else if (dirty.length > 0) {
       setSavedMessage(`Draft saved for ${dirty.length} student(s).`);
@@ -467,6 +466,7 @@ export default function AdminResults() {
 
     await fetchStudentResults();
     setSaving(false);
+    return !error;
   };
 
   /* ---------------- the spreadsheet round trip ---------------- */
@@ -563,7 +563,10 @@ export default function AdminResults() {
     setPublishing(true);
     setSavedMessage(null);
 
-    await handleSaveDraft();
+    if (!(await handleSaveDraft())) {
+      setPublishing(false);
+      return;
+    }
 
     const { error } = await supabase
       .from("results")
@@ -1257,7 +1260,7 @@ export default function AdminResults() {
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
-                      onClick={handleSaveDraft}
+                      onClick={() => void handleSaveDraft()}
                       disabled={saving || dirtyValidRows().length === 0}
                       variant="outline"
                       className="flex-1 h-10 border-amber-300 text-amber-700 hover:bg-amber-50"

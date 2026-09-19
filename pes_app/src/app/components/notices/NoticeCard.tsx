@@ -1,20 +1,49 @@
-import * as Icons from "lucide-react";
-import { Paperclip, Pin, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  CalendarClock,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  GraduationCap,
+  Megaphone,
+  Paperclip,
+  Pin,
+  Stethoscope,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
 import { StatusBadge } from "../common";
 import { describeScope, type NoticeSummary } from "../../../lib/notices";
+
+/* The icons a category may name. A fixed list, not `import * as Icons`:
+   the namespace import pulled all ~1,500 lucide icons into this chunk
+   (745 KB, loaded on every student dashboard) to look up nine. It was also
+   quietly wrong — it checked `typeof === "function"`, but lucide icons are
+   forwardRef objects, so every category fell back to the same icon. */
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  BookOpen,
+  CalendarClock,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  GraduationCap,
+  Megaphone,
+  Stethoscope,
+  TrendingUp,
+};
 
 /**
  * A category's icon, by name.
  *
  * Categories are configurable rows, so the icon arrives as a string. An
  * unknown name falls back rather than crashing the page — adding a category
- * should never require a deploy to avoid a blank screen.
+ * should never require a deploy to avoid a blank screen. (It does need one
+ * to get its own icon: add the name to CATEGORY_ICONS above.)
  */
 export function categoryIcon(name: string): LucideIcon {
-  const found = (Icons as unknown as Record<string, unknown>)[name];
-  return typeof found === "function"
-    ? (found as LucideIcon)
-    : Icons.FileText;
+  return CATEGORY_ICONS[name] ?? FileText;
 }
 
 /** "2 hours ago" up to a week, then the date. A notice board, not a feed. */

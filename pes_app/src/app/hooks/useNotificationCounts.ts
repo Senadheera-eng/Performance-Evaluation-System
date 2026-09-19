@@ -73,22 +73,51 @@ export function useNotificationCounts(): NotificationCounts {
 
   /* Navigation is the usual way a badge changes, but not the only one: a
      lecturer opens a register while the student is sitting on one page, and
-     the badge is the only thing that will tell them to scan. */
+     the badge is the only thing that will tell them to scan.
+
+     Only while someone can see it, though. This fires for every open tab of
+     every signed-in user, and a tab left in the background all day was
+     asking the database the same question sixty times an hour for a badge
+     nobody was looking at. A hidden tab skips the tick, and catches up the
+     moment it is looked at again. */
   useEffect(() => {
     if (!user) return;
-    const id = window.setInterval(load, 60000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(() => {
+      if (!document.hidden) load();
+    }, 60000);
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [user, load]);
 
   /* Nor is navigation enough on its own. Reading a conversation clears its
      badge, but the reading happens after the page has already loaded and
      fetched — so navigating alone would leave the count stale until the next
      minute ticked over. Whatever did the clearing says so, and the badge
-     catches up immediately. */
+     catches up immediately.
+
+     Coalesced, because the signals come in bursts: publishing a term's
+     results lands several notifications on one student within a second,
+     and each would otherwise be its own round trip for the same answer. */
   useEffect(() => {
-    const refresh = () => load();
+    let timer: number | null = null;
+    const refresh = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = null;
+        load();
+      }, 300);
+    };
     window.addEventListener(NOTIFICATIONS_CHANGED, refresh);
-    return () => window.removeEventListener(NOTIFICATIONS_CHANGED, refresh);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, refresh);
+    };
   }, [load]);
 
   return counts;
