@@ -23,6 +23,7 @@ import type {
 const TYPE_LABEL: Record<string, string> = {
   rating: "Rating 1–5",
   single_choice: "Choose one",
+  multi_select: "Pick several",
   yes_no: "Yes / No",
   short_text: "Short answer",
   long_text: "Long answer",
@@ -147,11 +148,15 @@ export function FeedbackRequestDialog({
     setFeedbackType("end_semester");
     setCohort(cohorts[0]?.key ?? "");
     setCourseIds([]);
-    setQuestionIds([]);
+    /* Every question in the bank, ticked. The bank is the department's
+       standard form, and most requests use all of it — starting from none
+       meant clicking through forty boxes to get back to the default. The
+       lecturer now removes what does not apply instead. */
+    setQuestionIds(bank.map((q) => q.id));
     setOpensAt(window.opens);
     setClosesAt(window.closes);
     setAllowEditing(true);
-  }, [open, existing, cohorts]);
+  }, [open, existing, cohorts, bank]);
 
   /* Grouped into the same sections, in the same order, that a student sees. */
   const sections = useMemo(() => {
@@ -361,8 +366,28 @@ export function FeedbackRequestDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-foreground">Questions</label>
-                <span className="text-xs text-muted-foreground">
-                  {questionIds.length} selected
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {questionIds.length} of {bank.length} selected
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={questionIds.length === bank.length}
+                    onClick={() => setQuestionIds(bank.map((q) => q.id))}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={questionIds.length === 0}
+                    onClick={() => setQuestionIds([])}
+                  >
+                    Clear all
+                  </Button>
                 </span>
               </div>
               <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
