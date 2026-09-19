@@ -1,0 +1,85 @@
+-- The admin dashboard used to download every attendance row three times
+-- (once for the average, once for the alerts, once for the per-course
+-- chart) plus every enrolment with its student and course, and add them up
+-- in JavaScript. Past PostgREST's 1000-row page that is not only slow but
+-- wrong: the counts silently stop at the first thousand rows. This returns
+-- the three answers the page actually shows, computed where the rows are.
+create or replace function public.get_admin_attendance_overview(p_alert_limit int default 5)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_role text := get_my_role();
+  v_dept text := get_my_department();
+  v_result jsonb;
+begin
+  if v_role not in ('dept_admin', 'super_admin') then
+    raise exception 'Access denied: admin role required';
+  end if;
+
+  with scoped_courses as (
+    select c.id, c.course_code, c.title, c.semester
+      from courses c
+     where v_role = 'super_admin' or c.department = v_dept
+  ),
+  att as (
+    select a.student_id, a.course_id,
+           count(*) as total,
+           count(*) filter (where a.status in ('present', 'excused')) as present
+      from attendance a
+      join scoped_courses sc on sc.id = a.course_id
+     group by a.student_id, a.course_id
+  ),
+  per_course as (
+    select sc.id, sc.course_code, sc.semester,
+           sum(att.total) as total, sum(att.present) as present
+      from scoped_courses sc
+      left join att on att.course_id = sc.id
+     group by sc.id, sc.course_code, sc.semester
+  ),
+  alerts as (
+    select s.name, s.reg_number, sc.course_code, sc.title,
+           round(att.present * 100.0 / att.total)::int as pct
+      from att
+      join enrollments e on e.student_id = att.student_id
+                        and e.course_id = att.course_id
+                        and e.status = 'enrolled'
+      join students s on s.id = att.student_id
+      join scoped_courses sc on sc.id = att.course_id
+     where att.present * 100.0 / att.total < 79.5
+     order by att.present::numeric / att.total, s.reg_number
+     limit p_alert_limit
+  )
+  select jsonb_build_object(
+    'average', (select case when sum(total) > 0
+                            then round(sum(present) * 100.0 / sum(total))::int
+                            else 0 end from att),
+    'alerts', coalesce((select jsonb_agg(jsonb_build_object(
+                 'studentName', name, 'regNumber', reg_number,
+                 'courseCode', course_code, 'courseName', title,
+                 'percentage', pct) order by pct, reg_number) from alerts), '[]'::jsonb),
+    'courses', coalesce((select jsonb_agg(jsonb_build_object(
+                 'code', course_code,
+                 'avgAttendance', round(present * 100.0 / total)::int)
+                 order by semester, course_code)
+                 from per_course where total > 0), '[]'::jsonb),
+    'awaiting', (select count(*) from per_course where coalesce(total, 0) = 0)
+  ) into v_result;
+
+  return v_result;
+end;
+$$;
+
+revoke all on function public.get_admin_attendance_overview(int) from public, anon;
+grant execute on function public.get_admin_attendance_overview(int) to authenticated;
+
+-- Recent results is "newest five published grades": without an index it
+-- sorted every published result to find them (~110 ms cold on 7,392 rows,
+-- growing with every term). The partial index matches the query's filter
+-- and order exactly, so it reads five entries and stops.
+create index if not exists results_recent_published_idx
+  on public.results (published_at desc nulls last, created_at desc)
+  where is_published and grade is not null;
