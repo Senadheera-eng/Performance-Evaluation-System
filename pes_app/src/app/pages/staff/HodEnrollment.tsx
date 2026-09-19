@@ -116,8 +116,10 @@ export default function HodEnrollment() {
   };
 
   /* Batch first, because that is how a head thinks about a cohort: "has the
-     2021 batch enrolled for semester 7 yet?" A repeat-only window belongs to
-     no batch and gets its own group at the end. */
+     2021 batch enrolled for semester 7 yet?" The filter is the batches and
+     nothing else. A window opened with no batch used to get its own "Repeat
+     students only" category, a distinction no other screen makes; it now
+     sits in the one list under "All batches", labelled "Any batch". */
   const batches = useMemo(() => {
     const years = [
       ...new Set(
@@ -133,27 +135,9 @@ export default function HodEnrollment() {
     () =>
       batchFilter === "all"
         ? periods
-        : batchFilter === "repeat"
-          ? periods.filter((p) => p.batch_year === null)
-          : periods.filter((p) => p.batch_year === Number(batchFilter)),
+        : periods.filter((p) => p.batch_year === Number(batchFilter)),
     [periods, batchFilter],
   );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, Period[]>();
-    for (const p of visible) {
-      const key = p.batch_year === null ? "repeat" : String(p.batch_year);
-      const list = map.get(key);
-      if (list) list.push(p);
-      else map.set(key, [p]);
-    }
-    /* Newest batch first, repeat-only last. */
-    return [...map.entries()].sort(([a], [b]) => {
-      if (a === "repeat") return 1;
-      if (b === "repeat") return -1;
-      return Number(b) - Number(a);
-    });
-  }, [visible]);
 
   if (!caps.isHod && student?.role === "lecturer") {
     return (
@@ -209,21 +193,20 @@ export default function HodEnrollment() {
                     {describeBatch(y)}
                   </option>
                 ))}
-                {periods.some((p) => p.batch_year === null) && (
-                  <option value="repeat">Repeat students only</option>
-                )}
               </select>
             </div>
           )}
 
-          {grouped.map(([key, list]) => (
-            <SectionCard
-              key={key}
-              title={key === "repeat" ? "Repeat students only" : describeBatch(Number(key))}
-              description={`${list.length} window${list.length === 1 ? "" : "s"}`}
-            >
-              <div className="space-y-3">
-                {list.map((p) => (
+          <SectionCard
+            title={
+              batchFilter === "all"
+                ? "Enrolment windows"
+                : describeBatch(Number(batchFilter))
+            }
+            description={`${visible.length} window${visible.length === 1 ? "" : "s"}`}
+          >
+            <div className="space-y-3">
+                {visible.map((p) => (
                   <Card key={p.id} className="border-border">
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -242,8 +225,11 @@ export default function HodEnrollment() {
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {p.department ?? "All Departments"} · Sem{" "}
-                            {p.semester} · {p.academic_year}
+                            {p.department ?? "All Departments"} ·{" "}
+                            {p.batch_year === null
+                              ? "Any batch"
+                              : describeBatch(p.batch_year)}{" "}
+                            · Sem {p.semester} · {p.academic_year}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(p.opens_at).toLocaleString()} →{" "}
@@ -295,9 +281,8 @@ export default function HodEnrollment() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-            </SectionCard>
-          ))}
+            </div>
+          </SectionCard>
         </>
       )}
     </div>
