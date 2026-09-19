@@ -26,6 +26,7 @@ import {
   submitFeedback,
   answerKey,
   isQuestionVisible,
+  missingRequiredKeys,
   FeedbackPeriod,
   FeedbackFormData,
   FeedbackAnswerInput,
@@ -179,31 +180,8 @@ export default function FeedbackForm() {
   /** Required questions with nothing filled in, by the same rules the
    *  database applies — so the client never blocks a valid submission or
    *  waves through one the server will reject. */
-  const missingRequired = (): number => {
-    if (!form) return 0;
-    let missing = 0;
-    for (const section of form.sections) {
-      const targets =
-        section.target_type === "lecturer"
-          ? form.lecturers.map((l) => l.lecturer_id)
-          : [null];
-      for (const target of targets) {
-        for (const q of section.questions) {
-          if (!q.is_required) continue;
-          if (!isQuestionVisible(q, answers, target)) continue;
-          const a = answers[answerKey(q.id, target)];
-          const provided =
-            q.question_type === "rating"
-              ? a?.rating_value != null
-              : q.question_type === "single_choice" || q.question_type === "yes_no"
-                ? Boolean(a?.choice_value?.trim())
-                : Boolean(a?.text_value?.trim());
-          if (!provided) missing += 1;
-        }
-      }
-    }
-    return missing;
-  };
+  const missingRequired = (): number =>
+    form ? missingRequiredKeys(form, answers).length : 0;
 
   const handleSaveDraft = async () => {
     if (!period || !courseId) return;
