@@ -33,6 +33,7 @@ export function LikertMatrix({
   answerKeyFor,
   disabled,
   onChange,
+  missingKeys,
 }: {
   questions: FeedbackQuestion[];
   answers: Record<string, FeedbackAnswerInput>;
@@ -40,11 +41,15 @@ export function LikertMatrix({
   answerKeyFor: (question: FeedbackQuestion) => string;
   disabled: boolean;
   onChange: (question: FeedbackQuestion, value: number) => void;
+  /** Required statements a submit found unanswered, to be marked. */
+  missingKeys?: Set<string>;
 }) {
   if (questions.length === 0) return null;
 
   const valueOf = (q: FeedbackQuestion) =>
     answers[answerKeyFor(q)]?.rating_value ?? null;
+  const isMissing = (q: FeedbackQuestion) =>
+    missingKeys?.has(answerKeyFor(q)) ?? false;
 
   return (
     <>
@@ -73,12 +78,16 @@ export function LikertMatrix({
           <tbody>
             {questions.map((q, row) => {
               const current = valueOf(q);
+              const missing = isMissing(q);
               return (
                 <tr
                   key={answerKeyFor(q)}
+                  data-missing-answer={missing || undefined}
                   className={cn(
-                    "border-b border-border/60",
+                    "border-b border-border/60 scroll-mt-24",
                     row % 2 === 1 && "bg-muted/40",
+                    missing &&
+                      "bg-red-50 outline outline-2 -outline-offset-2 outline-destructive/70 dark:bg-red-500/10",
                   )}
                 >
                   <td className="px-3 py-2.5 text-foreground">
@@ -86,6 +95,7 @@ export function LikertMatrix({
                     {q.is_required && (
                       <span className="ml-1 text-destructive">*</span>
                     )}
+                    {missing && <MissingHint />}
                   </td>
                   {LIKERT_COLUMNS.map((col) => (
                     <td key={col.value} className="px-2 py-2.5 text-center">
@@ -117,14 +127,22 @@ export function LikertMatrix({
       <div className="space-y-3 sm:hidden">
         {questions.map((q) => {
           const current = valueOf(q);
+          const missing = isMissing(q);
           return (
             <div
               key={answerKeyFor(q)}
-              className="rounded-xl border border-border/70 p-3"
+              data-missing-answer={missing || undefined}
+              className={cn(
+                "scroll-mt-24 rounded-xl border p-3",
+                missing
+                  ? "border-2 border-destructive/70 bg-red-50 dark:bg-red-500/10"
+                  : "border-border/70",
+              )}
             >
               <p className="mb-2 text-sm text-foreground">
                 {q.question_text}
                 {q.is_required && <span className="ml-1 text-destructive">*</span>}
+                {missing && <MissingHint />}
               </p>
               <div
                 role="radiogroup"
@@ -168,5 +186,14 @@ export function LikertMatrix({
         })}
       </div>
     </>
+  );
+}
+
+/** Said in words as well as colour, so the mark does not rely on seeing red. */
+export function MissingHint() {
+  return (
+    <span className="mt-0.5 block text-xs font-medium text-destructive">
+      Answer required
+    </span>
   );
 }
