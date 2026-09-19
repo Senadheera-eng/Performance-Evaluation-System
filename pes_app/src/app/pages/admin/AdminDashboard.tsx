@@ -91,21 +91,13 @@ export default function AdminDashboard() {
     setLoading(true);
     await Promise.all([
       fetchStats(),
-      fetchAttendanceAlerts(),
-      fetchCourseAttendance(),
+      fetchAttendanceOverview(),
       fetchRecentResults(),
     ]);
     setLoading(false);
   };
 
   const fetchStats = async () => {
-    // Total students
-    const { count: studentCount } = await supabase
-      .from("students")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "student")
-      .eq("status", "active");
-
     // Total courses (scoped to this admin's department — courses stay
     // broadly SELECT-able by RLS so students can browse the full
     // catalogue, so this filter is applied client-side for the admin view)
@@ -115,140 +107,55 @@ export default function AdminDashboard() {
     if (scope.kind === "department") {
       courseCountQuery = courseCountQuery.eq("department", scope.department);
     }
-    const { count: courseCount } = await courseCountQuery;
 
-    // Active courses (semester 5 — current)
-    const { count: activeCount } = await supabase
-      .from("enrollments")
-      .select("course_id", { count: "exact", head: true })
-      .eq("status", "enrolled");
+    // Three head-only counts, independent of each other, so they go out
+    // together rather than one after another.
+    const [{ count: studentCount }, { count: courseCount }, { count: activeCount }] =
+      await Promise.all([
+        supabase
+          .from("students")
+          .select("*", { count: "exact", head: true })
+          .eq("role", "student")
+          .eq("status", "active"),
+        courseCountQuery,
+        supabase
+          .from("enrollments")
+          .select("course_id", { count: "exact", head: true })
+          .eq("status", "enrolled"),
+      ]);
 
-    // Avg attendance across all current enrollments
-    const { data: attData } = await supabase
-      .from("attendance")
-      .select("status");
-
-    let avgAtt = 0;
-    if (attData && attData.length > 0) {
-      const present = attData.filter(
-        (a: any) => a.status === "present" || a.status === "excused",
-      ).length;
-      avgAtt = Math.round((present / attData.length) * 100);
-    }
-
-    setStats({
+    setStats((prev) => ({
+      ...prev,
       totalStudents: studentCount ?? 0,
       totalCourses: courseCount ?? 0,
       activeCourses: activeCount ?? 0,
-      avgAttendance: avgAtt,
-    });
+    }));
   };
 
-  const fetchAttendanceAlerts = async () => {
-    // Get all enrolled students and their attendance
-    const { data: enrollments } = await supabase
-      .from("enrollments")
-      .select(
-        `
-        student_id,
-        course_id,
-        students (name, reg_number),
-        courses (course_code, title)
-      `,
-      )
-      .eq("status", "enrolled");
-
-    if (!enrollments) return;
-
-    const { data: attData } = await supabase
-      .from("attendance")
-      .select("student_id, course_id, status");
-
-    if (!attData) return;
-
-    // Calculate attendance per student per course
-    const attMap: Record<string, { present: number; total: number }> = {};
-    attData.forEach((a: any) => {
-      const key = `${a.student_id}_${a.course_id}`;
-      if (!attMap[key]) attMap[key] = { present: 0, total: 0 };
-      attMap[key].total++;
-      if (a.status === "present" || a.status === "excused")
-        attMap[key].present++;
-    });
-
-    // Find students below 80%
-    const alertList: AttendanceAlert[] = [];
-    enrollments.forEach((e: any) => {
-      const key = `${e.student_id}_${e.course_id}`;
-      const att = attMap[key];
-      if (!att || att.total === 0) return;
-      const pct = Math.round((att.present / att.total) * 100);
-      if (pct < 80) {
-        alertList.push({
-          studentName: e.students?.name ?? "—",
-          regNumber: e.students?.reg_number ?? "—",
-          courseCode: e.courses?.course_code ?? "—",
-          courseName: e.courses?.title ?? "—",
-          percentage: pct,
-        });
-      }
-    });
-
-    // Sort by lowest attendance first
-    alertList.sort((a, b) => a.percentage - b.percentage);
-    setAlerts(alertList.slice(0, 5));
-  };
-
-  const fetchCourseAttendance = async () => {
-    let courseQuery = supabase
-      .from("courses")
-      .select("id, course_code")
-      .order("semester")
-      .order("course_code");
-    if (scope.kind === "department") {
-      courseQuery = courseQuery.eq("department", scope.department);
-    }
-    const { data: courses } = await courseQuery;
-
-    if (!courses) return;
-
-    const { data: attData } = await supabase
-      .from("attendance")
-      .select("course_id, status")
-      .in(
-        "course_id",
-        courses.map((c) => c.id),
-      );
-
-    if (!attData) return;
-
-    const courseMap: Record<string, { present: number; total: number }> = {};
-    attData.forEach((a: any) => {
-      if (!courseMap[a.course_id])
-        courseMap[a.course_id] = { present: 0, total: 0 };
-      courseMap[a.course_id].total++;
-      if (a.status === "present" || a.status === "excused")
-        courseMap[a.course_id].present++;
-    });
-
-    // Keep every course that has at least one recorded lecture. The previous
-    // filter dropped anything at 0%, which hid the genuinely worst case — a
-    // course where nobody attended — while a course with no lectures marked
-    // yet is a different thing entirely and is counted separately.
-    const withLectures = courses.filter(
-      (c) => (courseMap[c.id]?.total ?? 0) > 0,
+  /* The average, the below-80% alerts and the per-course chart all come
+     from one RPC. This page used to download the whole attendance table
+     three times, plus every enrolment, and add it up here — which past
+     PostgREST's 1000-row page does not just get slow, it gets the numbers
+     wrong without saying so. */
+  const fetchAttendanceOverview = async () => {
+    const { data, error } = await supabase.rpc(
+      "get_admin_attendance_overview",
+      { p_alert_limit: 5 },
     );
-
-    const stats: CourseAttendanceStat[] = withLectures.map((c) => {
-      const att = courseMap[c.id];
-      return {
-        code: c.course_code,
-        avgAttendance: Math.round((att.present / att.total) * 100),
-      };
-    });
-
-    setCourseAttendance(stats);
-    setCoursesAwaitingAttendance(courses.length - withLectures.length);
+    if (error || !data) {
+      console.error("[AdminDashboard] failed to load attendance", error);
+      return;
+    }
+    const overview = data as {
+      average: number;
+      alerts: AttendanceAlert[];
+      courses: CourseAttendanceStat[];
+      awaiting: number;
+    };
+    setStats((prev) => ({ ...prev, avgAttendance: overview.average }));
+    setAlerts(overview.alerts);
+    setCourseAttendance(overview.courses);
+    setCoursesAwaitingAttendance(overview.awaiting);
   };
 
   // Client-side joins to students/courses fail RLS for any student outside
