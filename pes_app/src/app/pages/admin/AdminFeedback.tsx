@@ -1,10 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  MessageSquareText,
-  Users,
-  CheckCircle2,
-  Star,
   EyeOff,
   Eye,
   Plus,
@@ -13,10 +9,8 @@ import {
   Lock,
   Archive,
   PlayCircle,
-  AlertTriangle,
   Sparkles,
   X,
-  Download,
 } from "lucide-react";
 import {
   Card,
@@ -48,13 +42,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { useSettings } from "../../../lib/settings";
-import { formatRegNumber } from "../../../lib/format";
 import {
   getAdminFeedbackPeriods,
-  getAdminFeedbackSummary,
-  getCourseAnalytics,
-  getQuestionAnalytics,
-  getFeedbackComments,
   getQuestionBank,
   createFeedbackPeriod,
   setPeriodCourses,
@@ -66,15 +55,7 @@ import {
   updateQuestion,
   QuestionDraft,
   AdminFeedbackPeriod,
-  AdminFeedbackSummary,
-  CourseAnalytics,
-  QuestionAnalytics,
-  FeedbackComment,
   FeedbackQuestion,
-  buildFeedbackCsv,
-  downloadCsv,
-  buildFeedbackExcel,
-  downloadExcel,
 } from "../../../lib/feedbackService";
 
 
@@ -155,10 +136,6 @@ interface SimpleCourse {
 export default function AdminFeedback() {
   const { student: admin } = useAuth();
   const scope = getAdminScope(admin);
-  const [viewMode, setViewMode] = useState<"analytics" | "periods">(
-    "analytics",
-  );
-
   return (
     <div className="space-y-5">
       <motion.div
@@ -170,439 +147,18 @@ export default function AdminFeedback() {
           Course Feedback
         </h1>
         <p className="text-muted-foreground text-sm">
-          Feedback for courses in {describeAdminScope(admin)}.
+          Feedback rounds for {describeAdminScope(admin)} — create one, let its
+          lecturers shape their own course forms, open it, then close it.
         </p>
       </motion.div>
 
-      <div className="flex gap-1 p-1 rounded-lg bg-muted w-fit">
-        {(
-          [
-            { value: "analytics", label: "Analytics" },
-            { value: "periods", label: "Manage Periods" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setViewMode(tab.value)}
-            className="px-4 py-1.5 rounded-md text-sm font-medium transition-all"
-            style={
-              viewMode === tab.value
-                ? { backgroundColor: "#C41E3A", color: "white" }
-                : {}
-            }
-          >
-            <span
-              className={
-                viewMode === tab.value ? "text-white" : "text-muted-foreground"
-              }
-            >
-              {tab.label}
-            </span>
-          </button>
-        ))}
-      </div>
+      {/* Forms lecturers asked the department to run. */}
+      <FeedbackApprovals />
 
-      {viewMode === "analytics" ? (
-        <>
-          {/* Approving forms lecturers asked to run. It belongs to Analytics
-              rather than above the tabs, where it made the two views look
-              like one page. Releasing results used to sit beside it and no
-              longer exists: opening a round is what makes its results
-              readable, so there is nothing left to release. */}
-          <FeedbackApprovals />
-          <AnalyticsView />
-        </>
-      ) : (
-        <PeriodsView adminId={admin?.id ?? ""} scopeDepartment={scope} />
-      )}
+      <PeriodsView adminId={admin?.id ?? ""} scopeDepartment={scope} />
     </div>
   );
 }
-
-// ---------------------------------------------------------------------
-// Analytics view
-// ---------------------------------------------------------------------
-
-function AnalyticsView() {
-  const settings = useSettings();
-  const [periods, setPeriods] = useState<AdminFeedbackPeriod[]>([]);
-  const [periodId, setPeriodId] = useState<string>("");
-  const [courseId, setCourseId] = useState<string>("");
-  const [summary, setSummary] = useState<AdminFeedbackSummary | null>(null);
-  const [courseAnalytics, setCourseAnalytics] = useState<CourseAnalytics[]>(
-    [],
-  );
-  const [questionAnalytics, setQuestionAnalytics] = useState<
-    QuestionAnalytics[]
-  >([]);
-  const [comments, setComments] = useState<FeedbackComment[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const data = await getAdminFeedbackPeriods();
-      setPeriods(data);
-      if (data.length > 0) setPeriodId(data[0].id);
-      setLoading(false);
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!periodId) return;
-    setCourseId("");
-    loadPeriodData();
-  }, [periodId]);
-
-  useEffect(() => {
-    if (!periodId) return;
-    loadFilteredData();
-  }, [courseId]);
-
-  const loadPeriodData = async () => {
-    setLoading(true);
-    const [s, c] = await Promise.all([
-      getAdminFeedbackSummary(periodId, null, null),
-      getCourseAnalytics(periodId),
-    ]);
-    setSummary(s);
-    setCourseAnalytics(c);
-    const [q, cm] = await Promise.all([
-      getQuestionAnalytics(periodId, null),
-      getFeedbackComments(periodId, null),
-    ]);
-    setQuestionAnalytics(q);
-    setComments(cm);
-    setLoading(false);
-  };
-
-  const loadFilteredData = async () => {
-    const cid = courseId || null;
-    const [s, q, cm] = await Promise.all([
-      getAdminFeedbackSummary(periodId, cid, null),
-      getQuestionAnalytics(periodId, cid),
-      getFeedbackComments(periodId, cid),
-    ]);
-    setSummary(s);
-    setQuestionAnalytics(q);
-    setComments(cm);
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-24 rounded-xl bg-muted animate-pulse" />
-        <div className="h-64 rounded-xl bg-muted animate-pulse" />
-      </div>
-    );
-  }
-
-  if (periods.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <MessageSquareText className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">
-          No feedback periods yet
-        </h3>
-        <p className="text-muted-foreground text-sm">
-          Create one under "Manage Periods" to start collecting feedback.
-        </p>
-      </div>
-    );
-  }
-
-  const handleExport = (format: "csv" | "excel") => {
-    const period = periods.find((p) => p.id === periodId);
-    if (!period) return;
-    const scoped = courseId
-      ? courseAnalytics.filter((c) => c.course_id === courseId)
-      : courseAnalytics;
-    const slug = period.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    const stamp = new Date().toISOString().slice(0, 10);
-    if (format === "csv") {
-      downloadCsv(
-        `feedback-${slug}-${stamp}.csv`,
-        buildFeedbackCsv(period, scoped, questionAnalytics, comments),
-      );
-    } else {
-      downloadExcel(
-        `feedback-${slug}-${stamp}.xls`,
-        buildFeedbackExcel(period, scoped, questionAnalytics, comments),
-      );
-    }
-  };
-
-  const selectedCourse = courseAnalytics.find((c) => c.course_id === courseId);
-  const smallGroupHidden =
-    courseId && selectedCourse && selectedCourse.response_count < settings.feedbackMinResponsesForAnalytics;
-
-  return (
-    <div className="space-y-5">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <select
-          value={periodId}
-          onChange={(e) => setPeriodId(e.target.value)}
-          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm flex-1"
-        >
-          {periods.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title} — {p.status}
-            </option>
-          ))}
-        </select>
-        <select
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm flex-1"
-        >
-          <option value="">All Courses</option>
-          {courseAnalytics.map((c) => (
-            <option key={c.course_id} value={c.course_id}>
-              {c.course_code} — {c.title}
-            </option>
-          ))}
-        </select>
-        <Button
-          variant="outline"
-          onClick={() => handleExport("csv")}
-          className="h-9"
-        >
-          <Download className="h-4 w-4 mr-1.5" />
-          CSV
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => handleExport("excel")}
-          className="h-9"
-        >
-          <Download className="h-4 w-4 mr-1.5" />
-          Excel
-        </Button>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Eligible Students",
-            value: summary?.total_eligible ?? 0,
-            icon: Users,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "Response Rate",
-            value: `${summary?.response_rate ?? 0}%`,
-            icon: CheckCircle2,
-            color: "bg-green-100 text-green-700",
-          },
-          {
-            label: "Avg Rating",
-            value: summary?.overall_avg_rating ?? "—",
-            icon: Star,
-            color: "bg-amber-100 text-amber-700",
-          },
-          {
-            label: "Anonymous / Identified",
-            value: `${summary?.anonymous_count ?? 0} / ${summary?.non_anonymous_count ?? 0}`,
-            icon: EyeOff,
-            color: "bg-blue-100 text-blue-700",
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-card rounded-xl p-3 border border-border shadow-sm"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1.5 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">
-                  {stat.value}
-                </p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Course analytics table (only shown for "All Courses") */}
-      {!courseId && (
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle className="text-base">Course Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="pb-2 pr-3">Course</th>
-                  <th className="pb-2 pr-3">Eligible</th>
-                  <th className="pb-2 pr-3">Responses</th>
-                  <th className="pb-2 pr-3">Rate</th>
-                  <th className="pb-2 pr-3">Avg Rating</th>
-                  <th className="pb-2">Anon / Named</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courseAnalytics.map((c) => (
-                  <tr
-                    key={c.course_id}
-                    className="border-b border-border/50 hover:bg-muted/40 cursor-pointer"
-                    onClick={() => setCourseId(c.course_id)}
-                  >
-                    <td className="py-2 pr-3">
-                      <span className="font-medium text-foreground">
-                        {c.course_code}
-                      </span>{" "}
-                      <span className="text-muted-foreground">
-                        {c.title}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3">{c.eligible_count}</td>
-                    <td className="py-2 pr-3">{c.response_count}</td>
-                    <td className="py-2 pr-3">{c.response_rate}%</td>
-                    <td className="py-2 pr-3">{c.avg_rating ?? "—"}</td>
-                    <td className="py-2">
-                      {c.anonymous_count} / {c.non_anonymous_count}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      )}
-
-      {smallGroupHidden ? (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-2.5">
-          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-          <p className="text-sm text-amber-900">
-            Detailed analytics are hidden because this course has fewer than{" "}
-            {settings.feedbackMinResponsesForAnalytics} responses.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Question analytics */}
-          {questionAnalytics.length > 0 && (
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="text-base">Question Ratings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {questionAnalytics.map((q) => (
-                  <div key={q.question_id}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-sm font-medium text-foreground">
-                        {q.question_text}
-                      </p>
-                      <span className="text-sm font-semibold text-primary flex-shrink-0 ml-2">
-                        {q.avg_rating ?? "—"} avg
-                      </span>
-                    </div>
-                    <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
-                      {[1, 2, 3, 4, 5].map((v) => {
-                        const count = (q as any)[`count_${v}`] as number;
-                        const pct = q.response_count
-                          ? (count / q.response_count) * 100
-                          : 0;
-                        return (
-                          <div
-                            key={v}
-                            style={{
-                              width: `${pct}%`,
-                              backgroundColor:
-                                v <= 2
-                                  ? "#ef4444"
-                                  : v === 3
-                                    ? "#f59e0b"
-                                    : "#22c55e",
-                            }}
-                            title={`${v} stars: ${count}`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {q.response_count} responses · {q.pct_positive ?? 0}%
-                      positive · {q.pct_neutral ?? 0}% neutral ·{" "}
-                      {q.pct_negative ?? 0}% negative
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Comments */}
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-base">
-                Written Comments{" "}
-                <span className="text-muted-foreground font-normal text-sm">
-                  ({comments.length})
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {comments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No comments yet.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {comments.map((c, i) => (
-                    <div
-                      key={`${c.submission_id}-${i}`}
-                      className="p-3 rounded-xl border border-border bg-muted/30"
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge className="bg-primary/10 text-primary text-xs">
-                            {c.course_code}
-                          </Badge>
-                          {c.question_category && (
-                            <Badge variant="outline" className="text-xs">
-                              {c.question_category}
-                            </Badge>
-                          )}
-                          {c.is_anonymous ? (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <EyeOff className="h-3 w-3" />
-                              Anonymous
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-foreground">
-                              <Eye className="h-3 w-3" />
-                              {c.student_name} ({formatRegNumber(c.student_reg)})
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {c.submitted_date}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-1">
-                        {c.question_text}
-                      </p>
-                      <p className="text-sm text-foreground">{c.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------
-// Periods (management) view
-// ---------------------------------------------------------------------
 
 function PeriodsView({
   adminId,
