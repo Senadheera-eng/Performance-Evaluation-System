@@ -27,13 +27,16 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminOfferings } from "../../../lib/attendanceRegister";
 import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
 
 interface DashboardStats {
   totalStudents: number;
   totalCourses: number;
-  activeCourses: number;
+  /** Deliveries whose semester is the one their batch is sitting now. */
+  coursesRunning: number;
+  activeEnrolments: number;
   avgAttendance: number;
 }
 
@@ -69,7 +72,8 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     totalCourses: 0,
-    activeCourses: 0,
+    coursesRunning: 0,
+    activeEnrolments: 0,
     avgAttendance: 0,
   });
   const [alerts, setAlerts] = useState<AttendanceAlert[]>([]);
@@ -108,10 +112,14 @@ export default function AdminDashboard() {
       courseCountQuery = courseCountQuery.eq("department", scope.department);
     }
 
-    // Three head-only counts, independent of each other, so they go out
-    // together rather than one after another.
-    const [{ count: studentCount }, { count: courseCount }, { count: activeCount }] =
-      await Promise.all([
+    // Four counts, independent of each other, so they go out together
+    // rather than one after another.
+    const [
+      { count: studentCount },
+      { count: courseCount },
+      { count: activeCount },
+      offerings,
+    ] = await Promise.all([
         supabase
           .from("students")
           .select("*", { count: "exact", head: true })
@@ -122,13 +130,21 @@ export default function AdminDashboard() {
           .from("enrollments")
           .select("course_id", { count: "exact", head: true })
           .eq("status", "enrolled"),
+        getAdminOfferings(),
       ]);
 
     setStats((prev) => ({
       ...prev,
       totalStudents: studentCount ?? 0,
       totalCourses: courseCount ?? 0,
-      activeCourses: activeCount ?? 0,
+      /* What the department is actually teaching this semester. The card
+         used to show every enrolment row with status 'enrolled' under the
+         heading "Current semester", which is a different thing and only
+         looked right while one batch existed. */
+      coursesRunning: offerings.ok
+        ? offerings.data.filter((o) => o.is_current).length
+        : 0,
+      activeEnrolments: activeCount ?? 0,
     }));
   };
 
@@ -208,12 +224,12 @@ export default function AdminDashboard() {
       change: "In course catalogue",
     },
     {
-      title: "Active Enrollments",
-      value: stats.activeCourses,
+      title: "Courses Running Now",
+      value: stats.coursesRunning,
       icon: Calendar,
       color: "text-green-600",
       bg: "bg-green-100",
-      change: "Current semester",
+      change: `${stats.activeEnrolments} active enrolment${stats.activeEnrolments === 1 ? "" : "s"}`,
     },
     {
       title: "Avg. Attendance",
