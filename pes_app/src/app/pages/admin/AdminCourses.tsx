@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search, BookOpen, Filter, Pencil, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -41,6 +41,8 @@ export default function AdminCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
+  /* Which department's minors a super admin is editing. */
+  const [minorsDepartment, setMinorsDepartment] = useState("");
   const [loading, setLoading] = useState(true);
   /* A department owns its catalogue: the RLS policy on courses has always let
      a department admin and its head write it, and nothing on this page ever
@@ -127,6 +129,22 @@ export default function AdminCourses() {
     return matchSearch && matchSemester;
   });
 
+  /* Course-owning departments, taken from the catalogue itself rather than
+     a list kept somewhere else. */
+  const departments = useMemo(
+    () =>
+      [...new Set(courses.map((c) => c.department))]
+        .filter((d): d is string => Boolean(d))
+        .sort(),
+    [courses],
+  );
+
+  useEffect(() => {
+    if (!minorsDepartment && departments.length > 0) {
+      setMinorsDepartment(departments[0]);
+    }
+  }, [departments, minorsDepartment]);
+
   return (
     <div className="space-y-5">
       <motion.div
@@ -145,17 +163,18 @@ export default function AdminCourses() {
                 : `Courses belonging to ${describeAdminScope(student)}.`}
             </p>
           </div>
-          {scope.kind === "department" && (
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setEditorOpen(true);
-              }}
-            >
-              <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              New course
-            </Button>
-          )}
+          {/* The catalogue is the department's, but the faculty office owns
+              all of them: row security has always let a super admin write
+              any course, and this page was the one place that did not. */}
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setEditorOpen(true);
+            }}
+          >
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            New course
+          </Button>
         </div>
       </motion.div>
 
@@ -203,13 +222,42 @@ export default function AdminCourses() {
       {/* Which minors the department offers, and what each is worth. The
           handbook names the streams but sets no credit total, so it is the
           department's to state rather than the system's to assume. */}
-      {scope.kind === "department" && (
+      {scope.kind === "department" ? (
         <MinorRequirements
           department={scope.department}
           minorsInUse={courses
             .map((c) => c.minorCategory)
             .filter((m): m is string => m !== null)}
         />
+      ) : (
+        /* A super admin owns no department, so which one's minors to set is
+           a question rather than an assumption. */
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            Minors for
+            <select
+              value={minorsDepartment}
+              onChange={(e) => setMinorsDepartment(e.target.value)}
+              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            >
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          {minorsDepartment && (
+            <MinorRequirements
+              key={minorsDepartment}
+              department={minorsDepartment}
+              minorsInUse={courses
+                .filter((c) => c.department === minorsDepartment)
+                .map((c) => c.minorCategory)
+                .filter((m): m is string => m !== null)}
+            />
+          )}
+        </div>
       )}
 
       {/* Search and Filter */}
@@ -365,19 +413,17 @@ export default function AdminCourses() {
                     >
                       {course.category}
                     </Badge>
-                    {scope.kind === "department" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditing(toEditable(course));
-                          setEditorOpen(true);
-                        }}
-                      >
-                        <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                        Edit
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditing(toEditable(course));
+                        setEditorOpen(true);
+                      }}
+                    >
+                      <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                      Edit
+                    </Button>
                   </div>
                 </motion.div>
               ))}
@@ -391,6 +437,7 @@ export default function AdminCourses() {
         onOpenChange={setEditorOpen}
         course={editing}
         department={scope.kind === "department" ? scope.department : ""}
+        departmentOptions={departments}
         onSaved={fetchCourses}
       />
     </div>
