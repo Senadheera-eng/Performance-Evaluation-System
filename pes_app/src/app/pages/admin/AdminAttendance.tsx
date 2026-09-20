@@ -40,7 +40,7 @@ import {
 } from "../../../lib/attendanceMath";
 import { getOfferingRoster, type AttendanceStatus } from "../../../lib/staffService";
 import {
-  getAttendanceOfferings,
+  getAdminOfferings,
   getLectureDates,
   getOfferingAttendanceSummary,
   getSessionMarks,
@@ -48,7 +48,7 @@ import {
   OWN_WRITE_ECHO_MS,
   saveSession,
   useAttendanceLive,
-  type AttendanceOffering,
+  type AdminOffering,
   type StudentAttendanceSummary,
 } from "../../../lib/attendanceRegister";
 
@@ -78,7 +78,7 @@ export default function AdminAttendance() {
   const view: View = params.get("view") === "sessions" ? "sessions" : "overall";
   const offeringId = params.get("offering") ?? "";
 
-  const [offerings, setOfferings] = useState<AttendanceOffering[]>([]);
+  const [offerings, setOfferings] = useState<AdminOffering[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,7 +98,7 @@ export default function AdminAttendance() {
   const loadOfferings = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     setError(null);
-    const result = await getAttendanceOfferings();
+    const result = await getAdminOfferings();
     if (!result.ok) {
       setError("We could not load your department's courses. Please try again.");
     } else {
@@ -219,7 +219,7 @@ function OverallView({
   offering,
   onOpenSessions,
 }: {
-  offering: AttendanceOffering;
+  offering: AdminOffering;
   onOpenSessions: () => void;
 }) {
   const settings = useSettings();
@@ -480,7 +480,7 @@ function SessionView({
   onDateChange,
   onSaved,
 }: {
-  offering: AttendanceOffering;
+  offering: AdminOffering;
   date: string | null;
   onDateChange: (date: string) => void;
   onSaved: () => void;

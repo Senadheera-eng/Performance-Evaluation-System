@@ -27,7 +27,10 @@ export function localDateISO(d: Date = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export interface AttendanceOffering {
+/** An offering the signed-in admin may work with: their department's, or
+ *  every department's for a super admin. Used by the register and by the
+ *  results sheet, which needs the same course-to-batch mapping. */
+export interface AdminOffering {
   offering_id: string;
   course_id: string;
   course_code: string;
@@ -43,10 +46,10 @@ export interface AttendanceOffering {
   is_current: boolean;
 }
 
-export async function getAttendanceOfferings(): Promise<Result<AttendanceOffering[]>> {
-  const { data, error } = await supabase.rpc("get_attendance_offerings");
-  if (error) return fail("get_attendance_offerings", error);
-  return { ok: true, data: (data ?? []) as AttendanceOffering[] };
+export async function getAdminOfferings(): Promise<Result<AdminOffering[]>> {
+  const { data, error } = await supabase.rpc("get_admin_offerings");
+  if (error) return fail("get_admin_offerings", error);
+  return { ok: true, data: (data ?? []) as AdminOffering[] };
 }
 
 export interface StudentAttendanceSummary {
