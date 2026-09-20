@@ -6,7 +6,7 @@ import {
   CourseEditorDialog,
   type EditableCourse,
 } from "../../components/courses/CourseEditorDialog";
-import { MinorRequirements } from "../../components/courses/MinorRequirements";
+import { MinorSpecifications } from "../../components/courses/MinorSpecifications";
 import {
   Card,
   CardContent,
@@ -15,9 +15,14 @@ import {
 } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
+import { SegmentedTabs } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import {
+  getAdminScope,
+  describeAdminScope,
+  type AdminScope,
+} from "../../../lib/adminScope";
 
 interface Course {
   id: string;
@@ -35,9 +40,29 @@ interface Course {
   eseWeight: number;
 }
 
-export default function AdminCourses() {
+/**
+ * A department's catalogue, and the minors built out of it.
+ *
+ * Two jobs, two tabs: the courses themselves, and the streams a course can
+ * belong to. They were one page, which put a minors panel between the stats
+ * and the course list on every visit, most of which are about a course.
+ *
+ * The same screen serves the department office and the sitting head of
+ * department, who reaches it from the staff portal — row security has always
+ * let both write their department's courses and minors, so the page takes the
+ * department it is working in rather than assuming the signed-in role.
+ */
+export function CourseManagement({
+  departmentOverride,
+}: {
+  /** Set when a head of department opens this from the staff portal. */
+  departmentOverride?: string;
+}) {
   const { student } = useAuth();
-  const scope = getAdminScope(student);
+  const [tab, setTab] = useState<"courses" | "minors">("courses");
+  const scope: AdminScope = departmentOverride
+    ? { kind: "department", department: departmentOverride }
+    : getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
@@ -160,7 +185,9 @@ export default function AdminCourses() {
             <p className="text-muted-foreground text-sm">
               {scope.kind === "all"
                 ? "Every course in the faculty catalogue."
-                : `Courses belonging to ${describeAdminScope(student)}.`}
+                : `Courses and minors belonging to ${
+                    departmentOverride ?? describeAdminScope(student)
+                  }.`}
             </p>
           </div>
           {/* The catalogue is the department's, but the faculty office owns
@@ -178,6 +205,49 @@ export default function AdminCourses() {
         </div>
       </motion.div>
 
+      <SegmentedTabs
+        aria-label="Courses view"
+        layoutId="courses-tabs"
+        value={tab}
+        onChange={(v) => setTab(v as "courses" | "minors")}
+        tabs={[
+          { value: "courses", label: "Course Management", count: courses.length },
+          { value: "minors", label: "Minor Specifications" },
+        ]}
+      />
+
+      {tab === "minors" ? (
+        scope.kind === "department" ? (
+          <MinorSpecifications department={scope.department} canWrite />
+        ) : (
+          /* A super admin owns no department, so which one's minors to set
+             is a question rather than an assumption. */
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              Minors for
+              <select
+                value={minorsDepartment}
+                onChange={(e) => setMinorsDepartment(e.target.value)}
+                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+              >
+                {departments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {minorsDepartment && (
+              <MinorSpecifications
+                key={minorsDepartment}
+                department={minorsDepartment}
+                canWrite
+              />
+            )}
+          </div>
+        )
+      ) : (
+        <>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -218,47 +288,6 @@ export default function AdminCourses() {
           </motion.div>
         ))}
       </div>
-
-      {/* Which minors the department offers, and what each is worth. The
-          handbook names the streams but sets no credit total, so it is the
-          department's to state rather than the system's to assume. */}
-      {scope.kind === "department" ? (
-        <MinorRequirements
-          department={scope.department}
-          minorsInUse={courses
-            .map((c) => c.minorCategory)
-            .filter((m): m is string => m !== null)}
-        />
-      ) : (
-        /* A super admin owns no department, so which one's minors to set is
-           a question rather than an assumption. */
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            Minors for
-            <select
-              value={minorsDepartment}
-              onChange={(e) => setMinorsDepartment(e.target.value)}
-              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {departments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          {minorsDepartment && (
-            <MinorRequirements
-              key={minorsDepartment}
-              department={minorsDepartment}
-              minorsInUse={courses
-                .filter((c) => c.department === minorsDepartment)
-                .map((c) => c.minorCategory)
-                .filter((m): m is string => m !== null)}
-            />
-          )}
-        </div>
-      )}
 
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -432,6 +461,9 @@ export default function AdminCourses() {
         </CardContent>
       </Card>
 
+        </>
+      )}
+
       <CourseEditorDialog
         open={editorOpen}
         onOpenChange={setEditorOpen}
@@ -442,4 +474,10 @@ export default function AdminCourses() {
       />
     </div>
   );
+}
+
+/** The department office's route. A head of department reaches the same
+ *  screen from the staff portal, where their own department is passed in. */
+export default function AdminCourses() {
+  return <CourseManagement />;
 }
