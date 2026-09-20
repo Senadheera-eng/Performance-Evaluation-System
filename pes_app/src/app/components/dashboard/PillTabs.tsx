@@ -30,7 +30,11 @@ export function PillTabs({
 }: PillTabsProps) {
   return (
     <div
-      className={`flex gap-1 p-1 rounded-lg bg-muted overflow-x-auto no-scrollbar ${className}`}
+      /* Hugs its tabs rather than filling the row: two short tabs in a
+         full-width bar left a stretch of empty grey beside them. Capped at
+         the container width so a long row still scrolls instead of
+         overflowing. */
+      className={`inline-flex w-fit max-w-full gap-1 p-1 rounded-lg bg-muted overflow-x-auto no-scrollbar ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.value;
