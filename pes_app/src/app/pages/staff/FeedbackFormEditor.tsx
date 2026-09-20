@@ -155,10 +155,16 @@ export default function FeedbackFormEditor() {
     const sectionOrder = existing
       ? existing.section_order
       : 9 + mySections.length;
-    const displayOrder = editing.questionId
-      ? (existing?.questions.find((q) => q.id === editing.questionId)
-          ?.display_order ?? 1)
-      : (existing?.questions.length ?? 0) + 1;
+    /* Editing keeps the question where it already sits — looked up across
+       the whole form, because a department question belongs to a section
+       this course does not own. A new one goes to the end of its section. */
+    const current = editing.questionId
+      ? form.sections
+          .flatMap((s) => s.questions)
+          .find((q) => q.id === editing.questionId)
+      : null;
+    const displayOrder =
+      current?.display_order ?? (existing?.questions.length ?? 0) + 1;
 
     setBusy(true);
     setError(null);
@@ -314,6 +320,26 @@ export default function FeedbackFormEditor() {
           key={section.section_key}
           section={section}
           busy={busy}
+          /* Rendered where the question is, rather than in one panel at the
+             foot of the page: on a form of forty questions, pressing Edit
+             put the editor several screens below and looked like nothing
+             had happened. */
+          editorFor={(questionId) =>
+            editing &&
+            (questionId !== null
+              ? editing.questionId === questionId
+              : editing.questionId === null &&
+                editing.sectionTitle === section.title) ? (
+              <QuestionEditor
+                editing={editing}
+                setEditing={setEditing}
+                sections={mySections.map((s) => s.title)}
+                busy={busy}
+                onSave={save}
+                onCancel={() => setEditing(null)}
+              />
+            ) : null
+          }
           confirmDelete={confirmDelete}
           editingSection={
             editingSection?.key === section.section_key ? editingSection : null
@@ -355,16 +381,20 @@ export default function FeedbackFormEditor() {
         </Button>
       )}
 
-      {editing && (
-        <QuestionEditor
-          editing={editing}
-          setEditing={setEditing}
-          sections={mySections.map((s) => s.title)}
-          busy={busy}
-          onSave={save}
-          onCancel={() => setEditing(null)}
-        />
-      )}
+      {/* A question for a section that does not exist yet has nowhere to
+          sit among the sections, so it is composed here. */}
+      {editing &&
+        editing.questionId === null &&
+        !form.sections.some((s) => s.title === editing.sectionTitle) && (
+          <QuestionEditor
+            editing={editing}
+            setEditing={setEditing}
+            sections={mySections.map((s) => s.title)}
+            busy={busy}
+            onSave={save}
+            onCancel={() => setEditing(null)}
+          />
+        )}
     </div>
   );
 }
@@ -373,6 +403,7 @@ function FormSection({
   section,
   busy,
   confirmDelete,
+  editorFor,
   editingSection,
   onEditSection,
   onSectionChange,
@@ -386,6 +417,8 @@ function FormSection({
   section: EditorSection;
   busy: boolean;
   confirmDelete: string | null;
+  /** The editor for one of this section's questions, or for a new one. */
+  editorFor: (questionId: string | null) => React.ReactNode;
   editingSection: { title: string; description: string; shared: boolean } | null;
   onEditSection: () => void;
   onSectionChange: (patch: { title?: string; description?: string }) => void;
@@ -464,7 +497,10 @@ function FormSection({
             </div>
           </div>
         )}
-        {section.questions.map((q) => (
+        {section.questions.map((q) => {
+          const editor = editorFor(q.id);
+          if (editor) return <div key={q.id}>{editor}</div>;
+          return (
           <div
             key={q.id}
             className={`rounded-xl border p-3 ${
@@ -539,7 +575,11 @@ function FormSection({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
+
+        {/* A new question for this section. */}
+        {editorFor(null)}
 
         {section.can_edit && section.mine && (
           <Button variant="outline" size="sm" onClick={onAdd}>
