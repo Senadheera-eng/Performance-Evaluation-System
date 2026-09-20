@@ -225,10 +225,17 @@ export default function AdminResults() {
   /* The delivery this sheet is for: this course, to this batch. */
   const selectedOffering =
     selectedCourse && selectedBatch !== null
-      ? (offerings.find(
-          (o) =>
-            o.course_id === selectedCourse.id && o.batch_year === selectedBatch,
-        ) ?? null)
+      ? (offerings
+          .filter(
+            (o) =>
+              o.course_id === selectedCourse.id &&
+              o.batch_year === selectedBatch,
+          )
+          /* A course can be delivered to the same batch twice — a repeat
+             year — so the newest delivery wins, which is the rule the
+             database uses when it resolves an offering itself. */
+          .sort((a, b) => b.academic_year.localeCompare(a.academic_year))[0] ??
+        null)
       : null;
 
   /* The academic year these marks are filed under. Taken from the delivery
