@@ -147,13 +147,27 @@ export default function Profile() {
           completed: true,
         }));
 
+      /* Which semester this student is in, asked of the database rather
+         than worked out again here: the rest of the system reads
+         current_semester_for_batch, and a second rule that happened to
+         agree today would drift the moment results were published before
+         the next enrolment opened. The old derivation stays as the
+         fallback for a student whose batch has published nothing yet. */
+      const { data: canonicalSemester } = await supabase.rpc(
+        "my_current_semester",
+      );
+
       const semNums =
         enrolled
           ?.map((e: any) => e.courses?.semester ?? 0)
           .filter((s: number) => s > 0) ?? [];
 
       const currentSemNum =
-        semNums.length > 0 ? Math.max(...semNums) : semList.length + 1;
+        typeof canonicalSemester === "number" && canonicalSemester > 0
+          ? canonicalSemester
+          : semNums.length > 0
+            ? Math.max(...semNums)
+            : semList.length + 1;
 
       const alreadyHasCurrent = semList.some((s) => s.semNum === currentSemNum);
       if (!alreadyHasCurrent && currentSemNum > 0) {
