@@ -60,6 +60,14 @@ export default function StaffLayout() {
             href: "/staff/assignments",
             icon: GraduationCap,
           },
+          /* The catalogue itself — creating a course, editing one, and the
+             department's minor streams. The same screen the department
+             office uses, and the same row policies behind it. */
+          {
+            name: "Course Catalogue",
+            href: "/staff/catalogue",
+            icon: BookOpen,
+          },
           // View-only: a head reviews who enrolled, the Super Admin opens the
           // windows. A lecturer without the appointment never sees this, and
           // would be refused by the page and the database if they typed the URL.

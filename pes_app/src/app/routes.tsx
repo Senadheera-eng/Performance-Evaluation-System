@@ -104,6 +104,11 @@ const StaffResults = page(() => import("./pages/staff/StaffResults"));
 const StaffFeedback = page(() => import("./pages/staff/StaffFeedback"));
 const HodAssignments = page(() => import("./pages/staff/HodAssignments"));
 const HodEnrollment = page(() => import("./pages/staff/HodEnrollment"));
+/* The department's catalogue and its minors: the same screen the department
+   office uses, opened on the head's own department. */
+const HodCourseCatalogue = page(() => import("./pages/staff/HodCourseCatalogue"));
+/* Shaping one course's feedback form while the round is still a draft. */
+const FeedbackFormEditor = page(() => import("./pages/staff/FeedbackFormEditor"));
 const HodMentors = page(() => import("./pages/staff/HodMentors"));
 const StaffMentees = page(() => import("./pages/staff/StaffMentees"));
 const StaffStudents = page(() => import("./pages/staff/StaffStudents"));
@@ -179,6 +184,10 @@ export const router = createBrowserRouter([
       { path: "attendance", element: held(<StaffAttendance />) },
       { path: "results", element: held(<StaffResults />) },
       { path: "feedback", element: held(<StaffFeedback />) },
+      {
+        path: "feedback/:periodId/:courseId/form",
+        element: held(<FeedbackFormEditor />),
+      },
       // Every lecturer may mentor, so this one is not HOD-gated. The RPC
       // behind it returns only the caller's own mentees, so a lecturer with
       // none simply sees an empty page.
@@ -189,6 +198,7 @@ export const router = createBrowserRouter([
       { path: "mentors", element: held(<HodMentors />) },
       { path: "assignments", element: held(<HodAssignments />) },
       { path: "enrollment", element: held(<HodEnrollment />) },
+      { path: "catalogue", element: held(<HodCourseCatalogue />) },
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
       { path: "notices", element: held(<ManageNotices />) },
