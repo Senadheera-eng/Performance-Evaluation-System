@@ -719,6 +719,13 @@ function CreatePeriodForm({
   const [closesAt, setClosesAt] = useState("");
   const [allowEditing, setAllowEditing] = useState(true);
   const [batches, setBatches] = useState<number[]>([]);
+  /* The semester the chosen batch is sitting now, worked out from that
+     batch's own published results. Used to label the list and to open it
+     somewhere sensible — a round is nearly always about the semester the
+     batch is in or the one it has just finished, and this form opened on
+     Semester 1 whatever batch was chosen. */
+  const [batchSemester, setBatchSemester] = useState<number | null>(null);
+  const [semesterTouched, setSemesterTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const settings = useSettings();
@@ -742,6 +749,28 @@ function CreatePeriodForm({
       if (distinct.length > 0) setBatchYear(distinct[0]);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!batchYear) {
+      setBatchSemester(null);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .rpc("current_semester_for_batch", { p_batch_year: Number(batchYear) })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const sem = typeof data === "number" ? data : null;
+        setBatchSemester(sem);
+        /* Only until the admin picks for themselves — a round for an
+           earlier semester is perfectly normal and must not be overwritten
+           when the batch is re-selected. */
+        if (!semesterTouched && sem && sem >= 1 && sem <= 8) setSemester(sem);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [batchYear, semesterTouched]);
 
   const handleCreate = async () => {
     setError(null);
@@ -815,15 +844,26 @@ function CreatePeriodForm({
             </label>
             <select
               value={semester}
-              onChange={(e) => setSemester(Number(e.target.value))}
+              onChange={(e) => {
+                setSemesterTouched(true);
+                setSemester(Number(e.target.value));
+              }}
               className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
             >
               {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                 <option key={s} value={s}>
                   Semester {s}
+                  {s === batchSemester ? " (Current)" : ""}
                 </option>
               ))}
             </select>
+            {batchSemester !== null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {describeBatch(Number(batchYear))} is in Semester{" "}
+                {batchSemester} now. A round may cover an earlier semester —
+                the courses below follow whichever you pick.
+              </p>
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
