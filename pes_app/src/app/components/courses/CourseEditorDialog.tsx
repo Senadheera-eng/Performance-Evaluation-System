@@ -49,14 +49,18 @@ export function CourseEditorDialog({
   onOpenChange,
   course,
   department,
+  departmentOptions,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Null creates a new course. */
   course: EditableCourse | null;
-  /** The department a new course belongs to. */
+  /** The department a new course belongs to, when the caller owns one. */
   department: string;
+  /** Departments to choose from instead — for a super admin, who owns none
+   *  of them and must say which the new course belongs to. */
+  departmentOptions?: string[];
   onSaved: () => void;
 }) {
   const settings = useSettings();
@@ -71,8 +75,16 @@ export function CourseEditorDialog({
   const [ca, setCa] = useState(30);
   const [ese, setEse] = useState(70);
 
+  const [newDepartment, setNewDepartment] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* A department admin's own department is the only possible answer; a
+     super admin has to pick one, and a course with no department belongs
+     to nobody's catalogue. */
+  const options = departmentOptions ?? [];
+  const mustChoose = !department && options.length > 0;
+  const targetDepartment = department || newDepartment;
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +110,7 @@ export function CourseEditorDialog({
       // A new course starts on the faculty's default split.
       setCa(pct(settings.oaWeights.ca));
       setEse(pct(settings.oaWeights.ese));
+      setNewDepartment(department || options[0] || "");
     }
   }, [open, course, settings]);
 
@@ -111,6 +124,9 @@ export function CourseEditorDialog({
       return setError(
         `The assessment split comes to ${total}%. It has to come to 100%.`,
       );
+    }
+    if (!course && !targetDepartment) {
+      return setError("Choose the department this course belongs to.");
     }
 
     setSaving(true);
@@ -135,7 +151,7 @@ export function CourseEditorDialog({
       ? await supabase.from("courses").update(payload).eq("id", course.id)
       : await supabase
           .from("courses")
-          .insert({ ...payload, department });
+          .insert({ ...payload, department: targetDepartment });
 
     setSaving(false);
     if (writeError) {
@@ -154,13 +170,33 @@ export function CourseEditorDialog({
           <DialogDescription>
             {course
               ? `${course.course_code} — ${course.department}`
-              : `A new course in ${department}.`}
+              : department
+                ? `A new course in ${department}.`
+                : "A new course. Say which department owns it."}
           </DialogDescription>
         </DialogHeader>
 
         {error && <ErrorState message={error} size="inline" />}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {!course && mustChoose && (
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Department
+              </label>
+              <select
+                value={newDepartment}
+                onChange={(e) => setNewDepartment(e.target.value)}
+                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+              >
+                {options.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Course code
