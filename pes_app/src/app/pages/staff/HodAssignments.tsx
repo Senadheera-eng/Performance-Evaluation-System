@@ -112,6 +112,25 @@ export default function HodAssignments() {
     [offerings],
   );
 
+  /* The semester the department's batches are sitting now. Assigning staff
+     is work for the term about to run, so the page opens there rather than
+     on a list that also holds every delivery since the batch's first year;
+     the older ones are one choice away for a correction. */
+  const currentSemester = useMemo(() => {
+    const current = offerings.find(
+      (o) =>
+        o.is_current &&
+        (batchFilter === "all" || o.batch_year === Number(batchFilter)),
+    );
+    return current?.semester ?? null;
+  }, [offerings, batchFilter]);
+
+  const [semesterTouched, setSemesterTouched] = useState(false);
+  useEffect(() => {
+    if (semesterTouched) return;
+    setSemesterFilter(currentSemester === null ? "all" : String(currentSemester));
+  }, [currentSemester, semesterTouched]);
+
   const visible = offerings.filter(
     (o) =>
       (batchFilter === "all" || o.batch_year === Number(batchFilter)) &&
@@ -171,13 +190,17 @@ export default function HodAssignments() {
           <span className="text-muted-foreground">Semester</span>
           <select
             value={semesterFilter}
-            onChange={(e) => setSemesterFilter(e.target.value)}
+            onChange={(e) => {
+              setSemesterTouched(true);
+              setSemesterFilter(e.target.value);
+            }}
             className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
           >
             <option value="all">All</option>
             {semesters.map((s) => (
               <option key={s} value={s}>
                 Semester {s}
+                {s === currentSemester ? " (now)" : ""}
               </option>
             ))}
           </select>

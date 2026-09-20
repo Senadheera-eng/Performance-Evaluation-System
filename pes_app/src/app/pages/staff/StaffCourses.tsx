@@ -9,6 +9,7 @@ import {
   SkeletonRows,
   StatusBadge,
 } from "../../components/common";
+import { Button } from "../../components/ui/button";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -19,12 +20,26 @@ import {
   type TeachingOffering,
 } from "../../../lib/staffService";
 
+type Period = "current" | "earlier" | "all";
+
+/**
+ * The courses this lecturer teaches.
+ *
+ * "This semester" first, and by default only that. An offering is a course
+ * as delivered to one batch in one year, so a lecturer who has taught the
+ * same batch since their second year accumulates every past delivery — for
+ * Batch 7, now in Semester 7, that was Semester 5 and 6 classes finished two
+ * years ago listed as though they were still running. Earlier deliveries are
+ * one click away rather than gone: their rosters still matter for a repeat
+ * student, a late result, or a feedback round opened after the fact.
+ */
 export default function StaffCourses() {
   const { staff } = useAuth();
   const [offerings, setOfferings] = useState<TeachingOffering[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useState<string>("all");
+  const [period, setPeriod] = useState<Period>("current");
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [rosters, setRosters] = useState<Record<string, RosterStudent[]>>({});
@@ -78,10 +93,19 @@ export default function StaffCourses() {
     [offerings],
   );
 
-  const visible =
-    batchFilter === "all"
-      ? offerings
-      : offerings.filter((o) => o.batch_year === Number(batchFilter));
+  const currentCount = offerings.filter((o) => o.is_current).length;
+
+  const visible = offerings.filter(
+    (o) =>
+      (batchFilter === "all" || o.batch_year === Number(batchFilter)) &&
+      (period === "all" || (period === "current" ? o.is_current : !o.is_current)),
+  );
+
+  /* What the batch is sitting now, for the empty state. Every offering of a
+     batch carries the same answer, so any of them will do. */
+  const batchNow = offerings.find(
+    (o) => batchFilter !== "all" && o.batch_year === Number(batchFilter),
+  )?.batch_current_semester;
 
   return (
     <div className="space-y-5">
@@ -92,26 +116,51 @@ export default function StaffCourses() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      {batches.length > 0 && (
-        <SegmentedTabs
-          aria-label="Filter by batch"
-          value={batchFilter}
-          onChange={setBatchFilter}
-          layoutId="staff-courses-batch"
-          scrollable
-          tabs={[
-            { value: "all", label: "All", count: offerings.length },
-            ...batches.map((b) => ({
-              value: String(b),
-              label: describeBatch(b).replace(/ \(.*\)$/, ""),
-              count: offerings.filter((o) => o.batch_year === b).length,
-            })),
-          ]}
-        />
+      {offerings.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedTabs
+            aria-label="Filter by when the course runs"
+            value={period}
+            onChange={(v) => setPeriod(v as Period)}
+            layoutId="staff-courses-period"
+            tabs={[
+              { value: "current", label: "This semester", count: currentCount },
+              {
+                value: "earlier",
+                label: "Earlier",
+                count: offerings.length - currentCount,
+              },
+              { value: "all", label: "All", count: offerings.length },
+            ]}
+          />
+          {batches.length > 1 && (
+            <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              Batch
+              <select
+                value={batchFilter}
+                onChange={(e) => setBatchFilter(e.target.value)}
+                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+              >
+                <option value="all">All batches</option>
+                {batches.map((b) => (
+                  <option key={b} value={String(b)}>
+                    {describeBatch(b)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       )}
 
       <SectionCard
-        title="Assigned offerings"
+        title={
+          period === "current"
+            ? "Teaching this semester"
+            : period === "earlier"
+              ? "Earlier semesters"
+              : "All assigned offerings"
+        }
         description={`${visible.length} offering${visible.length === 1 ? "" : "s"}`}
         flush
       >
@@ -121,11 +170,35 @@ export default function StaffCourses() {
           </div>
         ) : visible.length === 0 ? (
           <div className="p-4">
-            <EmptyState
-              icon={BookOpen}
-              title="No courses assigned"
-              description="Your Head of Department assigns course offerings. Once that happens they appear here with the full student roster."
-            />
+            {offerings.length === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title="No courses assigned"
+                description="Your Head of Department assigns course offerings. Once that happens they appear here with the full student roster."
+              />
+            ) : period === "current" ? (
+              /* Assigned, but only to deliveries that have finished. Said
+                 plainly: the alternative is a lecturer staring at an empty
+                 page wondering which half is broken. */
+              <EmptyState
+                icon={BookOpen}
+                title="Nothing to teach this semester"
+                description={`You are not assigned to any course running this semester${
+                  batchNow ? ` (${describeBatch(Number(batchFilter))} is now in Semester ${batchNow})` : ""
+                }. Your earlier courses are under "Earlier" — your Head of Department assigns this semester's.`}
+                action={
+                  <Button variant="outline" onClick={() => setPeriod("earlier")}>
+                    See earlier courses
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={BookOpen}
+                title="Nothing here"
+                description="No offerings match this filter."
+              />
+            )}
           </div>
         ) : (
           <ul className="divide-y divide-border/70">
@@ -155,6 +228,11 @@ export default function StaffCourses() {
                           </span>
                           {o.my_role === "coordinator" && (
                             <StatusBadge tone="brand">Coordinator</StatusBadge>
+                          )}
+                          {o.is_current ? (
+                            <StatusBadge tone="success">This semester</StatusBadge>
+                          ) : (
+                            <StatusBadge tone="neutral">Finished</StatusBadge>
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">

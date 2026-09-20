@@ -35,15 +35,27 @@ import {
 import {
   getCourseFeedbackReport,
   getMyFeedbackOverview,
+  getMyTeaching,
   type CourseFeedbackReport,
   type FeedbackOverviewRow,
+  type TeachingOffering,
 } from "../../../lib/staffService";
 
 /** How often an open round's report re-reads itself, in milliseconds. */
 const LIVE_INTERVAL = 30_000;
 
 /**
- * A lecturer's own feedback: what came back, and what they asked for.
+ * A lecturer's own feedback, in the order they need it.
+ *
+ * The job is short: see the round on a course you teach, read what came back,
+ * download the report once it closes, and ask for a form when there is no
+ * round. That was spread over two tabs and three sections, one of which
+ * usually only said the form was fixed and there was nothing to do.
+ *
+ * So: one list of courses, results first, and sections that have nothing to
+ * offer do not appear at all. The head of department's view of the whole
+ * department stays behind its own tab — a different job, and only for the
+ * sitting head.
  *
  * Response progress is always visible — knowing how many people replied
  * identifies nobody, and it is what tells a lecturer whether to chase their
@@ -51,29 +63,30 @@ const LIVE_INTERVAL = 30_000;
  * open, and enough people to have answered that no single reply can be picked
  * out of the report. Both rules live in the database; this page only reflects
  * them.
- *
- * There is no third gate. Results used to wait on a department admin working
- * through a release list course by course, which delayed feedback without
- * deciding anything. Opening the round is the decision.
  */
 export default function StaffFeedback() {
   const { staff } = useAuth();
   const caps = getStaffCapabilities(staff);
-  const [tab, setTab] = useState("results");
+  const [tab, setTab] = useState("mine");
   const [rows, setRows] = useState<FeedbackOverviewRow[]>([]);
+  const [teaching, setTeaching] = useState<TeachingOffering[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await getMyFeedbackOverview();
-    if (!result.ok) {
+    const [overview, mine] = await Promise.all([
+      getMyFeedbackOverview(),
+      getMyTeaching(),
+    ]);
+    if (!overview.ok) {
       setError("We could not load your feedback. Please try again.");
       setLoading(false);
       return;
     }
-    setRows(result.data);
+    setRows(overview.data);
+    if (mine.ok) setTeaching(mine.data);
     setLoading(false);
   }, []);
 
@@ -85,58 +98,96 @@ export default function StaffFeedback() {
     <div className="space-y-5">
       <PageHeader
         title="Feedback"
-        description="What your students said about the courses you teach, and the forms you have asked your department to run."
+        description="What your students said about the courses you teach."
       />
 
-      <SegmentedTabs
-        tabs={[
-          { value: "results", label: "Results" },
-          { value: "forms", label: "My Forms" },
-          // The department view belongs to the appointment, not the role, so
-          // it appears and disappears with the headship. The RPCs behind it
-          // refuse anyone who is not the sitting head regardless.
-          ...(caps.isHod ? [{ value: "department", label: "Department" }] : []),
-        ]}
-        value={tab}
-        onChange={setTab}
-        layoutId="staff-feedback-tabs"
-        aria-label="Feedback view"
-      />
+      {/* Only a head of department has a second view to switch to. */}
+      {caps.isHod && (
+        <SegmentedTabs
+          tabs={[
+            { value: "mine", label: "My courses" },
+            { value: "department", label: "Department" },
+          ]}
+          value={tab}
+          onChange={setTab}
+          layoutId="staff-feedback-tabs"
+          aria-label="Feedback view"
+        />
+      )}
 
-      {tab === "forms" ? (
-        <div className="space-y-5">
-          {/* Only renders for a coordinator with a round covering their
-              course — it returns nothing otherwise. */}
-          <CoordinatorQuestions />
-          <FeedbackRequests />
-        </div>
-      ) : tab === "department" && caps.isHod ? (
+      {caps.isHod && tab === "department" ? (
         <DepartmentFeedback />
       ) : (
-        <ResultsTab
-          rows={rows}
-          loading={loading}
-          error={error}
-          onRetry={load}
-        />
+        <>
+          <ResultsTab
+            rows={rows}
+            teaching={teaching}
+            loading={loading}
+            error={error}
+            onRetry={load}
+          />
+          {/* Both render nothing when there is nothing to do: no round whose
+              questions this coordinator may still change, and no form
+              requested. */}
+          <CoordinatorQuestions />
+          <FeedbackRequests />
+        </>
       )}
     </div>
   );
 }
 
+/** How a round sorts: what is open comes first, what has finished last. */
+const STATUS_ORDER: Record<string, number> = {
+  open: 0,
+  draft: 1,
+  scheduled: 1,
+  closed: 2,
+  archived: 3,
+};
+
 function ResultsTab({
   rows,
+  teaching,
   loading,
   error,
   onRetry,
 }: {
   rows: FeedbackOverviewRow[];
+  teaching: TeachingOffering[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
 }) {
   const rowKey = (r: FeedbackOverviewRow) => `${r.period_id}:${r.course_id}`;
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  /* Courses being taught this semester that no round covers yet. Without
+     them the page could only show what already exists, and a lecturer
+     wondering "where is my feedback?" had nothing to act on. */
+  const awaitingRound = useMemo(
+    () =>
+      teaching.filter(
+        (o) => o.is_current && !rows.some((r) => r.course_id === o.course_id),
+      ),
+    [teaching, rows],
+  );
+
+  /* Open rounds first, then anything not yet open, then closed ones —
+     within each, the course being taught now before older deliveries. */
+  const ordered = useMemo(() => {
+    const currentCourses = new Set(
+      teaching.filter((o) => o.is_current).map((o) => o.course_id),
+    );
+    return [...rows].sort(
+      (a, b) =>
+        (STATUS_ORDER[a.period_status] ?? 9) - (STATUS_ORDER[b.period_status] ?? 9) ||
+        Number(currentCourses.has(b.course_id)) -
+          Number(currentCourses.has(a.course_id)) ||
+        b.semester - a.semester ||
+        a.course_code.localeCompare(b.course_code),
+    );
+  }, [rows, teaching]);
 
   const visible = rows.filter((r) => r.results_visible);
   const overallAvg = useMemo(() => {
@@ -187,15 +238,15 @@ function ResultsTab({
       </div>
 
       <SectionCard
-        title="Course by course"
-        description="Select a course to see its report. While a round is open the figures update as responses arrive."
+        title="Your courses"
+        description="Open a course to read its report. While a round is open the figures update as responses arrive; once your department closes it, the report can be downloaded."
         flush
       >
         {loading ? (
           <div className="p-4">
             <SkeletonRows count={4} height="h-16" />
           </div>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && awaitingRound.length === 0 ? (
           <div className="p-4">
             <EmptyState
               icon={MessageSquareText}
@@ -205,7 +256,30 @@ function ResultsTab({
           </div>
         ) : (
           <ul className="divide-y divide-border/70">
-            {rows.map((r) => {
+            {awaitingRound.map((o) => (
+              <li
+                key={o.offering_id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-primary">
+                      {o.course_code}
+                    </span>
+                    <span className="truncate text-sm text-foreground">
+                      {o.course_title}
+                    </span>
+                    <StatusBadge tone="success">This semester</StatusBadge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {describeBatch(o.batch_year)} · Semester {o.semester} · no
+                    feedback round yet
+                  </p>
+                </div>
+                <StatusBadge tone="neutral">Nothing to show</StatusBadge>
+              </li>
+            ))}
+            {ordered.map((r) => {
               const key = rowKey(r);
               const open = expanded === key;
               return (

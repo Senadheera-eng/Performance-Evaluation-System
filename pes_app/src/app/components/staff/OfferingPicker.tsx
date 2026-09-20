@@ -62,11 +62,22 @@ export function OfferingPicker({
     [offerings, batch],
   );
 
-  /* A batch holds a different set of semesters, and carrying the old filter
-     across would show an empty course list for a batch that has plenty. */
+  /* The semester the batch is sitting now, if any of its offerings is this
+     semester's. */
+  const currentSemester = useMemo(() => {
+    const current = offerings.find((o) => o.batch_year === batch && o.is_current);
+    return current?.semester ?? null;
+  }, [offerings, batch]);
+
+  /* Opens on what the batch is doing now. Batch 7 is in Semester 7, so a
+     lecturer marking a register should not have to pick their way past the
+     Semester 5 and 6 classes that batch finished two years ago — but those
+     are still one choice away, for a repeat student or a late correction.
+     A batch also holds a different set of semesters, so carrying the old
+     filter across would show an empty course list for a batch with plenty. */
   useEffect(() => {
-    setSemesterFilter("all");
-  }, [batch]);
+    setSemesterFilter(currentSemester ?? "all");
+  }, [batch, currentSemester]);
 
   const coursesInBatch = useMemo(
     () =>
@@ -147,6 +158,7 @@ export function OfferingPicker({
             {semestersInBatch.map((s) => (
               <option key={s} value={s}>
                 Semester {s}
+                {s === currentSemester ? " (now)" : ""}
               </option>
             ))}
           </select>
