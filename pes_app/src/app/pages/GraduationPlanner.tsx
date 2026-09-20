@@ -414,7 +414,6 @@ export default function GraduationPlanner() {
             ]}
             activeTab={activeTab}
             onChange={setActiveTab}
-            className="max-w-md"
             layoutId="planner-tab-indicator"
           />
 
