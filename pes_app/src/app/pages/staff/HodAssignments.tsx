@@ -200,7 +200,7 @@ export default function HodAssignments() {
             {semesters.map((s) => (
               <option key={s} value={s}>
                 Semester {s}
-                {s === currentSemester ? " (now)" : ""}
+                {s === currentSemester ? " (Current)" : ""}
               </option>
             ))}
           </select>

@@ -9,7 +9,6 @@ import {
   SkeletonRows,
   StatusBadge,
 } from "../../components/common";
-import { Button } from "../../components/ui/button";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -20,26 +19,30 @@ import {
   type TeachingOffering,
 } from "../../../lib/staffService";
 
-type Period = "current" | "earlier" | "all";
-
 /**
- * The courses this lecturer teaches.
+ * The courses this lecturer teaches, a batch at a time.
  *
- * "This semester" first, and by default only that. An offering is a course
- * as delivered to one batch in one year, so a lecturer who has taught the
- * same batch since their second year accumulates every past delivery — for
- * Batch 7, now in Semester 7, that was Semester 5 and 6 classes finished two
- * years ago listed as though they were still running. Earlier deliveries are
- * one click away rather than gone: their rosters still matter for a repeat
- * student, a late result, or a feedback round opened after the fact.
+ * Batch first, because every batch is somewhere different: one may be sitting
+ * Semester 7 while another is in Semester 5, so "this semester" means nothing
+ * until you say whose. Choosing a batch answers it — the page then opens on
+ * that batch's current semester and lists what this lecturer teaches it now.
+ *
+ * Which semester a batch is in is worked out per batch from its own progress
+ * (current_semester_for_batch, in the database), so a faculty holding eight
+ * batches at eight different points needs no change here and no batch is
+ * written into the code.
+ *
+ * Earlier semesters stay one choice away rather than hidden: their rosters
+ * are what a repeat student, a late result, or a feedback round opened after
+ * the fact are read from.
  */
 export default function StaffCourses() {
   const { staff } = useAuth();
   const [offerings, setOfferings] = useState<TeachingOffering[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [batchFilter, setBatchFilter] = useState<string>("all");
-  const [period, setPeriod] = useState<Period>("current");
+  const [batch, setBatch] = useState<number | null>(null);
+  const [semester, setSemester] = useState<number | "all">("all");
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [rosters, setRosters] = useState<Record<string, RosterStudent[]>>({});
@@ -93,60 +96,81 @@ export default function StaffCourses() {
     [offerings],
   );
 
-  const currentCount = offerings.filter((o) => o.is_current).length;
+  /* Open on a batch this lecturer is teaching now; failing that, their most
+     recent one. */
+  useEffect(() => {
+    if (batch !== null || offerings.length === 0) return;
+    setBatch(offerings.find((o) => o.is_current)?.batch_year ?? batches[0]);
+  }, [offerings, batches, batch]);
 
-  const visible = offerings.filter(
-    (o) =>
-      (batchFilter === "all" || o.batch_year === Number(batchFilter)) &&
-      (period === "all" || (period === "current" ? o.is_current : !o.is_current)),
+  const inBatch = useMemo(
+    () => offerings.filter((o) => o.batch_year === batch),
+    [offerings, batch],
   );
 
-  /* What the batch is sitting now, for the empty state. Every offering of a
-     batch carries the same answer, so any of them will do. */
-  const batchNow = offerings.find(
-    (o) => batchFilter !== "all" && o.batch_year === Number(batchFilter),
-  )?.batch_current_semester;
+  /* Where this batch is now, and which of its semesters this lecturer has
+     taught. Both come from the batch itself. */
+  const batchNow = inBatch[0]?.batch_current_semester ?? null;
+  const semesters = useMemo(
+    () => [...new Set(inBatch.map((o) => o.semester))].sort((a, b) => a - b),
+    [inBatch],
+  );
+  const teachesNow = batchNow !== null && semesters.includes(batchNow);
+
+  /* Another batch is at another point in its degree, so the semester follows
+     the batch rather than carrying across. */
+  useEffect(() => {
+    if (batch === null) return;
+    setSemester(teachesNow ? (batchNow as number) : "all");
+    setExpanded(null);
+  }, [batch, batchNow, teachesNow]);
+
+  const visible = inBatch.filter(
+    (o) => semester === "all" || o.semester === semester,
+  );
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="My Courses"
-        description="The course offerings you are assigned to teach, with their student rosters."
+        description="Choose a batch to see what you are teaching it now, with the student roster."
       />
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      {offerings.length > 0 && (
+      {batches.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedTabs
-            aria-label="Filter by when the course runs"
-            value={period}
-            onChange={(v) => setPeriod(v as Period)}
-            layoutId="staff-courses-period"
-            tabs={[
-              { value: "current", label: "This semester", count: currentCount },
-              {
-                value: "earlier",
-                label: "Earlier",
-                count: offerings.length - currentCount,
-              },
-              { value: "all", label: "All", count: offerings.length },
-            ]}
+            aria-label="Batch"
+            value={String(batch ?? batches[0])}
+            onChange={(v) => setBatch(Number(v))}
+            layoutId="staff-courses-batch"
+            scrollable
+            tabs={batches.map((b) => ({
+              value: String(b),
+              label: describeBatch(b).replace(/ \(.*\)$/, ""),
+              count: offerings.filter((o) => o.batch_year === b).length,
+            }))}
           />
-          {batches.length > 1 && (
+          {semesters.length > 1 && (
             <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              Batch
+              Semester
               <select
-                value={batchFilter}
-                onChange={(e) => setBatchFilter(e.target.value)}
+                value={semester === "all" ? "all" : String(semester)}
+                onChange={(e) =>
+                  setSemester(
+                    e.target.value === "all" ? "all" : Number(e.target.value),
+                  )
+                }
                 className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
               >
-                <option value="all">All batches</option>
-                {batches.map((b) => (
-                  <option key={b} value={String(b)}>
-                    {describeBatch(b)}
+                {semesters.map((s) => (
+                  <option key={s} value={String(s)}>
+                    Semester {s}
+                    {s === batchNow ? " (Current)" : ""}
                   </option>
                 ))}
+                <option value="all">All semesters</option>
               </select>
             </label>
           )}
@@ -155,50 +179,52 @@ export default function StaffCourses() {
 
       <SectionCard
         title={
-          period === "current"
-            ? "Teaching this semester"
-            : period === "earlier"
-              ? "Earlier semesters"
-              : "All assigned offerings"
+          batch === null
+            ? "Assigned offerings"
+            : semester === "all"
+              ? `${describeBatch(batch)} — every semester you teach it`
+              : `${describeBatch(batch)} — Semester ${semester}${
+                  semester === batchNow ? " (current)" : ""
+                }`
         }
-        description={`${visible.length} offering${visible.length === 1 ? "" : "s"}`}
+        description={
+          batchNow !== null
+            ? `${visible.length} course${visible.length === 1 ? "" : "s"} · this batch is in Semester ${batchNow} now`
+            : `${visible.length} course${visible.length === 1 ? "" : "s"}`
+        }
         flush
       >
         {loading ? (
           <div className="p-4">
             <SkeletonRows count={5} height="h-16" />
           </div>
+        ) : offerings.length === 0 ? (
+          <div className="p-4">
+            <EmptyState
+              icon={BookOpen}
+              title="No courses assigned"
+              description="Your Head of Department assigns course offerings. Once that happens they appear here with the full student roster."
+            />
+          </div>
         ) : visible.length === 0 ? (
           <div className="p-4">
-            {offerings.length === 0 ? (
-              <EmptyState
-                icon={BookOpen}
-                title="No courses assigned"
-                description="Your Head of Department assigns course offerings. Once that happens they appear here with the full student roster."
-              />
-            ) : period === "current" ? (
-              /* Assigned, but only to deliveries that have finished. Said
-                 plainly: the alternative is a lecturer staring at an empty
-                 page wondering which half is broken. */
-              <EmptyState
-                icon={BookOpen}
-                title="Nothing to teach this semester"
-                description={`You are not assigned to any course running this semester${
-                  batchNow ? ` (${describeBatch(Number(batchFilter))} is now in Semester ${batchNow})` : ""
-                }. Your earlier courses are under "Earlier" — your Head of Department assigns this semester's.`}
-                action={
-                  <Button variant="outline" onClick={() => setPeriod("earlier")}>
-                    See earlier courses
-                  </Button>
-                }
-              />
-            ) : (
-              <EmptyState
-                icon={BookOpen}
-                title="Nothing here"
-                description="No offerings match this filter."
-              />
-            )}
+            <EmptyState
+              icon={BookOpen}
+              title={
+                teachesNow
+                  ? "Nothing in this semester"
+                  : `Nothing for this batch this semester`
+              }
+              description={
+                teachesNow
+                  ? "No courses match this filter. Choose another semester."
+                  : `${describeBatch(batch ?? 0)} is in Semester ${
+                      batchNow ?? "—"
+                    } now, and you are not assigned to any of its Semester ${
+                      batchNow ?? "—"
+                    } courses. What you taught it before is under "All semesters"; your Head of Department assigns this semester's.`
+              }
+            />
           </div>
         ) : (
           <ul className="divide-y divide-border/70">
@@ -230,7 +256,7 @@ export default function StaffCourses() {
                             <StatusBadge tone="brand">Coordinator</StatusBadge>
                           )}
                           {o.is_current ? (
-                            <StatusBadge tone="success">This semester</StatusBadge>
+                            <StatusBadge tone="success">Current</StatusBadge>
                           ) : (
                             <StatusBadge tone="neutral">Finished</StatusBadge>
                           )}
