@@ -117,6 +117,7 @@ export default function FeedbackFormEditor() {
   const [busy, setBusy] = useState(false);
   const [addingSection, setAddingSection] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!periodId || !courseId) return;
@@ -292,9 +293,15 @@ export default function FeedbackFormEditor() {
           canEdit={canEdit}
           busy={busy}
           dragging={dragging === section.section_key}
+          dragOver={dragOver === section.section_key && dragging !== section.section_key}
           onDragStart={() => setDragging(section.section_key)}
-          onDragEnd={() => setDragging(null)}
+          onDragEnd={() => {
+            setDragging(null);
+            setDragOver(null);
+          }}
+          onDragOverSection={() => setDragOver(section.section_key)}
           onDropOn={() => {
+            setDragOver(null);
             if (!dragging || dragging === section.section_key) return;
             const from = form.sections.findIndex(
               (s) => s.section_key === dragging,
@@ -378,8 +385,10 @@ function SectionBlock({
   canEdit,
   busy,
   dragging,
+  dragOver,
   onDragStart,
   onDragEnd,
+  onDragOverSection,
   onDropOn,
   onMove,
   onRename,
@@ -392,8 +401,10 @@ function SectionBlock({
   canEdit: boolean;
   busy: boolean;
   dragging: boolean;
+  dragOver: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
+  onDragOverSection: () => void;
   onDropOn: () => void;
   onMove: (delta: number) => void;
   onRename: (title: string, description: string | null) => Promise<boolean>;
@@ -415,19 +426,26 @@ function SectionBlock({
 
   return (
     <div
-      /* Dragging moves whole sections; questions keep the order they were
-         added in, which is what the student reads down the page. */
-      draggable={canEdit && !renaming && !adding}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      /* The card is where a section can be dropped; the drag itself starts
+         from the handle in the heading, so selecting text in a question or
+         using its controls never begins one. */
       onDragOver={(e) => {
-        if (canEdit) e.preventDefault();
+        if (!canEdit) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOverSection();
       }}
       onDrop={(e) => {
         e.preventDefault();
         onDropOn();
       }}
-      className={dragging ? "opacity-50" : undefined}
+      className={[
+        "rounded-2xl transition-shadow",
+        dragging ? "opacity-50" : "",
+        dragOver ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <SectionCard
         title={`${section.icon ? `${section.icon} ` : ""}${section.title}`}
@@ -436,11 +454,21 @@ function SectionBlock({
           canEdit && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span
-                className="hidden cursor-grab items-center text-muted-foreground sm:inline-flex"
-                title="Drag to reorder"
-                aria-hidden="true"
+                /* The drag source. A drag will not start at all unless
+                   something is written to the transfer, which is why the
+                   whole-card version did nothing. */
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", section.section_key);
+                  e.dataTransfer.effectAllowed = "move";
+                  onDragStart();
+                }}
+                onDragEnd={onDragEnd}
+                className="hidden cursor-grab items-center rounded-md px-1 py-1 text-muted-foreground hover:bg-muted active:cursor-grabbing sm:inline-flex"
+                title={`Drag to move ${section.title}`}
               >
-                <GripVertical className="h-4 w-4" />
+                <GripVertical className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Drag to reorder {section.title}</span>
               </span>
               <Button
                 size="sm"
