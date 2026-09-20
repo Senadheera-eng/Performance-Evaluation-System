@@ -194,26 +194,27 @@ export default function StaffMentees() {
           one click rather than a scroll. */}
       {!loading && mentees.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant={batch === "all" ? "default" : "outline"}
-            onClick={() => setBatch("all")}
-          >
-            All batches
-          </Button>
-          {batches.map((b) => (
-            <Button
-              key={b}
-              size="sm"
-              variant={batch === b ? "default" : "outline"}
-              onClick={() => setBatch(b)}
+          {/* A dropdown rather than a row of buttons: a mentor can hold
+              students from every year in the faculty, and eight batch
+              buttons pushed the bands off the line. */}
+          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            Batch
+            <select
+              value={batch === "all" ? "all" : String(batch)}
+              onChange={(e) =>
+                setBatch(e.target.value === "all" ? "all" : Number(e.target.value))
+              }
+              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
             >
-              {describeBatch(b)}
-              <span className="ml-1.5 text-xs opacity-70">
-                {mentees.filter((m) => m.batch_year === b).length}
-              </span>
-            </Button>
-          ))}
+              <option value="all">All batches ({mentees.length})</option>
+              {batches.map((b) => (
+                <option key={b} value={String(b)}>
+                  {describeBatch(b)} (
+                  {mentees.filter((m) => m.batch_year === b).length})
+                </option>
+              ))}
+            </select>
+          </label>
 
           <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
 

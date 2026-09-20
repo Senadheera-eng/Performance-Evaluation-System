@@ -54,16 +54,19 @@ export default function StaffDashboard() {
     setLoading(false);
   };
 
-  const totalStudents = offerings.reduce((sum, o) => sum + o.enrolled_count, 0);
-  const coordinating = offerings.filter((o) => o.my_role === "coordinator").length;
-  const awaitingEntry = offerings.filter(
+  /* What is being taught now, not merely the newest batch's courses: a
+     batch keeps its old offerings for ever, so "newest cohort" put classes
+     that finished two years ago under the heading "Current teaching". */
+  const current = offerings.filter((o) => o.is_current);
+  const earlier = offerings.length - current.length;
+  const totalStudents = current.reduce((sum, o) => sum + o.enrolled_count, 0);
+  const coordinating = current.filter((o) => o.my_role === "coordinator").length;
+  const awaitingEntry = current.filter(
     (o) => o.draft_count === 0 && o.submitted_count === 0 && o.published_count === 0,
   ).length;
+  /* Sheets in review stay across every offering: a result sheet sent to the
+     department in a past semester is still waiting on someone. */
   const inReview = offerings.filter((o) => o.submitted_count > 0).length;
-
-  // Newest cohort first, so "what am I teaching now" is at the top.
-  const currentBatch = offerings.length > 0 ? offerings[0].batch_year : null;
-  const current = offerings.filter((o) => o.batch_year === currentBatch);
 
   return (
     <div className="space-y-5">
@@ -84,11 +87,17 @@ export default function StaffDashboard() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
             index={0}
-            label="Courses Assigned"
-            value={offerings.length}
+            label="Teaching Now"
+            value={current.length}
             icon={BookOpen}
             tone="brand"
-            hint={coordinating > 0 ? `${coordinating} as coordinator` : undefined}
+            hint={
+              coordinating > 0
+                ? `${coordinating} as coordinator`
+                : earlier > 0
+                  ? `${earlier} earlier course${earlier === 1 ? "" : "s"}`
+                  : undefined
+            }
           />
           <StatCard
             index={1}
@@ -96,7 +105,7 @@ export default function StaffDashboard() {
             value={totalStudents}
             icon={Users}
             tone="info"
-            hint="Across all assigned courses"
+            hint="In the courses you teach now"
           />
           <StatCard
             index={2}
@@ -112,7 +121,7 @@ export default function StaffDashboard() {
             value={awaitingEntry}
             icon={AlertTriangle}
             tone={awaitingEntry > 0 ? "warning" : "success"}
-            hint="Courses with nothing entered"
+            hint="This semester's courses with nothing entered"
           />
         </div>
       )}
@@ -121,8 +130,8 @@ export default function StaffDashboard() {
         <SectionCard
           title="Current teaching"
           description={
-            currentBatch !== null
-              ? `${describeBatch(currentBatch)} — ${current.length} course${current.length === 1 ? "" : "s"}`
+            current.length > 0
+              ? `${current.length} course${current.length === 1 ? "" : "s"} running this semester`
               : undefined
           }
           className="lg:col-span-2"
@@ -136,11 +145,21 @@ export default function StaffDashboard() {
             <div className="p-4">
               <EmptyState
                 icon={BookOpen}
-                title="No courses assigned yet"
+                title={
+                  earlier > 0
+                    ? "Nothing running this semester"
+                    : "No courses assigned yet"
+                }
                 description={
-                  caps.isHod
-                    ? "Assign yourself or your staff to course offerings under Course Assignments."
-                    : "Your Head of Department assigns course offerings. They will appear here as soon as that happens."
+                  earlier > 0
+                    ? `Your ${earlier} earlier course${earlier === 1 ? " is" : "s are"} under My Courses. ${
+                        caps.isHod
+                          ? "Assign this semester's offerings under Course Assignments."
+                          : "Your Head of Department assigns this semester's offerings."
+                      }`
+                    : caps.isHod
+                      ? "Assign yourself or your staff to course offerings under Course Assignments."
+                      : "Your Head of Department assigns course offerings. They will appear here as soon as that happens."
                 }
               />
             </div>
@@ -167,8 +186,8 @@ export default function StaffDashboard() {
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          Semester {o.semester} · {o.credits} credits ·{" "}
-                          {o.enrolled_count} enrolled
+                          {describeBatch(o.batch_year)} · Semester {o.semester} ·{" "}
+                          {o.credits} credits · {o.enrolled_count} enrolled
                           {o.co_lecturers.length > 0 &&
                             ` · with ${o.co_lecturers.map((c) => c.name).join(", ")}`}
                         </p>

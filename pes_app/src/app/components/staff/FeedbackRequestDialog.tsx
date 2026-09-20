@@ -114,8 +114,14 @@ export function FeedbackRequestDialog({
         });
       }
     }
+    /* The cohort being taught now comes first, so a request opens on it
+       rather than on whichever batch happens to sort highest. */
     return [...map.values()].sort(
-      (a, b) => b.batch_year - a.batch_year || b.semester - a.semester,
+      (a, b) =>
+        Number(b.offerings.some((o) => o.is_current)) -
+          Number(a.offerings.some((o) => o.is_current)) ||
+        b.batch_year - a.batch_year ||
+        b.semester - a.semester,
     );
   }, [teaching]);
 
@@ -305,6 +311,7 @@ export function FeedbackRequestDialog({
                     <option key={c.key} value={c.key}>
                       {describeBatch(c.batch_year)} · Semester {c.semester} ·{" "}
                       {c.academic_year}
+                      {c.offerings.some((o) => o.is_current) ? " (now)" : ""}
                     </option>
                   ))}
                 </select>

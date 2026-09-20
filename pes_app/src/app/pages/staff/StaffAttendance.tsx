@@ -331,6 +331,20 @@ export default function StaffAttendance() {
             </label>
           </div>
         )}
+        {selected && !selected.is_current && (
+          /* Marking a class that has finished is legitimate — a repeat
+             student, a correction after the fact — but it should never be
+             where someone lands by accident. */
+          <p className="mt-2 flex items-start gap-1.5 text-xs text-warning-fg">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+            This class has finished — Semester {selected.semester},{" "}
+            {selected.academic_year}
+            {selected.batch_current_semester
+              ? `, and ${describeBatch(selected.batch_year)} is now in Semester ${selected.batch_current_semester}`
+              : ""}
+            . Mark it only to correct a record or for a repeat student.
+          </p>
+        )}
         {alreadyRecorded && (
           <p className="mt-2 text-xs text-muted-foreground">
             This date already has attendance recorded — saving updates it rather

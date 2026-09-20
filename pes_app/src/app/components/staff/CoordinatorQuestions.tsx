@@ -83,7 +83,16 @@ export function CoordinatorQuestions() {
     return true;
   };
 
-  if (!loading && rounds.length === 0) return null;
+  /* Only rounds this coordinator can still act on: one whose questions are
+     still open to change, or one they have already added a question to. A
+     round the department has opened and locked, with nothing of theirs on
+     it, is a card that can only say "fixed" — which is most of them, and
+     was most of this page. */
+  const actionable = rounds.filter(
+    (r) => r.can_edit_questions || r.my_questions.length > 0,
+  );
+
+  if (!loading && actionable.length === 0) return null;
 
   return (
     <div className="space-y-4">
@@ -105,7 +114,7 @@ export function CoordinatorQuestions() {
           </div>
         ) : (
           <ul className="divide-y divide-border/70">
-            {rounds.map((round) => {
+            {actionable.map((round) => {
               const key = `${round.period_id}:${round.course_id}`;
               return (
                 <li key={key} className="px-4 py-3">

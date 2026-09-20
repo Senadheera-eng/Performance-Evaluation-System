@@ -35,6 +35,12 @@ export interface TeachingOffering {
   draft_count: number;
   submitted_count: number;
   published_count: number;
+  /** The semester this offering's batch is sitting now. */
+  batch_current_semester: number | null;
+  /** True when this offering is that semester — the class being taught now.
+   *  False for a delivery that has finished: still reachable for a repeat
+   *  student, a late result or a feedback round opened after the fact. */
+  is_current: boolean;
 }
 
 export interface DepartmentOffering {
@@ -50,6 +56,8 @@ export interface DepartmentOffering {
   department: string;
   lecturers: (CoLecturer & { assignment_id: string; email: string })[];
   enrolled_count: number;
+  batch_current_semester: number | null;
+  is_current: boolean;
 }
 
 export interface AssignableLecturer {

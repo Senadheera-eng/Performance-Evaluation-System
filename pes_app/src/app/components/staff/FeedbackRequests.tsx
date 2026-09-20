@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  ClipboardList,
   Clock,
   Lock,
   Pencil,
@@ -24,7 +23,6 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import {
-  EmptyState,
   ErrorState,
   SectionCard,
   SkeletonRows,
@@ -204,13 +202,12 @@ export function FeedbackRequests() {
             <SkeletonRows count={3} height="h-16" />
           </div>
         ) : requests.length === 0 ? (
-          <div className="p-4">
-            <EmptyState
-              icon={ClipboardList}
-              title="You have not requested a feedback form"
-              description="Ask your students what they think of a course you teach. Your department reviews the form before it opens."
-            />
-          </div>
+          /* One line, not a full empty state: this is a thing a lecturer
+             does occasionally, and it sits under the results they came for. */
+          <p className="px-4 py-3 text-sm text-muted-foreground">
+            Ask your students what they think of a course you teach — your
+            department reviews the form before it opens.
+          </p>
         ) : (
           <ul className="divide-y divide-border/70">
             {requests.map((r) => {
