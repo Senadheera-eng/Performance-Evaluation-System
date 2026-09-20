@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ChevronRight,
@@ -92,6 +93,7 @@ const shortDate = (iso: string | null) =>
  */
 export default function StaffFeedback() {
   const { staff } = useAuth();
+  const navigate = useNavigate();
   const caps = getStaffCapabilities(staff);
   const [tab, setTab] = useState("open");
   const [rows, setRows] = useState<FeedbackOverviewRow[]>([]);
@@ -291,7 +293,11 @@ export default function StaffFeedback() {
               <>
                 <SectionCard
                   title={`Your courses in ${round.title}`}
-                  description="Only the courses you are assigned to. Open one for its results."
+                  description={
+                    round.status === "draft"
+                      ? "Only the courses you are assigned to. Open one to add your own questions before your department opens the round."
+                      : "Only the courses you are assigned to. Open one for its results."
+                  }
                   actions={<RoundBadge status={round.status} />}
                   flush
                 >
@@ -300,7 +306,15 @@ export default function StaffFeedback() {
                       <li key={c.course_id}>
                         <button
                           type="button"
-                          onClick={() => setSelectedCourse(c.course_id)}
+                          onClick={() =>
+                            /* Nothing has been answered in a draft, so the
+                               useful thing to open is the form itself. */
+                            round.status === "draft"
+                              ? navigate(
+                                  `/staff/feedback/${round.id}/${c.course_id}/form`,
+                                )
+                              : setSelectedCourse(c.course_id)
+                          }
                           className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                         >
                           <span className="min-w-0">
@@ -339,7 +353,11 @@ export default function StaffFeedback() {
                                 </span>
                               </span>
                             )}
-                            {c.results_visible ? (
+                            {round.status === "draft" ? (
+                              <StatusBadge tone="warning">
+                                Set up your form
+                              </StatusBadge>
+                            ) : c.results_visible ? (
                               isClosed(round.status) ? (
                                 <StatusBadge tone="info">Report ready</StatusBadge>
                               ) : (
