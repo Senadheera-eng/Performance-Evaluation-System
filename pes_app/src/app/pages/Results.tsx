@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Award,
   BookOpenCheck,
   Download,
   GraduationCap,
   Loader2,
+  Megaphone,
   TrendingUp,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -43,7 +45,6 @@ import {
   useChartMotion,
   type StatusTone,
 } from "../components/common";
-import { PublishedResultSheets } from "../components/results/PublishedResultSheets";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
@@ -455,6 +456,16 @@ export default function Results() {
         title="Academic Results"
         description="Your semester-by-semester grades and overall standing."
         actions={
+          <div className="flex flex-wrap gap-2">
+            {/* The official course sheets are published as documents on the
+                notice board, so this page keeps to one thing: this
+                student's own record. */}
+            <Button variant="outline" asChild>
+              <Link to="/app/notices?category=results">
+                <Megaphone className="mr-2 h-4 w-4" />
+                Published result sheets
+              </Link>
+            </Button>
           <Button
             onClick={handleDownloadTranscript}
             disabled={loading || downloading || semesters.length === 0}
@@ -466,6 +477,7 @@ export default function Results() {
             )}
             {downloading ? "Preparing…" : "Download Transcript"}
           </Button>
+          </div>
         }
       />
 
@@ -781,7 +793,6 @@ export default function Results() {
         ) : null}
       </SectionCard>
 
-      <PublishedResultSheets />
     </div>
   );
 }
