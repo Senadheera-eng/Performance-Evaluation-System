@@ -77,13 +77,16 @@ interface CourseOption {
   department: string;
 }
 
-const TABS = [
+const ALL_TABS = [
   { value: "current", label: "Current" },
+  /* Windows not yet open. Only the Super Admin has anything to do with one
+     — they create windows as drafts and schedule them — so for a department,
+     which can only read, it was a tab that mostly said nothing. */
   { value: "upcoming", label: "Upcoming" },
   { value: "closed", label: "Closed" },
   { value: "archived", label: "Archived" },
 ] as const;
-type TabValue = (typeof TABS)[number]["value"];
+type TabValue = (typeof ALL_TABS)[number]["value"];
 
 export default function AdminEnrollment() {
   const { student: admin } = useAuth();
@@ -96,6 +99,7 @@ export default function AdminEnrollment() {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("current");
+  const TABS = ALL_TABS.filter((t) => t.value !== "upcoming" || isSuperAdmin);
   // One period open at a time. What is inside it — the courses, and each
   // course's roster — belongs to PeriodCourseBreakdown, which the staff
   // portal renders too.
@@ -182,6 +186,11 @@ export default function AdminEnrollment() {
     if (activeTab === "closed") return p.status === "closed";
     return p.status === "archived";
   });
+
+  /* A department admin landing on a tab that is no longer theirs. */
+  useEffect(() => {
+    if (!isSuperAdmin && activeTab === "upcoming") setActiveTab("current");
+  }, [isSuperAdmin, activeTab]);
 
   const counts = {
     current: periods.filter((p) => p.status === "open").length,
