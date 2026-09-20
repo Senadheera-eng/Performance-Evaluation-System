@@ -62,7 +62,7 @@ const TONE_TEXT: Record<StatusTone, string> = {
   brand: "text-primary",
 };
 
-/** One enrolled course, with its attendance already reduced to numbers. */
+/** One delivery of a course, with its attendance already reduced to numbers. */
 export interface CourseAttendanceSummary {
   id: string;
   code: string;
@@ -73,6 +73,8 @@ export interface CourseAttendanceSummary {
   tier: AttendanceTier;
   absencesAllowed: number;
   lecturesNeeded: number;
+  /** Set only for a course the student has sat more than once. */
+  attempt?: { label: string; isLatest: boolean };
 }
 
 interface AttendanceOverviewProps {
@@ -95,7 +97,12 @@ export function AttendanceOverview({
   threshold,
   onOpenCalendar,
 }: AttendanceOverviewProps) {
-  const tracked = summaries.filter((s) => s.total > 0);
+  // A course sat twice is judged on the second attempt. The first still
+  // appears in the list below — it is the student's record — but counting it
+  // in the headline would mean a term already served dragging the figure the
+  // student is measured on now.
+  const current = summaries.filter((s) => !s.attempt || s.attempt.isLatest);
+  const tracked = current.filter((s) => s.total > 0);
 
   const overallCounts = tracked.reduce<AttendanceCounts>(
     (acc, s) => ({
@@ -121,12 +128,16 @@ export function AttendanceOverview({
   const needsAttention = tracked.filter(
     (s) => s.tier === "critical" || s.tier === "at_risk",
   ).length;
-  const awaiting = summaries.length - tracked.length;
+  const awaiting = current.length - tracked.length;
 
   // Worst first: the courses that need action are the reason to open this
   // page. Courses with nothing recorded yet carry no signal, so they sit at
-  // the end rather than at 0%.
+  // the end rather than at 0%, and a superseded attempt sits behind them
+  // both — it is history, and nothing can be done about it now.
   const ordered = [...summaries].sort((a, b) => {
+    const aPast = a.attempt !== undefined && !a.attempt.isLatest;
+    const bPast = b.attempt !== undefined && !b.attempt.isLatest;
+    if (aPast !== bPast) return aPast ? 1 : -1;
     const aEmpty = a.total === 0;
     const bEmpty = b.total === 0;
     if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
@@ -228,8 +239,12 @@ function CourseRow({
   const tone = TIER_TONE[summary.tier];
   const Icon = TIER_ICON[summary.tier];
 
+  const past = summary.attempt !== undefined && !summary.attempt.isLatest;
+
   const hint =
-    summary.total === 0
+    past
+      ? "Replaced by a later attempt"
+      : summary.total === 0
       ? "Not started"
       : summary.tier === "critical"
         ? `${summary.lecturesNeeded} lecture${
@@ -255,6 +270,14 @@ function CourseRow({
               <span className="truncate text-sm text-foreground">
                 {summary.name}
               </span>
+              {summary.attempt && (
+                <StatusBadge
+                  tone={summary.attempt.isLatest ? "info" : "neutral"}
+                  className="flex-shrink-0"
+                >
+                  {summary.attempt.label}
+                </StatusBadge>
+              )}
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {summary.total === 0

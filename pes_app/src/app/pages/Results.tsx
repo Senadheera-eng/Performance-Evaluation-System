@@ -64,6 +64,8 @@ interface CourseResult {
   grade: string | null;
   gpv: number | null;
   contributes_to_gpa: boolean;
+  /** Set only for a course sat more than once. */
+  attempt?: { number: number; academicYear: string; isLatest: boolean };
 }
 
 interface SemesterData {
@@ -183,6 +185,10 @@ export default function Results() {
           grade: string | null;
           gpv: number | null;
           contributes_to_gpa: boolean;
+          academic_year: string;
+          attempt_number: number;
+          has_repeat: boolean;
+          is_latest_attempt: boolean;
         }[];
       }[];
     };
@@ -208,6 +214,13 @@ export default function Results() {
         grade: c.grade,
         gpv: c.gpv,
         contributes_to_gpa: c.contributes_to_gpa,
+        attempt: c.has_repeat
+          ? {
+              number: c.attempt_number,
+              academicYear: c.academic_year,
+              isLatest: c.is_latest_attempt,
+            }
+          : undefined,
       })),
     }));
 
@@ -222,8 +235,13 @@ export default function Results() {
 
     setCgpa(record.cgpa ?? 0);
     setTotalCredits(record.gpa_credits);
+    // A course sat twice is one course completed, not two.
     setCompletedCourses(
-      semList.reduce((n, s) => n + s.courses.length, 0),
+      semList.reduce(
+        (n, s) =>
+          n + s.courses.filter((c) => !c.attempt || c.attempt.isLatest).length,
+        0,
+      ),
     );
 
     // Only finished semesters go on the trend line. A part-published one
@@ -239,11 +257,14 @@ export default function Results() {
     );
 
     // Grade spread across every graded course. Ordering is applied at render
-    // time from the regulation engine's grade scale, not here.
+    // time from the regulation engine's grade scale, not here. A grade a
+    // repeat has replaced is left out: it is no longer one of the student's
+    // grades, and counting it drew an F the transcript no longer carries.
     const counts = new Map<string, { count: number; gpv: number }>();
     semList.forEach((s) =>
       s.courses.forEach((c) => {
         if (!c.grade) return;
+        if (c.attempt && !c.attempt.isLatest) return;
         const existing = counts.get(c.grade);
         counts.set(c.grade, {
           count: (existing?.count ?? 0) + 1,
@@ -388,7 +409,12 @@ export default function Results() {
           head: [["Code", "Course", "Credits", "Grade", "GPV"]],
           body: sem.courses.map((c) => [
             c.code,
-            c.name,
+            // A transcript keeps every attempt and says which one stands.
+            c.attempt && !c.attempt.isLatest
+              ? `${c.name} (attempt ${c.attempt.number}, ${c.attempt.academicYear} — replaced)`
+              : c.attempt
+                ? `${c.name} (repeat, ${c.attempt.academicYear})`
+                : c.name,
             String(c.credits),
             c.grade ?? "-",
             c.gpv !== null ? c.gpv.toFixed(1) : "-",
@@ -743,13 +769,31 @@ export default function Results() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {activeSemester.courses.map((course) => (
-                    <TableRow key={course.code}>
+                  {activeSemester.courses.map((course) => {
+                    // A course sat twice appears twice — same code, one row
+                    // per attempt — so the key has to say which attempt.
+                    const superseded =
+                      course.attempt !== undefined && !course.attempt.isLatest;
+                    return (
+                    <TableRow
+                      key={`${course.code}-${course.attempt?.number ?? 1}`}
+                      className={superseded ? "opacity-60" : undefined}
+                    >
                       <TableCell className="font-medium text-primary whitespace-nowrap">
                         {course.code}
                       </TableCell>
                       <TableCell>
                         <span className="text-foreground">{course.name}</span>
+                        {course.attempt && (
+                          <StatusBadge
+                            tone={superseded ? "neutral" : "info"}
+                            className="ml-2"
+                          >
+                            {superseded
+                              ? `Attempt ${course.attempt.number}, ${course.attempt.academicYear} — replaced`
+                              : `Repeat, ${course.attempt.academicYear}`}
+                          </StatusBadge>
+                        )}
                         {!course.contributes_to_gpa && (
                           <StatusBadge tone="neutral" className="ml-2">
                             Not in GPA
@@ -781,10 +825,14 @@ export default function Results() {
                         )}
                       </TableCell>
                       <TableCell className="text-center font-semibold tabular-nums">
+                        {/* A replaced attempt keeps its grade but carries no
+                            grade point, which the badge on its name explains;
+                            elsewhere a dash means marks are still awaited. */}
                         {course.gpv !== null ? course.gpv.toFixed(1) : "—"}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
