@@ -179,7 +179,7 @@ const TOOLS = [
       {
         name: "get_my_attendance",
         description:
-          "The calling student's REAL attendance: overall percentage, the faculty minimum and pre-warning thresholds, how many lectures have been recorded, and a per-course breakdown. Takes no arguments. Excused absences count toward compliance exactly as present does, so do not subtract them. If no lectures have been recorded yet, say that rather than reporting zero percent.",
+          "The calling student's REAL attendance: overall percentage, the faculty minimum and pre-warning thresholds, how many lectures have been recorded, and a per-course breakdown. Takes no arguments. Excused absences count toward compliance exactly as present does, so do not subtract them. If no lectures have been recorded yet, say that rather than reporting zero percent. A course the student repeated appears once per attempt, each with its own register and its own percentage: the 'attempt' field says which one counts and which was superseded, and only the one that counts is in the overall figure. Never average the attempts together.",
         parameters: { type: "OBJECT", properties: {} },
       },
       {

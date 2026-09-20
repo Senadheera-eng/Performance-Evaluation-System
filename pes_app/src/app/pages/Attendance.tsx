@@ -44,7 +44,6 @@ import {
   AttendanceHistoryList,
   type HistoryRecord,
 } from "../components/attendance/AttendanceHistoryList";
-import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
 import {
@@ -55,15 +54,12 @@ import {
   compliantCount,
   getAbsencesAllowed,
   getLecturesNeededToRecover,
-  percentageOf,
-  totalCount,
 } from "../../lib/attendanceMath";
-
-interface CourseInfo {
-  id: string;
-  code: string;
-  name: string;
-}
+import {
+  type CourseDelivery,
+  deliveryLabel,
+  getMyAttendance,
+} from "../../lib/studentAttendance";
 
 const TABS = [
   { value: "overview", label: "Attendance" },
@@ -78,11 +74,10 @@ export default function Attendance() {
   const prewarning = settings.attendancePrewarningThreshold;
   const reduce = useReducedMotion();
 
-  const [courses, setCourses] = useState<CourseInfo[]>([]);
-  const [recordsByCourse, setRecordsByCourse] = useState<
-    Record<string, AttendanceRecord[]>
-  >({});
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  /* One entry per delivery: a repeated course appears once per attempt, each
+     with its own register, so the two are never averaged together. */
+  const [deliveries, setDeliveries] = useState<CourseDelivery[]>([]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Opens on the all-course overview: "am I in trouble anywhere?" is the
@@ -100,95 +95,49 @@ export default function Attendance() {
     setLoading(true);
     setError(null);
 
-    const { data: enrollments, error: enrollError } = await supabase
-      .from("enrollments")
-      .select("course_id, courses(id, course_code, title)")
-      .eq("student_id", student!.id)
-      .eq("status", "enrolled");
-
-    if (enrollError) {
-      console.error("[Attendance] failed to load enrollments", enrollError);
-      setError("We could not load your enrolled courses. Please try again.");
+    const result = await getMyAttendance();
+    if (!result.ok) {
+      setError(result.error);
       setLoading(false);
       return;
     }
 
-    const courseInfos: CourseInfo[] = (enrollments ?? [])
-      .filter((e: any) => e.courses)
-      .map((e: any) => ({
-        id: e.courses.id,
-        code: e.courses.course_code,
-        name: e.courses.title,
-      }));
+    const loaded = result.data.deliveries;
+    setDeliveries(loaded);
 
-    setCourses(courseInfos);
-
-    if (courseInfos.length === 0) {
-      setRecordsByCourse({});
-      setLoading(false);
-      return;
-    }
-
-    const { data: attData, error: attError } = await supabase
-      .from("attendance")
-      .select("course_id, status, lecture_date")
-      .eq("student_id", student!.id)
-      .in(
-        "course_id",
-        courseInfos.map((c) => c.id),
-      );
-
-    if (attError) {
-      console.error("[Attendance] failed to load records", attError);
-      setError("We could not load your attendance records. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    const grouped: Record<string, AttendanceRecord[]> = {};
-    courseInfos.forEach((c) => (grouped[c.id] = []));
-    (attData ?? []).forEach((r: any) => {
-      grouped[r.course_id]?.push({ date: r.lecture_date, status: r.status });
-    });
-    setRecordsByCourse(grouped);
-
-    // Default to the course needing the most attention — the lowest
-    // attendance percentage among courses that actually have records.
-    // Falls back to the first enrolled course when nothing has data yet.
-    const withData = courseInfos
-      .map((c) => ({
-        course: c,
-        counts: toCounts(grouped[c.id] ?? []),
-      }))
-      .filter((c) => totalCount(c.counts) > 0);
-
-    const defaultCourse =
-      withData.length > 0
-        ? withData.reduce((worst, cur) =>
-            percentageOf(cur.counts) < percentageOf(worst.counts) ? cur : worst,
-          ).course
-        : courseInfos[0];
-
-    setSelectedCourseId(defaultCourse.id);
+    // Default to the delivery needing the most attention — the lowest
+    // percentage among those that have records, preferring one still being
+    // taught, since a term that has ended can no longer be recovered.
+    const open = loaded.filter((d) => d.is_latest_attempt && d.lectures > 0);
+    const worst = open.reduce<CourseDelivery | null>(
+      (lowest, d) =>
+        lowest === null || (d.percentage ?? 0) < (lowest.percentage ?? 0) ? d : lowest,
+      null,
+    );
+    setSelectedKey((worst ?? loaded[0])?.delivery_key ?? null);
     setLoading(false);
   };
 
   /**
-   * Per-course attendance, derived once. The overview list, the glance chart
+   * Per-delivery attendance, derived once. The overview list, the glance chart
    * and the selected-course stat cards all read from this rather than each
    * re-deriving the same percentages from the raw records.
    */
   const courseSummaries: CourseAttendanceSummary[] = useMemo(
     () =>
-      courses.map((c) => {
-        const counts = toCounts(recordsByCourse[c.id] ?? []);
-        const total = totalCount(counts);
+      deliveries.map((d) => {
+        const counts: AttendanceCounts = {
+          present: d.present,
+          absent: d.absent,
+          excused: d.excused,
+        };
+        const total = d.lectures;
         const compliant = compliantCount(counts);
-        const percentage = percentageOf(counts);
+        const percentage = d.percentage ?? 0;
         return {
-          id: c.id,
-          code: c.code,
-          name: c.name,
+          id: d.delivery_key,
+          code: d.course_code,
+          name: d.title,
           counts,
           total,
           percentage,
@@ -199,17 +148,28 @@ export default function Attendance() {
             total,
             threshold,
           ),
+          attempt: d.has_repeat
+            ? {
+                label: `Attempt ${d.attempt_number} · ${d.academic_year}`,
+                isLatest: d.is_latest_attempt,
+              }
+            : undefined,
         };
       }),
-    [courses, recordsByCourse, threshold, prewarning],
+    [deliveries, threshold, prewarning],
   );
 
   const selectedSummary =
-    courseSummaries.find((s) => s.id === selectedCourseId) ?? null;
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId) ?? null;
-  const selectedRecords = selectedCourseId
-    ? recordsByCourse[selectedCourseId] ?? []
-    : [];
+    courseSummaries.find((s) => s.id === selectedKey) ?? null;
+  const selectedCourse = deliveries.find((d) => d.delivery_key === selectedKey) ?? null;
+  const selectedRecords: AttendanceRecord[] = useMemo(
+    () =>
+      (selectedCourse?.sessions ?? []).map((s) => ({
+        date: s.date,
+        status: s.status,
+      })),
+    [selectedCourse],
+  );
   const selectedCounts = selectedSummary?.counts ?? {
     present: 0,
     absent: 0,
@@ -223,32 +183,37 @@ export default function Attendance() {
 
   // "All courses at a glance" chart — courses with no recorded lecture yet
   // are excluded and counted separately, same rule the summary math uses.
+  // A superseded attempt is left out: the chart compares the courses the
+  // student is judged on now, and an old attempt's bar sits under the same
+  // code as the current one and reads as a contradiction.
   const attendanceChartData = useMemo(
     () =>
-      courseSummaries
-        .filter((s) => s.total > 0)
-        .map((s) => ({ code: s.code, percentage: s.percentage })),
-    [courseSummaries],
+      deliveries
+        .filter((d) => d.is_latest_attempt && d.lectures > 0)
+        .map((d) => ({ code: d.course_code, percentage: d.percentage ?? 0 })),
+    [deliveries],
   );
-  const coursesAwaiting = courses.length - attendanceChartData.length;
+  const coursesAwaiting = deliveries.filter(
+    (d) => d.is_latest_attempt && d.lectures === 0,
+  ).length;
 
-  /** Overview → calendar, with the course the student tapped preselected. */
-  const openCalendarFor = (courseId: string) => {
-    setSelectedCourseId(courseId);
+  /** Overview → calendar, with the delivery the student tapped preselected. */
+  const openCalendarFor = (deliveryKey: string) => {
+    setSelectedKey(deliveryKey);
     setTab("calendar");
   };
 
   const allHistoryRecords: HistoryRecord[] = useMemo(
     () =>
-      courses.flatMap((c) =>
-        (recordsByCourse[c.id] ?? []).map((r) => ({
-          date: r.date,
-          status: r.status,
-          courseCode: c.code,
-          courseName: c.name,
+      deliveries.flatMap((d) =>
+        d.sessions.map((s) => ({
+          date: s.date,
+          status: s.status,
+          courseCode: deliveryLabel(d),
+          courseName: d.title,
         })),
       ),
-    [courses, recordsByCourse],
+    [deliveries],
   );
 
   if (error) {
@@ -263,7 +228,7 @@ export default function Attendance() {
     );
   }
 
-  if (!loading && courses.length === 0) {
+  if (!loading && deliveries.length === 0) {
     return (
       <div className="space-y-5">
         <PageHeader
@@ -339,8 +304,8 @@ export default function Attendance() {
                 Viewing course
               </label>
               <Select
-                value={selectedCourseId ?? undefined}
-                onValueChange={setSelectedCourseId}
+                value={selectedKey ?? undefined}
+                onValueChange={setSelectedKey}
               >
                 <SelectTrigger
                   id="attendance-course-select"
@@ -349,26 +314,21 @@ export default function Attendance() {
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
                 <SelectContent>
-                  {courses.map((c) => {
-                    const counts = toCounts(recordsByCourse[c.id] ?? []);
-                    const total = totalCount(counts);
-                    const pct = percentageOf(counts);
-                    return (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
-                          <span className="font-medium">{c.code}</span>
-                          <span className="text-muted-foreground truncate">
-                            {c.name}
-                          </span>
-                          {total > 0 && (
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              ({pct}%)
-                            </span>
-                          )}
+                  {deliveries.map((d) => (
+                    <SelectItem key={d.delivery_key} value={d.delivery_key}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{deliveryLabel(d)}</span>
+                        <span className="text-muted-foreground truncate">
+                          {d.title}
                         </span>
-                      </SelectItem>
-                    );
-                  })}
+                        {d.lectures > 0 && (
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            ({d.percentage}%)
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -442,7 +402,7 @@ export default function Attendance() {
               ) : (
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={selectedCourseId ?? "none"}
+                    key={selectedKey ?? "none"}
                     initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
@@ -450,8 +410,8 @@ export default function Attendance() {
                   >
                     {selectedCourse && (
                       <AttendanceCalendar
-                        courseCode={selectedCourse.code}
-                        courseName={selectedCourse.name}
+                        courseCode={deliveryLabel(selectedCourse)}
+                        courseName={selectedCourse.title}
                         records={selectedRecords}
                       />
                     )}
@@ -487,14 +447,6 @@ export default function Attendance() {
       </AnimatePresence>
     </div>
   );
-}
-
-function toCounts(records: AttendanceRecord[]): AttendanceCounts {
-  return {
-    present: records.filter((r) => r.status === "present").length,
-    absent: records.filter((r) => r.status === "absent").length,
-    excused: records.filter((r) => r.status === "excused").length,
-  };
 }
 
 function StatusMessage({
