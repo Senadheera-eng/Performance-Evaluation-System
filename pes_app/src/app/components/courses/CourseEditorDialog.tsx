@@ -10,7 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ErrorState } from "../common";
+import { getDepartmentMinors } from "../../../lib/minors";
 import { supabase } from "../../../lib/supabase";
 import { useSettings } from "../../../lib/settings";
 
@@ -76,7 +79,9 @@ export function CourseEditorDialog({
   const [ese, setEse] = useState(70);
 
   const [newDepartment, setNewDepartment] = useState("");
+  const [minorOptions, setMinorOptions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /* A department admin's own department is the only possible answer; a
@@ -84,7 +89,9 @@ export function CourseEditorDialog({
      to nobody's catalogue. */
   const options = departmentOptions ?? [];
   const mustChoose = !department && options.length > 0;
-  const targetDepartment = department || newDepartment;
+  /* Editing follows the course's own department; creating follows the
+     department chosen for it. */
+  const targetDepartment = course?.department || department || newDepartment;
 
   useEffect(() => {
     if (!open) return;
@@ -112,9 +119,44 @@ export function CourseEditorDialog({
       setEse(pct(settings.oaWeights.ese));
       setNewDepartment(department || options[0] || "");
     }
+    setConfirmDelete(false);
   }, [open, course, settings]);
 
+  /* The streams on offer where this course lives. */
+  useEffect(() => {
+    if (!open || !targetDepartment) return;
+    let cancelled = false;
+    getDepartmentMinors(targetDepartment).then((result) => {
+      if (cancelled || !result.ok) return;
+      const names = result.data.map((m) => m.minor);
+      setMinorOptions(
+        minor && !names.includes(minor) ? [...names, minor] : names,
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, targetDepartment, minor]);
+
   const total = ca + ese;
+
+  const remove = async () => {
+    if (!course) return;
+    setSaving(true);
+    setError(null);
+    const { data, error: deleteError } = await supabase.rpc("delete_course", {
+      p_course_id: course.id,
+    });
+    setSaving(false);
+    if (deleteError) {
+      setConfirmDelete(false);
+      setError(deleteError.message);
+      return;
+    }
+    toast.success((data as { message?: string })?.message ?? "Course removed.");
+    onOpenChange(false);
+    onSaved();
+  };
 
   const save = async () => {
     if (!code.trim() || !title.trim()) {
@@ -268,11 +310,26 @@ export function CourseEditorDialog({
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Minor stream (optional)
             </label>
-            <Input
+            {/* The streams this department actually offers, rather than free
+                text: a typo used to create a stream that matched no minor
+                and counted towards nothing. A value already on the course
+                that is no longer offered stays selectable, so editing an
+                unrelated field cannot silently drop it. */}
+            <select
               value={minor}
               onChange={(e) => setMinor(e.target.value)}
-              placeholder="e.g. Data Management"
-            />
+              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            >
+              <option value="">No minor</option>
+              {minorOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Streams are managed under Minor Specifications.
+            </p>
           </div>
         </div>
 
@@ -330,7 +387,43 @@ export function CourseEditorDialog({
           </span>
         </label>
 
+        {/* Removing a course is only ever right for one that has not been
+            taught: every table that points at a course does so on delete
+            cascade, so deleting one with a cohort behind it would take their
+            marks and registers with it. The database refuses that and names
+            what is holding the course; this only offers the button. */}
+        {course && confirmDelete && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300">
+            <span className="flex-1">
+              Delete {course.course_code} from the catalogue? This is only
+              possible while nothing has used it.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={saving}
+              onClick={() => setConfirmDelete(false)}
+            >
+              Keep it
+            </Button>
+            <Button size="sm" disabled={saving} onClick={remove}>
+              Delete
+            </Button>
+          </div>
+        )}
+
         <DialogFooter>
+          {course && !confirmDelete && (
+            <Button
+              variant="ghost"
+              className="mr-auto text-destructive"
+              onClick={() => setConfirmDelete(true)}
+              disabled={saving}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Delete course
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
