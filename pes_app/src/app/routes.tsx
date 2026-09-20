@@ -67,7 +67,6 @@ const Settings = page(() => import("./pages/Settings"));
 const Enrollment = page(() => import("./pages/Enrollment"));
 const MedicalCertificates = page(() => import("./pages/MedicalCertificates"));
 const Feedback = page(() => import("./pages/Feedback"));
-const FeedbackForm = page(() => import("./pages/FeedbackForm"));
 const GraduationPlanner = page(() => import("./pages/GraduationPlanner"));
 const Mentor = page(() => import("./pages/Mentor"));
 /* One page, three portals. What differs per role was already decided
@@ -139,7 +138,6 @@ export const router = createBrowserRouter([
       { path: "enrollment", element: held(<Enrollment />) },
       { path: "medical", element: held(<MedicalCertificates />) },
       { path: "feedback", element: held(<Feedback />) },
-      { path: "feedback/:courseId", element: held(<FeedbackForm />) },
       { path: "mentor", element: held(<Mentor />) },
       { path: "planner", element: held(<GraduationPlanner />) },
       { path: "ai-assistant", element: held(<AIAssistant />) },

@@ -59,6 +59,10 @@ interface CourseResult {
   credits: number;
   contributesToGpa: boolean;
   actualGrade: string | null;
+  /** The grade point the department recorded with the grade. Used as it
+   *  stands, so this page's CGPA is the same number the rest of the system
+   *  shows; the scale below is only for grades a student is trying out. */
+  actualGpv: number | null;
 }
 
 interface SemesterCredit {
@@ -95,7 +99,7 @@ export default function GraduationPlanner() {
     const { data: results } = await supabase
       .from("my_published_results")
       .select(
-        "id, grade, course_id, course_code, course_title, semester, credits, contributes_to_gpa",
+        "id, grade, gpv, course_id, course_code, course_title, semester, credits, contributes_to_gpa",
       )
       .not("gpv", "is", null);
 
@@ -108,6 +112,7 @@ export default function GraduationPlanner() {
       credits: r.credits,
       contributesToGpa: r.contributes_to_gpa,
       actualGrade: r.grade,
+      actualGpv: r.gpv,
     }));
 
     setAllCourses(courseRows);
@@ -150,8 +155,14 @@ export default function GraduationPlanner() {
       {};
 
     gpaCourses.forEach((c) => {
-      const grade = gradeOverrides[c.resultRowId] ?? c.actualGrade;
-      const gpv = grade ? (GPV[grade] ?? 0) : 0;
+      /* A grade the student is trying out is worth whatever the faculty's
+         scale says; one already awarded is worth what was recorded with it.
+         Reading the scale for both meant a grade the scale does not list
+         counted as zero here and as its real value everywhere else. */
+      const override = gradeOverrides[c.resultRowId];
+      const gpv = override
+        ? (GPV[override] ?? 0)
+        : (c.actualGpv ?? (c.actualGrade ? (GPV[c.actualGrade] ?? 0) : 0));
       totalWeighted += gpv * c.credits;
       totalCredits += c.credits;
       if (!bySemester[c.semester])
