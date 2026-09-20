@@ -311,7 +311,7 @@ export function FeedbackRequestDialog({
                     <option key={c.key} value={c.key}>
                       {describeBatch(c.batch_year)} · Semester {c.semester} ·{" "}
                       {c.academic_year}
-                      {c.offerings.some((o) => o.is_current) ? " (now)" : ""}
+                      {c.offerings.some((o) => o.is_current) ? " (Current)" : ""}
                     </option>
                   ))}
                 </select>
