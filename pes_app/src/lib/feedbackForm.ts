@@ -33,8 +33,11 @@ export interface EditorQuestion {
   is_required: boolean;
   target_type: "course" | "lecturer";
   display_order: number;
-  /** This course added it, so it can be changed here. */
+  /** This course added it, rather than the department. */
   mine: boolean;
+  /** The viewer may change it: their own course's question, or one of the
+   *  department's while they are the ones who own the round. */
+  can_edit: boolean;
 }
 
 export interface EditorSection {
@@ -46,6 +49,8 @@ export interface EditorSection {
   target_type: "course" | "lecturer";
   /** Every question in it belongs to this course. */
   mine: boolean;
+  /** The viewer may rename it, describe it and change its questions. */
+  can_edit: boolean;
   questions: EditorQuestion[];
 }
 
@@ -62,8 +67,12 @@ export interface CourseFormEditor {
   course_id: string;
   course_code: string;
   course_title: string;
-  /** The round is still a draft, so the course's own questions can change. */
+  /** The round is still a draft, so the form can change at all. */
   can_edit: boolean;
+  /** The viewer owns the round's shared questions — the department's admin,
+   *  a super admin, or the sitting head. A lecturer does not, because those
+   *  questions are asked of every course in the round. */
+  manages_round: boolean;
   sections: EditorSection[];
 }
 
@@ -126,4 +135,23 @@ export async function deleteCourseFormQuestion(
   });
   if (error) return fail("remove_course_feedback_question", error);
   return { ok: true, data: (data as { message?: string })?.message ?? "Removed." };
+}
+
+/** Rename a section, or give it a description. */
+export async function saveFormSection(
+  periodId: string,
+  courseId: string,
+  sectionKey: string,
+  title: string,
+  description: string | null,
+): Promise<Result<string>> {
+  const { data, error } = await supabase.rpc("save_form_section", {
+    p_period_id: periodId,
+    p_course_id: courseId,
+    p_section_key: sectionKey,
+    p_title: title,
+    p_description: description,
+  });
+  if (error) return fail("save_form_section", error);
+  return { ok: true, data: (data as { message?: string })?.message ?? "Section saved." };
 }

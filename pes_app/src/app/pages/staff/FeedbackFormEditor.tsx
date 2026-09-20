@@ -27,6 +27,7 @@ import {
   deleteCourseFormQuestion,
   getCourseFormEditor,
   saveCourseFormQuestion,
+  saveFormSection,
   type CourseFormEditor,
   type EditorQuestion,
   type EditorSection,
@@ -93,6 +94,13 @@ export default function FeedbackFormEditor() {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  /* Which section's title and description are being rewritten. */
+  const [editingSection, setEditingSection] = useState<{
+    key: string;
+    title: string;
+    description: string;
+    shared: boolean;
+  } | null>(null);
 
   const load = useCallback(async () => {
     if (!periodId || !courseId) return;
@@ -171,6 +179,31 @@ export default function FeedbackFormEditor() {
       return;
     }
     setEditing(null);
+    await load();
+    setNotice(result.data);
+  };
+
+  const saveSection = async () => {
+    if (!editingSection || !periodId || !courseId) return;
+    if (!editingSection.title.trim()) {
+      setError("Give the section a title.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await saveFormSection(
+      periodId,
+      courseId,
+      editingSection.key,
+      editingSection.title,
+      editingSection.description.trim() || null,
+    );
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setEditingSection(null);
     await load();
     setNotice(result.data);
   };
@@ -260,9 +293,11 @@ export default function FeedbackFormEditor() {
 
       <p className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
         <Eye className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-        {form.can_edit
-          ? "This is the form as your students will see it. Your department's questions are fixed; the ones you add below appear on this course only, and stop being editable when the round opens."
-          : "This is the form as your students see it. The round is no longer a draft, so it cannot be changed."}
+        {!form.can_edit
+          ? "This is the form as your students see it. The round is no longer a draft, so it cannot be changed."
+          : form.manages_round
+            ? "This is the form as your students will see it. You can change any of it while the round is a draft — the department's sections are asked of every course in this round, so those changes reach all of them."
+            : "This is the form as your students will see it. Your department's sections are asked of every course in this round and are theirs to change; what you add appears on this course only. Everything stops being editable when the round opens."}
       </p>
 
       {form.sections.length === 0 && (
@@ -278,9 +313,24 @@ export default function FeedbackFormEditor() {
         <FormSection
           key={section.section_key}
           section={section}
-          canEdit={form.can_edit}
           busy={busy}
           confirmDelete={confirmDelete}
+          editingSection={
+            editingSection?.key === section.section_key ? editingSection : null
+          }
+          onEditSection={() =>
+            setEditingSection({
+              key: section.section_key,
+              title: section.title,
+              description: section.description ?? "",
+              shared: !section.mine,
+            })
+          }
+          onSectionChange={(patch) =>
+            setEditingSection((prev) => (prev ? { ...prev, ...patch } : prev))
+          }
+          onSaveSection={saveSection}
+          onCancelSection={() => setEditingSection(null)}
           onEdit={(q) =>
             setEditing({
               questionId: q.id,
@@ -321,18 +371,26 @@ export default function FeedbackFormEditor() {
 
 function FormSection({
   section,
-  canEdit,
   busy,
   confirmDelete,
+  editingSection,
+  onEditSection,
+  onSectionChange,
+  onSaveSection,
+  onCancelSection,
   onEdit,
   onAskDelete,
   onDelete,
   onAdd,
 }: {
   section: EditorSection;
-  canEdit: boolean;
   busy: boolean;
   confirmDelete: string | null;
+  editingSection: { title: string; description: string; shared: boolean } | null;
+  onEditSection: () => void;
+  onSectionChange: (patch: { title?: string; description?: string }) => void;
+  onSaveSection: () => void;
+  onCancelSection: () => void;
   onEdit: (q: EditorQuestion) => void;
   onAskDelete: (id: string | null) => void;
   onDelete: (id: string) => void;
@@ -343,16 +401,69 @@ function FormSection({
       title={`${section.icon ? `${section.icon} ` : ""}${section.title}`}
       description={section.description ?? undefined}
       actions={
-        section.mine ? (
-          <StatusBadge tone="brand">Yours</StatusBadge>
-        ) : (
-          <StatusBadge tone="neutral" icon={Lock}>
-            Your department's
-          </StatusBadge>
-        )
+        <div className="flex flex-wrap items-center gap-2">
+          {section.mine ? (
+            <StatusBadge tone="brand">Yours</StatusBadge>
+          ) : (
+            <StatusBadge tone={section.can_edit ? "info" : "neutral"} icon={section.can_edit ? undefined : Lock}>
+              {section.can_edit ? "Every course in this round" : "Your department's"}
+            </StatusBadge>
+          )}
+          {section.can_edit && !editingSection && (
+            <Button size="sm" variant="outline" onClick={onEditSection}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit section
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="space-y-4">
+        {editingSection && (
+          <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Section title
+              </label>
+              <Input
+                value={editingSection.title}
+                onChange={(e) => onSectionChange({ title: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Description (optional)
+              </label>
+              <Input
+                value={editingSection.description}
+                onChange={(e) => onSectionChange({ description: e.target.value })}
+                placeholder="Shown under the heading, e.g. Rate all statements below"
+              />
+            </div>
+            {editingSection.shared && (
+              /* The department's sections are one set of questions asked of
+                 every course in the round, so this is not a local change. */
+              <p className="text-xs text-warning-fg">
+                This section is asked of every course in this round. Renaming it
+                changes it for all of them.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={busy} onClick={onSaveSection}>
+                {busy ? "Saving…" : "Save section"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={onCancelSection}
+              >
+                <X className="mr-1.5 h-3.5 w-3.5" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
         {section.questions.map((q) => (
           <div
             key={q.id}
@@ -385,7 +496,7 @@ function FormSection({
               onChange={() => {}}
             />
 
-            {q.mine && canEdit && (
+            {q.can_edit && (
               <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2">
                 <Button size="sm" variant="outline" onClick={() => onEdit(q)}>
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -430,7 +541,7 @@ function FormSection({
           </div>
         ))}
 
-        {section.mine && canEdit && (
+        {section.can_edit && section.mine && (
           <Button variant="outline" size="sm" onClick={onAdd}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add a question to {section.title}
