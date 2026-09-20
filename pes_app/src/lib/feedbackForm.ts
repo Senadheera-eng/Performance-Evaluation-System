@@ -69,9 +69,9 @@ export interface CourseFormEditor {
   course_title: string;
   /** The round is still a draft, so the form can change at all. */
   can_edit: boolean;
-  /** The viewer owns the round's shared questions — the department's admin,
-   *  a super admin, or the sitting head. A lecturer does not, because those
-   *  questions are asked of every course in the round. */
+  /** This course holds its own copy of the form rather than reading the
+   *  round's template. It takes one the first time anything is edited. */
+  is_own_form: boolean;
   manages_round: boolean;
   sections: EditorSection[];
 }
@@ -154,4 +154,19 @@ export async function saveFormSection(
   });
   if (error) return fail("save_form_section", error);
   return { ok: true, data: (data as { message?: string })?.message ?? "Section saved." };
+}
+
+/** The order this course's sections appear in. Its own order, nobody else's. */
+export async function reorderFormSections(
+  periodId: string,
+  courseId: string,
+  sectionKeys: string[],
+): Promise<Result<string>> {
+  const { data, error } = await supabase.rpc("reorder_course_form_sections", {
+    p_period_id: periodId,
+    p_course_id: courseId,
+    p_section_keys: sectionKeys,
+  });
+  if (error) return fail("reorder_course_form_sections", error);
+  return { ok: true, data: (data as { message?: string })?.message ?? "Order saved." };
 }
