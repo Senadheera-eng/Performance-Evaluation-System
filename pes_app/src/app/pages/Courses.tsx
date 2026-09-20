@@ -21,6 +21,7 @@ import {
 } from "../components/ui/select";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
+import { getMyAttendance } from "../../lib/studentAttendance";
 
 interface Course {
   id: string;
@@ -80,28 +81,18 @@ export default function Courses() {
 
     const enrolledIds = (enrollments ?? []).map((e: any) => e.course_id);
 
+    // Attendance belongs to the delivery the student is sitting now. A course
+    // being repeated has an earlier register too, and averaging the two
+    // together described neither term.
     const attendanceMap: Record<string, number> = {};
     if (enrolledIds.length > 0) {
-      const { data: attData } = await supabase
-        .from("attendance")
-        .select("course_id, status")
-        .eq("student_id", student!.id)
-        .in("course_id", enrolledIds);
-
-      if (attData) {
-        const courseAtt: Record<string, { present: number; total: number }> =
-          {};
-        attData.forEach((a: any) => {
-          if (!courseAtt[a.course_id])
-            courseAtt[a.course_id] = { present: 0, total: 0 };
-          courseAtt[a.course_id].total++;
-          if (a.status === "present" || a.status === "excused")
-            courseAtt[a.course_id].present++;
-        });
-        Object.entries(courseAtt).forEach(([id, val]) => {
-          attendanceMap[id] =
-            val.total > 0 ? Math.round((val.present / val.total) * 100) : 0;
-        });
+      const attendance = await getMyAttendance();
+      if (attendance.ok) {
+        attendance.data.deliveries
+          .filter((d) => d.is_latest_attempt && d.percentage !== null)
+          .forEach((d) => {
+            attendanceMap[d.course_id] = Math.round(d.percentage!);
+          });
       }
     }
 
@@ -113,7 +104,10 @@ export default function Courses() {
       const { data: currentResults } = await supabase
         .from("my_published_results")
         .select("course_id, mid_sem_mark, ca_mark")
-        .in("course_id", enrolledIds);
+        .in("course_id", enrolledIds)
+        // A repeated course has an earlier attempt's marks too; the attempt
+        // being sat now is the one this progress bar is about.
+        .eq("is_latest_attempt", true);
 
       currentResults?.forEach((r: any) => {
         if (r.mid_sem_mark !== null && r.ca_mark !== null) {

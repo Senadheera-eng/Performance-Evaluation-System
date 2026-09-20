@@ -96,7 +96,9 @@ export default function Profile() {
     const { count: completedCount } = await supabase
       .from("my_published_results")
       .select("*", { count: "exact", head: true })
-      .not("grade", "is", null);
+      .not("grade", "is", null)
+      // A course sat twice is one course completed, not two.
+      .eq("is_latest_attempt", true);
 
     // Current enrolled to find current semester
     const { data: enrolled } = await supabase

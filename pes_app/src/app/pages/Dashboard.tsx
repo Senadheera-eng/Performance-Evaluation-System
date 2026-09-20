@@ -24,6 +24,7 @@ import {
   CourseAttendanceChart,
 } from "../components/common";
 import { supabase } from "../../lib/supabase";
+import { getMyAttendance } from "../../lib/studentAttendance";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
 
@@ -159,29 +160,22 @@ export default function Dashboard() {
   const fetchAttendance = async (enrollments: any[]) => {
     if (!enrollments || enrollments.length === 0) return;
 
-    const courseIds = enrollments.map((e: any) => e.course_id);
+    /* Attendance is counted per delivery: a course being repeated has an
+       earlier register too, and the term being sat now is the one the
+       dashboard is reporting on. Excused counts in the student's favour, as
+       it does everywhere else in the system. */
+    const attendance = await getMyAttendance();
+    if (!attendance.ok) return;
 
-    // Get attendance for all current courses
-    const { data: attData } = await supabase
-      .from("attendance")
-      .select("course_id, status")
-      .eq("student_id", student!.id)
-      .in("course_id", courseIds);
-
-    if (!attData) return;
-
-    // Calculate per-course attendance
-    /* compliant = present + excused. An excused absence counts in the
-       student's favour everywhere else in the system, so it counts here too;
-       the field used to be called "present", which read like it did not. */
-    const courseAttMap: Record<string, { compliant: number; total: number }> = {};
-    attData.forEach((a: any) => {
-      if (!courseAttMap[a.course_id])
-        courseAttMap[a.course_id] = { compliant: 0, total: 0 };
-      courseAttMap[a.course_id].total++;
-      if (a.status === "present" || a.status === "excused")
-        courseAttMap[a.course_id].compliant++;
-    });
+    const courseAttMap: Record<string, { percentage: number; total: number }> = {};
+    attendance.data.deliveries
+      .filter((d) => d.is_latest_attempt)
+      .forEach((d) => {
+        courseAttMap[d.course_id] = {
+          percentage: Math.round(d.percentage ?? 0),
+          total: d.lectures,
+        };
+      });
 
     // Continuous-assessment progress on ongoing courses. Only published rows
     // are readable — an unpublished draft is the lecturer's working copy and
@@ -189,7 +183,9 @@ export default function Dashboard() {
     // before the switch to the view.
     const { data: resultsData } = await supabase
       .from("my_published_results")
-      .select("course_id, mid_sem_mark, ca_mark");
+      .select("course_id, mid_sem_mark, ca_mark")
+      // The attempt being sat now, not an earlier one's marks.
+      .eq("is_latest_attempt", true);
 
     const progressMap: Record<string, number> = {};
     resultsData?.forEach((r: any) => {
@@ -202,8 +198,7 @@ export default function Dashboard() {
 
     // Build ongoing courses list
     const courses: CourseWithAttendance[] = enrollments.map((e: any) => {
-      const att = courseAttMap[e.course_id];
-      const percentage = att ? Math.round((att.compliant / att.total) * 100) : 0;
+      const percentage = courseAttMap[e.course_id]?.percentage ?? 0;
       return {
         id: e.course_id,
         code: e.courses.course_code,
@@ -246,6 +241,8 @@ export default function Dashboard() {
       .from("my_published_results")
       .select("grade, gpv, course_title, course_code, published_at")
       .not("grade", "is", null)
+      // A repeat replaces the grade it was sat for; the old one is not news.
+      .eq("is_latest_attempt", true)
       .order("published_at", { ascending: false, nullsFirst: false })
       .limit(5);
 
