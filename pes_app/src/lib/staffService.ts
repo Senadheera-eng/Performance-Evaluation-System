@@ -370,6 +370,14 @@ export interface FeedbackOverviewRow {
   period_title: string;
   period_status: "draft" | "scheduled" | "open" | "closed" | "archived";
   feedback_type: "mid_semester" | "end_semester";
+  /** The round's own cohort, set by the department when it opened the
+   *  round. A round may cover a semester the batch has already finished, so
+   *  this is not the same thing as the course's semester below. */
+  period_semester: number | null;
+  period_batch_year: number | null;
+  period_academic_year: string | null;
+  opens_at: string | null;
+  closes_at: string | null;
   offering_id: string;
   course_id: string;
   course_code: string;
