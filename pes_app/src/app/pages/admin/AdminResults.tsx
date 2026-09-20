@@ -49,6 +49,10 @@ import { PendingResultReviews } from "../../components/admin/PendingResultReview
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope } from "../../../lib/adminScope";
+import {
+  getAdminOfferings,
+  type AdminOffering,
+} from "../../../lib/attendanceRegister";
 import { formatRegNumber } from "../../../lib/format";
 import { useSettings } from "../../../lib/settings";
 import {
@@ -153,6 +157,12 @@ const deriveAcademicYear = (batchYear: number, courseYear: number): string =>
 
 export default function AdminResults() {
   const { student } = useAuth();
+  /* The department's deliveries. A course taught to a batch in a given year
+     is an offering, and the offering is what carries the academic year the
+     marks are filed under — the formula below is only a fallback for a
+     course-and-batch pairing the department has not created a delivery
+     for. */
+  const [offerings, setOfferings] = useState<AdminOffering[]>([]);
   const settings = useSettings();
   const scope = getAdminScope(student);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -212,13 +222,26 @@ export default function AdminResults() {
   const [exportMidSemWeight, setExportMidSemWeight] = useState("");
   const [exportBoardDate, setExportBoardDate] = useState("");
 
-  // The academic year for the currently-selected course/batch combination —
-  // always derived, never picked by hand, so it can't drift out of sync
-  // with what the database actually has these results filed under.
-  const selectedYear =
+  /* The delivery this sheet is for: this course, to this batch. */
+  const selectedOffering =
     selectedCourse && selectedBatch !== null
-      ? deriveAcademicYear(selectedBatch, selectedCourse.year)
+      ? (offerings.find(
+          (o) =>
+            o.course_id === selectedCourse.id && o.batch_year === selectedBatch,
+        ) ?? null)
       : null;
+
+  /* The academic year these marks are filed under. Taken from the delivery
+     when there is one, so the office's sheet and the lecturer's are the same
+     sheet; the year-of-study formula is the fallback for a pairing with no
+     delivery recorded, which is what this page used for everything before
+     and which silently disagreed with the offering whenever a batch's
+     progress was not exactly one year per year of study. */
+  const selectedYear =
+    selectedOffering?.academic_year ??
+    (selectedCourse && selectedBatch !== null
+      ? deriveAcademicYear(selectedBatch, selectedCourse.year)
+      : null);
 
   /* Offered from what the admin can actually see, rather than from the
      faculty-wide settings list: a department with no courses loaded should
@@ -255,6 +278,12 @@ export default function AdminResults() {
   useEffect(() => {
     if (student) fetchCourses();
   }, [student]);
+
+  useEffect(() => {
+    getAdminOfferings().then((r) => {
+      if (r.ok) setOfferings(r.data);
+    });
+  }, []);
 
   useEffect(() => {
     fetchBatches();
@@ -443,6 +472,9 @@ export default function AdminResults() {
               student_id: student.studentId,
               course_id: selectedCourse.id,
               academic_year: selectedYear,
+              /* Named rather than left to the database to work out, so the
+                 office's marks land on the same delivery the lecturer's do. */
+              offering_id: selectedOffering?.offering_id ?? null,
               mid_sem_mark: student.midSem ? parseFloat(student.midSem) : null,
               ca_mark: student.ca ? parseFloat(student.ca) : null,
               // gpv is absent on purpose: the database derives it from the
@@ -843,7 +875,22 @@ export default function AdminResults() {
               </select>
               {selectedCourse && selectedBatch !== null && (
                 <p className="text-xs text-muted-foreground">
-                  Academic year {selectedYear} for this batch and course.
+                  Academic year {selectedYear} for this batch and course
+                  {selectedOffering
+                    ? `, Semester ${selectedOffering.semester}${
+                        selectedOffering.is_current ? " — running now" : ""
+                      }.`
+                    : "."}
+                </p>
+              )}
+              {/* No delivery recorded means the year above is worked out
+                  from the batch rather than read from the offering, and the
+                  lecturer has no sheet for this pairing at all. */}
+              {selectedCourse && selectedBatch !== null && !selectedOffering && (
+                <p className="text-xs text-warning-fg">
+                  This course has no recorded delivery to{" "}
+                  {describeBatch(selectedBatch)}, so the year above is inferred.
+                  Ask for the offering to be created if marks belong here.
                 </p>
               )}
             </div>
