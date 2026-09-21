@@ -501,10 +501,20 @@ function MenteeDetail({
               flush
             >
               <ul className="divide-y divide-border/70">
-                {s.courses.map((c) => (
+                {s.courses.map((c) => {
+                  /* A course sat twice appears once per attempt under the
+                     same code. The grade point is what separates them: the
+                     replaced attempt no longer carries one. */
+                  const satTwice =
+                    s.courses.filter((o) => o.course_code === c.course_code)
+                      .length > 1;
+                  const superseded = satTwice && c.gpv === null;
+                  return (
                   <li
-                    key={c.course_code}
-                    className="flex items-center justify-between gap-3 px-4 py-2"
+                    key={`${c.course_code}-${c.academic_year}`}
+                    className={`flex items-center justify-between gap-3 px-4 py-2 ${
+                      superseded ? "opacity-60" : ""
+                    }`}
                   >
                     <span className="min-w-0">
                       <span className="text-sm font-semibold text-primary">
@@ -516,6 +526,8 @@ function MenteeDetail({
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         {c.credits} credit{c.credits === 1 ? "" : "s"}
                         {!c.contributes_to_gpa && " · not in GPA"}
+                        {satTwice &&
+                          ` · ${c.academic_year}${superseded ? ", replaced" : ", repeat"}`}
                       </span>
                     </span>
                     <StatusBadge
@@ -530,7 +542,8 @@ function MenteeDetail({
                       {c.grade ?? "—"}
                     </StatusBadge>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </SectionCard>
           ))}

@@ -372,7 +372,14 @@ function SemesterRecord({
                   Semester {semester}
                 </h4>
                 <span className="text-xs text-muted-foreground">
-                  {courses[0].academic_year}
+                  {/* When the semester was sat. A course repeated later
+                      carries a later year, which is the repeat's, not the
+                      semester's. */}
+                  {courses.reduce(
+                    (earliest, c) =>
+                      c.academic_year < earliest ? c.academic_year : earliest,
+                    courses[0].academic_year,
+                  )}
                 </span>
                 {sgpa !== null && (
                   <StatusBadge tone={sgpa >= 2 ? "info" : "danger"}>
@@ -397,13 +404,30 @@ function SemesterRecord({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {courses.map((c) => (
-                      <tr key={c.course_code}>
+                    {courses.map((c) => {
+                      /* A course sat twice appears once per attempt, under
+                         the same code — so the row has to say which is which,
+                         and the key has to tell them apart. */
+                      const satTwice =
+                        courses.filter((o) => o.course_code === c.course_code)
+                          .length > 1;
+                      const superseded = satTwice && c.gpv === null;
+                      return (
+                      <tr
+                        key={`${c.course_code}-${c.academic_year}`}
+                        className={superseded ? "opacity-60" : undefined}
+                      >
                         <td className="py-1 pr-3">
                           <span className="font-medium text-primary">
                             {c.course_code}
                           </span>{" "}
                           <span className="text-muted-foreground">{c.course_title}</span>
+                          {satTwice && (
+                            <span className="ml-1 text-muted-foreground">
+                              ({c.academic_year}
+                              {superseded ? ", replaced" : ", repeat"})
+                            </span>
+                          )}
                           {!c.contributes_to_gpa && (
                             <span className="ml-1 text-muted-foreground">(non-GPA)</span>
                           )}
@@ -432,7 +456,8 @@ function SemesterRecord({
                           {c.gpv?.toFixed(2) ?? "—"}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
