@@ -97,6 +97,9 @@ export interface OverviewCourse {
   contributes_to_gpa: boolean;
   grade: string | null;
   gpv: number | null;
+  /** The year this attempt was sat. A repeated course appears once per
+   *  attempt, under the same code, and this is what separates them. */
+  academic_year: string;
 }
 
 export interface OverviewSemester {
