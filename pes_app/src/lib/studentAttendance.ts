@@ -62,7 +62,24 @@ export async function getMyAttendance(): Promise<Result<MyAttendance>> {
       error: "We could not load your attendance records. Please try again.",
     };
   }
-  return { ok: true, data: data as MyAttendance };
+
+  /* An RPC result is cast, not checked, so a field the database stops
+     sending is `undefined` here and typed as though it were not. A page that
+     maps over one then takes the whole route down with it — which is exactly
+     what a missing `sessions` did. Filling the gaps once, here, keeps that
+     from being every caller's problem. */
+  const payload = (data ?? {}) as Partial<MyAttendance>;
+  return {
+    ok: true,
+    data: {
+      threshold_percent: payload.threshold_percent ?? 80,
+      prewarning_percent: payload.prewarning_percent ?? 85,
+      deliveries: (payload.deliveries ?? []).map((d) => ({
+        ...d,
+        sessions: d.sessions ?? [],
+      })),
+    },
+  };
 }
 
 /** "CO4204" for a course sat once, "CO4204 · attempt 2" for a repeat. */
