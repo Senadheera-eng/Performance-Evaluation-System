@@ -100,7 +100,7 @@ export default function AdminAttendance() {
     setError(null);
     const result = await getAdminOfferings();
     if (!result.ok) {
-      setError("We could not load your department's courses. Please try again.");
+      setError("We could not load the courses. Please try again.");
     } else {
       setOfferings(result.data);
     }
@@ -108,26 +108,13 @@ export default function AdminAttendance() {
   }, []);
 
   useEffect(() => {
-    if (student && student.role !== "super_admin") loadOfferings();
+    if (student) loadOfferings();
   }, [student, loadOfferings]);
 
   const selected = offerings.find((o) => o.offering_id === offeringId) ?? null;
-
-  // The sidebar does not offer this to a super admin; typing the URL should
-  // not be the way round that. A register belongs to the department that
-  // delivers the course, and reading one student's day by day is its business.
-  if (student?.role === "super_admin") {
-    return (
-      <div className="space-y-5">
-        <PageHeader title="Attendance" />
-        <EmptyState
-          icon={CalendarIcon}
-          title="Attendance is kept by the department"
-          description="Registers are marked against the courses a department delivers, so they are read and corrected there. Faculty-wide attendance figures are on the dashboard."
-        />
-      </div>
-    );
-  }
+  /* A super admin sees every department's courses, which is how the common
+     first-year ones — belonging to no department yet — get marked at all. */
+  const facultyWide = student?.role === "super_admin";
 
   return (
     <div className="space-y-5">
@@ -158,7 +145,9 @@ export default function AdminAttendance() {
           <SkeletonRows count={1} height="h-10" />
         ) : offerings.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No course offerings are set up for your department yet.
+            {facultyWide
+              ? "No course offerings are set up yet."
+              : "No course offerings are set up for your department yet."}
           </p>
         ) : (
           <OfferingPicker
@@ -183,6 +172,7 @@ export default function AdminAttendance() {
         {selected && (
           <p className="mt-2 text-xs text-muted-foreground">
             {describeBatch(selected.batch_year)} · {selected.academic_year} ·{" "}
+            {facultyWide && `${selected.department} · `}
             {selected.student_count} student{selected.student_count === 1 ? "" : "s"} ·{" "}
             {selected.lectures_held === 0
               ? "no lectures recorded yet"
