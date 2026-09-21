@@ -11,6 +11,7 @@ import {
   Archive,
   ChevronDown,
   ChevronUp,
+  Trash2,
 } from "lucide-react";
 import {
   Card,
@@ -173,6 +174,27 @@ export default function AdminEnrollment() {
       archived: "archived",
     };
     setMessage(`Enrolment period ${VERBS[status]}.`);
+    fetchPeriods();
+  };
+
+  /* Only a window that never opened. The database enforces that — and that
+     no enrolment is swept away with it — so this asks rather than decides. */
+  const remove = async (p: EnrollmentPeriod) => {
+    if (
+      !window.confirm(
+        `Delete "${p.title}"? This enrolment period has not opened, so no student has used it. It cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    const { data, error } = await supabase.rpc("delete_enrollment_period", {
+      p_period_id: p.id,
+    });
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage((data as { message?: string })?.message ?? "Period removed.");
     fetchPeriods();
   };
 
@@ -380,6 +402,20 @@ export default function AdminEnrollment() {
                           >
                             <Archive className="h-3.5 w-3.5 mr-1" />
                             Archive
+                          </Button>
+                        )}
+                        {/* A window that has opened is a record of what
+                            students were offered, so it is archived, never
+                            deleted. One that never opened is just a mistake. */}
+                        {(p.status === "draft" || p.status === "scheduled") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-danger-fg hover:text-danger-fg"
+                            onClick={() => remove(p)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Delete
                           </Button>
                         )}
                       </div>
