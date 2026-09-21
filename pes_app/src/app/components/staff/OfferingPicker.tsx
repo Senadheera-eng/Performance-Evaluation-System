@@ -14,6 +14,9 @@ export interface PickableOffering {
   /** Optional: the batch is in this course's semester now. Such courses
    *  are offered first, so the picker opens on what is being taught. */
   is_current?: boolean;
+  /** Optional: named in the course option only when the list spans more
+   *  than one department, which it does for a super admin. */
+  department?: string;
 }
 
 /**
@@ -49,6 +52,13 @@ export function OfferingPicker({
 
   const selected = offerings.find((o) => o.offering_id === value) ?? null;
   const batch = selected?.batch_year ?? batches[0] ?? null;
+
+  /* One department's list needs no department labels; the faculty's does,
+     because two departments run their own Semester 1 courses side by side. */
+  const spansDepartments = useMemo(
+    () => new Set(offerings.map((o) => o.department).filter(Boolean)).size > 1,
+    [offerings],
+  );
 
   /* A filter, not a selection, so it lives here rather than being lifted:
      the parent owns which offering is chosen and does not need to know how
@@ -177,6 +187,7 @@ export function OfferingPicker({
           {coursesInBatch.map((o) => (
             <option key={o.offering_id} value={o.offering_id}>
               {o.course_code} — {o.course_title} · Sem {o.semester}
+              {spansDepartments && o.department ? ` · ${o.department}` : ""}
               {showViewOnly && o.canEdit === false ? "  (view only)" : ""}
             </option>
           ))}
