@@ -39,22 +39,18 @@ const superAdminOnly: ShellNavItem[] = [
   { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
 ];
 
-/* Marking a lecture register is departmental work, done against a course a
-   department delivers. The super admin runs the faculty, not a lecture, and
-   has no reason to read a named student's attendance day by day. */
-const notForSuperAdmin = new Set(["/admin/attendance"]);
-
 export default function AdminLayout() {
   const navigate = useNavigate();
   const { signOut, student } = useAuth();
   const counts = useNotificationCounts();
 
+  /* Attendance used to be kept from the super admin as departmental work.
+     First-year courses are common ones, delivered before a student has
+     settled into a department, so leaving them to a department office meant
+     leaving them to nobody. The faculty keeps those registers itself. */
   const items =
     student?.role === "super_admin"
-      ? [
-          ...navigation.filter((i) => !notForSuperAdmin.has(i.href)),
-          ...superAdminOnly,
-        ]
+      ? [...navigation, ...superAdminOnly]
       : navigation;
 
   const handleLogout = async () => {
