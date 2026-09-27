@@ -289,7 +289,11 @@ export default function Profile() {
                 <img
                   src={avatarUrl}
                   alt=""
-                  className="h-20 w-20 rounded-full object-cover md:h-24 md:w-24"
+                  className={cn(
+                    "h-20 w-20 rounded-full object-cover md:h-24 md:w-24",
+                    // The department colour survives the photo, as a ring.
+                    dept && cn(dept.ringClass, "ring-[3px] ring-offset-2 ring-offset-card"),
+                  )}
                 />
               ) : (
                 <span

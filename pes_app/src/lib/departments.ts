@@ -174,3 +174,18 @@ export function departmentByCourseCode(code: string | null | undefined): Departm
   if (!code) return null;
   return BY_CODE.get(code.trim().slice(0, 2).toUpperCase()) ?? null;
 }
+
+const CODE_IN_TEXT = /\b(CE|CO|EE|ME|IS)\d{4}\b/;
+
+/**
+ * The department of the first course code a piece of text mentions — a
+ * notification like "Result published: CO3204 Robotic Design" belongs to
+ * Computer Engineering. Null when the text names no course.
+ */
+export function departmentInText(...texts: (string | null | undefined)[]): Department | null {
+  for (const t of texts) {
+    const m = t ? CODE_IN_TEXT.exec(t) : null;
+    if (m) return departmentByCourseCode(m[0]);
+  }
+  return null;
+}

@@ -9,6 +9,8 @@ import {
   SkeletonRows,
 } from "../components/common";
 import { SOURCE_ICON } from "../components/layout/NotificationBell";
+import { cn } from "../components/ui/utils";
+import { departmentInText } from "../../lib/departments";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   relativeTime,
@@ -138,6 +140,9 @@ export default function Notifications() {
                       {group.map((n) => {
                         const Icon = SOURCE_ICON[n.source] ?? Bell;
                         const isUnread = !n.read_at;
+                        // A notification about a course takes that course's
+                        // department colour; anything else stays neutral.
+                        const dept = departmentInText(n.title, n.body);
                         return (
                           <li key={n.id}>
                             {/* Unread is a dot and a heavier title. The whole
@@ -146,10 +151,19 @@ export default function Notifications() {
                             <button
                               type="button"
                               onClick={() => open(n)}
-                              className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                              className={cn(
+                                "flex w-full items-start gap-3 border-l-4 px-4 py-3 text-left transition-colors",
+                                dept?.stripeClass ?? "border-l-transparent",
+                                dept?.hoverClass ?? "hover:bg-muted/60",
+                              )}
                             >
-                              <span className="relative mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                                <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                              <span
+                                className={cn(
+                                  "relative mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
+                                  dept?.chipClass ?? "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                <Icon className="h-4 w-4" aria-hidden="true" />
                                 {isUnread && (
                                   <span
                                     className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary"

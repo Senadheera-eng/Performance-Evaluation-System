@@ -506,11 +506,15 @@ export default function GraduationPlanner() {
                           return (
                             <div
                               key={c.resultRowId}
-                              className={`flex items-center justify-between gap-3 p-2.5 rounded-lg ${
+                              className={cn(
+                                "flex items-center justify-between gap-3 rounded-lg border-l-4 p-2.5 transition-colors",
+                                departmentByCourseCode(c.code)?.stripeClass ?? "border-l-transparent",
+                                // A simulated grade keeps its own highlight;
+                                // otherwise the department's tint on hover.
                                 isChanged
                                   ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
-                                  : "bg-muted/30"
-                              }`}
+                                  : cn("bg-muted/30", departmentByCourseCode(c.code)?.hoverClass),
+                              )}
                             >
                               {/* On a phone the title takes its own line
                                   under the code, rather than being cut off
