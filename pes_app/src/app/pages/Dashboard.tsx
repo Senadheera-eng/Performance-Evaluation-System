@@ -7,35 +7,37 @@ import {
   TrendingUp,
   Award,
   ArrowRight,
+  BookOpen,
 } from "lucide-react";
-import { StatCard } from "../components/dashboard/StatCard";
-import { CourseCard } from "../components/dashboard/CourseCard";
 import { InsightsPanel } from "../components/dashboard/InsightsPanel";
 import { LatestNotices } from "../components/dashboard/LatestNotices";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import {
+  DepartmentBadge,
+  EmptyState,
   GpaTrendChart,
   CourseAttendanceChart,
+  SectionCard,
+  SkeletonRows,
+  SkeletonStatGrid,
+  StatCard,
+  StatusBadge,
+  type StatusTone,
 } from "../components/common";
+import { cn } from "../components/ui/utils";
 import { supabase } from "../../lib/supabase";
 import { getMyAttendance } from "../../lib/studentAttendance";
+import { departmentByCourseCode } from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
 
-interface CourseWithAttendance {
+interface CurrentCourse {
   id: string;
   code: string;
   name: string;
   credits: number;
-  status: "ongoing" | "completed" | "upcoming";
-  attendance: number;
-  progress: number;
+  /** Null until a lecture of this delivery has been recorded. */
+  attendance: number | null;
 }
 
 interface SemesterGPA {
@@ -43,35 +45,21 @@ interface SemesterGPA {
   gpa: number;
 }
 
-interface RecentResult {
-  course: string;
-  code: string;
-  grade: string;
-  gpv: number;
-}
-
 export default function Dashboard() {
   const { student } = useAuth();
   const navigate = useNavigate();
   const settings = useSettings();
   const threshold = settings.attendanceThreshold;
+  const prewarning = settings.attendancePrewarningThreshold;
 
   const [cgpa, setCgpa] = useState<number | null>(null);
   const [totalCredits, setTotalCredits] = useState(0);
-  const [enrolledCount, setEnrolledCount] = useState(0);
   /* Null, not zero, until a lecture has actually been recorded. Nought per
      cent is a real and alarming reading; "nothing marked yet" is not, and the
      card was showing the first when it meant the second. */
   const [avgAttendance, setAvgAttendance] = useState<number | null>(null);
-  const [ongoingCourses, setOngoingCourses] = useState<CourseWithAttendance[]>(
-    [],
-  );
-  const [attendanceData, setAttendanceData] = useState<
-    { course: string; attendance: number }[]
-  >([]);
-  const [awaitingAttendance, setAwaitingAttendance] = useState(0);
+  const [courses, setCourses] = useState<CurrentCourse[]>([]);
   const [semesterData, setSemesterData] = useState<SemesterGPA[]>([]);
-  const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* The surname, which is the last word of the name as the faculty records
@@ -92,377 +80,267 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
-    /* The enrolment list is read once and handed to both the count and the
-       attendance breakdown. They used to fetch it separately — same student,
-       same filter, different columns — which cost two round trips for one
-       answer that cannot disagree with itself. */
-    const enrolled = await fetchEnrollments();
-    await Promise.all([
-      fetchGPAData(),
-      fetchAttendance(enrolled),
-      fetchRecentResults(),
-    ]);
+    await Promise.all([fetchGPAData(), fetchCurrentCourses()]);
     setLoading(false);
   };
 
   const fetchGPAData = async () => {
-    // Fetch all published results with course credits
     // Student-facing reads go through `my_published_results`, which
-    // self-scopes to the caller and withholds ese_mark/oa_mark.
+    // self-scopes to the caller and withholds ese_mark/oa_mark. A superseded
+    // attempt carries no grade point, so a course sat twice counts once.
     const { data } = await supabase
       .from("my_published_results")
-      .select("gpv, academic_year, course_id, semester, credits, contributes_to_gpa")
+      .select("gpv, semester, credits, contributes_to_gpa")
       .not("gpv", "is", null);
 
     if (!data || data.length === 0) return;
 
-    // Calculate CGPA
     let totalWeighted = 0;
-    let totalCredits = 0;
-    const semesterMap: Record<string, { weighted: number; credits: number }> =
-      {};
+    let credits = 0;
+    const semesterMap: Record<number, { weighted: number; credits: number }> = {};
 
     data.forEach((r: any) => {
       if (!r.contributes_to_gpa) return;
-
       totalWeighted += r.gpv * r.credits;
-      totalCredits += r.credits;
-
-      const semKey = `Sem ${r.semester}`;
-      if (!semesterMap[semKey])
-        semesterMap[semKey] = { weighted: 0, credits: 0 };
-      semesterMap[semKey].weighted += r.gpv * r.credits;
-      semesterMap[semKey].credits += r.credits;
+      credits += r.credits;
+      semesterMap[r.semester] ??= { weighted: 0, credits: 0 };
+      semesterMap[r.semester].weighted += r.gpv * r.credits;
+      semesterMap[r.semester].credits += r.credits;
     });
 
-    const cgpaVal = totalCredits > 0 ? totalWeighted / totalCredits : 0;
-    setCgpa(Math.round(cgpaVal * 100) / 100);
-    setTotalCredits(totalCredits);
-
-    // Build semester GPA chart data
-    const semData = Object.entries(semesterMap)
-      .sort((a, b) => {
-        const numA = parseInt(a[0].replace("Sem ", ""));
-        const numB = parseInt(b[0].replace("Sem ", ""));
-        return numA - numB;
-      })
-      .map(([sem, val]) => ({
-        semester: sem,
-        gpa: Math.round((val.weighted / val.credits) * 100) / 100,
-      }));
-
-    setSemesterData(semData);
-  };
-
-  const fetchEnrollments = async () => {
-    const { data } = await supabase
-      .from("enrollments")
-      .select("course_id, status, courses(id, course_code, title, credits, semester)")
-      .eq("student_id", student!.id)
-      .eq("status", "enrolled");
-
-    if (!data) return [];
-    setEnrolledCount(data.length);
-    return data;
-  };
-
-  const fetchAttendance = async (enrollments: any[]) => {
-    if (!enrollments || enrollments.length === 0) return;
-
-    /* Attendance is counted per delivery: a course being repeated has an
-       earlier register too, and the term being sat now is the one the
-       dashboard is reporting on. Excused counts in the student's favour, as
-       it does everywhere else in the system. */
-    const attendance = await getMyAttendance();
-    if (!attendance.ok) return;
-
-    const courseAttMap: Record<string, { percentage: number; total: number }> = {};
-    attendance.data.deliveries
-      .filter((d) => d.is_latest_attempt)
-      .forEach((d) => {
-        courseAttMap[d.course_id] = {
-          percentage: Math.round(d.percentage ?? 0),
-          total: d.lectures,
-        };
-      });
-
-    // Continuous-assessment progress on ongoing courses. Only published rows
-    // are readable — an unpublished draft is the lecturer's working copy and
-    // was never actually reachable here, so this query returned nothing even
-    // before the switch to the view.
-    const { data: resultsData } = await supabase
-      .from("my_published_results")
-      .select("course_id, mid_sem_mark, ca_mark")
-      // The attempt being sat now, not an earlier one's marks.
-      .eq("is_latest_attempt", true);
-
-    const progressMap: Record<string, number> = {};
-    resultsData?.forEach((r: any) => {
-      if (r.mid_sem_mark && r.ca_mark) {
-        progressMap[r.course_id] = Math.round(
-          ((r.mid_sem_mark + r.ca_mark) / 90) * 100,
-        );
-      }
-    });
-
-    // Build ongoing courses list
-    const courses: CourseWithAttendance[] = enrollments.map((e: any) => {
-      const percentage = courseAttMap[e.course_id]?.percentage ?? 0;
-      return {
-        id: e.course_id,
-        code: e.courses.course_code,
-        name: e.courses.title,
-        credits: e.courses.credits,
-        status: "ongoing" as const,
-        attendance: percentage,
-        progress: progressMap[e.course_id] ?? 50,
-      };
-    });
-
-    setOngoingCourses(courses);
-
-    // Average attendance — only over courses that actually have a lecture
-    // recorded yet. A freshly enrolled course with zero lectures marked has
-    // nothing to average and shouldn't be treated as 0%.
-    const scoredCourses = courses.filter((c) => (courseAttMap[c.id]?.total ?? 0) > 0);
-
-    // The chart follows the same rule the average already did. Plotting every
-    // enrolled course meant courses with no lectures yet drew as flat 0% bars
-    // beside the one course that had data.
-    setAttendanceData(
-      scoredCourses.map((c) => ({ course: c.code, attendance: c.attendance })),
+    setCgpa(credits > 0 ? Math.round((totalWeighted / credits) * 100) / 100 : null);
+    setTotalCredits(credits);
+    setSemesterData(
+      Object.entries(semesterMap)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([sem, val]) => ({
+          semester: `Sem ${sem}`,
+          gpa: Math.round((val.weighted / val.credits) * 100) / 100,
+        })),
     );
-    setAwaitingAttendance(courses.length - scoredCourses.length);
+  };
 
+  /* The courses the student is enrolled on now, each with the attendance of
+     the delivery being sat. Attendance is counted per delivery: a course
+     being repeated has an earlier register too, and this term is the one the
+     dashboard reports on. Excused counts in the student's favour, as it does
+     everywhere else in the system. */
+  const fetchCurrentCourses = async () => {
+    const [{ data: enrolled }, attendance] = await Promise.all([
+      supabase
+        .from("enrollments")
+        .select("course_id, courses(course_code, title, credits)")
+        .eq("student_id", student!.id)
+        .eq("status", "enrolled"),
+      getMyAttendance(),
+    ]);
+
+    const byCourse: Record<string, { percentage: number; lectures: number }> = {};
+    if (attendance.ok) {
+      attendance.data.deliveries
+        .filter((d) => d.is_latest_attempt)
+        .forEach((d) => {
+          byCourse[d.course_id] = {
+            percentage: Math.round(d.percentage ?? 0),
+            lectures: d.lectures,
+          };
+        });
+    }
+
+    const list: CurrentCourse[] = (enrolled ?? [])
+      .map((e: any) => {
+        const att = byCourse[e.course_id];
+        return {
+          id: e.course_id,
+          code: e.courses?.course_code ?? "",
+          name: e.courses?.title ?? "",
+          credits: e.courses?.credits ?? 0,
+          attendance: att && att.lectures > 0 ? att.percentage : null,
+        };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code));
+
+    setCourses(list);
+
+    // Average only over courses that have a lecture recorded: a freshly
+    // enrolled course with nothing marked has nothing to average.
+    const scored = list.filter((c) => c.attendance !== null);
     setAvgAttendance(
-      scoredCourses.length > 0
-        ? Math.round(
-            scoredCourses.reduce((sum, c) => sum + c.attendance, 0) /
-              scoredCourses.length,
-          )
+      scored.length > 0
+        ? Math.round(scored.reduce((s, c) => s + (c.attendance ?? 0), 0) / scored.length)
         : null,
     );
-
   };
 
-  const fetchRecentResults = async () => {
-    const { data } = await supabase
-      .from("my_published_results")
-      .select("grade, gpv, course_title, course_code, published_at")
-      .not("grade", "is", null)
-      // A repeat replaces the grade it was sat for; the old one is not news.
-      .eq("is_latest_attempt", true)
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .limit(5);
+  const attendanceTone = (pct: number | null): StatusTone =>
+    pct === null ? "neutral" : pct < threshold ? "danger" : pct < prewarning ? "warning" : "success";
 
-    if (!data) return;
-
-    setRecentResults(
-      data.map((r: any) => ({
-        course: r.course_title,
-        code: r.course_code,
-        grade: r.grade,
-        gpv: r.gpv,
-      })),
-    );
-  };
+  const scoredCourses = courses.filter((c) => c.attendance !== null);
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
+      {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.3 }}
       >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Welcome Back, {surname}! 👋
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Welcome back, {surname}
         </h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-muted-foreground text-sm">
-            Here's what's happening with your academic progress today.
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {student?.department && <DepartmentBadge department={student.department} />}
+          <p className="text-sm text-muted-foreground">
+            Your academic progress at a glance.
           </p>
-          {student?.department && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-              <GraduationCap className="h-3.5 w-3.5" />
-              {student.department}
-            </span>
-          )}
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Current CGPA"
-          value={loading ? "..." : (cgpa?.toFixed(2) ?? "N/A")}
-          change="Cumulative GPA"
-          changeType="positive"
-          icon={TrendingUp}
-          iconColor="text-primary"
-          iconBgColor="bg-primary/10"
-        />
-        <StatCard
-          title="Courses Enrolled"
-          value={loading ? "..." : enrolledCount.toString()}
-          change="Current semester"
-          changeType="neutral"
-          icon={GraduationCap}
-          iconColor="text-blue-600"
-          iconBgColor="bg-blue-100"
-        />
-        <StatCard
-          title="Avg. Attendance"
-          value={loading ? "..." : avgAttendance === null ? "—" : `${avgAttendance}%`}
-          /* Saying "below the required 80%" to a student whose lectures have
-             simply not been marked yet is a warning about nothing, and it is
-             the first thing they read on the page. */
-          change={
-            avgAttendance === null
-              ? "No lectures recorded yet"
-              : avgAttendance >= threshold
-                ? `Above required ${threshold}%`
-                : `Below required ${threshold}%`
-          }
-          changeType={
-            avgAttendance === null
-              ? "neutral"
-              : avgAttendance >= threshold
-                ? "positive"
-                : "negative"
-          }
-          icon={Calendar}
-          iconColor="text-green-600"
-          iconBgColor="bg-green-100"
-        />
-        <StatCard
-          title="Credits Completed"
-          value={loading ? "..." : totalCredits.toString()}
-          change="Contributing to GPA"
-          changeType="neutral"
-          icon={Award}
-          iconColor="text-amber-600"
-          iconBgColor="bg-amber-100"
-        />
-      </div>
+      {/* Headline numbers — each opens the page that explains it. */}
+      {loading ? (
+        <SkeletonStatGrid count={4} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Current CGPA"
+            value={cgpa?.toFixed(2) ?? "—"}
+            hint={cgpa === null ? "No published results yet" : "Cumulative GPA"}
+            icon={TrendingUp}
+            tone="brand"
+            onClick={() => navigate("/app/results")}
+            index={0}
+          />
+          <StatCard
+            label="Enrolled now"
+            value={courses.length}
+            hint={courses.length === 1 ? "course" : "courses"}
+            icon={GraduationCap}
+            tone="info"
+            onClick={() => navigate("/app/enrollment")}
+            index={1}
+          />
+          <StatCard
+            label="Avg. attendance"
+            value={avgAttendance === null ? "—" : `${avgAttendance}%`}
+            /* Saying "below the required 80%" to a student whose lectures
+               have simply not been marked yet is a warning about nothing. */
+            hint={
+              avgAttendance === null
+                ? "No lectures recorded yet"
+                : avgAttendance >= threshold
+                  ? `Required: ${threshold}%`
+                  : `Below the required ${threshold}%`
+            }
+            icon={Calendar}
+            tone={attendanceTone(avgAttendance)}
+            onClick={() => navigate("/app/attendance")}
+            index={2}
+          />
+          <StatCard
+            label="Credits completed"
+            value={totalCredits}
+            hint={`of ${settings.graduationTotalCredits} to graduate`}
+            icon={Award}
+            tone="neutral"
+            onClick={() => navigate("/app/planner")}
+            index={3}
+          />
+        </div>
+      )}
 
-      {/* What the system noticed without being asked — attendance slipping, a
-          semester GPA falling, a medical certificate or enrolment window
-          about to close. This used to be an attendance-only list worked out
-          here in the browser; the rules now live in get_my_insights() so the
-          AI assistant reads exactly the same ones. */}
+      {/* What the system noticed without being asked. Renders nothing when
+          there is nothing to say. */}
       <InsightsPanel />
 
-      <LatestNotices />
+      {/* This semester, with the notice board beside it. The notices column
+          hides itself when there are none, and the courses take the width. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <SectionCard
+          title="This semester"
+          description="The courses you are enrolled on, with attendance for this sitting."
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary/80"
+              onClick={() => navigate("/app/attendance")}
+            >
+              Attendance
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          }
+          className="min-w-0 flex-1"
+          flush
+        >
+          {loading ? (
+            <div className="p-4">
+              <SkeletonRows count={4} />
+            </div>
+          ) : courses.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="You are not enrolled on any course right now"
+              description="When an enrolment window opens for your batch, the courses you choose will appear here."
+              action={
+                <Button size="sm" variant="outline" onClick={() => navigate("/app/enrollment")}>
+                  Go to Enrollment
+                </Button>
+              }
+              size="inline"
+            />
+          ) : (
+            <ul className="divide-y divide-border/70">
+              {courses.map((c) => {
+                const dept = departmentByCourseCode(c.code);
+                return (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/app/attendance")}
+                      className={cn(
+                        "flex w-full items-center gap-3 border-l-4 px-4 py-2.5 text-left transition-colors hover:bg-muted/50",
+                        dept?.stripeClass ?? "border-l-transparent",
+                      )}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className={cn("text-sm font-semibold tabular-nums", dept?.textClass ?? "text-foreground")}>
+                            {c.code}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {c.credits} credit{c.credits === 1 ? "" : "s"}
+                          </span>
+                        </span>
+                        <span className="block truncate text-sm text-foreground">{c.name}</span>
+                      </span>
+                      <StatusBadge tone={attendanceTone(c.attendance)} dot>
+                        {c.attendance === null ? "No lectures yet" : `${c.attendance}%`}
+                      </StatusBadge>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </SectionCard>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <GpaTrendChart
-          data={semesterData}
-          cgpa={cgpa ?? 0}
-          loading={loading}
-          height={240}
-        />
+        <div className="w-full empty:hidden lg:w-[380px] lg:flex-shrink-0">
+          <LatestNotices />
+        </div>
+      </div>
+
+      {/* Trends */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <GpaTrendChart data={semesterData} cgpa={cgpa ?? 0} loading={loading} height={240} />
         <CourseAttendanceChart
           title="Attendance by course"
-          data={attendanceData.map((a) => ({
-            code: a.course,
-            percentage: a.attendance,
-          }))}
+          data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
           threshold={threshold}
-          prewarning={settings.attendancePrewarningThreshold}
-          awaitingCount={awaitingAttendance}
+          prewarning={prewarning}
+          awaitingCount={courses.length - scoredCourses.length}
           loading={loading}
         />
       </div>
-
-      {/* Ongoing Courses */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground">
-            Ongoing Courses
-          </h2>
-          <Button
-            variant="ghost"
-            className="text-primary hover:text-primary/80"
-            onClick={() => navigate("/app/courses")}
-          >
-            View All
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-        {loading ? (
-          <div className="text-muted-foreground text-sm">
-            Loading courses...
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ongoingCourses.slice(0, 3).map((course) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onClick={() => navigate("/app/courses")}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Results */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Results</CardTitle>
-              <Button
-                variant="ghost"
-                className="text-primary hover:text-primary/80"
-                onClick={() => navigate("/app/results")}
-              >
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-muted-foreground text-sm">
-                Loading results...
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {recentResults.map((result, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div>
-                      <h4 className="font-semibold text-foreground">
-                        {result.course}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {result.code}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-primary">
-                        {result.grade}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        GPV: {result.gpv}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
     </div>
   );
 }
