@@ -244,11 +244,11 @@ export default function StaffStudents() {
         ) : (
           <ul className="divide-y divide-border/70">
             {visible.map((s) => (
-              <li key={s.student_id} className={departmentRowClass(s.department)}>
+              <li key={s.student_id} className={`transition-colors ${departmentRowClass(s.department)}`}>
                 <button
                   type="button"
                   onClick={() => toggle(s.student_id)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     {expanded === s.student_id ? (

@@ -145,7 +145,7 @@ export default function StaffLecturers() {
               return (
                 <li
                   key={l.lecturer_id}
-                  className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${departmentRowClass(l.department)}`}
+                  className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors ${departmentRowClass(l.department)}`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                   <PersonAvatar name={l.name} url={avatars[l.lecturer_id]} department={l.department} size="md" />
