@@ -65,6 +65,7 @@ export default function AppLayout() {
       navigation={withBadges(navigation, counts)}
       bottomNavigation={bottomNavigation}
       userName={student?.name ?? "Student"}
+      userAvatarUrl={student?.avatar_url}
       userMeta={meta || "Student"}
       homeHref="/app"
       headerSubtitle="Faculty of Engineering — USJ"

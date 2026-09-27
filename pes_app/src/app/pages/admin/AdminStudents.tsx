@@ -19,9 +19,8 @@ import {
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { SegmentedTabs } from "../../components/common";
-import { cn } from "../../components/ui/utils";
-import { departmentByName } from "../../../lib/departments";
+import { PersonAvatar, SegmentedTabs } from "../../components/common";
+import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -52,6 +51,7 @@ export default function AdminStudents() {
   const { student: currentAdmin } = useAuth();
   const scope = getAdminScope(currentAdmin);
   const [students, setStudents] = useState<Student[]>([]);
+  const avatars = useAvatarUrls(students.map((st) => st.id));
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -344,21 +344,12 @@ export default function AdminStudents() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className={cn(
-                            "w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
-                            departmentByName(student.department)?.chipClass ??
-                              "bg-primary/10 text-primary",
-                          )}
-                          aria-hidden="true"
-                        >
-                          {student.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </div>
+                        <PersonAvatar
+                          name={student.name}
+                          url={avatars[student.id]}
+                          department={student.department}
+                          className="h-9 w-9 text-sm"
+                        />
                         <div>
                           <p className="font-semibold text-foreground">
                             {student.name}

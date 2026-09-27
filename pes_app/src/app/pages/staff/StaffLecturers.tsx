@@ -1,6 +1,8 @@
+import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
 import { Award, Mail, Users } from "lucide-react";
 import {
+  PersonAvatar,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -30,6 +32,7 @@ export default function StaffLecturers() {
   const caps = getStaffCapabilities(staff);
 
   const [lecturers, setLecturers] = useState<AssignableLecturer[]>([]);
+  const avatars = useAvatarUrls(lecturers.map((l) => l.lecturer_id));
   const [offerings, setOfferings] = useState<DepartmentOffering[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +146,8 @@ export default function StaffLecturers() {
                   key={l.lecturer_id}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                 >
+                  <div className="flex min-w-0 items-center gap-3">
+                  <PersonAvatar name={l.name} url={avatars[l.lecturer_id]} department={l.department} size="md" />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium text-foreground">{l.name}</span>
@@ -158,6 +163,7 @@ export default function StaffLecturers() {
                       {l.email}
                       {l.department !== caps.hodDepartment && ` · ${l.department}`}
                     </p>
+                  </div>
                   </div>
                   <div className="text-right">
                     {stat ? (

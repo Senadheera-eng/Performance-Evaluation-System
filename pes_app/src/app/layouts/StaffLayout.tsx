@@ -13,6 +13,7 @@ import {
   UserSquare,
   Presentation,
   Megaphone,
+  UserRound,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -95,7 +96,12 @@ export default function StaffLayout() {
         label: caps.isHod ? "Head of Department" : "Lecturer",
         icon: Presentation,
       }}
+      bottomNavigation={[
+        { name: "My Profile", href: "/staff/profile", icon: UserRound },
+      ]}
       userName={student?.name ?? "Lecturer"}
+      userAvatarUrl={student?.avatar_url}
+      onProfileClick={() => navigate("/staff/profile")}
       userMeta={describeStaffScope(staff)}
       homeHref="/staff"
       headerSubtitle="Faculty of Engineering — USJ"

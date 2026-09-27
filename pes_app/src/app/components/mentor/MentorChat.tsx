@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { ErrorState, SkeletonRows } from "../common";
+import { ErrorState, PersonAvatar, SkeletonRows } from "../common";
 import { notifyCountsChanged } from "../../hooks/useNotificationCounts";
 import { useThreadChannel } from "../../hooks/useThreadChannel";
 import {
@@ -156,10 +156,13 @@ function Attachment({ message }: { message: MentorMessage }) {
  */
 export function MentorChat({
   studentId,
+  otherAvatarUrl,
   className,
 }: {
   /** Omit for a student reading their own; pass a mentee's id for a mentor. */
   studentId?: string;
+  /** The other person's photo, shown beside their messages. */
+  otherAvatarUrl?: string | null;
   className?: string;
 }) {
   const [thread, setThread] = useState<MentorThread | null>(null);
@@ -326,6 +329,17 @@ export function MentorChat({
     setFile(chosen);
   };
 
+  /** Whether the next message is from someone else, or on another day. */
+  const lastOfRun = (i: number) => {
+    const list = thread?.messages ?? [];
+    const next = list[i + 1];
+    return (
+      !next ||
+      next.mine !== list[i].mine ||
+      new Date(next.sent_at).toDateString() !== new Date(list[i].sent_at).toDateString()
+    );
+  };
+
   if (loading) return <SkeletonRows count={3} height="h-12" />;
 
   if (!thread) {
@@ -363,9 +377,23 @@ export function MentorChat({
                 <span className="h-px flex-1 bg-border" aria-hidden="true" />
               </div>
             )}
+            {/* Their photo sits beside the last message of each run
+                from them, as in a messaging app; earlier messages in the
+                run keep the space so the bubbles line up. */}
             <div
-              className={`flex ${m.mine ? "justify-end" : "justify-start"}`}
+              className={`flex items-end gap-2 ${m.mine ? "justify-end" : "justify-start"}`}
             >
+              {!m.mine &&
+                (lastOfRun(i) ? (
+                  <PersonAvatar
+                    name={thread.other.name}
+                    url={otherAvatarUrl}
+                    size="xs"
+                    className="mb-0.5 h-7 w-7"
+                  />
+                ) : (
+                  <span className="w-7 flex-shrink-0" aria-hidden="true" />
+                ))}
               <div
                 className={`max-w-[85%] rounded-2xl px-3 py-2 ${
                   m.mine
@@ -399,7 +427,13 @@ export function MentorChat({
         )}
 
         {theyAreTyping && (
-          <div className="flex justify-start">
+          <div className="flex items-end justify-start gap-2">
+            <PersonAvatar
+              name={thread.other.name}
+              url={otherAvatarUrl}
+              size="xs"
+              className="mb-0.5 h-7 w-7"
+            />
             <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-card px-3 py-2">
               <span className="flex gap-1" aria-hidden="true">
                 {[0, 150, 300].map((delay) => (

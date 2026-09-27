@@ -1,22 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CheckCircle2, KeyRound, Monitor, Moon, Sun, XCircle } from "lucide-react";
+import { Bell, CheckCircle2, KeyRound, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "../components/ui/dialog";
 import { PageHeader, SectionCard } from "../components/common";
+import { ChangePasswordDialog } from "../components/account/ChangePasswordDialog";
 import { cn } from "../components/ui/utils";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { supabase } from "../../lib/supabase";
 
 const THEMES = [
   { value: "light", label: "Light", icon: Sun },
@@ -52,40 +42,6 @@ export default function Settings() {
   const navigate = useNavigate();
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
-
-  const handleChangePassword = async () => {
-    setFormError(null);
-    setFormSuccess(null);
-    if (newPassword.length < 6) {
-      setFormError("Password must be at least 6 characters.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setFormError("Passwords do not match.");
-      return;
-    }
-    setSaving(true);
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    setSaving(false);
-    if (error) {
-      setFormError(error.message);
-      return;
-    }
-    setFormSuccess("Password updated successfully.");
-    setNewPassword("");
-    setConfirmPassword("");
-    setTimeout(() => {
-      setPasswordDialogOpen(false);
-      setFormSuccess(null);
-    }, 1500);
-  };
 
   const account: [string, string][] = [
     ["University email", student?.email ?? "—"],
@@ -119,8 +75,6 @@ export default function Settings() {
             <Button
               variant="outline"
               onClick={() => {
-                setFormError(null);
-                setFormSuccess(null);
                 setPasswordDialogOpen(true);
               }}
             >
@@ -187,79 +141,10 @@ export default function Settings() {
         </SectionCard>
       </div>
 
-      {/* Change Password Dialog */}
-      <Dialog
+      <ChangePasswordDialog
         open={passwordDialogOpen}
-        onOpenChange={(open) => {
-          setPasswordDialogOpen(open);
-          if (!open) {
-            setNewPassword("");
-            setConfirmPassword("");
-            setFormError(null);
-            setFormSuccess(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change password</DialogTitle>
-            <DialogDescription>
-              At least 6 characters. You stay signed in on this device.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            id="change-password"
-            className="space-y-4 py-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleChangePassword();
-            }}
-          >
-            <div>
-              <Label htmlFor="new-password">New password</Label>
-              <Input
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="confirm-password">Confirm new password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            {formError && (
-              <p role="alert" className="flex items-center gap-1.5 text-sm text-danger-fg">
-                <XCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                {formError}
-              </p>
-            )}
-            {formSuccess && (
-              <p role="status" className="flex items-center gap-1.5 text-sm text-success-fg">
-                <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                {formSuccess}
-              </p>
-            )}
-          </form>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="change-password" disabled={saving}>
-              {saving ? "Saving…" : "Save password"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setPasswordDialogOpen}
+      />
     </div>
   );
 }

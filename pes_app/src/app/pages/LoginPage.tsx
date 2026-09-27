@@ -83,7 +83,7 @@ export default function LoginPage() {
                     placeholder="yourname@foe.sjp.ac.lk"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-4 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white dark:bg-white pl-12 pr-4 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
                 </div>
@@ -100,7 +100,7 @@ export default function LoginPage() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white dark:bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
                   <button
