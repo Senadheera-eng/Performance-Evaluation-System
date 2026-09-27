@@ -58,9 +58,8 @@ import {
 import {
   type CourseDelivery,
   type Term,
-  currentTermDeliveries,
   deliveryLabel,
-  getMyAttendance,
+  getCurrentTermAttendance,
   termLabel,
 } from "../../lib/studentAttendance";
 
@@ -101,17 +100,16 @@ export default function Attendance() {
     setLoading(true);
     setError(null);
 
-    const result = await getMyAttendance();
+    const result = await getCurrentTermAttendance();
     if (!result.ok) {
       setError(result.error);
       setLoading(false);
       return;
     }
 
-    const current = currentTermDeliveries(result.data.deliveries);
-    const loaded = current.deliveries;
+    const loaded = result.data.deliveries;
     setDeliveries(loaded);
-    setTerm(current.term);
+    setTerm(result.data.term);
 
     // Default to the delivery needing the most attention — the lowest
     // percentage among those that have records, preferring one still being
