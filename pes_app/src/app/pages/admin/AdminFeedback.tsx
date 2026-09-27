@@ -1,4 +1,4 @@
-import { CourseCode, EmptyState } from "../../components/common";
+import { CourseCode, EmptyState, StatusBadge } from "../../components/common";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -231,6 +231,7 @@ function PeriodsView({
               key={p.id}
               period={p}
               adminId={adminId}
+              managedElsewhere={scopeDepartment.kind === "department" && p.department === null}
               expanded={expandedId === p.id}
               onToggle={() =>
                 setExpandedId(expandedId === p.id ? null : p.id)
@@ -545,12 +546,16 @@ function CreatePeriodForm({
 function PeriodCard({
   period,
   adminId,
+  managedElsewhere = false,
   expanded,
   onToggle,
   onChanged,
 }: {
   period: AdminFeedbackPeriod;
   adminId: string;
+  /** A faculty-wide round seen by a department admin: theirs to watch, the
+   *  super admin's to change. The database refuses their edits anyway. */
+  managedElsewhere?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onChanged: () => void;
@@ -567,6 +572,10 @@ function PeriodCard({
   const [editingQuestion, setEditingQuestion] = useState<FeedbackQuestion | null>(
     null,
   );
+
+  /* Courses, questions and Open are set while the round is a draft, and
+     only by whoever owns it. */
+  const editable = period.status === "draft" && !managedElsewhere;
 
   useEffect(() => {
     if (expanded && !loaded) loadConfig();
@@ -703,7 +712,10 @@ function PeriodCard({
             <StudentVisibility period={period} />
           </div>
           <div className="flex items-center gap-2">
-            {period.status === "draft" && (
+            {managedElsewhere && (
+              <StatusBadge tone="neutral">Managed by the Super Admin</StatusBadge>
+            )}
+            {editable && (
               <Button
                 size="sm"
                 className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
@@ -716,7 +728,7 @@ function PeriodCard({
                 Open
               </Button>
             )}
-            {period.status === "open" && (
+            {period.status === "open" && !managedElsewhere && (
               <Button
                 size="sm"
                 variant="outline"
@@ -729,7 +741,7 @@ function PeriodCard({
                 Close
               </Button>
             )}
-            {period.status === "closed" && (
+            {period.status === "closed" && !managedElsewhere && (
               <Button
                 size="sm"
                 variant="outline"
@@ -771,7 +783,7 @@ function PeriodCard({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        disabled={period.status !== "draft"}
+                        disabled={!editable}
                         className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className={selectedCourseIds.length ? "text-foreground" : "text-muted-foreground"}>
@@ -800,7 +812,7 @@ function PeriodCard({
                                     key={c.id}
                                     value={`${c.code} ${c.title}`}
                                     onSelect={() =>
-                                      period.status === "draft" && toggleCourse(c.id)
+                                      editable && toggleCourse(c.id)
                                     }
                                     className="cursor-pointer"
                                   >
@@ -833,7 +845,7 @@ function PeriodCard({
                             className="bg-primary/10 text-primary text-xs flex items-center gap-1"
                           >
                             {c.code}
-                            {period.status === "draft" && (
+                            {editable && (
                               <button
                                 type="button"
                                 onClick={() => toggleCourse(id)}
@@ -862,7 +874,7 @@ function PeriodCard({
                         <Checkbox
                           checked={selectedQuestionIds.includes(q.id)}
                           onCheckedChange={() => toggleQuestion(q.id)}
-                          disabled={period.status !== "draft"}
+                          disabled={!editable}
                           aria-label={q.question_text}
                         />
                         <span className="min-w-0 flex-1">
@@ -875,7 +887,7 @@ function PeriodCard({
                             {!q.is_required && " · optional"}
                           </span>
                         </span>
-                        {period.status === "draft" && (
+                        {editable && (
                           <button
                             type="button"
                             onClick={() => {
@@ -891,7 +903,7 @@ function PeriodCard({
                     ))}
                   </div>
 
-                  {period.status === "draft" && (
+                  {editable && (
                     <div className="mt-2">
                       <Button
                         size="sm"
@@ -908,7 +920,7 @@ function PeriodCard({
                   )}
                 </div>
 
-                {period.status === "draft" && (
+                {editable && (
                   <Button
                     size="sm"
                     onClick={handleSaveConfig}
