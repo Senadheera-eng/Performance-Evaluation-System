@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "../ui/utils";
+import { departmentByCourseCode } from "../../../lib/departments";
 import {
   EmptyState,
   SectionCard,
@@ -153,7 +154,7 @@ export function AttendanceOverview({
           value={overallTotal > 0 ? `${overallPercentage}%` : "—"}
           icon={TIER_ICON[overallTier]}
           tone={TIER_TONE[overallTier]}
-          hint="Across all enrolled courses"
+          hint="Across this semester's courses"
         />
         <StatCard
           index={1}
@@ -259,12 +260,20 @@ function CourseRow({
       <button
         type="button"
         onClick={onOpen}
-        className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50"
+        className={cn(
+          "w-full border-l-4 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+          departmentByCourseCode(summary.code)?.stripeClass ?? "border-l-transparent",
+        )}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-primary">
+              <span
+                className={cn(
+                  "text-sm font-semibold tabular-nums",
+                  departmentByCourseCode(summary.code)?.textClass ?? "text-foreground",
+                )}
+              >
                 {summary.code}
               </span>
               <span className="truncate text-sm text-foreground">

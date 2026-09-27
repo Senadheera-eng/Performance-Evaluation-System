@@ -86,3 +86,63 @@ export async function getMyAttendance(): Promise<Result<MyAttendance>> {
 export function deliveryLabel(d: CourseDelivery): string {
   return d.has_repeat ? `${d.course_code} · attempt ${d.attempt_number}` : d.course_code;
 }
+
+/** A teaching term: an academic year and the semester taught in it. */
+export interface Term {
+  academicYear: string;
+  /** The highest semester being sat, which names the term ("Semester 7"). */
+  semester: number | null;
+}
+
+/**
+ * The deliveries of the term the student is in now, and that term.
+ *
+ * An enrolment is never moved on from "enrolled" when its term ends, so
+ * `in_progress` cannot say which courses are current: once a student enrols
+ * for semester 8 their semester 7 courses are still "enrolled" too. The term
+ * is read from the record instead. Each academic year teaches two semesters,
+ * odd first and even second, so the current term is the latest academic
+ * year the student has a delivery in, and within it the even half once any
+ * even-semester course has begun. A repeat is sat alongside the batch it
+ * joined, in the same half of the year as the course's own semester, so a
+ * semester 5 module repeated during semester 7 is current and counted.
+ *
+ * Earlier terms are left out entirely: their registers are closed, and a
+ * row of 100%s from two years ago only buried the courses that still count.
+ */
+export function currentTermDeliveries(deliveries: CourseDelivery[]): {
+  term: Term | null;
+  deliveries: CourseDelivery[];
+} {
+  if (deliveries.length === 0) return { term: null, deliveries: [] };
+
+  // "2024/2025" strings order correctly as text.
+  const latestYear = deliveries.reduce(
+    (max, d) => (d.academic_year > max ? d.academic_year : max),
+    deliveries[0].academic_year,
+  );
+  const inYear = deliveries.filter((d) => d.academic_year === latestYear);
+  const secondHalf = inYear.some((d) => d.semester !== null && d.semester % 2 === 0);
+  const current = inYear.filter(
+    (d) => d.semester === null || (d.semester % 2 === 0) === secondHalf,
+  );
+
+  const semesters = current
+    .filter((d) => !d.is_repeat && d.semester !== null)
+    .map((d) => d.semester as number);
+
+  return {
+    term: {
+      academicYear: latestYear,
+      semester: semesters.length > 0 ? Math.max(...semesters) : null,
+    },
+    deliveries: current,
+  };
+}
+
+/** "Semester 7 · 2024/2025", or just the year when the semester is unknown. */
+export function termLabel(term: Term): string {
+  return term.semester !== null
+    ? `Semester ${term.semester} · ${term.academicYear}`
+    : term.academicYear;
+}
