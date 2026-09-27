@@ -12,7 +12,9 @@ import {
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { EmptyState, ErrorState, SectionCard, StatusBadge } from "../common";
+import { cn } from "../ui/utils";
 import { supabase } from "../../../lib/supabase";
+import { departmentByCourseCode } from "../../../lib/departments";
 import type { EnrolmentWindowState } from "./EnrolmentWindow";
 
 export interface PlanCourse {
@@ -278,6 +280,66 @@ export function SemesterBaskets({
     setNotice(`Enrolment saved — ${parts.join(" and ")}.`);
   };
 
+  /* What a course's row says about it beyond code, title and credits. The
+     same set on the handbook table and on the phone list. */
+  const courseBadges = (c: Row) => {
+    const want = chosen(c);
+    const changed = draft.has(c.course_id);
+    return (
+      <>
+        {c.minor && (
+          <StatusBadge tone="info" icon={GraduationCap}>
+            {c.minor}
+          </StatusBadge>
+        )}
+        {c.already_passed && <StatusBadge tone="success">Passed</StatusBadge>}
+        {c.selected && !c.already_passed && !changed && (
+          <StatusBadge tone="success">Enrolled</StatusBadge>
+        )}
+        {changed && (
+          <StatusBadge tone={want ? "brand" : "warning"} icon={want ? Plus : Minus}>
+            {want ? "Adding" : "Removing"}
+          </StatusBadge>
+        )}
+        {c.locked && (
+          <StatusBadge tone="neutral" icon={Lock}>
+            Marks recorded
+          </StatusBadge>
+        )}
+        {/* On the sheet because the handbook puts it there, but not on
+            offer in this round. Saying so is the difference between a
+            course a student chose not to take and one they were never
+            able to. */}
+        {open && !c.enrollable && !c.already_passed && !c.selected && (
+          <StatusBadge tone="neutral" icon={CalendarOff}>
+            Not in this round
+          </StatusBadge>
+        )}
+      </>
+    );
+  };
+
+  /** A course code in its department's hue, as on every other page. */
+  const codeClass = (code: string) =>
+    cn("font-semibold tabular-nums", departmentByCourseCode(code)?.textClass ?? "text-foreground");
+
+  /** "2 of 3 credits", coloured by whether the basket is met. */
+  const basketProgress = (basket: string, required: number | null) => {
+    if (!required) {
+      return (
+        <span className="text-xs text-muted-foreground">
+          {basket === "Compulsory" ? "All required" : "Not required"}
+        </span>
+      );
+    }
+    const have = totals.get(basket) ?? 0;
+    return (
+      <span className={cn("text-xs", have >= required ? "text-success-fg" : "text-warning-fg")}>
+        {have} of {required} credits
+      </span>
+    );
+  };
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -363,10 +425,73 @@ export function SemesterBaskets({
         }
         flush
       >
-        {/* Six columns do not fit a phone, and squeezing them would cost the
-            handbook's shape. The sheet scrolls sideways inside its own box
-            instead, so the page itself never does. */}
-        <div className="overflow-x-auto">
+        {/* Six columns do not fit a phone. Scrolled sideways, the category
+            and its credit count (the thing a student is trying to satisfy)
+            sat off screen, so a phone gets the same sheet as a list, one
+            basket at a time, each headed by what it asks for. The handbook's
+            table is kept from the small breakpoint up. */}
+        <div className="sm:hidden">
+          {plan.baskets.map((b) => {
+            const basketRows = rows.filter((r) => r.basket === b.basket);
+            if (basketRows.length === 0) return null;
+            return (
+              <div key={b.basket} className="border-b border-border last:border-b-0">
+                <div className="flex items-center justify-between gap-3 bg-muted/60 px-4 py-2">
+                  <span className="text-sm font-semibold text-foreground">{b.basket}</span>
+                  <span className="flex flex-col items-end">
+                    {basketProgress(b.basket, b.required_credits)}
+                    <span className="text-[11px] text-muted-foreground">
+                      {basketRows.every((r) => r.contributes_to_gpa)
+                        ? "Counts toward GPA"
+                        : basketRows.some((r) => r.contributes_to_gpa)
+                          ? "Partly counts toward GPA"
+                          : "Not in GPA"}
+                    </span>
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/50">
+                  {basketRows.map((c) => {
+                    const want = chosen(c);
+                    const id = `enrol-${c.course_id}`;
+                    return (
+                      <li
+                        key={c.course_id}
+                        className={cn(
+                          "flex items-start gap-3 border-l-4 px-4 py-2.5",
+                          departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent",
+                          draft.has(c.course_id) && "bg-primary/5",
+                        )}
+                      >
+                        <Checkbox
+                          id={id}
+                          className="mt-1"
+                          checked={want}
+                          disabled={!editable(c)}
+                          onCheckedChange={() => toggle(c)}
+                          aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
+                        />
+                        <label htmlFor={id} className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2 text-xs">
+                            <span className={codeClass(c.course_code)}>{c.course_code}</span>
+                            <span className="text-muted-foreground">
+                              {c.credits} credit{c.credits === 1 ? "" : "s"}
+                            </span>
+                          </span>
+                          <span className="block text-sm text-foreground">{c.title}</span>
+                          <span className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
+                            {courseBadges(c)}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full min-w-[46rem] border-collapse text-sm">
             <caption className="sr-only">
               Semester {plan.semester} curriculum. Tick a course to enrol in it.
@@ -414,10 +539,6 @@ export function SemesterBaskets({
                 const changed = draft.has(c.course_id);
                 const catSpan = categorySpans[i];
                 const gpaSpan = gpaSpans[i];
-                const have = totals.get(c.basket) ?? 0;
-                const met = c.required_credits
-                  ? have >= c.required_credits
-                  : true;
                 // A run's last row draws the line under the whole block, the
                 // way a ruled sheet separates one category from the next.
                 const endsBlock =
@@ -438,82 +559,44 @@ export function SemesterBaskets({
                         aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
                       />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 align-top font-semibold text-primary">
+                    <td
+                      className={cn(
+                        "whitespace-nowrap border-l-4 px-3 py-2 align-top",
+                        departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent",
+                        codeClass(c.course_code),
+                      )}
+                    >
                       {c.course_code}
                     </td>
                     <td className="px-3 py-2 align-top">
                       <span className="text-foreground">{c.title}</span>
                       <span className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
-                        {c.minor && (
-                          <StatusBadge tone="info" icon={GraduationCap}>
-                            {c.minor}
-                          </StatusBadge>
-                        )}
-                        {c.already_passed && (
-                          <StatusBadge tone="success">Passed</StatusBadge>
-                        )}
-                        {c.selected && !c.already_passed && !changed && (
-                          <StatusBadge tone="success">Enrolled</StatusBadge>
-                        )}
-                        {changed && (
-                          <StatusBadge
-                            tone={want ? "brand" : "warning"}
-                            icon={want ? Plus : Minus}
-                          >
-                            {want ? "Adding" : "Removing"}
-                          </StatusBadge>
-                        )}
-                        {c.locked && (
-                          <StatusBadge tone="neutral" icon={Lock}>
-                            Marks recorded
-                          </StatusBadge>
-                        )}
-                        {/* On the sheet because the handbook puts it there,
-                            but not on offer in this round. Saying so is the
-                            difference between a course a student chose not to
-                            take and one they were never able to. */}
-                        {open &&
-                          !c.enrollable &&
-                          !c.already_passed &&
-                          !c.selected && (
-                            <StatusBadge tone="neutral" icon={CalendarOff}>
-                              Not in this round
-                            </StatusBadge>
-                          )}
+                        {courseBadges(c)}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center align-top tabular-nums text-foreground">
                       {c.credits}
                     </td>
+                    {/* Merged cells take their own background: they belong to
+                        the block's first row, and a tint on that row for an
+                        unsaved change would otherwise fill the whole block. */}
                     {catSpan !== null && (
                       <td
                         rowSpan={catSpan}
-                        className="border-l border-border px-3 py-2 align-middle"
+                        className="border-l border-border bg-card px-3 py-2 align-middle"
                       >
                         <span className="block font-medium text-foreground">
                           {c.basket}
                         </span>
-                        {c.required_credits ? (
-                          <span
-                            className={`mt-1 block text-xs ${
-                              met ? "text-success-fg" : "text-warning-fg"
-                            }`}
-                          >
-                            {have} of {c.required_credits} credits
-                          </span>
-                        ) : (
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            {c.basket === "Compulsory"
-                              ? "All required"
-                              : "Not required"}
-                          </span>
-                        )}
+                        <span className="mt-1 block">
+                          {basketProgress(c.basket, c.required_credits)}
+                        </span>
                       </td>
                     )}
                     {gpaSpan !== null && (
                       <td
                         rowSpan={gpaSpan}
-                        className="border-l border-border px-3 py-2 text-center align-middle text-foreground"
+                        className="border-l border-border bg-card px-3 py-2 text-center align-middle text-foreground"
                       >
                         {c.contributes_to_gpa ? "Yes" : "No"}
                       </td>
@@ -560,7 +643,15 @@ export function SemesterBaskets({
       )}
 
       {open && (
-        <div className="sticky bottom-3 space-y-2 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur">
+        /* Pinned to the bottom of the screen only while there is something
+           to save. Idle, it read "No changes" over the sheet the whole time
+           the student was reading it. */
+        <div
+          className={cn(
+            "space-y-2 rounded-xl border border-border bg-card/95 p-3",
+            dirty && "sticky bottom-3 z-10 shadow-elevation-md backdrop-blur",
+          )}
+        >
           <p className="text-xs text-muted-foreground">
             {dirty
               ? [
@@ -573,15 +664,13 @@ export function SemesterBaskets({
                   .join(" · ")
               : "Your enrolment is saved. Tick or untick a course to change it — you can do this as often as you like until the window closes."}
           </p>
-          <div className="flex gap-2">
-            <Button
-              className="flex-1"
-              disabled={!dirty || saving}
-              onClick={save}
-            >
-              {saving ? "Saving…" : dirty ? "Save changes" : "No changes"}
-            </Button>
-            {dirty && (
+          {/* The buttons come with something to save. A disabled "No
+              changes" bar beside the line saying so only repeated it. */}
+          {dirty && (
+            <div className="flex gap-2">
+              <Button className="flex-1" disabled={saving} onClick={save}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
               <Button
                 variant="outline"
                 disabled={saving}
@@ -589,8 +678,8 @@ export function SemesterBaskets({
               >
                 Discard
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
