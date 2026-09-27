@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, KeyRound, Loader2, Save, Trash2 } from "lucide-react";
+import { Award, Camera, KeyRound, Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import {
   DepartmentBadge,
+  DepartmentDot,
   ErrorState,
   PageHeader,
   PersonAvatar,
   SectionCard,
   SkeletonRows,
-  StatusBadge,
 } from "../../components/common";
 import { ChangePasswordDialog } from "../../components/account/ChangePasswordDialog";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../../lib/supabase";
 import { removeMyAvatar, uploadMyAvatar } from "../../../lib/avatars";
 import { getStaffCapabilities } from "../../../lib/staffScope";
+import { departmentByName } from "../../../lib/departments";
+import { cn } from "../../components/ui/utils";
 
 const TITLES = ["Prof.", "Dr.", "Eng.", "Mr.", "Mrs.", "Ms."];
 
@@ -127,6 +129,7 @@ export default function StaffProfile() {
   }
 
   const displayName = row ? `${row.title ? `${row.title} ` : ""}${row.name}` : "";
+  const dept = departmentByName(row?.department);
 
   return (
     <div className="space-y-5">
@@ -140,13 +143,29 @@ export default function StaffProfile() {
       ) : (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
           {/* Photo */}
-          <SectionCard title="Photo" description="Shown wherever your name appears, including your mentees' chat.">
+          <SectionCard
+            title="Photo"
+            description="Shown wherever your name appears, including your mentees' chat."
+            className={cn("border-l-4", dept?.stripeClass)}
+          >
             <div className="flex flex-col items-center text-center">
               <PersonAvatar name={displayName} url={row.avatar_url} department={row.department} size="xl" />
               <p className="mt-3 text-base font-semibold text-foreground">{displayName}</p>
               <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
                 <DepartmentBadge department={row.department} />
-                {caps.isHod && <StatusBadge tone="brand">Head of Department</StatusBadge>}
+                {caps.isHod && (
+                  /* The headship in the department's own colour, as on the
+                     Heads of Department page. */
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                      dept?.chipClass ?? "bg-primary/10 text-primary",
+                    )}
+                  >
+                    <Award className="h-3 w-3" aria-hidden="true" />
+                    Head of Department
+                  </span>
+                )}
               </div>
               <input
                 ref={fileInput}
@@ -241,11 +260,17 @@ export default function StaffProfile() {
               description="These come from your department's records. Ask the department office if any of them is wrong."
             >
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {[
+                {([
                   ["University email", row.email],
-                  ["Department", row.department],
+                  [
+                    "Department",
+                    <span className="inline-flex items-center gap-1.5">
+                      {dept && <DepartmentDot dept={dept} />}
+                      <span className={dept?.textClass}>{row.department}</span>
+                    </span>,
+                  ],
                   ["Staff number", row.staff_no ?? "—"],
-                ].map(([label, value]) => (
+                ] as [string, React.ReactNode][]).map(([label, value]) => (
                   <div key={label} className="min-w-0">
                     <dt className="text-xs text-muted-foreground">{label}</dt>
                     <dd className="mt-0.5 break-words text-sm font-medium text-foreground">{value}</dd>
