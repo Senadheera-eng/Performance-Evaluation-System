@@ -486,6 +486,56 @@ export default function StaffResults() {
     );
   }
 
+  /* The two editable parts of a result row, shared by the phone list and
+     the table so the two cannot drift apart. */
+  const markInput = (r: Row, field: Field) => (
+    <>
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              max={RANGES[field].max}
+                              value={r[field]}
+                              disabled={!rowEditable(r)}
+                              aria-label={`${RANGES[field].label} for ${r.name}`}
+                              aria-invalid={Boolean(r.errors[field])}
+                              onChange={(e) => update(r.studentId, field, e.target.value)}
+                              className={`h-8 text-center text-sm ${
+                                r.errors[field] ? "border-destructive" : "border-border"
+                              }`}
+                            />
+                            {r.errors[field] && (
+                              <p className="mt-0.5 text-center text-xs text-destructive">
+                                {r.errors[field]}
+                              </p>
+                            )}
+    </>
+  );
+
+  const gradeCell = (r: Row) => (
+    <>
+                          {rowEditable(r) ? (
+                            <select
+                              value={r.grade}
+                              aria-label={`Grade for ${r.name}`}
+                              onChange={(e) => setGrade(r.studentId, e.target.value)}
+                              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-center text-sm text-foreground"
+                            >
+                              <option value="">—</option>
+                              {validGrades.map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          ) : r.grade ? (
+                            <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+    </>
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -652,7 +702,59 @@ export default function StaffResults() {
                 />
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* On a phone each student is a block: the name across the
+                  width, then Mid, CA and Grade in a labelled row under it.
+                  As a four-column table the inputs left the name a word or
+                  two a line. Same inputs and state; the table is kept from
+                  the small breakpoint up. */}
+              <ul className="divide-y divide-border/50 sm:hidden">
+                {visible.map((r) => (
+                  <li
+                    key={r.studentId}
+                    className={`px-4 py-3 ${r.dirty ? "bg-warning-bg/40" : ""}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-sm text-foreground">{r.name}</span>
+                      {r.isRepeat && <StatusBadge tone="info">Repeat</StatusBadge>}
+                      {r.status === "published" && (
+                        <StatusBadge tone="success" icon={Lock}>
+                          Published
+                        </StatusBadge>
+                      )}
+                      {r.status === "submitted" && (
+                        <StatusBadge tone="warning" icon={Send}>
+                          In review
+                        </StatusBadge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {r.indexNumber} · {r.regNumber}
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {(["midSem", "ca"] as Field[]).map((field) => (
+                        <div key={field}>
+                          <span className="mb-1 block text-[11px] text-muted-foreground">
+                            {field === "midSem"
+                              ? `Mid /${MARK_MAX.midSem}`
+                              : `CA /${MARK_MAX.ca}`}
+                          </span>
+                          {markInput(r, field)}
+                        </div>
+                      ))}
+                      <div>
+                        <span className="mb-1 block text-[11px] text-muted-foreground">
+                          Grade
+                        </span>
+                        <div className="flex min-h-8 items-center justify-center">
+                          {gradeCell(r)}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border/70 text-left text-xs text-muted-foreground">
@@ -690,53 +792,18 @@ export default function StaffResults() {
                         </td>
                         {(["midSem", "ca"] as Field[]).map((field) => (
                           <td key={field} className="px-2 py-2">
-                            <Input
-                              type="number"
-                              inputMode="decimal"
-                              min={0}
-                              max={RANGES[field].max}
-                              value={r[field]}
-                              disabled={!rowEditable(r)}
-                              aria-label={`${RANGES[field].label} for ${r.name}`}
-                              aria-invalid={Boolean(r.errors[field])}
-                              onChange={(e) => update(r.studentId, field, e.target.value)}
-                              className={`h-8 text-center text-sm ${
-                                r.errors[field] ? "border-destructive" : "border-border"
-                              }`}
-                            />
-                            {r.errors[field] && (
-                              <p className="mt-0.5 text-center text-xs text-destructive">
-                                {r.errors[field]}
-                              </p>
-                            )}
+                            {markInput(r, field)}
                           </td>
                         ))}
                         <td className="px-4 py-2 text-center">
-                          {rowEditable(r) ? (
-                            <select
-                              value={r.grade}
-                              aria-label={`Grade for ${r.name}`}
-                              onChange={(e) => setGrade(r.studentId, e.target.value)}
-                              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-center text-sm text-foreground"
-                            >
-                              <option value="">—</option>
-                              {validGrades.map((g) => (
-                                <option key={g} value={g}>
-                                  {g}
-                                </option>
-                              ))}
-                            </select>
-                          ) : r.grade ? (
-                            <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
+                          {gradeCell(r)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
             {rows.length > 0 && anyEditable && (

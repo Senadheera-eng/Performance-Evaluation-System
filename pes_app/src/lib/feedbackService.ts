@@ -1007,11 +1007,17 @@ export async function updatePeriodStatus(
   periodId: string,
   status: "draft" | "scheduled" | "open" | "closed" | "archived",
 ): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("feedback_periods")
     .update({ status })
-    .eq("id", periodId);
+    .eq("id", periodId)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // Row security drops an update it does not allow without an error, so a
+  // change that touched nothing is reported rather than shown as done.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "You cannot change this round. It is managed by the Super Admin." };
+  }
   return { ok: true };
 }
 

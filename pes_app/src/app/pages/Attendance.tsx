@@ -57,8 +57,10 @@ import {
 } from "../../lib/attendanceMath";
 import {
   type CourseDelivery,
+  type Term,
   deliveryLabel,
-  getMyAttendance,
+  getCurrentTermAttendance,
+  termLabel,
 } from "../../lib/studentAttendance";
 
 const TABS = [
@@ -77,6 +79,9 @@ export default function Attendance() {
   /* One entry per delivery: a repeated course appears once per attempt, each
      with its own register, so the two are never averaged together. */
   const [deliveries, setDeliveries] = useState<CourseDelivery[]>([]);
+  /* The term being taught now. Only its courses are shown: an earlier term's
+     register is closed and can neither be improved nor lost. */
+  const [term, setTerm] = useState<Term | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +100,7 @@ export default function Attendance() {
     setLoading(true);
     setError(null);
 
-    const result = await getMyAttendance();
+    const result = await getCurrentTermAttendance();
     if (!result.ok) {
       setError(result.error);
       setLoading(false);
@@ -104,6 +109,7 @@ export default function Attendance() {
 
     const loaded = result.data.deliveries;
     setDeliveries(loaded);
+    setTerm(result.data.term);
 
     // Default to the delivery needing the most attention — the lowest
     // percentage among those that have records, preferring one still being
@@ -237,8 +243,8 @@ export default function Attendance() {
         />
         <EmptyState
           icon={CalendarX2}
-          title="No enrolled courses"
-          description="Attendance tracking appears here once you're enrolled in courses for the current semester."
+          title="No courses this semester"
+          description="Attendance tracking appears here once you are enrolled on courses for the current semester, or once a lecture of yours is marked."
         />
       </div>
     );
@@ -247,8 +253,9 @@ export default function Attendance() {
   return (
     <div className="space-y-5">
       <PageHeader
+        eyebrow={term ? termLabel(term) : undefined}
         title="Attendance Tracker"
-        description={`Monitor your attendance and stay above the ${threshold}% requirement, course by course.`}
+        description={`This semester's courses, course by course, against the ${threshold}% requirement.`}
       />
 
       {/* Renders nothing unless a lecturer has a register open on one of this
@@ -426,7 +433,7 @@ export default function Attendance() {
               ) : (
                 <CourseAttendanceChart
                   title="All courses at a glance"
-                  description="How attendance compares across your enrolled courses"
+                  description="How attendance compares across this semester's courses"
                   data={attendanceChartData}
                   threshold={threshold}
                   prewarning={prewarning}

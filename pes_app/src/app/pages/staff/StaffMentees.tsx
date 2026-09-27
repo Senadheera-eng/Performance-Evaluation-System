@@ -1,3 +1,4 @@
+import { useAvatarUrls } from "../../../lib/avatars";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -13,6 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
+  PersonAvatar,
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -61,6 +64,7 @@ const RISK_ORDER: RiskBand[] = [
 export default function StaffMentees() {
   const { staff } = useAuth();
   const [mentees, setMentees] = useState<Mentee[]>([]);
+  const avatars = useAvatarUrls(mentees.map((m) => m.student_id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Mentee | null>(null);
@@ -184,6 +188,7 @@ export default function StaffMentees() {
           index={3}
           label="Attendance Concern"
           value={counts.attendance_concern}
+          hint="Below the attendance requirement"
           icon={CalendarX}
           tone={counts.attendance_concern > 0 ? "info" : "neutral"}
         />
@@ -276,7 +281,9 @@ export default function StaffMentees() {
                       onClick={() => setOpen(m)}
                       className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                     >
-                      <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <PersonAvatar name={m.name} url={avatars[m.student_id]} department={m.department} size="md" />
+                        <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="truncate text-sm font-medium text-foreground">
                             {m.name}
@@ -307,6 +314,7 @@ export default function StaffMentees() {
                                 : "s"
                             } outstanding`}
                         </p>
+                        </div>
                       </div>
                       <ChevronRight
                         className="h-4 w-4 flex-shrink-0 text-muted-foreground"
@@ -335,6 +343,7 @@ function MenteeDetail({
   onBack: () => void;
 }) {
   const [overview, setOverview] = useState<MenteeOverview | null>(null);
+  const menteeAvatar = useAvatarUrls([mentee.student_id]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -383,7 +392,7 @@ function MenteeDetail({
         title="Conversation"
         description="Only you and this student can read it."
       >
-        <MentorChat studentId={mentee.student_id} />
+        <MentorChat studentId={mentee.student_id} otherAvatarUrl={menteeAvatar[mentee.student_id]} />
       </SectionCard>
 
       <SectionCard
@@ -517,9 +526,7 @@ function MenteeDetail({
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="text-sm font-semibold text-primary">
-                        {c.course_code}
-                      </span>
+                      <CourseCode code={c.course_code} className="text-sm" />
                       <span className="ml-2 text-sm text-foreground">
                         {c.title}
                       </span>

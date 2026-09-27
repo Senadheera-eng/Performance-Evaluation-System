@@ -4,7 +4,9 @@
  * Pages import from here rather than hand-rolling cards, headers and states,
  * which is what kept the two portals looking like different products.
  */
-export { StatusBadge, type StatusTone } from "./StatusBadge";
+export { StatusBadge, gradeTone, type StatusTone } from "./StatusBadge";
+export { CourseCode, DepartmentBadge, DepartmentDot } from "./DepartmentBadge";
+export { PersonAvatar, initialsOf } from "./PersonAvatar";
 export {
   EmptyState,
   ErrorState,

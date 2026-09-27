@@ -1,9 +1,12 @@
+import { useAvatarUrls } from "../../lib/avatars";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, UserRound } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  DepartmentBadge,
   EmptyState,
+  PersonAvatar,
   PageHeader,
   SectionCard,
   SkeletonRows,
@@ -26,6 +29,7 @@ import { getMyMentor, type MyMentor } from "../../lib/mentorService";
  */
 export default function Mentor() {
   const [mentor, setMentor] = useState<MyMentor | null>(null);
+  const avatars = useAvatarUrls([mentor?.mentor_id]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -73,12 +77,13 @@ export default function Mentor() {
             }
           >
             <div className="flex items-start gap-3">
-              <span
-                className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10"
-                aria-hidden="true"
-              >
-                <UserRound className="h-6 w-6 text-primary" />
-              </span>
+              {/* Their photo, or initials in their department's colour. */}
+              <PersonAvatar
+                name={mentor.plain_name || mentor.name}
+                url={avatars[mentor.mentor_id]}
+                department={mentor.department}
+                className="h-12 w-12 text-base"
+              />
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="text-base font-semibold text-foreground">
@@ -88,19 +93,19 @@ export default function Mentor() {
                     <StatusBadge tone="brand">Head of Department</StatusBadge>
                   )}
                 </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {mentor.department}
-                  {mentor.staff_no && ` · ${mentor.staff_no}`}
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <DepartmentBadge department={mentor.department} />
+                  {mentor.staff_no && <span>{mentor.staff_no}</span>}
                 </p>
-                <a
-                  href={`mailto:${mentor.email}`}
-                  className="mt-0.5 block truncate text-sm text-primary hover:underline"
-                >
+                {/* Plain text, to read or copy: the Email button above is
+                    the way to write to them, and the address as a second
+                    red link only repeated it. */}
+                <p className="mt-1 truncate text-sm text-foreground select-all">
                   {mentor.email}
-                </a>
+                </p>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Your mentor since{" "}
-                  {new Date(mentor.assigned_at).toLocaleDateString(undefined, {
+                  {new Date(mentor.assigned_at).toLocaleDateString("en-GB", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
@@ -114,7 +119,7 @@ export default function Mentor() {
             title="Messages"
             description="Only you and your mentor can read this conversation."
           >
-            <MentorChat />
+            <MentorChat otherAvatarUrl={mentor ? avatars[mentor.mentor_id] : null} />
           </SectionCard>
         </>
       )}

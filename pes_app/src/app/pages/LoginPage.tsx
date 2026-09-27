@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Eye, EyeOff, GraduationCap, Landmark, Lock, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/button";
-import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/AuthContext";
 import { homeFor } from "../components/ProtectedRoute";
@@ -17,7 +16,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+  /* Passwords are reset by the faculty, not by the app, so "Forgot
+     password?" says how rather than being a button that did nothing. */
+  const [showReset, setShowReset] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +28,16 @@ export default function LoginPage() {
     setLoading(true);
     const { error, role } = await signIn(email, password);
     if (error) {
-      setError("Invalid email or password. Please try again.");
+      /* Only wrong credentials are the student's to fix by retyping. A
+         network failure used to be reported as a wrong password too, which
+         sent people round in circles. */
+      setError(
+        /invalid login credentials/i.test(error)
+          ? "Invalid email or password. Please try again."
+          : /fetch|network/i.test(error)
+            ? "Could not reach PES. Check your connection and try again."
+            : `Sign-in failed: ${error}`,
+      );
       setLoading(false);
       return;
     }
@@ -36,13 +46,16 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="h-screen overflow-hidden bg-[#f7f8fa] p-3 text-[#111a3a] sm:p-5" style={{ colorScheme: "light" }}>
-      <div className="mx-auto flex h-full min-h-0 max-w-[1540px] overflow-hidden rounded-[20px] border border-[#e4e7ec] bg-white shadow-[0_16px_55px_rgba(15,23,42,0.08)]">
+    /* At least the screen's height, not exactly it: fixed to the viewport
+       with overflow hidden, a phone held sideways cut off the heading and
+       the Sign In button with no way to scroll to them. */
+    <main className="min-h-dvh bg-[#f7f8fa] p-3 text-[#111a3a] sm:p-5" style={{ colorScheme: "light" }}>
+      <div className="mx-auto flex min-h-[calc(100dvh-1.5rem)] max-w-[1540px] overflow-hidden rounded-[20px] border border-[#e4e7ec] bg-white shadow-[0_16px_55px_rgba(15,23,42,0.08)] sm:min-h-[calc(100dvh-2.5rem)]">
         <motion.section
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="flex min-h-0 w-full items-center justify-center overflow-hidden bg-white px-6 py-5 lg:w-[48%] lg:px-12 xl:px-20"
+          className="flex w-full items-center justify-center bg-white px-6 py-8 lg:w-[48%] lg:px-12 xl:px-20"
         >
           <div className="w-full max-w-[520px]">
             <div className="mb-8 flex items-center gap-4">
@@ -70,10 +83,9 @@ export default function LoginPage() {
                     placeholder="yourname@foe.sjp.ac.lk"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white dark:bg-white pl-12 pr-4 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
-                  <Lock aria-hidden="true" className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#596079]" />
                 </div>
               </div>
 
@@ -85,10 +97,10 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
-                    placeholder="Enter your LMS password"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
+                    className="h-[52px] rounded-lg border-[#d7dbe4] bg-white dark:bg-white pl-12 pr-12 text-[16px] text-[#111a3a] placeholder:text-[#9299ad] focus-visible:border-[#c81436] focus-visible:ring-[#c81436]/15"
                     required
                   />
                   <button
@@ -102,18 +114,35 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5">
-                  <Checkbox
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked === true)}
-                    className="h-5 w-5 border-[#cfd4df] data-[state=checked]:border-[#c81436] data-[state=checked]:bg-[#c81436]"
-                  />
-                  <label htmlFor="remember" className="cursor-pointer text-[15px] text-[#5d6479]">Remember me</label>
-                </div>
-                <button type="button" className="text-[15px] font-semibold text-[#d11238] transition-colors hover:text-[#aa0e2c]">Forgot password?</button>
+              {/* "Remember me" is gone: its box was never read, and a sign-in
+                  already stays on this device until you sign out. */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  aria-expanded={showReset}
+                  aria-controls="reset-help"
+                  onClick={() => setShowReset((v) => !v)}
+                  className="rounded text-[15px] font-semibold text-[#d11238] transition-colors hover:text-[#aa0e2c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c81436]/30"
+                >
+                  Forgot password?
+                </button>
               </div>
+              {showReset && (
+                <p
+                  id="reset-help"
+                  className="rounded-lg border border-[#d7dbe4] bg-[#f7f8fa] px-4 py-3 text-sm text-[#5d6479]"
+                >
+                  Passwords are reset by the faculty, not here. To ask for
+                  one, email{" "}
+                  <a
+                    href="mailto:support@sjp.ac.lk?subject=PES%20password%20reset"
+                    className="font-semibold text-[#d11238] hover:underline"
+                  >
+                    support@sjp.ac.lk
+                  </a>{" "}
+                  from your university address with your index number.
+                </p>
+              )}
 
               {error && (
                 <div role="alert" className="rounded-lg border border-[#d11238]/20 bg-[#d11238]/[0.06] px-4 py-3 text-sm text-[#b40f30]">
@@ -162,7 +191,7 @@ export default function LoginPage() {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative hidden h-full min-h-0 overflow-hidden lg:block lg:w-[52%]"
+          className="relative hidden overflow-hidden lg:block lg:w-[52%]"
           aria-label="Faculty of Engineering"
         >
           <img src={facultyBuilding} alt="Faculty of Engineering, University of Sri Jayewardenepura" className="absolute inset-0 h-full w-full object-cover object-right" />

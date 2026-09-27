@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { ErrorState, SkeletonRows, StatusBadge } from "../common";
+import { DepartmentBadge, ErrorState, SkeletonRows, StatusBadge } from "../common";
 import { supabase } from "../../../lib/supabase";
 
 interface CourseDetail {
@@ -90,10 +90,17 @@ export function CourseDetailDialog({
           <DialogTitle>
             {detail ? `${detail.course_code} — ${detail.title}` : "Course"}
           </DialogTitle>
-          <DialogDescription>
-            {detail
-              ? `${detail.department} · Semester ${detail.semester} · Year ${detail.year}`
-              : "Loading course details…"}
+          <DialogDescription className="flex flex-wrap items-center gap-2">
+            {detail ? (
+              <>
+                <DepartmentBadge department={detail.department} />
+                <span>
+                  Semester {detail.semester} · Year {detail.year}
+                </span>
+              </>
+            ) : (
+              "Loading course details…"
+            )}
           </DialogDescription>
         </DialogHeader>
 

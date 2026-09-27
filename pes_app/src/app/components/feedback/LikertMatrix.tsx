@@ -57,7 +57,10 @@ export function LikertMatrix({
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="bg-primary text-primary-foreground">
+            {/* A neutral header. In brand red, three of these on a form sat
+                beside the red outlines that mark an unanswered question, and
+                a header read the same as a warning. */}
+            <tr className="bg-muted text-muted-foreground">
               <th className="rounded-l-lg px-3 py-2.5 text-left font-medium">
                 Statement
               </th>
@@ -87,7 +90,7 @@ export function LikertMatrix({
                     "border-b border-border/60 scroll-mt-24",
                     row % 2 === 1 && "bg-muted/40",
                     missing &&
-                      "bg-red-50 outline outline-2 -outline-offset-2 outline-destructive/70 dark:bg-red-500/10",
+                      "bg-danger-bg outline outline-2 -outline-offset-2 outline-danger-fg/60",
                   )}
                 >
                   <td className="px-3 py-2.5 text-foreground">
@@ -135,7 +138,7 @@ export function LikertMatrix({
               className={cn(
                 "scroll-mt-24 rounded-xl border p-3",
                 missing
-                  ? "border-2 border-destructive/70 bg-red-50 dark:bg-red-500/10"
+                  ? "border-2 border-danger-fg/60 bg-danger-bg"
                   : "border-border/70",
               )}
             >

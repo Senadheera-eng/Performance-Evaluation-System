@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   Users,
   BookOpen,
@@ -11,22 +10,24 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
-import { Badge } from "../../components/ui/badge";
 import {
+  ActionCard,
   CourseAttendanceChart,
+  CourseCode,
   EmptyState,
   ErrorState,
+  PageHeader,
+  SectionCard,
+  SkeletonRows,
+  SkeletonStatGrid,
+  StatCard,
+  StatusBadge,
+  gradeTone,
 } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { getAdminOfferings } from "../../../lib/attendanceRegister";
 import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
@@ -206,319 +207,229 @@ export default function AdminDashboard() {
     );
   };
 
-  const statCards = [
-    {
-      title: "Total Students",
-      value: stats.totalStudents,
-      icon: Users,
-      color: "text-blue-600",
-      bg: "bg-blue-100",
-      change: "Registered in system",
-    },
-    {
-      title: "Total Courses",
-      value: stats.totalCourses,
-      icon: BookOpen,
-      color: "text-primary",
-      bg: "bg-primary/10",
-      change: "In course catalogue",
-    },
-    {
-      title: "Courses Running Now",
-      value: stats.coursesRunning,
-      icon: Calendar,
-      color: "text-green-600",
-      bg: "bg-green-100",
-      change: `${stats.activeEnrolments} active enrolment${stats.activeEnrolments === 1 ? "" : "s"}`,
-    },
-    {
-      title: "Avg. Attendance",
-      value: `${stats.avgAttendance}%`,
-      icon: TrendingUp,
-      color: "text-amber-600",
-      bg: "bg-amber-100",
-      change: "Across all courses",
-    },
-  ];
+  /* The overview reports an average of 0 when no lecture has been marked
+     anywhere, which read as a department with nobody attending. Until a
+     course has a recorded lecture there is no average to show. */
+  const attendanceRecorded = courseAttendance.length > 0;
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Admin Dashboard
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Overview of the Faculty of Engineering — {describeAdminScope(student)}.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Admin Dashboard"
+        description={`Overview of ${describeAdminReach(student)}.`}
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, index) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-          >
-            <Card className="border-border">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      {card.title}
-                    </p>
-                    <h3 className="text-2xl font-bold text-foreground mb-1">
-                      {loading ? "..." : card.value}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {card.change}
-                    </p>
-                  </div>
-                  <div className={`p-2 rounded-xl ${card.bg}`}>
-                    <card.icon className={`h-5 w-5 ${card.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Attendance Alerts */}
-      {alerts.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <Card className="border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                  Attendance Alerts
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary"
-                  onClick={() => navigate("/admin/attendance")}
-                >
-                  Manage
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {alerts.map((alert, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-xl bg-destructive/5 border border-destructive/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {alert.studentName}
-                          <span className="text-muted-foreground font-normal">
-                            {" "}
-                            — {alert.regNumber}
-                          </span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {alert.courseCode} · {alert.courseName}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className="bg-destructive/10 text-destructive border-destructive/20">
-                      {alert.percentage}%
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      {/* Headline figures, each opening the page behind it */}
+      {loading ? (
+        <SkeletonStatGrid count={4} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            index={0}
+            label="Total students"
+            value={stats.totalStudents}
+            hint="Registered in the system"
+            icon={Users}
+            tone="info"
+            onClick={() => navigate("/admin/students")}
+          />
+          <StatCard
+            index={1}
+            label="Total courses"
+            value={stats.totalCourses}
+            hint="In the course catalogue"
+            icon={BookOpen}
+            tone="brand"
+            onClick={() => navigate("/admin/courses")}
+          />
+          <StatCard
+            index={2}
+            label="Courses running now"
+            value={stats.coursesRunning}
+            hint={`${stats.activeEnrolments} active enrolment${stats.activeEnrolments === 1 ? "" : "s"}`}
+            icon={Calendar}
+            tone="success"
+            onClick={() => navigate("/admin/enrollment")}
+          />
+          <StatCard
+            index={3}
+            label="Avg. attendance"
+            value={attendanceRecorded ? `${stats.avgAttendance}%` : "—"}
+            hint={attendanceRecorded ? "Across courses with lectures recorded" : "No lectures recorded yet"}
+            icon={TrendingUp}
+            tone={
+              !attendanceRecorded
+                ? "neutral"
+                : stats.avgAttendance < settings.attendanceThreshold
+                  ? "danger"
+                  : stats.avgAttendance < settings.attendancePrewarningThreshold
+                    ? "warning"
+                    : "success"
+            }
+            onClick={() => navigate("/admin/attendance")}
+          />
+        </div>
       )}
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
+      {/* Attendance alerts */}
+      {alerts.length > 0 && (
+        <SectionCard
+          title={`Below ${settings.attendanceThreshold}% attendance`}
+          description="The students furthest below the requirement."
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary/80"
+              onClick={() => navigate("/admin/attendance")}
+            >
+              Manage
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
+          }
+          flush
         >
-          <CourseAttendanceChart
-            title="Course attendance"
-            description="Lowest first — the courses needing attention"
-            data={courseAttendance.map((c) => ({
-              code: c.code,
-              percentage: c.avgAttendance,
-            }))}
-            threshold={settings.attendanceThreshold}
-            prewarning={settings.attendancePrewarningThreshold}
-            awaitingCount={coursesAwaitingAttendance}
-            limit={10}
-            loading={loading}
-          />
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                {
-                  label: "Update Attendance",
-                  description: "Mark present/absent for today's lectures",
-                  icon: Calendar,
-                  color: "bg-blue-100 text-blue-600",
-                  path: "/admin/attendance",
-                },
-                {
-                  label: "Publish Results",
-                  description: "Enter marks and publish to students",
-                  icon: TrendingUp,
-                  color: "bg-green-100 text-green-600",
-                  path: "/admin/results",
-                },
-                {
-                  label: "View Students",
-                  description: "Search and view student records",
-                  icon: Users,
-                  color: "bg-primary/10 text-primary",
-                  path: "/admin/students",
-                },
-                {
-                  label: "Manage Courses",
-                  description: "View and manage course catalogue",
-                  icon: BookOpen,
-                  color: "bg-amber-100 text-amber-600",
-                  path: "/admin/courses",
-                },
-              ].map((action, index) => (
-                <button
-                  key={index}
-                  onClick={() => navigate(action.path)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left"
-                >
-                  <div className={`p-2 rounded-lg ${action.color}`}>
-                    <action.icon className="h-4 w-4" />
-                  </div>
-                  <div>
+          <ul className="divide-y divide-border/70">
+            {alerts.map((alert, index) => (
+              <li key={index} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 text-danger-fg" aria-hidden="true" />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
-                      {action.label}
+                      {alert.studentName}
+                      <span className="font-normal text-muted-foreground"> — {alert.regNumber}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {action.description}
+                      <CourseCode code={alert.courseCode} /> · {alert.courseName}
                     </p>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto" />
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
+                </div>
+                <StatusBadge tone="danger">{alert.percentage}%</StatusBadge>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      )}
+
+      {/* Chart and shortcuts */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <CourseAttendanceChart
+          title="Course attendance"
+          description="Lowest first — the courses needing attention"
+          data={courseAttendance.map((c) => ({
+            code: c.code,
+            percentage: c.avgAttendance,
+          }))}
+          threshold={settings.attendanceThreshold}
+          prewarning={settings.attendancePrewarningThreshold}
+          awaitingCount={coursesAwaitingAttendance}
+          limit={10}
+          loading={loading}
+        />
+
+        <SectionCard title="Quick actions" bodyClassName="space-y-2">
+          <ActionCard
+            index={0}
+            label="Attendance"
+            description="Mark a lecture, or see each student's attendance"
+            icon={Calendar}
+            tone="info"
+            onClick={() => navigate("/admin/attendance")}
+          />
+          <ActionCard
+            index={1}
+            label="Results"
+            description="Review submitted sheets, enter marks and publish"
+            icon={TrendingUp}
+            tone="success"
+            onClick={() => navigate("/admin/results")}
+          />
+          <ActionCard
+            index={2}
+            label="Students"
+            description="Search and view student records"
+            icon={Users}
+            tone="brand"
+            onClick={() => navigate("/admin/students")}
+          />
+          <ActionCard
+            index={3}
+            label="Courses"
+            description="View and manage the course catalogue"
+            icon={BookOpen}
+            tone="neutral"
+            onClick={() => navigate("/admin/courses")}
+          />
+        </SectionCard>
       </div>
 
-      {/* Recent Results */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+      {/* Recently published */}
+      <SectionCard
+        title="Recently published results"
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary/80"
+            onClick={() => navigate("/admin/results")}
+          >
+            Manage results
+            <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+          </Button>
+        }
+        flush
       >
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recently Published Results</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary"
-                onClick={() => navigate("/admin/results")}
-              >
-                Manage Results
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-14 rounded-xl bg-muted animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : recentResultsError ? (
-              <ErrorState
-                message={recentResultsError}
-                onRetry={fetchRecentResults}
-                size="inline"
-              />
-            ) : recentResults.length === 0 ? (
-              <EmptyState
-                icon={Clock}
-                title="No published results yet"
-                description="Results you publish will appear here as soon as they go live."
-                size="inline"
-              />
-            ) : (
-              <div className="space-y-3">
-                {recentResults.map((result) => (
-                  <div
-                    key={result.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 rounded-lg bg-green-100 flex-shrink-0">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {result.studentName}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {result.indexNumber} · {result.regNumber} ·{" "}
-                          {result.courseCode} — {result.courseName}
-                        </p>
-                        {result.publishedAt && (
-                          <p className="text-xs text-muted-foreground/80">
-                            Published{" "}
-                            {new Date(result.publishedAt).toLocaleDateString(
-                              "en-US",
-                              { year: "numeric", month: "short", day: "numeric" },
-                            )}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Badge className="bg-primary/10 text-primary text-base font-bold px-3 flex-shrink-0">
-                      {result.grade}
-                    </Badge>
+        {loading ? (
+          <div className="p-4">
+            <SkeletonRows count={3} height="h-14" />
+          </div>
+        ) : recentResultsError ? (
+          <div className="p-4">
+            <ErrorState message={recentResultsError} onRetry={fetchRecentResults} size="inline" />
+          </div>
+        ) : recentResults.length === 0 ? (
+          <EmptyState
+            icon={Clock}
+            title="No published results yet"
+            description="Results you publish will appear here as soon as they go live."
+            size="inline"
+          />
+        ) : (
+          <ul className="divide-y divide-border/70">
+            {recentResults.map((result) => (
+              <li key={result.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0 text-success-fg" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {result.studentName}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {result.indexNumber} · {result.regNumber} ·{" "}
+                      <CourseCode code={result.courseCode} /> {result.courseName}
+                    </p>
+                    {result.publishedAt && (
+                      <p className="text-xs text-muted-foreground/80">
+                        Published{" "}
+                        {new Date(result.publishedAt).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+                </div>
+                {/* In the grade's own tone, as on the student's Results page;
+                    every grade used to be the same brand red. */}
+                <StatusBadge tone={gradeTone(result.grade)} className="flex-shrink-0 px-3 text-sm font-bold">
+                  {result.grade}
+                </StatusBadge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   );
 }

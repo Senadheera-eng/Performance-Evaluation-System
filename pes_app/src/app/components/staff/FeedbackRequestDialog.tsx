@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { ErrorState, StatusBadge } from "../common";
+import { CourseCode, ErrorState, StatusBadge } from "../common";
 import { describeBatch } from "../../../lib/batch";
 import type { FeedbackQuestion } from "../../../lib/feedbackService";
 import type {
@@ -353,9 +353,7 @@ export function FeedbackRequestDialog({
                         onCheckedChange={() => toggleCourse(o.course_id)}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="text-sm font-semibold text-primary">
-                          {o.course_code}
-                        </span>
+                        <CourseCode code={o.course_code} className="text-sm" />
                         <span className="ml-2 text-sm text-foreground">
                           {o.course_title}
                         </span>

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Input } from "../ui/input";
-import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "../ui/utils";
@@ -45,6 +45,8 @@ interface AppShellProps {
   bottomNavigation?: ShellNavItem[];
   roleBadge?: { label: string; icon: LucideIcon };
   userName: string;
+  /** The signed-in person's photo, if they have set one. */
+  userAvatarUrl?: string | null;
   /** Secondary identity line, e.g. index/reg number or department scope. */
   userMeta: string;
   /** Route treated as the index for active-state matching. */
@@ -75,6 +77,7 @@ export function AppShell({
   bottomNavigation = [],
   roleBadge,
   userName,
+  userAvatarUrl,
   userMeta,
   homeHref,
   headerSubtitle,
@@ -119,9 +122,11 @@ export function AppShell({
       ? location.pathname === homeHref
       : location.pathname.startsWith(href);
 
+  /* Notifications is reached from the bell rather than the menu, so it
+     names itself here; the header used to fall back to "PES" on it. */
   const currentPage =
     [...navigation, ...bottomNavigation].find((n) => isActive(n.href))?.name ??
-    brandTitle;
+    (location.pathname.endsWith("/notifications") ? "Notifications" : brandTitle);
 
   const initials =
     userName
@@ -319,6 +324,9 @@ export function AppShell({
             )}
           >
             <Avatar className="w-8 h-8 flex-shrink-0">
+              {userAvatarUrl && (
+                <AvatarImage src={userAvatarUrl} alt="" className="object-cover" />
+              )}
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {initials}
               </AvatarFallback>
@@ -500,6 +508,9 @@ export function AppShell({
                     className="lg:hidden h-10 w-10 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
                   >
                     <Avatar className="w-7 h-7">
+                      {userAvatarUrl && (
+                        <AvatarImage src={userAvatarUrl} alt="" className="object-cover" />
+                      )}
                       <AvatarFallback className="bg-primary text-primary-foreground text-[11px]">
                         {initials}
                       </AvatarFallback>

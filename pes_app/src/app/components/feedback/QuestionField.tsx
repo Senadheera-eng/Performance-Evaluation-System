@@ -40,7 +40,7 @@ export function QuestionField({
   return (
     <div
       data-missing-answer
-      className="scroll-mt-24 rounded-xl border-2 border-destructive/70 bg-red-50 p-3 dark:bg-red-500/10"
+      className="scroll-mt-24 rounded-xl border-2 border-danger-fg/60 bg-danger-bg p-3"
     >
       {control}
       <MissingHint />
