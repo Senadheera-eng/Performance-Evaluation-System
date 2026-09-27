@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -184,6 +185,7 @@ export default function StaffMentees() {
           index={3}
           label="Attendance Concern"
           value={counts.attendance_concern}
+          hint="Below the attendance requirement"
           icon={CalendarX}
           tone={counts.attendance_concern > 0 ? "info" : "neutral"}
         />
@@ -517,9 +519,7 @@ function MenteeDetail({
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="text-sm font-semibold text-primary">
-                        {c.course_code}
-                      </span>
+                      <CourseCode code={c.course_code} className="text-sm" />
                       <span className="ml-2 text-sm text-foreground">
                         {c.title}
                       </span>

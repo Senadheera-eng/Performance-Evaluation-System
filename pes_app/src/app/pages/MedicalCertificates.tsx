@@ -25,6 +25,7 @@ import {
 } from "../components/ui/select";
 import { cn } from "../components/ui/utils";
 import {
+  CourseCode,
   DepartmentBadge,
   EmptyState,
   ErrorState,
@@ -119,19 +120,6 @@ const formatDate = (value: string) =>
     year: "numeric",
   });
 
-/** A course code in its department's hue, as everywhere else. */
-function CourseCode({ code }: { code: string }) {
-  return (
-    <span
-      className={cn(
-        "text-xs font-semibold tabular-nums flex-shrink-0",
-        departmentByCourseCode(code)?.textClass ?? "text-foreground",
-      )}
-    >
-      {code}
-    </span>
-  );
-}
 
 const daysBetween = (a: Date, b: Date) =>
   Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
@@ -496,7 +484,7 @@ export default function MedicalCertificates() {
                       checked={selectedCourseIds.includes(c.id)}
                       onCheckedChange={() => toggleCourse(c.id)}
                     />
-                    <CourseCode code={c.code} />
+                    <CourseCode code={c.code} className="text-xs" />
                     <span className="truncate text-foreground">{c.title}</span>
                   </label>
                 ))}
@@ -700,7 +688,7 @@ export default function MedicalCertificates() {
                         >
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <CourseCode code={c.code} />
+                              <CourseCode code={c.code} className="text-xs" />
                               <span className="truncate text-xs text-foreground">
                                 {c.title}
                               </span>

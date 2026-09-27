@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -418,9 +419,7 @@ function SemesterRecord({
                         className={superseded ? "opacity-60" : undefined}
                       >
                         <td className="py-1 pr-3">
-                          <span className="font-medium text-primary">
-                            {c.course_code}
-                          </span>{" "}
+                          <CourseCode code={c.course_code} />{" "}
                           <span className="text-muted-foreground">{c.course_title}</span>
                           {satTwice && (
                             <span className="ml-1 text-muted-foreground">

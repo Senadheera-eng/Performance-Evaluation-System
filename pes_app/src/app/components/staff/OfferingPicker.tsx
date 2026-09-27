@@ -151,7 +151,7 @@ export function OfferingPicker({
           semester — a lecturer with three courses in one semester does not
           need a control that can only ever do nothing. */}
       {semestersInBatch.length > 1 && (
-        <label className="flex flex-col gap-1 sm:w-44">
+        <label className="flex flex-col gap-1 sm:w-52">
           <span className="text-xs font-medium text-muted-foreground">
             Semester
           </span>

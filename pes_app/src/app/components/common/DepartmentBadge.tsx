@@ -60,3 +60,29 @@ export function DepartmentDot({
     />
   );
 }
+
+/**
+ * A course code in its department's hue: CO3554 in Computer Engineering's
+ * amber, IS4161 in Interdisciplinary red. The code names the department, so
+ * the colour is a second cue. Falls back to plain text for a code whose
+ * prefix is not a department.
+ */
+export function CourseCode({
+  code,
+  className,
+}: {
+  code: string | null | undefined;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "font-semibold tabular-nums whitespace-nowrap",
+        departmentByCourseCode(code)?.textClass ?? "text-foreground",
+        className,
+      )}
+    >
+      {code}
+    </span>
+  );
+}

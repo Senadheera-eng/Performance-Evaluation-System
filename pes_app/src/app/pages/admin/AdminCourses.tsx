@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Search, BookOpen, Filter, Pencil, Plus } from "lucide-react";
+import { Search, BookOpen, Pencil, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
   CourseEditorDialog,
   type EditableCourse,
 } from "../../components/courses/CourseEditorDialog";
 import { MinorSpecifications } from "../../components/courses/MinorSpecifications";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
-import { SegmentedTabs } from "../../components/common";
+import {
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  SegmentedTabs,
+  SkeletonRows,
+  StatusBadge,
+} from "../../components/common";
+import { cn } from "../../components/ui/utils";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -172,27 +173,19 @@ export function CourseManagement({
 
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-1">
-              Course Management
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {scope.kind === "all"
-                ? "Every course in the faculty catalogue."
-                : `Courses and minors belonging to ${
-                    departmentOverride ?? describeAdminScope(student)
-                  }.`}
-            </p>
-          </div>
-          {/* The catalogue is the department's, but the faculty office owns
-              all of them: row security has always let a super admin write
-              any course, and this page was the one place that did not. */}
+      <PageHeader
+        title="Course Management"
+        description={
+          scope.kind === "all"
+            ? "Every course in the faculty catalogue."
+            : `Courses and minors belonging to ${
+                departmentOverride ?? describeAdminScope(student)
+              }.`
+        }
+        actions={
+          /* The catalogue is the department's, but the faculty office owns
+             all of them: row security has always let a super admin write
+             any course, and this page was the one place that did not. */
           <Button
             onClick={() => {
               setEditing(null);
@@ -202,8 +195,8 @@ export function CourseManagement({
             <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
             New course
           </Button>
-        </div>
-      </motion.div>
+        }
+      />
 
       <SegmentedTabs
         aria-label="Courses view"
@@ -248,200 +241,112 @@ export function CourseManagement({
         )
       ) : (
         <>
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Total Courses",
-            value: courses.length,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "Compulsory",
-            value: courses.filter((c) => c.category === "Compulsory").length,
-            color: "bg-blue-100 text-blue-600",
-          },
-          {
-            label: "Elective",
-            value: courses.filter((c) => c.category === "Elective").length,
-            color: "bg-purple-100 text-purple-600",
-          },
-          {
-            label: "With Minor",
-            value: courses.filter((c) => c.minorCategory !== null).length,
-            color: "bg-green-100 text-green-600",
-          },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: i * 0.1 }}
-            className="bg-card rounded-xl p-3 border border-border shadow-sm"
-          >
-            <div
-              className={`text-xl font-bold mb-1 ${stat.color.split(" ")[1]}`}
-            >
-              {loading ? "..." : stat.value}
-            </div>
-            <div className="text-sm text-muted-foreground">{stat.label}</div>
-          </motion.div>
-        ))}
-      </div>
+      {/* The counts, as a line rather than four cards: they describe the
+          list below, and the category badges on each row already carry
+          them. The cards were four literal colours (blue, purple, green)
+          that meant nothing elsewhere in the system. */}
+      <p className="text-sm text-muted-foreground">
+        {loading ? (
+          "Loading the catalogue…"
+        ) : (
+          <>
+            <strong className="font-semibold text-foreground">{courses.length}</strong> courses ·{" "}
+            {courses.filter((c) => c.category === "Compulsory").length} compulsory ·{" "}
+            {courses.filter((c) => c.category === "Elective").length} elective ·{" "}
+            {courses.filter((c) => c.minorCategory !== null).length} counting toward a minor
+          </>
+        )}
+      </p>
 
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Search and semester filter */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
           <Input
             placeholder="Search by course code or name..."
+            aria-label="Search courses"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 bg-card border-border"
+            className="h-9 border-border bg-card pl-9"
           />
         </div>
-
-        {/* Semester Filter */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <button
-            onClick={() => setFilterSemester("all")}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            style={
-              filterSemester === "all"
-                ? { backgroundColor: "#C41E3A", color: "white" }
-                : {}
-            }
-          >
-            <span
-              className={
-                filterSemester === "all"
-                  ? "text-white"
-                  : "text-muted-foreground"
-              }
-            >
-              All
-            </span>
-          </button>
-          {semesters.map((sem) => (
-            <button
-              key={sem}
-              onClick={() => setFilterSemester(sem)}
-              className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
-              style={
-                filterSemester === sem
-                  ? { backgroundColor: "#C41E3A", color: "white" }
-                  : {}
-              }
-            >
-              <span
-                className={
-                  filterSemester === sem
-                    ? "text-white"
-                    : "text-muted-foreground"
-                }
-              >
-                Sem {sem}
-              </span>
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          aria-label="Filter by semester"
+          layoutId="catalogue-semester-filter"
+          scrollable
+          value={String(filterSemester)}
+          onChange={(v) => setFilterSemester(v === "all" ? "all" : Number(v))}
+          tabs={[
+            { value: "all", label: "All" },
+            ...semesters.map((sem) => ({ value: String(sem), label: `Sem ${sem}` })),
+          ]}
+        />
       </div>
 
-      {/* Course List */}
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle>
-            Courses{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({filtered.length})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="h-16 rounded-xl bg-muted animate-pulse"
-                />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-muted-foreground">No courses found.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((course, index) => (
-                <motion.div
+      <SectionCard
+        title="Courses"
+        description={`${filtered.length} shown`}
+        flush
+      >
+        {loading ? (
+          <div className="p-4">
+            <SkeletonRows count={5} height="h-16" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={BookOpen} title="No courses found" size="inline" />
+        ) : (
+          <ul className="divide-y divide-border/70">
+            {filtered.map((course) => {
+              const dept = departmentByCourseCode(course.code);
+              return (
+                <li
                   key={course.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.02 }}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors"
+                  className={cn(
+                    "flex flex-col gap-2 border-l-4 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+                    dept?.stripeClass ?? "border-l-transparent",
+                  )}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <BookOpen className="h-4 w-4 text-primary" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className={cn(
+                          "text-sm font-semibold tabular-nums",
+                          dept?.textClass ?? "text-foreground",
+                        )}
+                      >
+                        {course.code}
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {course.name}
+                      </span>
+                      {course.minorCategory && (
+                        <StatusBadge tone="info">{course.minorCategory}</StatusBadge>
+                      )}
+                      {!course.contributesToGpa && (
+                        <StatusBadge tone="neutral">Non-GPA</StatusBadge>
+                      )}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-foreground text-sm">
-                          {course.name}
-                        </span>
-                        <Badge className="bg-primary/10 text-primary text-xs">
-                          {course.code}
-                        </Badge>
-                        {course.minorCategory && (
-                          <Badge className="bg-purple-100 text-purple-700 text-xs">
-                            {course.minorCategory}
-                          </Badge>
-                        )}
-                        {!course.contributesToGpa && (
-                          <Badge className="bg-gray-100 text-gray-500 text-xs">
-                            Non-GPA
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Sem {course.semester} · {course.credits} credits ·{" "}
-                        {course.category} · {course.department}
-                      </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Sem {course.semester} · {course.credits} credits ·{" "}
+                      {course.department}
                       {/* How the course is marked, on the row that manages it
                           — the split is a property of the course now, so it
                           belongs where the course is read. */}
-                      <p className="text-xs text-muted-foreground">
-                        CA {Math.round(course.caWeight * 100)}% · ESE{" "}
-                        {Math.round(course.eseWeight * 100)}%
-                      </p>
-                    </div>
+                      {" · "}CA {Math.round(course.caWeight * 100)}% · ESE{" "}
+                      {Math.round(course.eseWeight * 100)}%
+                      {course.enrolledCount > 0 && ` · ${course.enrolledCount} enrolled`}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    {course.enrolledCount > 0 && (
-                      <div className="text-right hidden md:block">
-                        <p className="text-sm font-semibold text-foreground">
-                          {course.enrolledCount}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          enrolled
-                        </p>
-                      </div>
-                    )}
-                    <Badge
-                      className={
-                        course.category === "Compulsory"
-                          ? "bg-blue-100 text-blue-700"
-                          : course.category === "Elective"
-                            ? "bg-purple-100 text-purple-700"
-                            : "bg-gray-100 text-gray-700"
-                      }
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <StatusBadge
+                      tone={course.category === "Compulsory" ? "info" : "neutral"}
                     >
                       {course.category}
-                    </Badge>
+                    </StatusBadge>
                     <Button
                       size="sm"
                       variant="outline"
@@ -449,17 +354,18 @@ export function CourseManagement({
                         setEditing(toEditable(course));
                         setEditorOpen(true);
                       }}
+                      aria-label={`Edit ${course.code}`}
                     >
                       <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                       Edit
                     </Button>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SectionCard>
 
         </>
       )}

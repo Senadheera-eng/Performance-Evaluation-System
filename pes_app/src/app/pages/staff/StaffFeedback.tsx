@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -323,9 +324,7 @@ export default function StaffFeedback() {
                                 className="h-4 w-4 flex-shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                               />
-                              <span className="text-sm font-semibold text-primary">
-                                {c.course_code}
-                              </span>
+                              <CourseCode code={c.course_code} className="text-sm" />
                               <span className="truncate text-sm text-foreground">
                                 {c.course_title}
                               </span>

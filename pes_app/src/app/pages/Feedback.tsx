@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -251,7 +252,7 @@ export default function Feedback() {
                             departmentByCourseCode(c.course_code)?.stripeClass,
                           )}
                         >
-                          <CourseCode code={c.course_code} />
+                          <CourseCode code={c.course_code} className="text-sm" />
                           <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                             {c.course_title}
                           </span>
@@ -286,7 +287,7 @@ export default function Feedback() {
           </DialogHeader>
           {roundsForCourse[0] && (
             <p className="-mt-2 text-sm text-muted-foreground">
-              <CourseCode code={roundsForCourse[0].course_code} />{" "}
+              <CourseCode code={roundsForCourse[0].course_code} className="text-sm" />{" "}
               — {roundsForCourse[0].course_title}
             </p>
           )}
@@ -366,19 +367,6 @@ export default function Feedback() {
   );
 }
 
-/** A course code in its department's hue, as on every other page. */
-function CourseCode({ code }: { code: string }) {
-  return (
-    <span
-      className={cn(
-        "text-sm font-semibold tabular-nums whitespace-nowrap",
-        departmentByCourseCode(code)?.textClass ?? "text-foreground",
-      )}
-    >
-      {code}
-    </span>
-  );
-}
 
 function StepHeading({ number, title }: { number: number; title: string }) {
   return (
@@ -545,7 +533,7 @@ function FeedbackFormView({
       {/* Course header — auto-filled, exactly as the faculty's form shows it */}
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <CourseCode code={row.course_code} />
+          <CourseCode code={row.course_code} className="text-sm" />
           <span className="text-base font-semibold text-foreground">
             {row.course_title}
           </span>
