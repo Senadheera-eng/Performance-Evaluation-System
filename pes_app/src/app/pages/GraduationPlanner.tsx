@@ -25,7 +25,9 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent } from "../components/ui/tabs";
-import { SegmentedTabs } from "../components/common";
+import { SegmentedTabs, StatusBadge } from "../components/common";
+import { cn } from "../components/ui/utils";
+import { departmentByCourseCode } from "../../lib/departments";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useSettings, getSettings } from "../../lib/settings";
@@ -297,7 +299,7 @@ export default function GraduationPlanner() {
       <Card className="border-border">
         <CardContent className="p-3">
           <p className="text-sm text-muted-foreground">Best Possible CGPA</p>
-          <p className="text-xl font-bold text-green-600">
+          <p className="text-xl font-bold text-success-fg">
             {bestPossibleCgpa.toFixed(2)}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -330,13 +332,13 @@ export default function GraduationPlanner() {
                 </Badge>
               </div>
               {p.alreadySecured ? (
-                <p className="text-sm text-green-600 mt-1 flex items-center gap-1">
+                <p className="text-sm text-success-fg mt-1 flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Already secured — even a 0.00 average in your remaining{" "}
                   {p.remainingCredits} credits keeps you above this
                 </p>
               ) : !p.feasible ? (
-                <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
+                <p className="text-sm text-danger-fg mt-1 flex items-center gap-1">
                   <XCircle className="h-3.5 w-3.5" />
                   No longer mathematically possible (would require above 4.00
                   GPA)
@@ -350,17 +352,13 @@ export default function GraduationPlanner() {
             </div>
             <div className="text-right">
               {p.alreadySecured ? (
-                <Badge className="bg-green-100 text-green-700">Secured</Badge>
+                <StatusBadge tone="success" dot>Secured</StatusBadge>
               ) : !p.feasible ? (
-                <Badge className="bg-red-100 text-red-700">
-                  Not achievable
-                </Badge>
+                <StatusBadge tone="danger" dot>Not achievable</StatusBadge>
               ) : p.requiredAvg >= 3.8 ? (
-                <Badge className="bg-amber-100 text-amber-800">
-                  Challenging
-                </Badge>
+                <StatusBadge tone="warning" dot>Challenging</StatusBadge>
               ) : (
-                <Badge className="bg-blue-100 text-blue-700">On track</Badge>
+                <StatusBadge tone="info" dot>On track</StatusBadge>
               )}
             </div>
           </div>
@@ -401,7 +399,7 @@ export default function GraduationPlanner() {
       ) : remainingCredits === 0 && activeTab === "standing" ? (
         <Card className="border-border">
           <CardContent className="p-8 text-center">
-            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
+            <CheckCircle2 className="h-12 w-12 text-success-fg mx-auto mb-3" />
             <h3 className="text-lg font-semibold text-foreground">
               You've completed the required {TOTAL_CREDITS_REQUIRED} credits
             </h3>
@@ -471,17 +469,14 @@ export default function GraduationPlanner() {
                         <span className="font-medium text-foreground text-sm">
                           {c.label}
                         </span>
-                        <Badge
-                          className={
-                            proj.alreadySecured
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }
+                        <StatusBadge
+                          tone={proj.alreadySecured ? "success" : "danger"}
+                          dot
                         >
                           {proj.alreadySecured
                             ? "Already secured"
                             : "Not achievable"}
-                        </Badge>
+                        </StatusBadge>
                       </div>
                     );
                   }
@@ -508,8 +503,8 @@ export default function GraduationPlanner() {
                   );
                 })}
 
-                <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="text-xs text-blue-900">
+                <div className="p-2.5 rounded-lg bg-info-bg border border-info-border">
+                  <p className="text-xs text-info-fg">
                     The same SGPA target applies to every remaining semester by
                     design — since your final CGPA is a credit-weighted average
                     across all of them, sustaining one consistent rate reaches
@@ -527,11 +522,11 @@ export default function GraduationPlanner() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-3 rounded-xl bg-purple-50 border border-purple-200 flex items-start justify-between gap-3 flex-wrap"
+              className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start justify-between gap-3 flex-wrap"
             >
               <div className="flex gap-2.5">
-                <FlaskConical className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-purple-900">
+                <FlaskConical className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-foreground">
                   Change any past module's grade below to see how it would have
                   affected your SGPA, CGPA, and what you'd need going forward.
                   This is a sandbox only —{" "}
@@ -582,17 +577,11 @@ export default function GraduationPlanner() {
                         <h4 className="font-semibold text-foreground">
                           Semester {group.semester}
                         </h4>
-                        <Badge
-                          className={
-                            changed
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-muted text-muted-foreground"
-                          }
-                        >
+                        <StatusBadge tone={changed ? "brand" : "neutral"}>
                           SGPA: {semStanding?.sgpa.toFixed(2) ?? "0.00"}
                           {changed &&
                             ` (was ${actualSemStanding!.sgpa.toFixed(2)})`}
-                        </Badge>
+                        </StatusBadge>
                       </div>
                       <div className="space-y-2">
                         {group.courses.map((c) => {
@@ -605,16 +594,21 @@ export default function GraduationPlanner() {
                             <div
                               key={c.resultRowId}
                               className={`flex items-center justify-between p-2.5 rounded-lg ${
-                                isChanged ? "bg-purple-50" : "bg-muted/30"
+                                isChanged
+                                  ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
+                                  : "bg-muted/30"
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs flex-shrink-0"
+                                <span
+                                  className={cn(
+                                    "text-xs font-semibold tabular-nums flex-shrink-0",
+                                    departmentByCourseCode(c.code)?.textClass ??
+                                      "text-foreground",
+                                  )}
                                 >
                                   {c.code}
-                                </Badge>
+                                </span>
                                 <span className="text-sm text-foreground truncate">
                                   {c.title}
                                 </span>
@@ -631,7 +625,10 @@ export default function GraduationPlanner() {
                                   }))
                                 }
                               >
-                                <SelectTrigger className="w-24 h-8">
+                                <SelectTrigger
+                                  className="w-24 h-8"
+                                  aria-label={`Grade for ${c.code}`}
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
