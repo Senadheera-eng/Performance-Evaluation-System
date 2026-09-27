@@ -53,6 +53,8 @@ export function PersonAvatar({
         // Initials sit on the department's tint; a photo has no colour of
         // its own, so it wears a ring in the department's hue instead.
         showPhoto ? dept?.ringClass : (dept?.chipClass ?? "bg-primary/10 text-primary"),
+        // A large photo gets a bolder ring, set off from the card.
+        showPhoto && dept && (size === "lg" || size === "xl") && "ring-[3px] ring-offset-2 ring-offset-card",
         className,
       )}
       aria-hidden="true"
