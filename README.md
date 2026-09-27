@@ -91,7 +91,7 @@ React app (Vite, hosted on Vercel)
       ▼
 Supabase
   ├── Auth          email + password
-  ├── PostgREST     tables and ~290 RPC functions over HTTP
+  ├── PostgREST     tables and ~170 RPC functions over HTTP
   ├── PostgreSQL    the data and every access rule (row level security)
   ├── Storage       avatars (public); medical-certificates, mentor-attachments, notice-attachments (private)
   ├── Realtime      mentor chat
