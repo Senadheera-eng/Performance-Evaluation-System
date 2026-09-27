@@ -3,7 +3,8 @@ import jsQR from "jsqr";
 import { Camera, CheckCircle2, Keyboard, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { ErrorState, SectionCard, StatusBadge } from "../common";
+import { CourseCode, ErrorState, SectionCard, StatusBadge } from "../common";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { supabase } from "../../../lib/supabase";
 import { getDeviceId } from "../../../lib/deviceId";
 
@@ -283,13 +284,13 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
           {sessions.map((s) => (
             <li
               key={s.session_id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5"
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-3 py-2.5 ${
+                departmentByCourseCode(s.course_code)?.rowClass ?? ""
+              }`}
             >
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-primary">
-                    {s.course_code}
-                  </span>
+                  <CourseCode code={s.course_code} className="text-sm" />
                   <span className="truncate text-sm text-foreground">
                     {s.course_title}
                   </span>

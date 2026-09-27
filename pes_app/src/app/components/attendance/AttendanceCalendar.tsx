@@ -18,7 +18,7 @@ import {
 import { Calendar } from "../ui/calendar";
 import { Button } from "../ui/button";
 import { cn } from "../ui/utils";
-import { SectionCard, StatusBadge } from "../common";
+import { CourseCode, SectionCard, StatusBadge } from "../common";
 import type { StatusTone } from "../common/StatusBadge";
 
 export interface AttendanceRecord {
@@ -109,7 +109,11 @@ export function AttendanceCalendar({
   return (
     <SectionCard
       title="Attendance Calendar"
-      description={`${courseCode} — ${courseName}`}
+      description={
+        <>
+          <CourseCode code={courseCode} /> — {courseName}
+        </>
+      }
       flush
       actions={
         <div className="flex items-center gap-1.5">
