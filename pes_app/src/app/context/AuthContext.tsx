@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: admin.role,
           status: admin.status,
           created_at: admin.created_at,
+          avatar_url: admin.avatar_url ?? null,
         } as Student,
         staff: null,
       };
