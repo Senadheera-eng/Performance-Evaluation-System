@@ -19,6 +19,7 @@ import type {
   FeedbackRequestDraft,
   TeachingOffering,
 } from "../../../lib/staffService";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 const TYPE_LABEL: Record<string, string> = {
   rating: "Rating 1–5",
@@ -347,7 +348,15 @@ export function FeedbackRequestDialog({
               <ul className="divide-y divide-border/70 rounded-xl border border-border/70">
                 {(selected?.offerings ?? []).map((o) => (
                   <li key={o.offering_id}>
-                    <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
+                    <label
+                      className={`flex cursor-pointer items-center gap-3 border-l-4 px-3 py-2.5 transition-colors ${
+                        departmentByCourseCode(o.course_code)?.stripeClass ?? "border-l-transparent"
+                      } ${
+                        courseIds.includes(o.course_id)
+                          ? (departmentByCourseCode(o.course_code)?.softClass ?? "bg-muted")
+                          : "hover:bg-muted/50"
+                      }`}
+                    >
                       <Checkbox
                         checked={courseIds.includes(o.course_id)}
                         onCheckedChange={() => toggleCourse(o.course_id)}

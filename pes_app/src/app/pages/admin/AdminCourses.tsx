@@ -318,8 +318,9 @@ export function CourseManagement({
                 <li
                   key={course.id}
                   className={cn(
-                    "flex flex-col gap-2 border-l-4 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+                    "flex flex-col gap-2 border-l-4 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-4",
                     dept?.stripeClass ?? "border-l-transparent",
+                    dept?.hoverClass ?? "hover:bg-muted/40",
                   )}
                 >
                   <div className="min-w-0">

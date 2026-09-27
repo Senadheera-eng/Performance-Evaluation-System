@@ -11,6 +11,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -19,6 +20,7 @@ import {
   StatCard,
   StatusBadge,
 } from "../../components/common";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { LectureRegister } from "../../components/attendance/LectureRegister";
 import { supabase } from "../../../lib/supabase";
@@ -413,7 +415,13 @@ export default function StaffAttendance() {
           </div>
 
           <SectionCard
-            title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
+            title={
+              <>
+                <CourseCode code={selected.course_code} /> — {selected.course_title} ·{" "}
+                {describeBatch(selected.batch_year)}
+              </>
+            }
+            className={`border-l-4 ${departmentByCourseCode(selected.course_code)?.stripeClass ?? ""}`}
             description={`${rows.length} students · ${date}`}
             actions={
               <div className="flex gap-2">

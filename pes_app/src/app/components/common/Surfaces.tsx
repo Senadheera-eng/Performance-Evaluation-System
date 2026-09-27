@@ -9,7 +9,7 @@ import { StatusBadge, type StatusTone } from "./StatusBadge";
 /* ------------------------------------------------------------------ */
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   /** Primary action(s) for this page, right-aligned on desktop. */
   actions?: React.ReactNode;
