@@ -7,6 +7,7 @@
 export { StatusBadge, gradeTone, type StatusTone } from "./StatusBadge";
 export { CourseCode, DepartmentBadge, DepartmentDot } from "./DepartmentBadge";
 export { DepartmentSelect } from "./DepartmentSelect";
+export { DepartmentChips } from "./DepartmentChips";
 export { CourseSelect, type CourseSelectOption } from "./CourseSelect";
 export { PersonAvatar, initialsOf } from "./PersonAvatar";
 export {

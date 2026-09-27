@@ -32,6 +32,7 @@ import { getAdminOfferings } from "../../../lib/attendanceRegister";
 import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
 import { courseRowClass } from "../../../lib/departments";
+import { DepartmentBreakdown } from "../../components/admin/DepartmentBreakdown";
 
 interface DashboardStats {
   totalStudents: number;
@@ -271,6 +272,10 @@ export default function AdminDashboard() {
           />
         </div>
       )}
+
+      {/* The whole faculty at a glance, one row per department in its
+          colour. A department admin's dashboard is one department already. */}
+      {scope.kind === "all" && <DepartmentBreakdown />}
 
       {/* Attendance alerts */}
       {alerts.length > 0 && (
