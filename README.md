@@ -33,7 +33,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 ### Students
 - **Dashboard** — CGPA, credits, attendance, recent results, and insights (attendance risk, GPA change, deadlines, open enrolment windows)
 - **Attendance** — per delivery, against the 80% threshold with an 85% early warning; check in to a live lecture by QR or typed code
-- **Results** — published grades and GPA; the raw exam mark is never shown, and nothing is visible before the head of department publishes
+- **Results** — published grades and GPA; the raw exam mark is never shown, and nothing is visible before the department publishes
 - **Enrolment** — the semester's modules as Handbook baskets, plus outstanding R / F / L modules to repeat
 - **Graduation Planner** — credits and baskets still owed, and the average needed for each class of honours
 - **Medical certificates** — upload against specific modules within the 14-day window; each module is reviewed separately
@@ -44,15 +44,15 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 
 ### Lecturers and heads of department
 - Live attendance sessions with a rotating code, optional geofence and mid-lecture presence checks
-- Result entry as a draft, submission to the head of department, and publication by the head only
+- Result entry as a draft, then submission to the department, which publishes or returns the sheet (the lecturer never publishes)
 - Feedback rounds requested per course, with a per-course form editor and analytics once responses exist
 - Mentees with an academic overview and private notes the student can never see
 - Result sheets and feedback reports exported to PDF, and results imported from Excel
 
 ### Department and faculty administrators
 - Manual attendance registers, result review and grade correction (the original grade is kept)
-- Enrolment windows, the course catalogue and minors, HOD appointments
-- Medical certificate review, feedback round approval, notices, and department-wide dashboards
+- The course catalogue and minors; enrolment windows and HOD appointments are the super admin's, and department offices watch enrolment read-only
+- Medical certificate review, feedback rounds (create, open, close, and approve lecturers' requests), notices, and department-wide dashboards
 
 ---
 
@@ -187,8 +187,8 @@ Accounts are created by administrators; there is no self-registration.
 Taken from the **Faculty Handbook 2026** and stored in `system_settings`, so they can change without a redeploy:
 
 - **Attendance** — 80% minimum per delivery, early warning below 85%; excused absences count as present
-- **Grading** — A+ from 85 down to C from 45; GPV A+/A 4.0 … C 2.0; F, R and L carry 0
-- **Overall mark** — CA 30% / ESE 70% by default, with each course carrying its own weights
+- **Grading** — the examiners award the grade and it is entered on the sheet beside the Mid-Sem and CA marks; the grade point follows from the grade (A+/A 4.0 … C 2.0; F, R and L carry 0) and is derived by the database, never typed
+- **Course weights** — each course records its CA / ESE split (30% / 70% by default); the mark boundaries (A+ from 85 … C from 45) are kept in settings
 - **Repeats** — R re-sits the exam, F repeats the course, both capped at C; L (approved medical) is uncapped; a repeated course counts once
 - **Graduation** — 144 credits over 8 semesters; First Class from 3.70, Second Upper 3.30, Second Lower 3.00
 - **Medical certificates** — 14-day submission window
