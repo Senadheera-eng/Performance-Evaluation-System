@@ -119,9 +119,11 @@ export function AppShell({
       ? location.pathname === homeHref
       : location.pathname.startsWith(href);
 
+  /* Notifications is reached from the bell rather than the menu, so it
+     names itself here; the header used to fall back to "PES" on it. */
   const currentPage =
     [...navigation, ...bottomNavigation].find((n) => isActive(n.href))?.name ??
-    brandTitle;
+    (location.pathname.endsWith("/notifications") ? "Notifications" : brandTitle);
 
   const initials =
     userName
