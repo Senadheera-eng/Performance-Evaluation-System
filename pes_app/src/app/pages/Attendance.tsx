@@ -27,6 +27,7 @@ import {
   SkeletonStatGrid,
   StatCard,
   StatusBadge,
+  DepartmentDot,
   type StatusTone,
 } from "../components/common";
 import { SignInToLecture } from "../components/attendance/SignInToLecture";
@@ -45,6 +46,7 @@ import {
   type HistoryRecord,
 } from "../components/attendance/AttendanceHistoryList";
 import { useAuth } from "../context/AuthContext";
+import { departmentByCourseCode } from "../../lib/departments";
 import { useSettings } from "../../lib/settings";
 import {
   type AttendanceCounts,
@@ -302,7 +304,12 @@ export default function Attendance() {
           {loading ? (
             <Skeleton className="h-[52px] w-full" />
           ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-border bg-card px-4 py-3">
+            <div
+              className={cn(
+                "flex flex-col sm:flex-row sm:items-center gap-2 rounded-xl border border-border border-l-4 bg-card px-4 py-3",
+                departmentByCourseCode(selectedCourse?.course_code)?.stripeClass,
+              )}
+            >
               <label
                 htmlFor="attendance-course-select"
                 className="flex items-center gap-2 text-sm font-medium text-foreground sm:w-36 flex-shrink-0"
@@ -321,10 +328,19 @@ export default function Attendance() {
                   <SelectValue placeholder="Select a course" />
                 </SelectTrigger>
                 <SelectContent>
-                  {deliveries.map((d) => (
-                    <SelectItem key={d.delivery_key} value={d.delivery_key}>
+                  {deliveries.map((d) => {
+                    const dept = departmentByCourseCode(d.course_code);
+                    return (
+                    <SelectItem
+                      key={d.delivery_key}
+                      value={d.delivery_key}
+                      className={dept?.optionClass}
+                    >
                       <span className="flex items-center gap-2">
-                        <span className="font-medium">{deliveryLabel(d)}</span>
+                        {dept && <DepartmentDot dept={dept} className="h-2.5 w-2.5" />}
+                        <span className={cn("font-semibold", dept?.textClass)}>
+                          {deliveryLabel(d)}
+                        </span>
                         <span className="text-muted-foreground truncate">
                           {d.title}
                         </span>
@@ -335,7 +351,8 @@ export default function Attendance() {
                         )}
                       </span>
                     </SelectItem>
-                  ))}
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
