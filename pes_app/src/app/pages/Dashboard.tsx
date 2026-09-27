@@ -74,7 +74,16 @@ export default function Dashboard() {
   const [recentResults, setRecentResults] = useState<RecentResult[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const firstName = student?.name?.split(" ")[0] ?? "Student";
+  /* The surname, which is the last word of the name as the faculty records
+     it ("KONARA MUDIYANSELAGE LAHIRU NIRMAL SENADHEERA" → "Senadheera").
+     The first word is usually a family or clan name shared by many, so it
+     was not the name a student goes by. Names are stored in capitals, so it
+     is shown in ordinary case rather than shouted. */
+  const surname = (() => {
+    const last = student?.name?.trim().split(/\s+/).pop();
+    if (!last) return "Student";
+    return last.charAt(0).toUpperCase() + last.slice(1).toLowerCase();
+  })();
 
   useEffect(() => {
     if (!student?.id) return;
@@ -267,7 +276,7 @@ export default function Dashboard() {
         transition={{ duration: 0.4 }}
       >
         <h1 className="text-2xl font-bold text-foreground mb-1">
-          Welcome Back, {firstName}! 👋
+          Welcome Back, {surname}! 👋
         </h1>
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-muted-foreground text-sm">
