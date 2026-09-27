@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import {
+  CourseSelect,
   DepartmentSelect,
   EmptyState,
   ErrorState,
@@ -55,7 +56,11 @@ import {
   type NoticeDraft,
   type PublishingScope,
 } from "../../lib/notices";
-import { departmentByCourseCode, departmentStripeClass } from "../../lib/departments";
+import {
+  departmentByCourseCode,
+  departmentByName,
+  departmentStripeClass,
+} from "../../lib/departments";
 
 interface OfferingOption {
   offering_id: string;
@@ -247,9 +252,13 @@ export default function ManageNotices() {
             {visible.map((n) => (
               <li
                 key={n.id}
-                className={`flex flex-wrap items-center gap-2 px-4 py-3 ${departmentStripeClass(
+                className={`flex flex-wrap items-center gap-2 px-4 py-3 transition-colors ${departmentStripeClass(
                   n.department ?? departmentByCourseCode(n.course_code)?.name,
-                )}`}
+                )} ${
+                  departmentByName(n.department)?.hoverClass ??
+                  departmentByCourseCode(n.course_code)?.hoverClass ??
+                  "hover:bg-muted/40"
+                }`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -577,19 +586,15 @@ function NoticeForm({
           {forLecturer ? (
             <div className="sm:col-span-2">
               <Field label="Course">
-                <select
+                <CourseSelect
                   value={offeringId}
-                  onChange={(e) => setOfferingId(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-                >
-                  <option value="">Choose a course...</option>
-                  {offerings.map((o) => (
-                    <option key={o.offering_id} value={o.offering_id}>
-                      {o.course_code} — {o.course_title} ·{" "}
-                      {describeBatch(o.batch_year)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setOfferingId}
+                  options={offerings.map((o) => ({
+                    value: o.offering_id,
+                    code: o.course_code,
+                    detail: `${o.course_title} · ${describeBatch(o.batch_year)}`,
+                  }))}
+                />
               </Field>
             </div>
           ) : (
@@ -610,18 +615,16 @@ function NoticeForm({
               </Field>
 
               <Field label="Course (optional)">
-                <select
+                <CourseSelect
                   value={offeringId}
-                  onChange={(e) => setOfferingId(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-                >
-                  <option value="">Not course-specific</option>
-                  {offerings.map((o) => (
-                    <option key={o.offering_id} value={o.offering_id}>
-                      {o.course_code} · {describeBatch(o.batch_year)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setOfferingId}
+                  noneLabel="Not course-specific"
+                  options={offerings.map((o) => ({
+                    value: o.offering_id,
+                    code: o.course_code,
+                    detail: describeBatch(o.batch_year),
+                  }))}
+                />
               </Field>
             </>
           )}

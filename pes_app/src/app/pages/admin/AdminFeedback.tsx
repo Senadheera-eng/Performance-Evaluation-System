@@ -60,7 +60,7 @@ import {
   AdminFeedbackPeriod,
   FeedbackQuestion,
 } from "../../../lib/feedbackService";
-import { departmentStripeClass } from "../../../lib/departments";
+import { departmentByCourseCode, departmentStripeClass } from "../../../lib/departments";
 
 
 const QUESTION_TYPE_LABEL: Record<string, string> = {
@@ -810,7 +810,9 @@ function PeriodCard({
                                     onSelect={() =>
                                       editable && toggleCourse(c.id)
                                     }
-                                    className="cursor-pointer"
+                                    className={`cursor-pointer border-l-4 ${
+                                      departmentByCourseCode(c.code)?.stripeClass ?? "border-l-transparent"
+                                    } ${departmentByCourseCode(c.code)?.commandClass ?? ""}`}
                                   >
                                     <Checkbox
                                       checked={isSelected}
@@ -838,7 +840,9 @@ function PeriodCard({
                         return (
                           <Badge
                             key={id}
-                            className="bg-primary/10 text-primary text-xs flex items-center gap-1"
+                            className={`text-xs flex items-center gap-1 ${
+                              departmentByCourseCode(c.code)?.chipClass ?? "bg-primary/10 text-primary"
+                            }`}
                           >
                             {c.code}
                             {editable && (
