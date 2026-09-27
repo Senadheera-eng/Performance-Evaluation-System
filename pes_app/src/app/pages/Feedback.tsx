@@ -238,8 +238,9 @@ export default function Feedback() {
                             setChosenType(null);
                           }}
                           className={cn(
-                            "flex w-full items-center gap-3 rounded-xl border border-l-4 border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                            "flex w-full items-center gap-3 rounded-xl border border-l-4 border-border bg-card px-4 py-3 text-left transition-colors",
                             departmentByCourseCode(c.course_code)?.stripeClass,
+                            departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50",
                           )}
                         >
                           <CourseCode code={c.course_code} className="text-sm" />
@@ -521,7 +522,12 @@ function FeedbackFormView({
       <BackButton onBack={onBack} />
 
       {/* Course header — auto-filled, exactly as the faculty's form shows it */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div
+        className={cn(
+          "rounded-xl border border-l-4 border-border bg-card p-4",
+          departmentByCourseCode(row.course_code)?.stripeClass,
+        )}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <CourseCode code={row.course_code} className="text-sm" />
           <span className="text-base font-semibold text-foreground">
