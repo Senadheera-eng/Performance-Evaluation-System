@@ -85,8 +85,11 @@ export default function StaffLayout() {
 
   return (
     <AppShell
-      brandTitle={caps.isHod ? "PES Department" : "PES Staff"}
-      brandSubtitle={caps.isHod ? "Head of Department" : "Lecturer Portal"}
+      /* The system's name, as on the student portal. The role is the
+         badge just below, which said "Head of Department" a second time
+         when it was the subtitle too. */
+      brandTitle="PES"
+      brandSubtitle="Performance Evaluation System"
       navigation={withBadges(navigation, counts)}
       roleBadge={{
         label: caps.isHod ? "Head of Department" : "Lecturer",

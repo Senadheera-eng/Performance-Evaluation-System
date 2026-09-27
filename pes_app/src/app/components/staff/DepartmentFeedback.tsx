@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   SectionCard,
@@ -306,9 +307,7 @@ export function DepartmentFeedback() {
                       )}
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">
-                            {r.course_code}
-                          </span>
+                          <CourseCode code={r.course_code} className="text-sm" />
                           <span className="truncate text-sm text-foreground">
                             {r.course_title}
                           </span>
