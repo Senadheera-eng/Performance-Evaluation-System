@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../../lib/format";
 import { CourseCode, EmptyState, StatusBadge } from "../../components/common";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -41,7 +42,7 @@ import { FeedbackApprovals } from "../../components/admin/FeedbackApprovals";
 import { QuestionEditorDialog } from "../../components/admin/QuestionEditorDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { useSettings } from "../../../lib/settings";
 import {
@@ -104,7 +105,7 @@ function StudentVisibility({
         ? "Closed — students can no longer fill this in"
         : "Not open yet — students cannot see this";
   } else if (now < opens) {
-    message = `Opens ${new Date(period.opens_at).toLocaleString()} — students cannot see it yet`;
+    message = `Opens ${formatDateTime(period.opens_at)} — students cannot see it yet`;
   } else if (now > closes) {
     message = `The window closed ${new Date(period.closes_at).toLocaleDateString()} — students can no longer see it`;
   } else {
@@ -149,7 +150,7 @@ export default function AdminFeedback() {
           Course Feedback
         </h1>
         <p className="text-muted-foreground text-sm">
-          Feedback rounds for {describeAdminScope(admin)} — create one, let its
+          Feedback rounds for {describeAdminReach(admin)} — create one, let its
           lecturers shape their own course forms, open it, then close it.
         </p>
       </motion.div>
@@ -706,8 +707,8 @@ function PeriodCard({
               </span>
             </p>
             <p className="text-xs text-muted-foreground">
-              {new Date(period.opens_at).toLocaleString()} →{" "}
-              {new Date(period.closes_at).toLocaleString()}
+              {formatDateTime(period.opens_at)} →{" "}
+              {formatDateTime(period.closes_at)}
             </p>
             <StudentVisibility period={period} />
           </div>

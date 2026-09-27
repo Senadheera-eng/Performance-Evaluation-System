@@ -11,3 +11,16 @@ export function formatRegNumber(
     ? regNumber.toUpperCase()
     : `EN${regNumber}`;
 }
+
+/** "21 Sept 2026, 8:20 am": a window's opening or closing time, without the
+ *  seconds and in the day-month order the rest of the system uses. */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}

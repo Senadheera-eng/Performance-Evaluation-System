@@ -67,6 +67,9 @@ export function CourseManagement({
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSemester, setFilterSemester] = useState<number | "all">("all");
+  /* The super admin sees every department's catalogue, 200-odd courses;
+     this narrows it to one. A department admin has only their own. */
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
   /* Which department's minors a super admin is editing. */
   const [minorsDepartment, setMinorsDepartment] = useState("");
   const [loading, setLoading] = useState(true);
@@ -152,7 +155,9 @@ export function CourseManagement({
       c.code.toLowerCase().includes(searchQuery.toLowerCase());
     const matchSemester =
       filterSemester === "all" || c.semester === filterSemester;
-    return matchSearch && matchSemester;
+    const matchDepartment =
+      filterDepartment === "all" || c.department === filterDepartment;
+    return matchSearch && matchSemester && matchDepartment;
   });
 
   /* Course-owning departments, taken from the catalogue itself rather than
@@ -258,8 +263,23 @@ export function CourseManagement({
         )}
       </p>
 
-      {/* Search and semester filter */}
+      {/* Search, department (super admin) and semester filters */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        {scope.kind === "all" && (
+          <select
+            aria-label="Filter by department"
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground lg:w-64"
+          >
+            <option value="all">All departments</option>
+            {departments.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"

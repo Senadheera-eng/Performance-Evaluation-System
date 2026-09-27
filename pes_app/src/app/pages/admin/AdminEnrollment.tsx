@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../../lib/format";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -252,6 +253,7 @@ export default function AdminEnrollment() {
           value={activeTab}
           onChange={(v) => setActiveTab(v as TabValue)}
           layoutId="enrollment-period-tabs"
+          scrollable
           tabs={TABS.map((t) => ({
             value: t.value,
             label: t.label,
@@ -324,8 +326,8 @@ export default function AdminEnrollment() {
                       · Sem {p.semester} · {p.academic_year}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(p.opens_at).toLocaleString()} →{" "}
-                      {new Date(p.closes_at).toLocaleString()}
+                      {formatDateTime(p.opens_at)} →{" "}
+                      {formatDateTime(p.closes_at)}
                     </p>
                     {p.instructions && (
                       <p className="text-xs text-foreground mt-1 max-w-md">
