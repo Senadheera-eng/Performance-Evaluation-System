@@ -149,6 +149,39 @@
   --status-neutral-fg: #4B5563;
   --status-neutral-border: #E5E7EB;
 
+  /**
+   * Department identity, from the Faculty Handbook 2026: each department's
+   * pages carry its own colour (Civil light blue, Computer amber, Electrical
+   * purple, Mechanical navy, Interdisciplinary cream).
+   *
+   * Three shades per department, because the Handbook colours were chosen
+   * for print and several are too light to read on a white screen:
+   *   --dept-*        the Handbook colour, for stripes and dots only
+   *   --dept-*-fg     same hue, dark enough for text (WCAG AA on white)
+   *   --dept-*-soft   a tint for chip backgrounds
+   * Interdisciplinary's cream is invisible on white, so its swatch is the
+   * nearest visible gold and the cream becomes its soft tint.
+   *
+   * Identity only: department colour marks WHOSE a course or person is.
+   * It never carries status (that is the --status-* set) and never marks an
+   * action (that is --primary), so the two systems cannot be confused.
+   */
+  --dept-ce: #73CDE2;
+  --dept-ce-fg: #0B6478;
+  --dept-ce-soft: #E8F7FB;
+  --dept-co: #FFBD58;
+  --dept-co-fg: #8A4B00;
+  --dept-co-soft: #FFF4E0;
+  --dept-ee: #914486;
+  --dept-ee-fg: #7E3A74;
+  --dept-ee-soft: #F6EAF4;
+  --dept-me: #0F0F87;
+  --dept-me-fg: #0F0F87;
+  --dept-me-soft: #E8E8F6;
+  --dept-is: #D9CB6A;
+  --dept-is-fg: #6B5E12;
+  --dept-is-soft: #FFFDD0;
+
   /* Elevation — subtle borders carry structure; shadow marks interactivity. */
   --elevation-none: none;
   --elevation-sm: 0 1px 2px 0 rgb(16 24 40 / 0.04);
@@ -221,6 +254,23 @@
   --status-neutral-bg: rgb(148 163 184 / 0.12);
   --status-neutral-fg: #CBD5E1;
   --status-neutral-border: rgb(148 163 184 / 0.24);
+  /* Department identity on a dark card: navy and purple are lifted so the
+     stripe stays visible; text shades clear AA on --card. */
+  --dept-ce: #73CDE2;
+  --dept-ce-fg: #8FDCEE;
+  --dept-ce-soft: rgb(115 205 226 / 0.14);
+  --dept-co: #FFBD58;
+  --dept-co-fg: #FFCB7A;
+  --dept-co-soft: rgb(255 189 88 / 0.14);
+  --dept-ee: #B866AB;
+  --dept-ee-fg: #D9A0CF;
+  --dept-ee-soft: rgb(184 102 171 / 0.18);
+  --dept-me: #6F6FE8;
+  --dept-me-fg: #A5A5F5;
+  --dept-me-soft: rgb(111 111 232 / 0.18);
+  --dept-is: #E6DA86;
+  --dept-is-fg: #EDE3A0;
+  --dept-is-soft: rgb(230 218 134 / 0.14);
 
   /* Shadows read as darker, not lighter, against a dark surface. */
   --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
@@ -385,6 +435,23 @@
   --color-neutral-bg: var(--status-neutral-bg);
   --color-neutral-fg: var(--status-neutral-fg);
   --color-neutral-border: var(--status-neutral-border);
+
+  /* Department identity (see --dept-* above) */
+  --color-dept-ce: var(--dept-ce);
+  --color-dept-ce-fg: var(--dept-ce-fg);
+  --color-dept-ce-soft: var(--dept-ce-soft);
+  --color-dept-co: var(--dept-co);
+  --color-dept-co-fg: var(--dept-co-fg);
+  --color-dept-co-soft: var(--dept-co-soft);
+  --color-dept-ee: var(--dept-ee);
+  --color-dept-ee-fg: var(--dept-ee-fg);
+  --color-dept-ee-soft: var(--dept-ee-soft);
+  --color-dept-me: var(--dept-me);
+  --color-dept-me-fg: var(--dept-me-fg);
+  --color-dept-me-soft: var(--dept-me-soft);
+  --color-dept-is: var(--dept-is);
+  --color-dept-is-fg: var(--dept-is-fg);
+  --color-dept-is-soft: var(--dept-is-soft);
 
   /* Elevation */
   --shadow-elevation-sm: var(--elevation-sm);
