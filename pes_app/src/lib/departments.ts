@@ -35,6 +35,8 @@ export interface Department {
    * the avatar is a photo.
    */
   rowClass: string;
+  /** The tint on hover only, for a list that stays plain at rest. */
+  hoverClass: string;
   /** The full tint, for a row that is chosen rather than merely listed. */
   softClass: string;
   /** A full border in the Handbook colour, for a chosen filter chip. */
@@ -58,6 +60,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-ce-soft text-dept-ce-fg",
     textClass: "text-dept-ce-fg",
     rowClass: "border-l-4 border-l-dept-ce bg-dept-ce-soft/50",
+    hoverClass: "hover:bg-dept-ce-soft",
     softClass: "bg-dept-ce-soft",
     borderClass: "border-dept-ce",
     ringClass: "ring-2 ring-dept-ce",
@@ -74,6 +77,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-co-soft text-dept-co-fg",
     textClass: "text-dept-co-fg",
     rowClass: "border-l-4 border-l-dept-co bg-dept-co-soft/50",
+    hoverClass: "hover:bg-dept-co-soft",
     softClass: "bg-dept-co-soft",
     borderClass: "border-dept-co",
     ringClass: "ring-2 ring-dept-co",
@@ -90,6 +94,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-ee-soft text-dept-ee-fg",
     textClass: "text-dept-ee-fg",
     rowClass: "border-l-4 border-l-dept-ee bg-dept-ee-soft/50",
+    hoverClass: "hover:bg-dept-ee-soft",
     softClass: "bg-dept-ee-soft",
     borderClass: "border-dept-ee",
     ringClass: "ring-2 ring-dept-ee",
@@ -106,6 +111,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-me-soft text-dept-me-fg",
     textClass: "text-dept-me-fg",
     rowClass: "border-l-4 border-l-dept-me bg-dept-me-soft/50",
+    hoverClass: "hover:bg-dept-me-soft",
     softClass: "bg-dept-me-soft",
     borderClass: "border-dept-me",
     ringClass: "ring-2 ring-dept-me",
@@ -122,6 +128,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-is-soft text-dept-is-fg",
     textClass: "text-dept-is-fg",
     rowClass: "border-l-4 border-l-dept-is bg-dept-is-soft/50",
+    hoverClass: "hover:bg-dept-is-soft",
     softClass: "bg-dept-is-soft",
     borderClass: "border-dept-is",
     ringClass: "ring-2 ring-dept-is",
