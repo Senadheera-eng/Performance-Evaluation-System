@@ -46,6 +46,8 @@ export interface Department {
   ringClass: string;
   /** A dropdown option: tinted while highlighted or chosen. */
   optionClass: string;
+  /** A searchable-list (cmdk) option: tinted while highlighted. */
+  commandClass: string;
   /** The colours as CSS values, for charts that paint with SVG fills. */
   colorVar: string;
   fgVar: string;
@@ -67,6 +69,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     borderClass: "border-dept-ce",
     ringClass: "ring-2 ring-dept-ce",
     optionClass: "focus:bg-dept-ce-soft focus:text-dept-ce-fg data-[state=checked]:bg-dept-ce-soft/60",
+    commandClass: "data-[selected=true]:bg-dept-ce-soft data-[selected=true]:text-dept-ce-fg",
     colorVar: "var(--dept-ce)",
     fgVar: "var(--dept-ce-fg)",
   },
@@ -85,6 +88,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     borderClass: "border-dept-co",
     ringClass: "ring-2 ring-dept-co",
     optionClass: "focus:bg-dept-co-soft focus:text-dept-co-fg data-[state=checked]:bg-dept-co-soft/60",
+    commandClass: "data-[selected=true]:bg-dept-co-soft data-[selected=true]:text-dept-co-fg",
     colorVar: "var(--dept-co)",
     fgVar: "var(--dept-co-fg)",
   },
@@ -103,6 +107,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     borderClass: "border-dept-ee",
     ringClass: "ring-2 ring-dept-ee",
     optionClass: "focus:bg-dept-ee-soft focus:text-dept-ee-fg data-[state=checked]:bg-dept-ee-soft/60",
+    commandClass: "data-[selected=true]:bg-dept-ee-soft data-[selected=true]:text-dept-ee-fg",
     colorVar: "var(--dept-ee)",
     fgVar: "var(--dept-ee-fg)",
   },
@@ -121,6 +126,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     borderClass: "border-dept-me",
     ringClass: "ring-2 ring-dept-me",
     optionClass: "focus:bg-dept-me-soft focus:text-dept-me-fg data-[state=checked]:bg-dept-me-soft/60",
+    commandClass: "data-[selected=true]:bg-dept-me-soft data-[selected=true]:text-dept-me-fg",
     colorVar: "var(--dept-me)",
     fgVar: "var(--dept-me-fg)",
   },
@@ -139,6 +145,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     borderClass: "border-dept-is",
     ringClass: "ring-2 ring-dept-is",
     optionClass: "focus:bg-dept-is-soft focus:text-dept-is-fg data-[state=checked]:bg-dept-is-soft/60",
+    commandClass: "data-[selected=true]:bg-dept-is-soft data-[selected=true]:text-dept-is-fg",
     colorVar: "var(--dept-is)",
     fgVar: "var(--dept-is-fg)",
   },
@@ -194,4 +201,12 @@ export function departmentInText(...texts: (string | null | undefined)[]): Depar
     if (m) return departmentByCourseCode(m[0]);
   }
   return null;
+}
+
+/**
+ * A course's row: its department's stripe and hover tint, or a transparent
+ * stripe of the same width (and a neutral hover) for a code with none.
+ */
+export function courseRowClass(code: string | null | undefined): string {
+  return departmentByCourseCode(code)?.rowClass ?? "border-l-4 border-l-transparent hover:bg-muted/50";
 }

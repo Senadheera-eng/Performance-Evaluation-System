@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { ErrorState, SectionCard, SkeletonRows, StatusBadge } from "../common";
+import { CourseCode, ErrorState, SectionCard, SkeletonRows, StatusBadge } from "../common";
 import { supabase } from "../../../lib/supabase";
 import { describeBatch } from "../../../lib/batch";
 
@@ -152,8 +152,17 @@ export function FeedbackApprovals({ onChanged }: { onChanged?: () => void }) {
                       {a.course_count} course
                       {a.course_count === 1 ? "" : "s"} · {a.question_count}{" "}
                       question{a.question_count === 1 ? "" : "s"}
-                      {a.courses.length > 0 &&
-                        ` — ${a.courses.map((c) => c.course_code).join(", ")}`}
+                      {a.courses.length > 0 && (
+                        <>
+                          {" — "}
+                          {a.courses.map((c, i) => (
+                            <span key={c.course_code}>
+                              {i > 0 && ", "}
+                              <CourseCode code={c.course_code} className="font-medium" />
+                            </span>
+                          ))}
+                        </>
+                      )}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {new Date(a.opens_at).toLocaleDateString()} →{" "}

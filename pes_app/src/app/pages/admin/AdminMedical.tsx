@@ -27,6 +27,7 @@ import { useAuth } from "../../context/AuthContext";
 import { describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
+import { courseRowClass } from "../../../lib/departments";
 
 const REASON_LABELS: Record<string, string> = {
   medical: "Medical",
@@ -458,7 +459,7 @@ export default function AdminMedical() {
                           {sub.myItems.map((item) => (
                             <div
                               key={item.mscId}
-                              className="p-2.5 rounded-lg border border-border/70 bg-muted/30"
+                              className={`p-2.5 rounded-lg border border-border/70 bg-muted/30 transition-colors ${courseRowClass(item.courseCode)}`}
                             >
                               <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
                                 <div className="flex items-center gap-2 flex-wrap">

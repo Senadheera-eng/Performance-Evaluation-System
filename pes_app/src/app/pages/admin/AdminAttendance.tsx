@@ -17,6 +17,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Calendar } from "../../components/ui/calendar";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -51,6 +52,7 @@ import {
   type AdminOffering,
   type StudentAttendanceSummary,
 } from "../../../lib/attendanceRegister";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 type View = "overall" | "sessions";
 
@@ -321,7 +323,12 @@ function OverallView({
       </div>
 
       <SectionCard
-        title={`${offering.course_code} — ${offering.course_title}`}
+        title={
+          <>
+            <CourseCode code={offering.course_code} /> — {offering.course_title}
+          </>
+        }
+        className={`border-l-4 ${departmentByCourseCode(offering.course_code)?.stripeClass ?? ""}`}
         description={`Students need ${threshold}% to sit the end-of-semester examination. Excused absences count as attended.`}
         actions={
           <Button size="sm" variant="outline" onClick={onOpenSessions}>
@@ -686,9 +693,12 @@ function SessionView({
             year: "numeric",
           })}
           description={
-            recorded
-              ? `${offering.course_code} · ${present} present · ${absent} absent · ${excused} excused${unmarked > 0 ? ` · ${unmarked} unmarked` : ""}`
-              : `${offering.course_code} · No attendance recorded on this date. Marking students here records the lecture.`
+            <>
+              <CourseCode code={offering.course_code} /> ·{" "}
+              {recorded
+                ? `${present} present · ${absent} absent · ${excused} excused${unmarked > 0 ? ` · ${unmarked} unmarked` : ""}`
+                : "No attendance recorded on this date. Marking students here records the lecture."}
+            </>
           }
           actions={
             <div className="flex flex-wrap gap-2">

@@ -44,7 +44,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { useSettings } from "../../../lib/settings";
-import { departmentStripeClass } from "../../../lib/departments";
+import { departmentByCourseCode, departmentStripeClass } from "../../../lib/departments";
 
 type PeriodStatus = "draft" | "scheduled" | "open" | "closed" | "archived";
 
@@ -812,7 +812,9 @@ function PeriodForm({
                           key={c.id}
                           value={`${c.code} ${c.title}`}
                           onSelect={() => toggleCourse(c.id)}
-                          className="cursor-pointer"
+                          className={`cursor-pointer border-l-4 ${
+                            departmentByCourseCode(c.code)?.stripeClass ?? "border-l-transparent"
+                          } ${departmentByCourseCode(c.code)?.commandClass ?? ""}`}
                         >
                           <Checkbox
                             checked={isSelected}
