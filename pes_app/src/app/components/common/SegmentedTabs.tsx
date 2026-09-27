@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../ui/utils";
 
@@ -36,13 +37,29 @@ export function SegmentedTabs({
   "aria-label": ariaLabel,
 }: SegmentedTabsProps) {
   const reduce = useReducedMotion();
+  const listRef = useRef<HTMLDivElement>(null);
+
+  /* A scrolling bar keeps the selected tab in view. Results opens on the
+     newest semester with marks, which on a phone sat past the right edge,
+     so the page opened on a tab the student could not see. The bar is
+     scrolled directly rather than with scrollIntoView, which would move
+     the whole page as well. */
+  useEffect(() => {
+    if (!scrollable) return;
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !active) return;
+    const target = active.offsetLeft - (list.clientWidth - active.offsetWidth) / 2;
+    list.scrollTo({ left: Math.max(0, target), behavior: reduce ? "auto" : "smooth" });
+  }, [value, scrollable, reduce, tabs.length]);
 
   return (
     <div
+      ref={listRef}
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex gap-1 p-1 rounded-xl bg-muted/70 border border-border/60",
+        "relative inline-flex gap-1 p-1 rounded-xl bg-muted/70 border border-border/60",
         scrollable && "overflow-x-auto max-w-full no-scrollbar",
         className,
       )}
