@@ -27,17 +27,34 @@ import {
   type MentorThread,
 } from "../../../lib/mentorService";
 
-const when = (iso: string) => {
+/* The time only: the day is on the divider above each day's messages. */
+const when = (iso: string) =>
+  new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+/** The whole date and time, for the tooltip on a message's time. */
+const fullWhen = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+/** "Today", "Yesterday", or "12 Sep" (with the year once it is not this one). */
+const dayLabel = (iso: string) => {
   const d = new Date(iso);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay
-    ? d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : d.toLocaleString(undefined, {
-        day: "numeric",
-        month: "short",
-        hour: "numeric",
-        minute: "2-digit",
-      });
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    ...(d.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
+  });
 };
 
 const readableSize = (bytes: number) =>
@@ -327,9 +344,26 @@ export function MentorChat({
             No messages yet. Say hello.
           </p>
         ) : (
-          thread.messages.map((m) => (
+          thread.messages.map((m, i) => {
+            /* A divider where the day changes. Each message only carried a
+               time (or a date once it was not today), so a conversation
+               over several weeks read as one unbroken run. */
+            const newDay =
+              i === 0 ||
+              new Date(thread.messages[i - 1].sent_at).toDateString() !==
+                new Date(m.sent_at).toDateString();
+            return (
+            <div key={m.id}>
+            {newDay && (
+              <div className="flex items-center gap-3 py-1" role="separator">
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {dayLabel(m.sent_at)}
+                </span>
+                <span className="h-px flex-1 bg-border" aria-hidden="true" />
+              </div>
+            )}
             <div
-              key={m.id}
               className={`flex ${m.mine ? "justify-end" : "justify-start"}`}
             >
               <div
@@ -352,12 +386,16 @@ export function MentorChat({
                       : "text-muted-foreground"
                   }`}
                 >
-                  {when(m.sent_at)}
+                  <time dateTime={m.sent_at} title={fullWhen(m.sent_at)}>
+                    {when(m.sent_at)}
+                  </time>
                   {m.mine && <Ticks message={m} />}
                 </p>
               </div>
             </div>
-          ))
+            </div>
+            );
+          })
         )}
 
         {theyAreTyping && (

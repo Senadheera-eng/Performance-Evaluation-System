@@ -3,12 +3,15 @@ import { motion } from "framer-motion";
 import { Mail, UserRound } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  DepartmentBadge,
   EmptyState,
   PageHeader,
   SectionCard,
   SkeletonRows,
   StatusBadge,
 } from "../components/common";
+import { cn } from "../components/ui/utils";
+import { departmentByName } from "../../lib/departments";
 import { MentorChat } from "../components/mentor/MentorChat";
 import { getMyMentor, type MyMentor } from "../../lib/mentorService";
 
@@ -24,6 +27,14 @@ import { getMyMentor, type MyMentor } from "../../lib/mentorService";
  * no mentor should be told that is the situation rather than left wondering
  * whether the page is broken.
  */
+/** "AA" from "Akarshani Amarasinghe": first and last name. */
+function initials(name: string) {
+  const parts = name.replace(/^(Dr|Mr|Mrs|Ms|Prof|Eng)\.?\s+/i, "").trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
 export default function Mentor() {
   const [mentor, setMentor] = useState<MyMentor | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,11 +84,16 @@ export default function Mentor() {
             }
           >
             <div className="flex items-start gap-3">
+              {/* Initials in the mentor's department colour: a person, not
+                  a placeholder icon. */}
               <span
-                className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10"
+                className={cn(
+                  "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full text-base font-semibold",
+                  departmentByName(mentor.department)?.chipClass ?? "bg-primary/10 text-primary",
+                )}
                 aria-hidden="true"
               >
-                <UserRound className="h-6 w-6 text-primary" />
+                {initials(mentor.plain_name || mentor.name)}
               </span>
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2">
@@ -88,19 +104,19 @@ export default function Mentor() {
                     <StatusBadge tone="brand">Head of Department</StatusBadge>
                   )}
                 </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {mentor.department}
-                  {mentor.staff_no && ` · ${mentor.staff_no}`}
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <DepartmentBadge department={mentor.department} />
+                  {mentor.staff_no && <span>{mentor.staff_no}</span>}
                 </p>
-                <a
-                  href={`mailto:${mentor.email}`}
-                  className="mt-0.5 block truncate text-sm text-primary hover:underline"
-                >
+                {/* Plain text, to read or copy: the Email button above is
+                    the way to write to them, and the address as a second
+                    red link only repeated it. */}
+                <p className="mt-1 truncate text-sm text-foreground select-all">
                   {mentor.email}
-                </a>
+                </p>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Your mentor since{" "}
-                  {new Date(mentor.assigned_at).toLocaleDateString(undefined, {
+                  {new Date(mentor.assigned_at).toLocaleDateString("en-GB", {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
