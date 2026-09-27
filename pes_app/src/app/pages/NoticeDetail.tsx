@@ -115,7 +115,7 @@ export default function NoticeDetail() {
               {notice.category_label}
             </span>
             {notice.is_pinned && (
-              <StatusBadge tone="danger" icon={Pin}>
+              <StatusBadge tone="brand" icon={Pin}>
                 Important
               </StatusBadge>
             )}

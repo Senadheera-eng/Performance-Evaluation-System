@@ -198,7 +198,9 @@ export default function Notices() {
         <p className="mb-2 text-xs font-medium text-muted-foreground">
           Quick access
         </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {/* One scrolling row on a phone. As a two-column grid the nine
+            categories filled the first screen before any notice. */}
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-5">
           {categories.slice(0, 10).map((c) => {
             const Icon = categoryIcon(c.icon);
             const active = category === c.slug;
@@ -214,14 +216,14 @@ export default function Notices() {
                     : c.label
                 }
                 onClick={() => setParam({ category: active ? null : c.slug })}
-                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-left text-sm transition-colors sm:py-2.5 ${
                   active
                     ? "border-primary bg-primary/10 text-foreground"
                     : "border-border bg-card text-muted-foreground hover:bg-muted"
                 }`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                <span className="sm:min-w-0 sm:flex-1 sm:truncate">{c.label}</span>
                 {/* Says which category the sidebar's number is actually in.
                     Absent rather than zero, so a quiet category stays quiet. */}
                 {unread > 0 && (
