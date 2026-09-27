@@ -101,6 +101,7 @@ export default function StaffLayout() {
       ]}
       userName={student?.name ?? "Lecturer"}
       userAvatarUrl={student?.avatar_url}
+      userDepartment={student?.department}
       onProfileClick={() => navigate("/staff/profile")}
       userMeta={describeStaffScope(staff)}
       homeHref="/staff"

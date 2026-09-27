@@ -105,8 +105,13 @@ export function NoticeCard({
         dept?.stripeClass ?? "border-l-transparent",
       )}
     >
-      <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-muted">
-        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+      <span
+        className={cn(
+          "mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl",
+          dept?.chipClass ?? "bg-muted text-muted-foreground",
+        )}
+      >
+        <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
 
       <span className="min-w-0 flex-1">

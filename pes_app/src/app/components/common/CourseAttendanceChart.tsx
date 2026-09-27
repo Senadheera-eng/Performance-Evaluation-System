@@ -13,6 +13,7 @@ import {
 import { ChartContainer, ChartTooltip } from "./ChartContainer";
 import { useChartMotion } from "./motion";
 import type { StatusTone } from "./StatusBadge";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 export interface CourseAttendancePoint {
   code: string;
@@ -138,9 +139,9 @@ export function CourseAttendanceChart({
           <YAxis
             type="category"
             dataKey="code"
-            width={72}
+            width={76}
             stroke="var(--muted-foreground)"
-            fontSize={11}
+            tick={<CourseTick />}
             tickLine={false}
             axisLine={false}
           />
@@ -181,5 +182,40 @@ export function CourseAttendanceChart({
         </BarChart>
       </ResponsiveContainer>
     </ChartContainer>
+  );
+}
+
+/**
+ * A course code on the axis in its department's colour, with the
+ * department's dot beside it — the same cue the course rows carry. The bars
+ * stay in status colours: they say how attendance is going, the label says
+ * whose course it is.
+ */
+function CourseTick({
+  x = 0,
+  y = 0,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+}) {
+  const code = payload?.value ?? "";
+  const dept = departmentByCourseCode(code);
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {dept && <circle cx={-68} cy={0} r={3.5} fill={dept.colorVar} />}
+      <text
+        x={-6}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fontSize={11}
+        fontWeight={600}
+        fill={dept?.fgVar ?? "var(--muted-foreground)"}
+      >
+        {code}
+      </text>
+    </g>
   );
 }

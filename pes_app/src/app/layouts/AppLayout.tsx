@@ -66,6 +66,7 @@ export default function AppLayout() {
       bottomNavigation={bottomNavigation}
       userName={student?.name ?? "Student"}
       userAvatarUrl={student?.avatar_url}
+      userDepartment={student?.department}
       userMeta={meta || "Student"}
       homeHref="/app"
       headerSubtitle="Faculty of Engineering — USJ"

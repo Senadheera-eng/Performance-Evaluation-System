@@ -39,6 +39,9 @@ export interface Department {
   ringClass: string;
   /** A dropdown option: tinted while highlighted or chosen. */
   optionClass: string;
+  /** The colours as CSS values, for charts that paint with SVG fills. */
+  colorVar: string;
+  fgVar: string;
 }
 
 export const DEPARTMENTS: Record<DepartmentKey, Department> = {
@@ -53,6 +56,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     rowClass: "border-l-4 border-l-dept-ce bg-dept-ce-soft/50",
     ringClass: "ring-2 ring-dept-ce",
     optionClass: "focus:bg-dept-ce-soft focus:text-dept-ce-fg data-[state=checked]:bg-dept-ce-soft/60",
+    colorVar: "var(--dept-ce)",
+    fgVar: "var(--dept-ce-fg)",
   },
   co: {
     key: "co",
@@ -65,6 +70,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     rowClass: "border-l-4 border-l-dept-co bg-dept-co-soft/50",
     ringClass: "ring-2 ring-dept-co",
     optionClass: "focus:bg-dept-co-soft focus:text-dept-co-fg data-[state=checked]:bg-dept-co-soft/60",
+    colorVar: "var(--dept-co)",
+    fgVar: "var(--dept-co-fg)",
   },
   ee: {
     key: "ee",
@@ -77,6 +84,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     rowClass: "border-l-4 border-l-dept-ee bg-dept-ee-soft/50",
     ringClass: "ring-2 ring-dept-ee",
     optionClass: "focus:bg-dept-ee-soft focus:text-dept-ee-fg data-[state=checked]:bg-dept-ee-soft/60",
+    colorVar: "var(--dept-ee)",
+    fgVar: "var(--dept-ee-fg)",
   },
   me: {
     key: "me",
@@ -89,6 +98,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     rowClass: "border-l-4 border-l-dept-me bg-dept-me-soft/50",
     ringClass: "ring-2 ring-dept-me",
     optionClass: "focus:bg-dept-me-soft focus:text-dept-me-fg data-[state=checked]:bg-dept-me-soft/60",
+    colorVar: "var(--dept-me)",
+    fgVar: "var(--dept-me-fg)",
   },
   is: {
     key: "is",
@@ -101,6 +112,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     rowClass: "border-l-4 border-l-dept-is bg-dept-is-soft/50",
     ringClass: "ring-2 ring-dept-is",
     optionClass: "focus:bg-dept-is-soft focus:text-dept-is-fg data-[state=checked]:bg-dept-is-soft/60",
+    colorVar: "var(--dept-is)",
+    fgVar: "var(--dept-is-fg)",
   },
 };
 
