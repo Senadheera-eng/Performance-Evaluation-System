@@ -1,24 +1,27 @@
 import { useEffect, useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
-  Mail,
-  MapPin,
-  Calendar,
   Award,
-  TrendingUp,
-  GraduationCap,
+  BookOpenCheck,
   Camera,
+  GraduationCap,
+  Loader2,
+  TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "../components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { Badge } from "../components/ui/badge";
-import { Progress } from "../components/ui/progress";
+  DepartmentBadge,
+  PageHeader,
+  SectionCard,
+  SkeletonRows,
+  SkeletonStatGrid,
+  StatCard,
+  StatusBadge,
+} from "../components/common";
+import { cn } from "../components/ui/utils";
 import { supabase } from "../../lib/supabase";
+import { departmentByName } from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
 
@@ -37,28 +40,33 @@ interface ProfileStats {
   currentSemester: number;
 }
 
-const getYearLabel = (batchYear: number): string => {
-  const today = new Date();
-  const month = today.getMonth();
-  const academicYearStart =
-    month >= 9 ? today.getFullYear() : today.getFullYear() - 1;
-  const yearOfStudy = academicYearStart - batchYear + 1;
-  if (yearOfStudy <= 1) return "First Year";
-  if (yearOfStudy === 2) return "Second Year";
-  if (yearOfStudy === 3) return "Third Year";
-  if (yearOfStudy === 4) return "Fourth Year";
-  return "Final Year";
-};
+/* The year of study, from the semester the database says the student is
+   in. It used to be worked out again from the calendar month, which in
+   September called a semester 7 student "Final Year" while every other
+   page had them in their fourth. */
+const YEAR_LABEL = ["", "First Year", "Second Year", "Third Year", "Fourth Year"];
+const yearOfStudy = (semester: number): string =>
+  YEAR_LABEL[Math.ceil(semester / 2)] ?? "Final Year";
 
+/**
+ * The student's profile: who they are on the faculty's books, and a short
+ * record of how their degree is going.
+ *
+ * Each fact appears once. The page used to show the index number,
+ * registration number, faculty, batch and department in a card on the left
+ * and again under "Academic Information" on the right, and drew a progress
+ * bar for every semester that was either full or stuck at a made-up 60%.
+ */
 export default function Profile() {
   const { student } = useAuth();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [stats, setStats] = useState<ProfileStats>({
     cgpa: 0,
     totalCredits: 0,
     completedCourses: 0,
-    currentSemester: 5,
+    currentSemester: 0,
   });
   const [semesterStats, setSemesterStats] = useState<SemesterStat[]>([]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -198,12 +206,13 @@ export default function Profile() {
     const file = e.target.files?.[0];
     if (!file || !student?.id) return;
 
+    e.target.value = "";
     if (!file.type.startsWith("image/")) {
-      alert("Please select an image file.");
+      toast.error("Choose an image file (JPG or PNG).");
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image must be smaller than 2MB.");
+      toast.error("That image is larger than 2 MB.");
       return;
     }
 
@@ -220,17 +229,21 @@ export default function Profile() {
 
       const publicUrl = data.publicUrl;
 
-      await supabase
+      const { error: saveError } = await supabase
         .from("students")
         .update({ avatar_url: publicUrl })
         .eq("id", student.id);
 
-      setAvatarUrl(publicUrl + "?t=" + Date.now());
+      if (saveError) {
+        console.error("Avatar save error:", saveError);
+        toast.error("The photo uploaded but could not be saved to your profile.");
+      } else {
+        setAvatarUrl(publicUrl + "?t=" + Date.now());
+        toast.success("Profile photo updated");
+      }
     } else {
       console.error("Upload error:", uploadError);
-      alert(
-        "Upload failed. Make sure the avatars bucket exists in Supabase Storage.",
-      );
+      toast.error("The photo could not be uploaded. Please try again.");
     }
 
     setUploading(false);
@@ -244,370 +257,213 @@ export default function Profile() {
       .toUpperCase()
       .slice(0, 2) ?? "ST";
 
-  const yearLabel = student?.batch_year
-    ? getYearLabel(student.batch_year)
-    : "Undergraduate";
+  const yearLabel =
+    stats.currentSemester > 0 ? yearOfStudy(stats.currentSemester) : "Undergraduate";
 
   const deansListSemesters = semesterStats.filter(
     (s) => s.completed && s.sgpa >= 3.8,
   );
 
+  const dept = departmentByName(student?.department);
+
+  const details: [string, React.ReactNode][] = [
+    ["Index number", student?.index_number ?? "—"],
+    ["Registration number", student?.reg_number ? `EN${student.reg_number}` : "—"],
+    ["University email", student?.email ?? "—"],
+    ["Degree", "Bachelor of Science of Engineering Honours"],
+    ["Faculty", "Faculty of Engineering"],
+    ["Intake", describeBatch(student?.batch_year)],
+    [
+      "Current semester",
+      stats.currentSemester > 0 ? `Semester ${stats.currentSemester} · ${yearLabel}` : "—",
+    ],
+  ];
+
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PageHeader
+        title="My Profile"
+        description="Your record on the faculty's books, and how your degree is going."
+      />
+
+      {/* Who you are */}
+      <SectionCard>
+        <div className="flex flex-col gap-5 md:flex-row md:items-start">
+          <div className="flex items-center gap-4 md:w-72 md:flex-shrink-0 md:flex-col md:items-center md:text-center">
+            {/* A real button, so the photo can be changed by keyboard and on
+                a phone; the change used to appear only on mouse hover. */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              aria-label="Change profile photo"
+              className="group relative flex-shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-20 w-20 rounded-full object-cover md:h-24 md:w-24"
+                />
+              ) : (
+                <span
+                  className={cn(
+                    "flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold md:h-24 md:w-24",
+                    dept?.chipClass ?? "bg-primary/10 text-primary",
+                  )}
+                >
+                  {initials}
+                </span>
+              )}
+              <span className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-elevation-sm">
+                {uploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold leading-tight text-foreground">
+                {student?.name ?? "—"}
+              </h2>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:justify-center">
+                {student?.department && <DepartmentBadge department={student.department} />}
+                {!loading && <StatusBadge tone="brand">{yearLabel}</StatusBadge>}
+              </div>
+            </div>
+          </div>
+
+          <dl className="grid flex-1 grid-cols-1 gap-x-6 gap-y-3 border-t border-border/70 pt-4 sm:grid-cols-2 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+            {details.map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="mt-0.5 break-words text-sm font-medium text-foreground">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </SectionCard>
+
+      {/* The numbers, each opening the page that explains it */}
+      {loading ? (
+        <SkeletonStatGrid count={4} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            index={0}
+            label="Current CGPA"
+            value={stats.totalCredits > 0 ? stats.cgpa.toFixed(2) : "—"}
+            icon={TrendingUp}
+            tone="brand"
+            hint="Cumulative GPA"
+            onClick={() => navigate("/app/results")}
+          />
+          <StatCard
+            index={1}
+            label="Credits earned"
+            value={stats.totalCredits}
+            icon={GraduationCap}
+            tone="success"
+            hint="Counted toward the GPA"
+            onClick={() => navigate("/app/planner")}
+          />
+          <StatCard
+            index={2}
+            label="Courses completed"
+            value={stats.completedCourses}
+            icon={BookOpenCheck}
+            tone="neutral"
+            hint="With a published grade"
+            onClick={() => navigate("/app/courses")}
+          />
+          <StatCard
+            index={3}
+            label="Dean's List"
+            value={deansListSemesters.length}
+            icon={Award}
+            tone="brand"
+            hint={
+              deansListSemesters.length > 0
+                ? deansListSemesters.map((s) => `Sem ${s.semNum}`).join(", ")
+                : "An SGPA of 3.80 or more in a semester"
+            }
+          />
+        </div>
+      )}
+
+      {/* Semester by semester, without the progress bars: a finished
+          semester was always a full bar and the current one a fixed 60%,
+          which said nothing. The SGPA is the fact. */}
+      <SectionCard
+        title="Semester record"
+        description="Your GPA for each semester so far."
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary/80"
+            onClick={() => navigate("/app/results")}
+          >
+            Full results
+          </Button>
+        }
+        flush
       >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          My Profile
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          View your academic profile and progress.
-        </p>
-      </motion.div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left Column */}
-        <div className="lg:col-span-1 space-y-4">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className="border-border">
-              <CardContent className="p-4">
-                <div className="flex flex-col items-center text-center">
-                  {/* Avatar with upload overlay */}
-                  <div
-                    className="relative group cursor-pointer mb-3"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Click to change profile picture"
-                  >
-                    <Avatar className="w-20 h-20">
-                      {avatarUrl ? (
-                        <img
-                          src={avatarUrl}
-                          alt="Profile"
-                          className="w-20 h-20 rounded-full object-cover"
-                        />
-                      ) : (
-                        <AvatarFallback
-                          className="text-white text-2xl font-bold w-20 h-20"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, #C41E3A, #6D28D9)",
-                          }}
-                        >
-                          {initials}
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
-                      {uploading ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <Camera className="h-5 w-5 text-white" />
-                          <span className="text-white text-xs font-medium">
-                            Change
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Hidden file input */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                  />
-
-                  <h2 className="text-xl font-bold text-foreground mb-1">
-                    {student?.name ?? "—"}
-                  </h2>
-                  <p className="text-sm text-muted-foreground mb-0.5">
-                    {student?.index_number ?? "—"}
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {student?.reg_number ? `EN${student.reg_number}` : "—"}
-                  </p>
-                  <Badge className="bg-primary/10 text-primary border-primary/20 mb-4">
-                    {yearLabel}
-                  </Badge>
-
-                  <div className="w-full space-y-2.5 pt-3 border-t border-border">
-                    <div className="flex items-center gap-3 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-foreground truncate">
-                        {student?.email ?? "—"}
+        {loading ? (
+          <div className="p-4">
+            <SkeletonRows count={4} height="h-10" />
+          </div>
+        ) : semesterStats.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            Your semesters appear here once your first results are published.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border/70">
+            {semesterStats.map((sem) => (
+              <li key={sem.semNum} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="w-24 flex-shrink-0 text-sm font-medium text-foreground">
+                  {sem.label}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                  {sem.completed ? (
+                    <StatusBadge tone="success" dot>Completed</StatusBadge>
+                  ) : (
+                    <StatusBadge tone="info" dot>In progress</StatusBadge>
+                  )}
+                  {sem.completed && sem.sgpa >= 3.8 && (
+                    <StatusBadge tone="brand" icon={Award}>
+                      Dean's List
+                    </StatusBadge>
+                  )}
+                </span>
+                <span className="text-right">
+                  {sem.completed ? (
+                    <>
+                      <span className="block text-sm font-semibold tabular-nums text-foreground">
+                        {sem.sgpa.toFixed(2)}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-foreground">
-                        Faculty of Engineering
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-foreground">
-                        {describeBatch(student?.batch_year)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <GraduationCap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-foreground">
-                        {student?.department ?? "—"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Quick Stats */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Current CGPA
-                  </span>
-                  <span className="text-xl font-bold text-primary">
-                    {loading ? "..." : stats.cgpa.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Credits Earned
-                  </span>
-                  <span className="text-xl font-bold text-foreground">
-                    {loading ? "..." : stats.totalCredits}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Courses Completed
-                  </span>
-                  <span className="text-xl font-bold text-foreground">
-                    {loading ? "..." : stats.completedCourses}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    Current Semester
-                  </span>
-                  <span className="text-xl font-bold text-foreground">
-                    {loading ? "..." : stats.currentSemester}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-
-        {/* Right Column */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Academic Information */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Academic Information</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Degree Program
-                      </p>
-                      <p className="font-medium text-foreground">
-                        Bachelor of Science of Engineering Honours
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Specialization
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {student?.department ?? "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Academic Year
-                      </p>
-                      <p className="font-medium text-foreground">{yearLabel}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Index Number
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {student?.index_number ?? "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Registration Number
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {student?.reg_number ? `EN${student.reg_number}` : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Faculty
-                      </p>
-                      <p className="font-medium text-foreground">
-                        Faculty of Engineering
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Intake Batch
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {describeBatch(student?.batch_year)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Achievements */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Achievements & Awards</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {deansListSemesters.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">
-                    No achievements yet — make Dean's List by scoring 3.80+ GPA
-                    in a semester.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {deansListSemesters.map((sem, index) => (
-                      <motion.div
-                        key={sem.semNum}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
-                        className="p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="p-3 rounded-lg text-amber-600 bg-amber-100 w-fit mb-3">
-                          <Award className="h-6 w-6" />
-                        </div>
-                        <h4 className="font-semibold text-foreground mb-1">
-                          Dean's List
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {sem.label} · GPA {sem.sgpa.toFixed(2)}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Academic Progress */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Academic Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="h-10 rounded-lg bg-muted animate-pulse"
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {semesterStats.map((sem, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span className="font-medium text-foreground">
-                              {sem.label}
-                            </span>
-                            {sem.completed ? (
-                              <Badge className="bg-green-100 text-green-700">
-                                Completed
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-blue-100 text-blue-700">
-                                In Progress
-                              </Badge>
-                            )}
-                            {sem.completed && sem.sgpa >= 3.8 && (
-                              <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-                                <Award className="h-3 w-3 mr-1" />
-                                Dean's List
-                              </Badge>
-                            )}
-                          </div>
-                          {sem.completed && (
-                            <div className="flex items-center gap-2">
-                              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold text-primary">
-                                {sem.sgpa.toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <Progress
-                          value={sem.completed ? 100 : 60}
-                          className="h-2"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
+                      <span className="block text-[11px] text-muted-foreground">SGPA</span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Results pending</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   );
 }
