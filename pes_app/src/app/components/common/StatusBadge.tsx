@@ -59,3 +59,18 @@ export function StatusBadge({
     </span>
   );
 }
+
+/**
+ * The tone a grade is shown in: A range success, B info, C and D a
+ * warning, F and R danger, anything else (L, pending) neutral. One rule for
+ * every page that shows a grade, so an A is never red on one of them.
+ */
+export function gradeTone(grade: string | null | undefined): StatusTone {
+  if (!grade) return "neutral";
+  const g = grade.toUpperCase();
+  if (g.startsWith("A")) return "success";
+  if (g.startsWith("B")) return "info";
+  if (g.startsWith("C") || g.startsWith("D")) return "warning";
+  if (g === "F" || g === "R") return "danger";
+  return "neutral";
+}

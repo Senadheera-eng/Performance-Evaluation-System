@@ -44,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
+import { CourseCode, ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
 import { PendingResultReviews } from "../../components/admin/PendingResultReviews";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -138,12 +138,12 @@ function validateMark(
 }
 
 const getGradeColor = (grade: string | null) => {
-  if (!grade) return "bg-gray-100 text-gray-500";
-  if (grade.startsWith("A")) return "bg-green-100 text-green-700";
-  if (grade.startsWith("B")) return "bg-blue-100 text-blue-700";
-  if (grade.startsWith("C")) return "bg-yellow-100 text-yellow-700";
-  if (grade === "F") return "bg-red-100 text-red-700";
-  return "bg-gray-100 text-gray-700";
+  if (!grade) return "bg-neutral-bg text-neutral-fg";
+  if (grade.startsWith("A")) return "bg-success-bg text-success-fg";
+  if (grade.startsWith("B")) return "bg-info-bg text-info-fg";
+  if (grade.startsWith("C")) return "bg-warning-bg text-warning-fg";
+  if (grade === "F") return "bg-danger-bg text-danger-fg";
+  return "bg-neutral-bg text-neutral-fg";
 };
 
 // A batch's results for a given course live under exactly one academic
@@ -845,9 +845,7 @@ export default function AdminResults() {
                             : "text-foreground"
                         }`}
                       >
-                        <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
-                          {course.code}
-                        </Badge>
+                        <CourseCode code={course.code} className="text-xs flex-shrink-0" />
                         <span className="truncate">{course.name}</span>
                         <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
                           Sem {course.semester}
@@ -927,11 +925,11 @@ export default function AdminResults() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1 text-green-600">
+                    <span className="flex items-center gap-1 text-success-fg">
                       <Eye className="h-3 w-3" />
                       {publishedCount} published
                     </span>
-                    <span className="flex items-center gap-1 text-amber-600">
+                    <span className="flex items-center gap-1 text-warning-fg">
                       <Clock className="h-3 w-3" />
                       {draftCount} draft
                     </span>
@@ -940,7 +938,7 @@ export default function AdminResults() {
                       {emptyCount} empty
                     </span>
                     {repeatCount > 0 && (
-                      <span className="flex items-center gap-1 text-purple-600">
+                      <span className="flex items-center gap-1 text-info-fg">
                         <Users className="h-3 w-3" />
                         {repeatCount} repeat
                       </span>
@@ -1091,9 +1089,9 @@ export default function AdminResults() {
                       transition={{ duration: 0.2, delay: index * 0.02 }}
                       className={`p-3 rounded-xl border transition-all ${
                         student.isPublished
-                          ? "border-green-200 bg-green-50/50"
+                          ? "border-success-border bg-success-bg/60"
                           : student.isDirty
-                            ? "border-amber-200 bg-amber-50/50"
+                            ? "border-warning-border bg-warning-bg/60"
                             : "border-border bg-card"
                       }`}
                     >
@@ -1101,11 +1099,8 @@ export default function AdminResults() {
                         {/* Student info */}
                         <div className="md:col-span-3 flex items-center gap-2.5">
                           <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                            style={{
-                              background:
-                                "linear-gradient(135deg, #C41E3A, #6D28D9)",
-                            }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 bg-primary/10 text-primary"
+                            aria-hidden="true"
                           >
                             {student.name
                               .split(" ")
@@ -1258,14 +1253,14 @@ export default function AdminResults() {
                         <div className="md:col-span-1 flex items-center justify-center gap-1">
                           {student.isPublished ? (
                             <span
-                              className="flex items-center gap-1 text-green-600 text-xs"
+                              className="flex items-center gap-1 text-success-fg text-xs"
                               title="Published"
                             >
                               <CheckCircle className="h-4 w-4" />
                             </span>
                           ) : student.resultId ? (
                             <span
-                              className="flex items-center gap-1 text-amber-500 text-xs"
+                              className="flex items-center gap-1 text-warning-fg text-xs"
                               title="Draft — not yet published"
                             >
                               <Clock className="h-4 w-4" />
@@ -1305,7 +1300,7 @@ export default function AdminResults() {
                       className={`p-3 rounded-lg text-sm ${
                         savedMessage.startsWith("Error")
                           ? "bg-destructive/10 text-destructive border border-destructive/20"
-                          : "bg-green-50 text-green-800 border border-green-200"
+                          : "bg-success-bg text-success-fg border border-success-border"
                       }`}
                     >
                       {savedMessage}
@@ -1317,11 +1312,11 @@ export default function AdminResults() {
                       onClick={() => void handleSaveDraft()}
                       disabled={saving || dirtyValidRows().length === 0}
                       variant="outline"
-                      className="flex-1 h-10 border-amber-300 text-amber-700 hover:bg-amber-50"
+                      className="flex-1 h-10 border-warning-border text-warning-fg hover:bg-warning-bg"
                     >
                       {saving ? (
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-warning-fg border-t-transparent rounded-full animate-spin" />
                           Saving...
                         </div>
                       ) : (

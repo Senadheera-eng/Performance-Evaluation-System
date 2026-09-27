@@ -37,7 +37,7 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
-import { SegmentedTabs } from "../../components/common";
+import { CourseCode, SegmentedTabs } from "../../components/common";
 import { PeriodCourseBreakdown } from "../../components/enrollment/PeriodCourseBreakdown";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -47,11 +47,11 @@ import { useSettings } from "../../../lib/settings";
 type PeriodStatus = "draft" | "scheduled" | "open" | "closed" | "archived";
 
 const STATUS_COLOR: Record<PeriodStatus, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  scheduled: "bg-blue-100 text-blue-700",
-  open: "bg-green-100 text-green-700",
-  closed: "bg-amber-100 text-amber-700",
-  archived: "bg-slate-200 text-slate-600",
+  draft: "bg-neutral-bg text-neutral-fg",
+  scheduled: "bg-info-bg text-info-fg",
+  open: "bg-success-bg text-success-fg",
+  closed: "bg-warning-bg text-warning-fg",
+  archived: "bg-neutral-bg text-neutral-fg",
 };
 
 interface EnrollmentPeriod {
@@ -241,7 +241,7 @@ export default function AdminEnrollment() {
       </motion.div>
 
       {message && (
-        <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+        <div className="p-3 rounded-xl bg-success-bg border border-success-border text-sm text-success-fg">
           {message}
         </div>
       )}
@@ -377,7 +377,7 @@ export default function AdminEnrollment() {
                         {p.status !== "open" && p.status !== "archived" && (
                           <Button
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
                             onClick={() => setStatus(p.id, "open")}
                           >
                             <PlayCircle className="h-3.5 w-3.5 mr-1" />
@@ -821,9 +821,7 @@ function PeriodForm({
                             checked={isSelected}
                             className="mr-1 pointer-events-none"
                           />
-                          <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
-                            {c.code}
-                          </Badge>
+                          <CourseCode code={c.code} className="text-xs flex-shrink-0" />
                           <span className="truncate flex-1">{c.title}</span>
                         </CommandItem>
                       );
@@ -841,9 +839,7 @@ function PeriodForm({
                 if (!course) return null;
                 return (
                   <div key={id} className="flex items-center gap-2 text-xs">
-                    <Badge className="bg-primary/10 text-primary flex-shrink-0">
-                      {course.code}
-                    </Badge>
+                    <CourseCode code={course.code} className="text-sm flex-shrink-0" />
                     <span className="text-muted-foreground truncate flex-1">
                       {course.title}
                     </span>
@@ -867,7 +863,7 @@ function PeriodForm({
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger-fg">{error}</p>}
 
         <div className="flex gap-2">
           <Button
