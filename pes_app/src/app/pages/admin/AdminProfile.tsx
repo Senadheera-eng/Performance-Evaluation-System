@@ -12,13 +12,12 @@ import {
   PersonAvatar,
   SectionCard,
   SkeletonRows,
-  StatusBadge,
 } from "../../components/common";
 import { ChangePasswordDialog } from "../../components/account/ChangePasswordDialog";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../../lib/supabase";
 import { removeMyAvatar, uploadMyAvatar } from "../../../lib/avatars";
-import { departmentByName } from "../../../lib/departments";
+import { DEPARTMENTS, departmentByName } from "../../../lib/departments";
 import { cn } from "../../components/ui/utils";
 
 interface AdminRow {
@@ -146,11 +145,22 @@ export default function AdminProfile() {
                 {dept ? (
                   <DepartmentBadge department={row.department} />
                 ) : (
-                  <StatusBadge tone="neutral">All departments</StatusBadge>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+                    <AllDepartmentDots />
+                    All departments
+                  </span>
                 )}
-                <StatusBadge tone="brand" icon={Shield}>
+                {/* The role in the department's own colour, as a head's
+                    headship is; the faculty's admin keeps the brand. */}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    dept?.chipClass ?? "bg-primary/10 text-primary",
+                  )}
+                >
+                  <Shield className="h-3 w-3" aria-hidden="true" />
                   {roleLabel}
-                </StatusBadge>
+                </span>
               </div>
               <input
                 ref={fileInput}
@@ -241,7 +251,10 @@ export default function AdminProfile() {
                           <span className={dept.textClass}>{row.department}</span>
                         </span>
                       ) : (
-                        "All departments (whole faculty)"
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          <AllDepartmentDots />
+                          All departments (whole faculty)
+                        </span>
                       ),
                     ],
                   ] as [string, React.ReactNode][]
@@ -265,5 +278,16 @@ export default function AdminProfile() {
 
       <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
+  );
+}
+
+/** Every department's dot, side by side: the whole faculty at a glance. */
+function AllDepartmentDots() {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+      {Object.values(DEPARTMENTS).map((d) => (
+        <DepartmentDot key={d.key} dept={d} />
+      ))}
+    </span>
   );
 }
