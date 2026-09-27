@@ -1,9 +1,11 @@
+import { useAvatarUrls } from "../../../lib/avatars";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, UserMinus, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
+  PersonAvatar,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -38,6 +40,7 @@ export default function HodMentors() {
   const caps = getStaffCapabilities(staff);
   const [tab, setTab] = useState("students");
   const [roster, setRoster] = useState<MentorRosterRow[]>([]);
+  const avatars = useAvatarUrls(roster.map((r) => r.student_id));
   const [allocations, setAllocations] = useState<MentorAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -297,6 +300,8 @@ export default function HodMentors() {
                     key={s.student_id}
                     className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                   >
+                    <div className="flex min-w-0 items-center gap-3">
+                    <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="truncate text-sm font-medium text-foreground">
@@ -326,6 +331,7 @@ export default function HodMentors() {
                         {describeBatch(s.batch_year)}
                         {s.cgpa !== null && ` · CGPA ${s.cgpa.toFixed(2)}`}
                       </p>
+                    </div>
                     </div>
 
                     <div className="flex flex-shrink-0 items-center gap-2">

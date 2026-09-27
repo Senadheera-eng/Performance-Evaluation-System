@@ -64,6 +64,7 @@ const Results = page(() => import("./pages/Results"));
 const AIAssistant = page(() => import("./pages/AIAssistant"));
 const Profile = page(() => import("./pages/Profile"));
 const Settings = page(() => import("./pages/Settings"));
+const StaffProfile = page(() => import("./pages/staff/StaffProfile"));
 const Enrollment = page(() => import("./pages/Enrollment"));
 const MedicalCertificates = page(() => import("./pages/MedicalCertificates"));
 const Feedback = page(() => import("./pages/Feedback"));
@@ -199,6 +200,7 @@ export const router = createBrowserRouter([
       { path: "catalogue", element: held(<HodCourseCatalogue />) },
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
+      { path: "profile", element: held(<StaffProfile />) },
       { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
     ],

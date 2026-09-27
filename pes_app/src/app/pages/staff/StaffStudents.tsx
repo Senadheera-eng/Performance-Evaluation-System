@@ -1,3 +1,4 @@
+import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import {
+  PersonAvatar,
   CourseCode,
   EmptyState,
   ErrorState,
@@ -56,6 +58,7 @@ export default function StaffStudents() {
   const caps = getStaffCapabilities(staff);
 
   const [students, setStudents] = useState<DepartmentStudent[]>([]);
+  const avatars = useAvatarUrls(students.map((s) => s.student_id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -252,6 +255,7 @@ export default function StaffStudents() {
                     ) : (
                       <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     )}
+                    <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm text-foreground">{s.name}</p>
                       <p className="text-xs text-muted-foreground">

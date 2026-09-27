@@ -24,6 +24,7 @@ import { supabase } from "../../lib/supabase";
 import { departmentByName } from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
+import { removeMyAvatar, uploadMyAvatar } from "../../lib/avatars";
 
 interface SemesterStat {
   semNum: number;
@@ -58,7 +59,7 @@ const yearOfStudy = (semester: number): string =>
  * bar for every semester that was either full or stuck at a made-up 60%.
  */
 export default function Profile() {
-  const { student } = useAuth();
+  const { student, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -202,51 +203,36 @@ export default function Profile() {
     setLoading(false);
   };
 
+  /* Through the shared helpers, so the new photo is versioned (browsers
+     fetch it afresh) and the whole app, not just this page, picks it up. */
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !student?.id) return;
-
     e.target.value = "";
-    if (!file.type.startsWith("image/")) {
-      toast.error("Choose an image file (JPG or PNG).");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("That image is larger than 2 MB.");
-      return;
-    }
-
+    if (!file || !student?.id) return;
     setUploading(true);
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(student.id, file, { upsert: true });
-
-    if (!uploadError) {
-      const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(student.id);
-
-      const publicUrl = data.publicUrl;
-
-      const { error: saveError } = await supabase
-        .from("students")
-        .update({ avatar_url: publicUrl })
-        .eq("id", student.id);
-
-      if (saveError) {
-        console.error("Avatar save error:", saveError);
-        toast.error("The photo uploaded but could not be saved to your profile.");
-      } else {
-        setAvatarUrl(publicUrl + "?t=" + Date.now());
-        toast.success("Profile photo updated");
-      }
-    } else {
-      console.error("Upload error:", uploadError);
-      toast.error("The photo could not be uploaded. Please try again.");
-    }
-
+    const result = await uploadMyAvatar(student.id, file);
     setUploading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setAvatarUrl(result.url);
+    toast.success("Profile photo updated");
+    refreshProfile();
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!student?.id) return;
+    setUploading(true);
+    const result = await removeMyAvatar(student.id);
+    setUploading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setAvatarUrl(null);
+    toast.success("Profile photo removed");
+    refreshProfile();
   };
 
   const initials =
@@ -335,6 +321,16 @@ export default function Profile() {
               <h2 className="text-lg font-bold leading-tight text-foreground">
                 {student?.name ?? "—"}
               </h2>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  onClick={handleAvatarRemove}
+                  disabled={uploading}
+                  className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:text-danger-fg hover:underline"
+                >
+                  Remove photo
+                </button>
+              )}
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:justify-center">
                 {student?.department && <DepartmentBadge department={student.department} />}
                 {!loading && <StatusBadge tone="brand">{yearLabel}</StatusBadge>}

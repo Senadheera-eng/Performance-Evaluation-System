@@ -16,6 +16,8 @@ interface AuthContextType {
     password: string,
   ) => Promise<{ error: string | null; role: string | null }>;
   signOut: () => Promise<void>;
+  /** Reads the signed-in profile again, after the person has changed it. */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: lecturer } = await supabase
       .from("lecturers")
-      .select("id, name, title, email, department, status, created_at")
+      .select("id, name, title, email, department, status, created_at, avatar_url")
       .eq("auth_user_id", userId)
       .maybeSingle();
     if (lecturer) {
@@ -86,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: "lecturer",
           status: lecturer.status === "active" ? "active" : "withdrawn",
           created_at: lecturer.created_at,
+          avatar_url: lecturer.avatar_url ?? null,
         } as Student,
         staff: {
           lecturerId: lecturer.id,
@@ -173,13 +176,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: null, role: studentData?.role ?? "student" };
   };
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { profile, staff: staffContext } = await fetchProfile(user.id);
+    setStudent(profile);
+    setStaff(staffContext);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, session, student, staff, loading, signIn, signOut }}
+      value={{ user, session, student, staff, loading, signIn, signOut, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>
