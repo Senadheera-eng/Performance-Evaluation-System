@@ -24,6 +24,7 @@ import {
 import { LikertMatrix } from "../components/feedback/LikertMatrix";
 import { QuestionField } from "../components/feedback/QuestionField";
 import { cn } from "../components/ui/utils";
+import { departmentByCourseCode } from "../../lib/departments";
 import {
   answerKey,
   getFeedbackCatalogue,
@@ -121,6 +122,16 @@ export default function Feedback() {
       a.course_code.localeCompare(b.course_code),
     );
   }, [bySemester, semester]);
+
+  /* Open on the semester with forms still to fill in (the newest, if
+     several), so a student with one round open is one tap from the course
+     rather than two. They can still pick any other semester. */
+  useEffect(() => {
+    if (semester !== null || rows.length === 0) return;
+    const owed = [...openInSemester.keys()];
+    const pick = owed.length > 0 ? Math.max(...owed) : Math.max(...bySemester.keys());
+    setSemester(pick);
+  }, [rows, semester, openInSemester, bySemester]);
 
   /* The rounds open for the course the student just tapped. */
   const roundsForCourse = useMemo(() => {
@@ -224,9 +235,9 @@ export default function Feedback() {
                 <ul className="grid gap-3 md:grid-cols-2">
                   {coursesInSemester.map((c) => {
                     const rounds = rows.filter((r) => r.course_id === c.course_id);
-                    const done = rounds.every(
-                      (r) => r.submission_status === "submitted",
-                    );
+                    const owed = rounds.filter(
+                      (r) => r.submission_status !== "submitted",
+                    ).length;
                     return (
                       <li key={c.course_id}>
                         <button
@@ -235,17 +246,24 @@ export default function Feedback() {
                             setChosenCourse(c.course_id);
                             setChosenType(null);
                           }}
-                          className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/50"
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-xl border border-l-4 border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50",
+                            departmentByCourseCode(c.course_code)?.stripeClass,
+                          )}
                         >
-                          <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
-                            {c.course_code}
-                          </span>
+                          <CourseCode code={c.course_code} />
                           <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                             {c.course_title}
                           </span>
-                          {done && (
+                          {/* Says which courses still want an answer, not
+                              only which are finished. */}
+                          {owed === 0 ? (
                             <StatusBadge tone="success" icon={CheckCircle2}>
                               Done
+                            </StatusBadge>
+                          ) : (
+                            <StatusBadge tone="info" dot>
+                              {owed === 1 ? "1 form open" : `${owed} forms open`}
                             </StatusBadge>
                           )}
                         </button>
@@ -268,9 +286,7 @@ export default function Feedback() {
           </DialogHeader>
           {roundsForCourse[0] && (
             <p className="-mt-2 text-sm text-muted-foreground">
-              <span className="font-semibold text-primary">
-                {roundsForCourse[0].course_code}
-              </span>{" "}
+              <CourseCode code={roundsForCourse[0].course_code} />{" "}
               — {roundsForCourse[0].course_title}
             </p>
           )}
@@ -347,6 +363,20 @@ export default function Feedback() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** A course code in its department's hue, as on every other page. */
+function CourseCode({ code }: { code: string }) {
+  return (
+    <span
+      className={cn(
+        "text-sm font-semibold tabular-nums whitespace-nowrap",
+        departmentByCourseCode(code)?.textClass ?? "text-foreground",
+      )}
+    >
+      {code}
+    </span>
   );
 }
 
@@ -515,9 +545,7 @@ function FeedbackFormView({
       {/* Course header — auto-filled, exactly as the faculty's form shows it */}
       <div className="rounded-xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground">
-            {row.course_code}
-          </span>
+          <CourseCode code={row.course_code} />
           <span className="text-base font-semibold text-foreground">
             {row.course_title}
           </span>
@@ -526,7 +554,14 @@ function FeedbackFormView({
           <Field label="Feedback Type" value={`${TYPE_LABEL[row.feedback_type]} Feedback`} />
           <Field label="Course Coordinator" value={form.coordinator_name ?? "Not assigned"} />
           <Field label="Academic Year" value={form.academic_year ?? "—"} />
-          <Field label="Date" value={new Date().toLocaleDateString()} />
+          <Field
+            label="Date"
+            value={new Date().toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          />
         </dl>
       </div>
 
@@ -589,7 +624,7 @@ function MissingSummary({
     return (
       <p
         role="status"
-        className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-300"
+        className="flex items-center gap-2 rounded-xl border border-success-border bg-success-bg px-4 py-3 text-sm text-success-fg"
       >
         <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
         All required questions are answered. You can submit now.
@@ -599,7 +634,7 @@ function MissingSummary({
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-fg"
     >
       <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
       <span className="flex-1">
@@ -703,7 +738,7 @@ function SectionCardView({
                 <p className="text-sm font-semibold text-foreground">
                   Lecturer {i + 1}
                 </p>
-                <p className="mb-3 text-sm text-primary">
+                <p className="mb-3 text-sm font-medium text-foreground">
                   {lecturer.name}
                   {lecturer.assignment_role === "coordinator" && (
                     <StatusBadge tone="brand" className="ml-1.5">
