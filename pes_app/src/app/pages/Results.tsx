@@ -45,7 +45,9 @@ import {
   useChartMotion,
   type StatusTone,
 } from "../components/common";
+import { cn } from "../components/ui/utils";
 import { supabase } from "../../lib/supabase";
+import { departmentByCourseCode } from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
 import { useSettings } from "../../lib/settings";
@@ -56,11 +58,8 @@ interface CourseResult {
   code: string;
   name: string;
   credits: number;
-  mid_sem: number | null;
-  ca: number | null;
-  // ese_mark and oa_mark are deliberately absent, not merely unused: the
-  // student-facing source is the `my_published_results` view, which does not
-  // expose either. See the view's own comment for why OA goes with ESE.
+  // No marks at all, only the grade: the student-facing record withholds
+  // ESE and OA, and does not carry mid-semester or CA marks either.
   grade: string | null;
   gpv: number | null;
   contributes_to_gpa: boolean;
@@ -207,10 +206,6 @@ export default function Results() {
         code: c.course_code,
         name: c.title,
         credits: c.credits,
-        // The student-facing record withholds ESE and OA; mid-sem and CA are
-        // not carried here either, so the table shows grade and GPV.
-        mid_sem: null,
-        ca: null,
         grade: c.grade,
         gpv: c.gpv,
         contributes_to_gpa: c.contributes_to_gpa,
@@ -331,18 +326,9 @@ export default function Results() {
   const activeSemester =
     semesters.find((s) => s.semesterKey === activeSemesterTab) ?? null;
 
-  /**
-   * Continuous-assessment marks are optional in this dataset — the historical
-   * import carries grades and grade points only. Showing permanently empty
-   * columns made the table look broken, so they appear only for semesters
-   * that actually have them.
-   *
-   * The End-Semester Examination mark is not among them by design: students
-   * see their components and their grade, not the ESE mark itself.
-   */
-  const showComponentMarks = activeSemester
-    ? activeSemester.courses.some((c) => c.mid_sem !== null || c.ca !== null)
-    : false;
+  /* Semesters with at least one result. All eight are on the page, but
+     "graded across 8 semesters" counted two with nothing in them. */
+  const semestersWithResults = semesters.filter((s) => s.courses.length > 0).length;
 
   const handleDownloadTranscript = () => {
     setDownloading(true);
@@ -559,7 +545,7 @@ export default function Results() {
             value={completedCourses}
             icon={BookOpenCheck}
             tone="neutral"
-            hint={`Across ${semesters.length} semester${semesters.length === 1 ? "" : "s"}`}
+            hint={`Across ${semestersWithResults} semester${semestersWithResults === 1 ? "" : "s"}`}
           />
         </div>
       )}
@@ -646,29 +632,23 @@ export default function Results() {
       </div>
 
       {/* Semester detail */}
-      <SectionCard
-        title="Semester results"
-        description={
-          activeSemester
-            ? `${activeSemester.label} — ${activeSemester.academicYear}`
-            : undefined
-        }
-        actions={
-          semesters.length > 0 ? (
-            <SegmentedTabs
-              aria-label="Select a semester"
-              tabs={semesters.map((sem) => ({
-                value: sem.semesterKey,
-                label: `Sem ${sem.semesterNum}`,
-              }))}
-              value={activeSemesterTab}
-              onChange={setActiveSemesterTab}
-              layoutId="results-semester-tab-indicator"
-              scrollable
-            />
-          ) : undefined
-        }
-      >
+      {/* The semester tabs sit in the body on their own row, where eight of
+          them can scroll on a phone. In the header they sat beside the title
+          and, on a narrow screen, on top of it. */}
+      <SectionCard title="Semester results" bodyClassName="space-y-4">
+        {!loading && semesters.length > 0 && (
+          <SegmentedTabs
+            aria-label="Select a semester"
+            tabs={semesters.map((sem) => ({
+              value: sem.semesterKey,
+              label: `Sem ${sem.semesterNum}`,
+            }))}
+            value={activeSemesterTab}
+            onChange={setActiveSemesterTab}
+            layoutId="results-semester-tab-indicator"
+            scrollable
+          />
+        )}
         {loading ? (
           <SkeletonRows count={5} height="h-12" />
         ) : semesters.length === 0 ? (
@@ -690,7 +670,9 @@ export default function Results() {
                     {activeSemester.academicYear}
                   </span>
                   {activeSemester.sgpa !== null && activeSemester.sgpa >= 3.8 && (
-                    <StatusBadge tone="warning" icon={Award}>
+                    /* An honour, not a warning: brand, not the amber the
+                       warning tone would give it. */
+                    <StatusBadge tone="brand" icon={Award}>
                       Dean's List
                     </StatusBadge>
                   )}
@@ -744,28 +726,21 @@ export default function Results() {
               </div>
             ) : (
             <div className="rounded-xl border border-border overflow-x-auto">
+              {/* On a phone the code and credits fold under the course name,
+                  so the grade and grade point (what the student came for)
+                  stay on screen instead of past its right edge. */}
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[110px]">Code</TableHead>
+                    <TableHead className="hidden w-[110px] sm:table-cell">Code</TableHead>
                     <TableHead>Course</TableHead>
-                    <TableHead className="text-center w-[80px]">
+                    <TableHead className="hidden w-[80px] text-center sm:table-cell">
                       Credits
                     </TableHead>
-                    {showComponentMarks && (
-                      <>
-                        <TableHead className="text-center w-[90px]">
-                          Mid Sem
-                        </TableHead>
-                        <TableHead className="text-center w-[70px]">
-                          CA
-                        </TableHead>
-                      </>
-                    )}
-                    <TableHead className="text-center w-[90px]">
+                    <TableHead className="w-[72px] text-center sm:w-[90px]">
                       Grade
                     </TableHead>
-                    <TableHead className="text-center w-[70px]">GPV</TableHead>
+                    <TableHead className="w-[56px] text-center sm:w-[70px]">GPV</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -774,15 +749,25 @@ export default function Results() {
                     // per attempt — so the key has to say which attempt.
                     const superseded =
                       course.attempt !== undefined && !course.attempt.isLatest;
+                    const codeClass = cn(
+                      "font-semibold tabular-nums whitespace-nowrap",
+                      departmentByCourseCode(course.code)?.textClass ?? "text-foreground",
+                    );
                     return (
                     <TableRow
                       key={`${course.code}-${course.attempt?.number ?? 1}`}
                       className={superseded ? "opacity-60" : undefined}
                     >
-                      <TableCell className="font-medium text-primary whitespace-nowrap">
+                      <TableCell className={cn("hidden sm:table-cell", codeClass)}>
                         {course.code}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="whitespace-normal">
+                        <span className="mb-0.5 flex items-center gap-2 text-xs sm:hidden">
+                          <span className={codeClass}>{course.code}</span>
+                          <span className="text-muted-foreground">
+                            {course.credits} credit{course.credits === 1 ? "" : "s"}
+                          </span>
+                        </span>
                         <span className="text-foreground">{course.name}</span>
                         {course.attempt && (
                           <StatusBadge
@@ -800,19 +785,9 @@ export default function Results() {
                           </StatusBadge>
                         )}
                       </TableCell>
-                      <TableCell className="text-center tabular-nums">
+                      <TableCell className="hidden text-center tabular-nums sm:table-cell">
                         {course.credits}
                       </TableCell>
-                      {showComponentMarks && (
-                        <>
-                          <TableCell className="text-center tabular-nums text-muted-foreground">
-                            {course.mid_sem ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-center tabular-nums text-muted-foreground">
-                            {course.ca ?? "—"}
-                          </TableCell>
-                        </>
-                      )}
                       <TableCell className="text-center">
                         {course.grade ? (
                           <StatusBadge tone={gradeTone(course.grade)}>
