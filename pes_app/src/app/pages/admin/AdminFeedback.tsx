@@ -1,3 +1,4 @@
+import { CourseCode, EmptyState } from "../../components/common";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -11,6 +12,7 @@ import {
   PlayCircle,
   Sparkles,
   X,
+  MessageSquareText,
 } from "lucide-react";
 import {
   Card,
@@ -68,11 +70,11 @@ const QUESTION_TYPE_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  scheduled: "bg-blue-100 text-blue-700",
-  open: "bg-green-100 text-green-700",
-  closed: "bg-amber-100 text-amber-700",
-  archived: "bg-gray-100 text-gray-500",
+  draft: "bg-neutral-bg text-neutral-fg",
+  scheduled: "bg-info-bg text-info-fg",
+  open: "bg-success-bg text-success-fg",
+  closed: "bg-warning-bg text-warning-fg",
+  archived: "bg-neutral-bg text-neutral-fg",
 };
 
 /**
@@ -113,7 +115,7 @@ function StudentVisibility({
   return (
     <p
       className={`mt-1 flex items-center gap-1.5 text-xs ${
-        live ? "text-green-700" : "text-muted-foreground"
+        live ? "text-success-fg" : "text-muted-foreground"
       }`}
     >
       {live ? (
@@ -186,7 +188,7 @@ function PeriodsView({
   return (
     <div className="space-y-4">
       {saveMessage && (
-        <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+        <div className="p-3 rounded-xl bg-success-bg border border-success-border text-sm text-success-fg">
           {saveMessage}
         </div>
       )}
@@ -217,9 +219,11 @@ function PeriodsView({
       {loading ? (
         <div className="h-40 rounded-xl bg-muted animate-pulse" />
       ) : periods.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          No feedback periods yet.
-        </div>
+        <EmptyState
+          icon={MessageSquareText}
+          title="No feedback rounds yet"
+          description="Create a round with New Period. Its lecturers then shape their own course forms, and you open it to students when they are ready."
+        />
       ) : (
         <div className="space-y-3">
           {periods.map((p) => (
@@ -514,7 +518,7 @@ function CreatePeriodForm({
           Allow students to edit their response until the period closes
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-danger-fg">{error}</p>}
 
         <div className="flex gap-2">
           <Button
@@ -702,7 +706,7 @@ function PeriodCard({
             {period.status === "draft" && (
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleTransition("open");
@@ -751,7 +755,7 @@ function PeriodCard({
             the database refuses some of them for good reasons — a period with
             no courses cannot open. Rendered only alongside the configuration,
             that refusal was invisible and the button looked broken. */}
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-2 text-sm text-danger-fg">{error}</p>}
 
         {expanded && (
           <div className="mt-4 pt-4 border-t border-border space-y-4">
@@ -804,9 +808,7 @@ function PeriodCard({
                                       checked={isSelected}
                                       className="mr-1 pointer-events-none"
                                     />
-                                    <Badge className="bg-primary/10 text-primary text-xs flex-shrink-0">
-                                      {c.code}
-                                    </Badge>
+                                    <CourseCode code={c.code} className="text-xs flex-shrink-0" />
                                     <span className="truncate flex-1">{c.title}</span>
                                     <span className="text-xs text-muted-foreground flex-shrink-0">
                                       Sem {c.semester}
