@@ -4,12 +4,11 @@ import { Search, Filter, BookOpen } from "lucide-react";
 import { CourseListRow } from "../components/courses/CourseListRow";
 import { CourseDetailDialog } from "../components/courses/CourseDetailDialog";
 import {
-  DepartmentDot,
+  DepartmentChips,
   EmptyState,
   PageHeader,
   SegmentedTabs,
 } from "../components/common";
-import { cn } from "../components/ui/utils";
 import {
   DEPARTMENTS,
   departmentByCourseCode,
@@ -53,7 +52,7 @@ export default function Courses() {
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
   /* One department's courses at a time, from the colour key: the student's
      own department, or the shared Interdisciplinary modules. */
-  const [deptFilter, setDeptFilter] = useState<DepartmentKey | null>(null);
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /* Opening a course tells the student how it is marked, which is the one
      thing about a course they cannot work out from their own grade. */
@@ -255,7 +254,7 @@ export default function Courses() {
     const matchesSemester =
       semesterFilter === "all" || course.semester === Number(semesterFilter);
     if (!matchesSearch || !matchesSemester) return false;
-    if (deptFilter && departmentByCourseCode(course.code)?.key !== deptFilter) return false;
+    if (deptFilter && departmentByCourseCode(course.code)?.name !== deptFilter) return false;
     if (activeTab === "all") return true;
     if (activeTab === "ongoing") return course.status === "ongoing";
     if (activeTab === "completed") return course.status === "completed";
@@ -321,47 +320,13 @@ export default function Courses() {
           Interdisciplinary modules, and each row carries its department's
           colour; these chips are the key to it. */}
       {!loading && curriculumDepts.length > 1 && (
-        <div
-          className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
-          role="group"
-          aria-label="Show courses from"
-        >
-          <button
-            type="button"
-            aria-pressed={deptFilter === null}
-            onClick={() => setDeptFilter(null)}
-            className={cn(
-              "inline-flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors",
-              deptFilter === null
-                ? "border-foreground/20 bg-foreground text-background"
-                : "border-border bg-card text-muted-foreground hover:bg-muted",
-            )}
-          >
-            All departments
-            <span className="tabular-nums opacity-70">{allCourses.length}</span>
-          </button>
-          {curriculumDepts.map(({ dept, n }) => {
-            const active = deptFilter === dept.key;
-            return (
-              <button
-                key={dept.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setDeptFilter(active ? null : dept.key)}
-                className={cn(
-                  "inline-flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors",
-                  active
-                    ? cn(dept.chipClass, dept.borderClass)
-                    : "border-border bg-card text-foreground hover:bg-muted",
-                )}
-              >
-                <DepartmentDot dept={dept} className="h-2.5 w-2.5" />
-                {dept.name}
-                <span className="tabular-nums text-muted-foreground">{n}</span>
-              </button>
-            );
-          })}
-        </div>
+        <DepartmentChips
+          items={curriculumDepts.map(({ dept, n }) => ({ name: dept.name, count: n }))}
+          value={deptFilter}
+          onChange={setDeptFilter}
+          total={allCourses.length}
+          ariaLabel="Show courses from"
+        />
       )}
 
       {/* Search and Filter */}
