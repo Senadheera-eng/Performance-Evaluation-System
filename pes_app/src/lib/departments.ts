@@ -30,11 +30,12 @@ export interface Department {
   /** Readable text in the department's hue. */
   textClass: string;
   /**
-   * A person's or record's row: a stripe on the left and a faint wash of the
-   * hue across the row, so the department reads at a glance whether or not
-   * the avatar is a photo.
+   * A person's or record's row: a stripe on the left, and the department's
+   * tint while hovered — plain at rest, so a long list stays calm.
    */
   rowClass: string;
+  /** A faint wash of the hue at rest, for the few rows that keep one. */
+  washClass: string;
   /** The tint on hover only, for a list that stays plain at rest. */
   hoverClass: string;
   /** The full tint, for a row that is chosen rather than merely listed. */
@@ -59,7 +60,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     stripeClass: "border-l-dept-ce",
     chipClass: "bg-dept-ce-soft text-dept-ce-fg",
     textClass: "text-dept-ce-fg",
-    rowClass: "border-l-4 border-l-dept-ce bg-dept-ce-soft/50",
+    rowClass: "border-l-4 border-l-dept-ce hover:bg-dept-ce-soft",
+    washClass: "bg-dept-ce-soft/50",
     hoverClass: "hover:bg-dept-ce-soft",
     softClass: "bg-dept-ce-soft",
     borderClass: "border-dept-ce",
@@ -76,7 +78,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     stripeClass: "border-l-dept-co",
     chipClass: "bg-dept-co-soft text-dept-co-fg",
     textClass: "text-dept-co-fg",
-    rowClass: "border-l-4 border-l-dept-co bg-dept-co-soft/50",
+    rowClass: "border-l-4 border-l-dept-co hover:bg-dept-co-soft",
+    washClass: "bg-dept-co-soft/50",
     hoverClass: "hover:bg-dept-co-soft",
     softClass: "bg-dept-co-soft",
     borderClass: "border-dept-co",
@@ -93,7 +96,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     stripeClass: "border-l-dept-ee",
     chipClass: "bg-dept-ee-soft text-dept-ee-fg",
     textClass: "text-dept-ee-fg",
-    rowClass: "border-l-4 border-l-dept-ee bg-dept-ee-soft/50",
+    rowClass: "border-l-4 border-l-dept-ee hover:bg-dept-ee-soft",
+    washClass: "bg-dept-ee-soft/50",
     hoverClass: "hover:bg-dept-ee-soft",
     softClass: "bg-dept-ee-soft",
     borderClass: "border-dept-ee",
@@ -110,7 +114,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     stripeClass: "border-l-dept-me",
     chipClass: "bg-dept-me-soft text-dept-me-fg",
     textClass: "text-dept-me-fg",
-    rowClass: "border-l-4 border-l-dept-me bg-dept-me-soft/50",
+    rowClass: "border-l-4 border-l-dept-me hover:bg-dept-me-soft",
+    washClass: "bg-dept-me-soft/50",
     hoverClass: "hover:bg-dept-me-soft",
     softClass: "bg-dept-me-soft",
     borderClass: "border-dept-me",
@@ -127,7 +132,8 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     stripeClass: "border-l-dept-is",
     chipClass: "bg-dept-is-soft text-dept-is-fg",
     textClass: "text-dept-is-fg",
-    rowClass: "border-l-4 border-l-dept-is bg-dept-is-soft/50",
+    rowClass: "border-l-4 border-l-dept-is hover:bg-dept-is-soft",
+    washClass: "bg-dept-is-soft/50",
     hoverClass: "hover:bg-dept-is-soft",
     softClass: "bg-dept-is-soft",
     borderClass: "border-dept-is",
@@ -154,7 +160,7 @@ export function departmentByName(name: string | null | undefined): Department | 
  * width for a row with none — so rows stay aligned in a mixed list.
  */
 export function departmentRowClass(name: string | null | undefined): string {
-  return departmentByName(name)?.rowClass ?? "border-l-4 border-l-transparent";
+  return departmentByName(name)?.rowClass ?? "border-l-4 border-l-transparent hover:bg-muted/50";
 }
 
 /**

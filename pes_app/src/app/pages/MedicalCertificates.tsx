@@ -692,7 +692,8 @@ export default function MedicalCertificates() {
                           key={c.code}
                           className={cn(
                             "flex items-start justify-between gap-2 rounded-lg border border-l-4 border-border/60 bg-muted/30 p-2",
-                            departmentByCourseCode(c.code)?.rowClass,
+                            departmentByCourseCode(c.code)?.stripeClass,
+                            departmentByCourseCode(c.code)?.washClass,
                           )}
                         >
                           <div className="min-w-0">
