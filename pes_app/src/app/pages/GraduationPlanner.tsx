@@ -1,21 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  GraduationCap,
-  Target,
+  Award,
   CheckCircle2,
-  XCircle,
-  TrendingUp,
   FlaskConical,
+  GraduationCap,
+  Hourglass,
   RotateCcw,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
   Select,
@@ -25,7 +19,16 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent } from "../components/ui/tabs";
-import { SegmentedTabs, StatusBadge } from "../components/common";
+import {
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  SegmentedTabs,
+  SkeletonRows,
+  SkeletonStatGrid,
+  StatCard,
+  StatusBadge,
+} from "../components/common";
 import { cn } from "../components/ui/utils";
 import { departmentByCourseCode } from "../../lib/departments";
 import { supabase } from "../../lib/supabase";
@@ -252,12 +255,6 @@ export default function GraduationPlanner() {
     return { ...sem, expectedElective, total };
   });
 
-  const allSemesterTotalsKnown = semesterTotals.every((s) => s.total !== null);
-  const sumOfKnownTotals = semesterTotals.reduce(
-    (s, x) => s + (x.total ?? 0),
-    0,
-  );
-
   const coursesBySemester = useMemo(() => {
     const gpaCourses = allCourses.filter((c) => c.contributesToGpa);
     const groups: Record<number, CourseResult[]> = {};
@@ -270,146 +267,149 @@ export default function GraduationPlanner() {
       .sort((a, b) => a.semester - b.semester);
   }, [allCourses]);
 
-  const renderStandingCards = (cgpa: number, credits: number) => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-      <Card className="border-border">
-        <CardContent className="p-3">
-          <p className="text-sm text-muted-foreground">
-            {activeTab === "simulator" ? "Simulated CGPA" : "Current CGPA"}
-          </p>
-          <p className="text-xl font-bold text-primary">{cgpa.toFixed(2)}</p>
-        </CardContent>
-      </Card>
-      <Card className="border-border">
-        <CardContent className="p-3">
-          <p className="text-sm text-muted-foreground">Credits Completed</p>
-          <p className="text-xl font-bold text-foreground">
-            {credits} / {TOTAL_CREDITS_REQUIRED}
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="border-border">
-        <CardContent className="p-3">
-          <p className="text-sm text-muted-foreground">Credits Remaining</p>
-          <p className="text-xl font-bold text-foreground">
-            {Math.max(0, TOTAL_CREDITS_REQUIRED - credits)}
-          </p>
-        </CardContent>
-      </Card>
-      <Card className="border-border">
-        <CardContent className="p-3">
-          <p className="text-sm text-muted-foreground">Best Possible CGPA</p>
-          <p className="text-xl font-bold text-success-fg">
-            {bestPossibleCgpa.toFixed(2)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            if you score A+ every remaining course
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const renderStandingCards = (cgpa: number, credits: number) => {
+    const simulated = activeTab === "simulator";
+    return (
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          index={0}
+          label={simulated ? "Simulated CGPA" : "Current CGPA"}
+          value={cgpa.toFixed(2)}
+          icon={Award}
+          tone="brand"
+          hint={classificationForGpa(cgpa)}
+        />
+        <StatCard
+          index={1}
+          label="Credits completed"
+          value={credits}
+          icon={GraduationCap}
+          tone="neutral"
+          hint={`of ${TOTAL_CREDITS_REQUIRED} counted toward the GPA`}
+        />
+        <StatCard
+          index={2}
+          label="Credits remaining"
+          value={Math.max(0, TOTAL_CREDITS_REQUIRED - credits)}
+          icon={Hourglass}
+          tone="info"
+          hint={
+            semesterTotals.length > 0
+              ? `Semester ${semesterTotals.map((s) => s.semester).join(" and ")}`
+              : undefined
+          }
+        />
+        <StatCard
+          index={3}
+          label="Best possible CGPA"
+          value={bestPossibleCgpa.toFixed(2)}
+          icon={TrendingUp}
+          tone="success"
+          hint="With an A+ in every remaining course"
+        />
+      </div>
+    );
+  };
 
+  /* Which semesters are left and roughly what they carry, e.g.
+     "Semester 7 (17 credits) and Semester 8 (17 credits)". */
+  const remainingSemestersText = semesterTotals
+    .map((s) =>
+      s.total !== null
+        ? `Semester ${s.semester} (${s.total} credits)`
+        : `Semester ${s.semester}`,
+    )
+    .join(" and ");
+
+  /* One card, where there used to be two saying the same thing. A second
+     "Semester-by-Semester Targets" card repeated each average below as the
+     SGPA to hold in every remaining semester (it is the same number, since
+     the CGPA is a credit-weighted average) and then spent a paragraph
+     explaining why. That is now one line in this card's description. */
   const renderProjectionsCard = () => (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="h-5 w-5 text-primary" />
-          What You Need for Each Classification
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {projections.map((p) => (
-          <div
-            key={p.key}
-            className="p-3 rounded-xl border border-border flex items-center justify-between gap-4 flex-wrap"
-          >
-            <div>
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-foreground">{p.label}</h4>
-                <Badge variant="outline" className="text-xs">
-                  CGPA ≥ {p.threshold.toFixed(2)}
-                </Badge>
-              </div>
-              {p.alreadySecured ? (
-                <p className="text-sm text-success-fg mt-1 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Already secured — even a 0.00 average in your remaining{" "}
-                  {p.remainingCredits} credits keeps you above this
-                </p>
-              ) : !p.feasible ? (
-                <p className="text-sm text-danger-fg mt-1 flex items-center gap-1">
-                  <XCircle className="h-3.5 w-3.5" />
-                  No longer mathematically possible (would require above 4.00
-                  GPA)
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Average <strong>{p.requiredAvg.toFixed(2)}</strong> GPA across
-                  your remaining {p.remainingCredits} credits
-                </p>
-              )}
+    <SectionCard
+      title="What you need for each class"
+      description={
+        remainingSemestersText
+          ? `The average GPA your remaining credits must reach. Hold that SGPA in each of ${remainingSemestersText} and you reach the class.`
+          : "The average GPA your remaining credits must reach."
+      }
+      bodyClassName="space-y-2.5"
+    >
+      {projections.map((p) => (
+        <div
+          key={p.key}
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-border p-3"
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-foreground">{p.label}</h3>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                CGPA ≥ {p.threshold.toFixed(2)}
+              </span>
             </div>
-            <div className="text-right">
-              {p.alreadySecured ? (
-                <StatusBadge tone="success" dot>Secured</StatusBadge>
-              ) : !p.feasible ? (
-                <StatusBadge tone="danger" dot>Not achievable</StatusBadge>
-              ) : p.requiredAvg >= 3.8 ? (
-                <StatusBadge tone="warning" dot>Challenging</StatusBadge>
-              ) : (
-                <StatusBadge tone="info" dot>On track</StatusBadge>
-              )}
-            </div>
+            {p.alreadySecured ? (
+              <p className="mt-1 flex items-center gap-1 text-sm text-success-fg">
+                <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                Already secured: even a 0.00 average in your remaining{" "}
+                {p.remainingCredits} credits keeps you above this.
+              </p>
+            ) : !p.feasible ? (
+              <p className="mt-1 flex items-center gap-1 text-sm text-danger-fg">
+                <XCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                No longer reachable: it would need more than a 4.00 average.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Average{" "}
+                <strong className="text-lg font-bold text-foreground tabular-nums">
+                  {p.requiredAvg.toFixed(2)}
+                </strong>{" "}
+                across your remaining {p.remainingCredits} credits
+              </p>
+            )}
           </div>
-        ))}
-      </CardContent>
-    </Card>
+          {p.alreadySecured ? (
+            <StatusBadge tone="success" dot>Secured</StatusBadge>
+          ) : !p.feasible ? (
+            <StatusBadge tone="danger" dot>Not achievable</StatusBadge>
+          ) : p.requiredAvg >= 3.8 ? (
+            <StatusBadge tone="warning" dot>Challenging</StatusBadge>
+          ) : (
+            <StatusBadge tone="info" dot>On track</StatusBadge>
+          )}
+        </div>
+      ))}
+      {activeTab === "standing" && (
+        <p className="pt-1 text-xs text-muted-foreground">
+          Want to plan one semester harder than another, or see what a
+          different grade would have done? Try the What-If Simulator.
+        </p>
+      )}
+    </SectionCard>
   );
 
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary/70">
-            <GraduationCap className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Graduation Planner
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              See what GPA you need in your remaining semesters — or experiment
-              with hypothetical grades to see the impact.
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        title="Graduation Planner"
+        description="See what GPA you need in your remaining semesters, or try different grades to see what they would change."
+      />
 
       {loading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />
-          ))}
+          <SkeletonStatGrid count={4} />
+          <SkeletonRows count={4} height="h-16" />
         </div>
       ) : remainingCredits === 0 && activeTab === "standing" ? (
-        <Card className="border-border">
-          <CardContent className="p-8 text-center">
-            <CheckCircle2 className="h-12 w-12 text-success-fg mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-foreground">
-              You've completed the required {TOTAL_CREDITS_REQUIRED} credits
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              Your final classification is based on your current CGPA of{" "}
-              {actualStanding.cgpa.toFixed(2)}:{" "}
-              <strong>{classificationForGpa(actualStanding.cgpa)}</strong>
-            </p>
-          </CardContent>
-        </Card>
+        <SectionCard>
+          <EmptyState
+            icon={CheckCircle2}
+            title={`You have completed the required ${TOTAL_CREDITS_REQUIRED} credits`}
+            description={`Your final class follows from your CGPA of ${actualStanding.cgpa.toFixed(2)}: ${classificationForGpa(actualStanding.cgpa)}.`}
+            size="inline"
+          />
+        </SectionCard>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <SegmentedTabs
@@ -424,101 +424,16 @@ export default function GraduationPlanner() {
             className="self-start"
           />
 
-          <TabsContent value="standing" className="space-y-6 mt-6">
+          <TabsContent value="standing" className="mt-5 space-y-5">
             {renderStandingCards(
               actualStanding.cgpa,
               actualStanding.totalCredits,
             )}
             {renderProjectionsCard()}
 
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Semester-by-Semester Targets
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Real course credit data for{" "}
-                  {student?.department ?? "your department"}
-                  {allSemesterTotalsKnown && (
-                    <>
-                      :{" "}
-                      {semesterTotals
-                        .map((s) => `Sem ${s.semester} = ${s.total} credits`)
-                        .join(", ")}{" "}
-                      (total {sumOfKnownTotals} credits
-                      {sumOfKnownTotals !== remainingCredits &&
-                      remainingCredits > 0
-                        ? `, vs. ${remainingCredits} needed to reach ${TOTAL_CREDITS_REQUIRED} — the gap reflects credits you may not need if you're on the standard load`
-                        : ""}
-                      ).
-                    </>
-                  )}
-                </p>
-
-                {CLASSIFICATIONS.map((c) => {
-                  const proj = projections.find((p) => p.key === c.key)!;
-                  if (proj.alreadySecured || !proj.feasible) {
-                    return (
-                      <div
-                        key={c.key}
-                        className="p-2.5 rounded-lg bg-muted/40 flex items-center justify-between"
-                      >
-                        <span className="font-medium text-foreground text-sm">
-                          {c.label}
-                        </span>
-                        <StatusBadge
-                          tone={proj.alreadySecured ? "success" : "danger"}
-                          dot
-                        >
-                          {proj.alreadySecured
-                            ? "Already secured"
-                            : "Not achievable"}
-                        </StatusBadge>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={c.key} className="p-2.5 rounded-lg bg-muted/40">
-                      <p className="font-medium text-foreground text-sm mb-1.5">
-                        {c.label}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        If you achieve an SGPA of approximately{" "}
-                        <strong className="text-foreground">
-                          {proj.requiredAvg.toFixed(2)}
-                        </strong>{" "}
-                        in each of{" "}
-                        {semesterTotals
-                          .map(
-                            (s) =>
-                              `Semester ${s.semester} (${s.total ?? "?"} credits)`,
-                          )
-                          .join(" and ")}
-                        , you'll reach the CGPA required for {c.label}.
-                      </p>
-                    </div>
-                  );
-                })}
-
-                <div className="p-2.5 rounded-lg bg-info-bg border border-info-border">
-                  <p className="text-xs text-info-fg">
-                    The same SGPA target applies to every remaining semester by
-                    design — since your final CGPA is a credit-weighted average
-                    across all of them, sustaining one consistent rate reaches
-                    the goal regardless of how credits split between semesters.
-                    Want a plan where one semester differs from another (e.g.
-                    front-loading a harder semester)? Use the What-If Simulator
-                    to explore specific combinations.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
-          <TabsContent value="simulator" className="space-y-6 mt-6">
+          <TabsContent value="simulator" className="mt-5 space-y-5">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -553,13 +468,11 @@ export default function GraduationPlanner() {
             )}
             {renderProjectionsCard()}
 
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Edit Past Module Grades
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <SectionCard
+              title="Edit past module grades"
+              description="Pick a different grade for any course to see what it would change."
+              bodyClassName="space-y-4"
+            >
                 {coursesBySemester.map((group) => {
                   const semStanding = simulatedStanding.semesterGpas.find(
                     (s) => s.semester === group.semester,
@@ -593,26 +506,34 @@ export default function GraduationPlanner() {
                           return (
                             <div
                               key={c.resultRowId}
-                              className={`flex items-center justify-between p-2.5 rounded-lg ${
+                              className={`flex items-center justify-between gap-3 p-2.5 rounded-lg ${
                                 isChanged
                                   ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
                                   : "bg-muted/30"
                               }`}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className={cn(
-                                    "text-xs font-semibold tabular-nums flex-shrink-0",
-                                    departmentByCourseCode(c.code)?.textClass ??
-                                      "text-foreground",
-                                  )}
-                                >
-                                  {c.code}
+                              {/* On a phone the title takes its own line
+                                  under the code, rather than being cut off
+                                  beside it. */}
+                              <div className="flex min-w-0 flex-col gap-x-2 sm:flex-row sm:items-center">
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "text-xs font-semibold tabular-nums flex-shrink-0",
+                                      departmentByCourseCode(c.code)?.textClass ??
+                                        "text-foreground",
+                                    )}
+                                  >
+                                    {c.code}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground sm:hidden">
+                                    {c.credits} credit{c.credits === 1 ? "" : "s"}
+                                  </span>
                                 </span>
-                                <span className="text-sm text-foreground truncate">
+                                <span className="text-sm text-foreground sm:truncate">
                                   {c.title}
                                 </span>
-                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                <span className="hidden text-xs text-muted-foreground flex-shrink-0 sm:inline">
                                   ({c.credits}cr)
                                 </span>
                               </div>
@@ -646,8 +567,7 @@ export default function GraduationPlanner() {
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
+            </SectionCard>
           </TabsContent>
         </Tabs>
       )}
