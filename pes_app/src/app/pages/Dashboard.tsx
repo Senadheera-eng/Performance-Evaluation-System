@@ -252,6 +252,19 @@ export default function Dashboard() {
           there is nothing to say. */}
       <InsightsPanel />
 
+      {/* Trends, above the semester's course list: how the degree is going
+          is the first thing a student comes to the dashboard to see. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <GpaTrendChart data={semesterData} cgpa={cgpa ?? 0} loading={loading} height={240} />
+        <CourseAttendanceChart
+          title="Attendance by course"
+          data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
+          threshold={threshold}
+          prewarning={prewarning}
+          awaitingCount={courses.length - scoredCourses.length}
+          loading={loading}
+        />
+      </div>
       {/* This semester, with the notice board beside it. The notices column
           hides itself when there are none, and the courses take the width. */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -329,18 +342,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Trends */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <GpaTrendChart data={semesterData} cgpa={cgpa ?? 0} loading={loading} height={240} />
-        <CourseAttendanceChart
-          title="Attendance by course"
-          data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
-          threshold={threshold}
-          prewarning={prewarning}
-          awaitingCount={courses.length - scoredCourses.length}
-          loading={loading}
-        />
-      </div>
     </div>
   );
 }

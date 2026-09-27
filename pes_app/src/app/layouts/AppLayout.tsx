@@ -61,7 +61,7 @@ export default function AppLayout() {
   return (
     <AppShell
       brandTitle="PES"
-      brandSubtitle="Performance System"
+      brandSubtitle="Performance Evaluation System"
       navigation={withBadges(navigation, counts)}
       bottomNavigation={bottomNavigation}
       userName={student?.name ?? "Student"}
