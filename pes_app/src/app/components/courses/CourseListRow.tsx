@@ -126,8 +126,8 @@ interface CourseListRowProps {
  * what turned "Machine Learning" into "Ma…"; as trailing text it costs no
  * layout and is the first thing dropped when a name is genuinely too long.
  *
- * The left edge carries the owning department's Handbook colour, the row a
- * faint wash of it, and the code is set in its hue, so a department's own modules and the shared
+ * The left edge carries the owning department's Handbook colour, the row
+ * takes its tint on hover, and the code is set in its hue, so a department's own modules and the shared
  * Interdisciplinary ones separate at a glance. The code itself names the
  * department, so colour is never the only cue.
  */
@@ -206,10 +206,9 @@ export function CourseListRow({ course, index = 0, onClick }: CourseListRowProps
   const className = cn(
     "flex w-full items-center gap-2.5 rounded-lg border border-l-4 border-border bg-card",
     "px-3 py-2 text-left transition-colors",
-    // The stripe and a faint wash of the department's hue, as every
-    // department-owned row in the system carries.
-    dept?.rowClass,
-    interactive && "hover:bg-muted/50",
+    dept?.stripeClass,
+    // Plain at rest; the department's tint shows on hover.
+    interactive && (dept?.hoverClass ?? "hover:bg-muted/50"),
   );
 
   return (
