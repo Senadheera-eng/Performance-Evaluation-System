@@ -20,6 +20,16 @@ export function getAdminScope(student: Student | null): AdminScope {
 }
 
 /** Human-readable label for admin headers/subtitles. */
+/**
+ * What an admin looks after, for a sentence on a page: "the whole faculty"
+ * for the super admin, "the Computer Engineering Department" otherwise.
+ * describeAdminScope is the label for the sidebar; this reads as prose.
+ */
+export function describeAdminReach(student: Student | null): string {
+  if (student?.role === "super_admin") return "the whole faculty";
+  return student?.department ? `the ${student.department} Department` : "your department";
+}
+
 export function describeAdminScope(student: Student | null): string {
   if (student?.role === "super_admin") return "Super Admin — All Departments";
   return student?.department ? `${student.department} Department` : "—";

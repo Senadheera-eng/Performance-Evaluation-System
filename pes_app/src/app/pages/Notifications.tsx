@@ -65,8 +65,8 @@ export default function Notifications() {
         title="Notifications"
         description={
           unread > 0
-            ? `${unread} unread. Results, attendance, enrolment, feedback, medicals, mentoring and teaching all report here.`
-            : "Results, attendance, enrolment, feedback, medicals, mentoring and teaching all report here."
+            ? `Everything PES has told you, newest first. ${unread} unread.`
+            : "Everything PES has told you, newest first."
         }
         actions={
           unread > 0 ? (
@@ -90,7 +90,9 @@ export default function Notifications() {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-1.5">
+          {/* One row that scrolls on a phone: wrapped, the divider before
+              "Unread only" ended up alone at the start of a line. */}
+          <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
             <Chip
               active={source === "all"}
               onClick={() => setSource("all")}
@@ -104,7 +106,7 @@ export default function Notifications() {
                 label={`${SOURCE_LABEL[s] ?? s} (${items.filter((n) => n.source === s).length})`}
               />
             ))}
-            <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+            <span className="mx-1 h-4 w-px flex-shrink-0 bg-border" aria-hidden="true" />
             <Chip
               active={unreadOnly}
               onClick={() => setUnreadOnly((v) => !v)}
@@ -126,60 +128,105 @@ export default function Notifications() {
                 Nothing here with those filters.
               </p>
             ) : (
-              <ul className="divide-y divide-border/60">
-                {visible.map((n) => {
-                  const Icon = SOURCE_ICON[n.source] ?? Bell;
-                  return (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => open(n)}
-                        className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 ${
-                          n.read_at ? "" : "bg-primary/5"
-                        }`}
-                      >
-                        <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                        </span>
-
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                              {SOURCE_LABEL[n.source] ?? n.source}
-                            </span>
-                            {!n.read_at && (
-                              <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-medium text-primary">
-                                New
+              <div>
+                {groupByAge(visible).map(({ label, items: group }) => (
+                  <section key={label} aria-label={label}>
+                    <h3 className="border-b border-border/60 bg-muted/40 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </h3>
+                    <ul className="divide-y divide-border/60">
+                      {group.map((n) => {
+                        const Icon = SOURCE_ICON[n.source] ?? Bell;
+                        const isUnread = !n.read_at;
+                        return (
+                          <li key={n.id}>
+                            {/* Unread is a dot and a heavier title. The whole
+                                row used to be tinted brand pink, which read
+                                as an alert rather than "not seen yet". */}
+                            <button
+                              type="button"
+                              onClick={() => open(n)}
+                              className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+                            >
+                              <span className="relative mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+                                <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                {isUnread && (
+                                  <span
+                                    className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary"
+                                    aria-hidden="true"
+                                  />
+                                )}
                               </span>
-                            )}
-                            <span className="text-[11px] text-muted-foreground">
-                              {relativeTime(n.created_at)}
-                            </span>
-                          </span>
-                          <span className="block text-sm font-medium text-foreground">
-                            {n.title}
-                          </span>
-                          {n.body && (
-                            <span className="block text-xs text-muted-foreground">
-                              {n.body}
-                            </span>
-                          )}
-                        </span>
 
-                        {n.href && (
-                          <ArrowRight className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                    {SOURCE_LABEL[n.source] ?? n.source}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {relativeTime(n.created_at)}
+                                  </span>
+                                  {isUnread && <span className="sr-only">Unread.</span>}
+                                </span>
+                                <span
+                                  className={`block text-sm text-foreground ${
+                                    isUnread ? "font-semibold" : "font-normal"
+                                  }`}
+                                >
+                                  {n.title}
+                                </span>
+                                {n.body && (
+                                  <span className="block text-xs text-muted-foreground">
+                                    {n.body}
+                                  </span>
+                                )}
+                              </span>
+
+                              {n.href && (
+                                <ArrowRight
+                                  className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
             )}
           </SectionCard>
         </>
       )}
     </div>
   );
+}
+
+/**
+ * Today, Yesterday, Last 7 days, Older. The list is already newest
+ * first, so each group keeps that order and empty groups are left out.
+ */
+function groupByAge(list: AppNotification[]) {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const day = 24 * 60 * 60 * 1000;
+  const bucket = (iso: string) => {
+    const t = new Date(iso).getTime();
+    if (t >= startOfToday.getTime()) return "Today";
+    if (t >= startOfToday.getTime() - day) return "Yesterday";
+    if (t >= startOfToday.getTime() - 6 * day) return "Last 7 days";
+    return "Older";
+  };
+  const groups: { label: string; items: AppNotification[] }[] = [];
+  for (const n of list) {
+    const label = bucket(n.created_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(n);
+    else groups.push({ label, items: [n] });
+  }
+  return groups;
 }
 
 function Chip({
@@ -196,7 +243,7 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors ${
         active
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border bg-card text-muted-foreground hover:bg-muted"

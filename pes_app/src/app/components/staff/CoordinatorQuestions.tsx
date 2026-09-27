@@ -4,6 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import {
+  CourseCode,
   ErrorState,
   SectionCard,
   SkeletonRows,
@@ -97,7 +98,7 @@ export function CoordinatorQuestions() {
   return (
     <div className="space-y-4">
       {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
           {notice}
         </div>
       )}
@@ -121,9 +122,7 @@ export function CoordinatorQuestions() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-primary">
-                          {round.course_code}
-                        </span>
+                        <CourseCode code={round.course_code} className="text-sm" />
                         <span className="truncate text-sm text-foreground">
                           {round.course_title}
                         </span>

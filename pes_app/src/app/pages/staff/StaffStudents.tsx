@@ -1,3 +1,4 @@
+import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
@@ -9,6 +10,8 @@ import {
 } from "lucide-react";
 import { Input } from "../../components/ui/input";
 import {
+  PersonAvatar,
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -55,6 +58,7 @@ export default function StaffStudents() {
   const caps = getStaffCapabilities(staff);
 
   const [students, setStudents] = useState<DepartmentStudent[]>([]);
+  const avatars = useAvatarUrls(students.map((s) => s.student_id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -251,6 +255,7 @@ export default function StaffStudents() {
                     ) : (
                       <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     )}
+                    <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm text-foreground">{s.name}</p>
                       <p className="text-xs text-muted-foreground">
@@ -418,9 +423,7 @@ function SemesterRecord({
                         className={superseded ? "opacity-60" : undefined}
                       >
                         <td className="py-1 pr-3">
-                          <span className="font-medium text-primary">
-                            {c.course_code}
-                          </span>{" "}
+                          <CourseCode code={c.course_code} />{" "}
                           <span className="text-muted-foreground">{c.course_title}</span>
                           {satTwice && (
                             <span className="ml-1 text-muted-foreground">

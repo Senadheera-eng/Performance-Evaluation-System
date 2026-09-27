@@ -21,9 +21,10 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
+import { CourseCode, SegmentedTabs } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { describeAdminScope } from "../../../lib/adminScope";
+import { describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 
@@ -210,20 +211,20 @@ export default function AdminMedical() {
   const itemBadge = (status: string) => {
     if (status === "approved")
       return (
-        <Badge className="bg-green-100 text-green-700">
+        <Badge className="bg-success-bg text-success-fg">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Approved
         </Badge>
       );
     if (status === "rejected")
       return (
-        <Badge className="bg-red-100 text-red-700">
+        <Badge className="bg-danger-bg text-danger-fg">
           <XCircle className="h-3 w-3 mr-1" />
           Rejected
         </Badge>
       );
     return (
-      <Badge className="bg-amber-100 text-amber-800">
+      <Badge className="bg-warning-bg text-warning-fg">
         <Clock className="h-3 w-3 mr-1" />
         Pending
       </Badge>
@@ -232,11 +233,11 @@ export default function AdminMedical() {
 
   const overallBadge = (status: string) => {
     const styles: Record<string, string> = {
-      approved: "bg-green-100 text-green-700",
-      rejected: "bg-red-100 text-red-700",
-      pending: "bg-amber-100 text-amber-800",
-      partially_approved: "bg-blue-100 text-blue-700",
-      mixed: "bg-purple-100 text-purple-700",
+      approved: "bg-success-bg text-success-fg",
+      rejected: "bg-danger-bg text-danger-fg",
+      pending: "bg-warning-bg text-warning-fg",
+      partially_approved: "bg-info-bg text-info-fg",
+      mixed: "bg-warning-bg text-warning-fg",
     };
     return (
       <Badge className={styles[status] ?? "bg-muted text-muted-foreground"}>
@@ -297,18 +298,19 @@ export default function AdminMedical() {
           Medical Submissions
         </h1>
         <p className="text-muted-foreground text-sm">
-          Submissions covering courses in {describeAdminScope(admin)}.
+          Submissions covering courses {admin?.role === "super_admin" ? "across" : "in"}{" "}
+          {describeAdminReach(admin)}.
         </p>
       </motion.div>
 
       {actionError && (
-        <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-sm text-red-700">
+        <div className="p-3 rounded-xl bg-danger-bg border border-danger-border flex items-center gap-2 text-sm text-danger-fg">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           {actionError}
         </div>
       )}
       {actionNotice && (
-        <div className="p-3 rounded-xl bg-green-50 border border-green-200 flex items-center gap-2 text-sm text-green-700">
+        <div className="p-3 rounded-xl bg-success-bg border border-success-border flex items-center gap-2 text-sm text-success-fg">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
           {actionNotice}
         </div>
@@ -324,37 +326,19 @@ export default function AdminMedical() {
             className="pl-9 h-9 bg-card border-border"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {(
-            [
-              { value: "pending", label: `Pending (${pendingCount})` },
-              { value: "approved", label: "Approved" },
-              { value: "rejected", label: "Rejected" },
-              { value: "all", label: "All" },
-            ] as const
-          ).map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setStatusFilter(opt.value)}
-              className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
-              style={
-                statusFilter === opt.value
-                  ? { backgroundColor: "#C41E3A", color: "white" }
-                  : {}
-              }
-            >
-              <span
-                className={
-                  statusFilter === opt.value
-                    ? "text-white"
-                    : "text-muted-foreground"
-                }
-              >
-                {opt.label}
-              </span>
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          aria-label="Filter by review status"
+          layoutId="admin-medical-status"
+          scrollable
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+          tabs={[
+            { value: "pending", label: "Pending", count: pendingCount },
+            { value: "approved", label: "Approved" },
+            { value: "rejected", label: "Rejected" },
+            { value: "all", label: "All" },
+          ]}
+        />
       </div>
 
       <div className="flex items-center gap-2">
@@ -397,8 +381,8 @@ export default function AdminMedical() {
             </div>
           ) : loadError ? (
             <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
-              <p className="text-red-600 font-medium mb-3">{loadError}</p>
+              <AlertCircle className="h-12 w-12 text-danger-fg mx-auto mb-3" />
+              <p className="text-danger-fg font-medium mb-3">{loadError}</p>
               <Button size="sm" variant="outline" onClick={fetchSubmissions}>
                 Try again
               </Button>
@@ -478,9 +462,7 @@ export default function AdminMedical() {
                             >
                               <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <Badge className="bg-primary/10 text-primary text-xs">
-                                    {item.courseCode}
-                                  </Badge>
+                                  <CourseCode code={item.courseCode} className="text-xs flex-shrink-0" />
                                   <span className="text-sm text-foreground">
                                     {item.courseTitle}
                                   </span>
@@ -507,7 +489,7 @@ export default function AdminMedical() {
                                       <div className="flex items-center gap-2">
                                         <Button
                                           size="sm"
-                                          className="bg-green-600 hover:bg-green-700"
+                                          className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
                                           disabled={savingItem === item.mscId}
                                           onClick={() => handleReview(item.mscId, "approved")}
                                         >
@@ -517,7 +499,7 @@ export default function AdminMedical() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          className="border-red-300 text-red-700 hover:bg-red-50"
+                                          className="border-danger-border text-danger-fg hover:bg-danger-bg"
                                           disabled={savingItem === item.mscId}
                                           onClick={() => handleReview(item.mscId, "rejected")}
                                         >

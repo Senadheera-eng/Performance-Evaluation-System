@@ -173,7 +173,7 @@ export function FeedbackRequests() {
   return (
     <div className="space-y-4">
       {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
           {notice}
         </div>
       )}

@@ -1,6 +1,6 @@
+import { formatDateTime } from "../../../lib/format";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, GraduationCap, Users } from "lucide-react";
-import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
 import {
@@ -9,6 +9,8 @@ import {
   PageHeader,
   SectionCard,
   SkeletonRows,
+  StatusBadge,
+  type StatusTone,
 } from "../../components/common";
 import { PeriodCourseBreakdown } from "../../components/enrollment/PeriodCourseBreakdown";
 import { supabase } from "../../../lib/supabase";
@@ -18,11 +20,20 @@ import { describeBatch } from "../../../lib/batch";
 
 type PeriodStatus = "scheduled" | "open" | "closed" | "archived";
 
-const STATUS_COLOR: Record<string, string> = {
-  scheduled: "bg-blue-100 text-blue-700",
-  open: "bg-green-100 text-green-700",
-  closed: "bg-amber-100 text-amber-700",
-  archived: "bg-slate-200 text-slate-600",
+/* On the status tokens, so the badges keep their contrast in the dark
+   theme; the words carry the meaning, the colour only repeats it. */
+const STATUS_TONE: Record<string, StatusTone> = {
+  scheduled: "info",
+  open: "success",
+  closed: "warning",
+  archived: "neutral",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  scheduled: "Scheduled",
+  open: "Open",
+  closed: "Closed",
+  archived: "Archived",
 };
 
 interface Period {
@@ -215,14 +226,9 @@ export default function HodEnrollment() {
                             <span className="font-semibold text-foreground">
                               {p.title}
                             </span>
-                            <Badge
-                              className={
-                                STATUS_COLOR[p.status] ??
-                                "bg-gray-100 text-gray-600"
-                              }
-                            >
-                              {p.status}
-                            </Badge>
+                            <StatusBadge tone={STATUS_TONE[p.status] ?? "neutral"} dot>
+                              {STATUS_LABEL[p.status] ?? p.status}
+                            </StatusBadge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {p.department ?? "All Departments"} ·{" "}
@@ -232,8 +238,8 @@ export default function HodEnrollment() {
                             · Sem {p.semester} · {p.academic_year}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(p.opens_at).toLocaleString()} →{" "}
-                            {new Date(p.closes_at).toLocaleString()}
+                            {formatDateTime(p.opens_at)} →{" "}
+                            {formatDateTime(p.closes_at)}
                           </p>
                           {p.instructions && (
                             <p className="text-xs text-foreground mt-1 max-w-md">

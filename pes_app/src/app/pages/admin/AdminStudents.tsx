@@ -19,10 +19,12 @@ import {
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { PersonAvatar, SegmentedTabs } from "../../components/common";
+import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 
@@ -49,6 +51,7 @@ export default function AdminStudents() {
   const { student: currentAdmin } = useAuth();
   const scope = getAdminScope(currentAdmin);
   const [students, setStudents] = useState<Student[]>([]);
+  const avatars = useAvatarUrls(students.map((st) => st.id));
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -168,12 +171,12 @@ export default function AdminStudents() {
             ? "View and manage all registered students and their academic records."
             : scope.department === "Interdisciplinary Studies"
               ? "Students with results or enrollments in an Interdisciplinary Studies course."
-              : `Students in ${describeAdminScope(currentAdmin)}.`}
+              : `Students in ${describeAdminReach(currentAdmin)}.`}
         </p>
       </motion.div>
 
       {notice && (
-        <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
           {notice}
         </div>
       )}
@@ -222,7 +225,7 @@ export default function AdminStudents() {
                   ).toFixed(2)
                 : "—",
             icon: TrendingUp,
-            color: "bg-green-100 text-green-600",
+            color: "bg-success-bg text-success-fg",
           },
           {
             label: "Avg Attendance",
@@ -236,7 +239,7 @@ export default function AdminStudents() {
                   )}%`
                 : "—",
             icon: Calendar,
-            color: "bg-blue-100 text-blue-600",
+            color: "bg-info-bg text-info-fg",
           },
         ].map((stat, i) => (
           <motion.div
@@ -272,28 +275,17 @@ export default function AdminStudents() {
             className="pl-9 h-9 bg-card border-border"
           />
         </div>
-        <div className="flex gap-2">
-          {(["name", "cgpa", "attendance"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setSortBy(s)}
-              className="px-3 py-1.5 rounded-xl text-sm font-medium transition-all"
-              style={
-                sortBy === s
-                  ? { backgroundColor: "#C41E3A", color: "white" }
-                  : {}
-              }
-            >
-              <span
-                className={
-                  sortBy === s ? "text-white" : "text-muted-foreground"
-                }
-              >
-                {s === "name" ? "Name" : s === "cgpa" ? "CGPA" : "Attendance"}
-              </span>
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          aria-label="Sort students by"
+          layoutId="admin-students-sort"
+          value={sortBy}
+          onChange={(v) => setSortBy(v as "name" | "cgpa" | "attendance")}
+          tabs={[
+            { value: "name", label: "Name" },
+            { value: "cgpa", label: "CGPA" },
+            { value: "attendance", label: "Attendance" },
+          ]}
+        />
       </div>
 
       {/* Student List */}
@@ -331,30 +323,33 @@ export default function AdminStudents() {
                   transition={{ duration: 0.2, delay: index * 0.03 }}
                 >
                   {/* Student Row */}
+                  {/* Opens with Enter or Space as well as a click: it was a
+                      bare div, which a keyboard could not reach. */}
                   <div
-                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={expandedId === student.id}
+                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                     onClick={() =>
                       setExpandedId(
                         expandedId === student.id ? null : student.id,
                       )
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setExpandedId(expandedId === student.id ? null : student.id);
+                      }
+                    }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                          style={{
-                            background:
-                              "linear-gradient(135deg, #C41E3A, #6D28D9)",
-                          }}
-                        >
-                          {student.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </div>
+                        <PersonAvatar
+                          name={student.name}
+                          url={avatars[student.id]}
+                          department={student.department}
+                          className="h-9 w-9 text-sm"
+                        />
                         <div>
                           <p className="font-semibold text-foreground">
                             {student.name}
@@ -373,7 +368,7 @@ export default function AdminStudents() {
                       <div className="flex items-center gap-4">
                         <div className="hidden md:flex items-center gap-6">
                           <div className="text-center">
-                            <p className="text-lg font-bold text-primary">
+                            <p className="text-lg font-bold text-foreground tabular-nums">
                               {student.cgpa?.toFixed(2) ?? "—"}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -386,8 +381,8 @@ export default function AdminStudents() {
                                 !student.hasAttendanceData
                                   ? "text-muted-foreground"
                                   : student.avgAttendance >= 80
-                                    ? "text-green-600"
-                                    : "text-red-600"
+                                    ? "text-success-fg"
+                                    : "text-danger-fg"
                               }`}
                             >
                               {student.hasAttendanceData
@@ -409,7 +404,7 @@ export default function AdminStudents() {
                         </div>
                         {student.hasAttendanceData &&
                           student.avgAttendance < 80 && (
-                            <Badge className="bg-red-100 text-red-700 hidden md:flex">
+                            <Badge className="bg-danger-bg text-danger-fg hidden md:flex">
                               Low Attendance
                             </Badge>
                           )}
@@ -471,7 +466,7 @@ export default function AdminStudents() {
                             <p className="text-xs text-muted-foreground">
                               CGPA
                             </p>
-                            <p className="text-sm font-medium text-primary">
+                            <p className="text-sm font-medium text-foreground">
                               {student.cgpa?.toFixed(2) ?? "No results yet"}
                             </p>
                           </div>

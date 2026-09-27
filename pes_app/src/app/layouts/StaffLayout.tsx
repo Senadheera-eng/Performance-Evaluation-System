@@ -13,6 +13,7 @@ import {
   UserSquare,
   Presentation,
   Megaphone,
+  UserRound,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -85,14 +86,22 @@ export default function StaffLayout() {
 
   return (
     <AppShell
-      brandTitle={caps.isHod ? "PES Department" : "PES Staff"}
-      brandSubtitle={caps.isHod ? "Head of Department" : "Lecturer Portal"}
+      /* The system's name, as on the student portal. The role is the
+         badge just below, which said "Head of Department" a second time
+         when it was the subtitle too. */
+      brandTitle="PES"
+      brandSubtitle="Performance Evaluation System"
       navigation={withBadges(navigation, counts)}
       roleBadge={{
         label: caps.isHod ? "Head of Department" : "Lecturer",
         icon: Presentation,
       }}
+      bottomNavigation={[
+        { name: "My Profile", href: "/staff/profile", icon: UserRound },
+      ]}
       userName={student?.name ?? "Lecturer"}
+      userAvatarUrl={student?.avatar_url}
+      onProfileClick={() => navigate("/staff/profile")}
       userMeta={describeStaffScope(staff)}
       homeHref="/staff"
       headerSubtitle="Faculty of Engineering — USJ"

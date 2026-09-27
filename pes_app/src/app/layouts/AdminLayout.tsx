@@ -60,8 +60,10 @@ export default function AdminLayout() {
 
   return (
     <AppShell
-      brandTitle="PES Admin"
-      brandSubtitle="Department Management"
+      /* The system's name, as in the other portals; the role is the badge
+         below it. */
+      brandTitle="PES"
+      brandSubtitle="Performance Evaluation System"
       navigation={withBadges(items, counts)}
       roleBadge={{
         label:

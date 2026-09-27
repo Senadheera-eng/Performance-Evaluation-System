@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import {
-  Search,
-  Filter,
-  BookOpen,
-  Clock,
-  CheckCircle2,
-  FileQuestion,
-} from "lucide-react";
+import { Search, Filter, BookOpen } from "lucide-react";
 import { CourseListRow } from "../components/courses/CourseListRow";
 import { CourseDetailDialog } from "../components/courses/CourseDetailDialog";
-import { PillTabs } from "../components/dashboard/PillTabs";
+import {
+  DepartmentBadge,
+  EmptyState,
+  PageHeader,
+  SegmentedTabs,
+} from "../components/common";
+import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
   Select,
@@ -274,93 +273,40 @@ export default function Courses() {
     notRecorded: allCourses.filter((c) => c.status === "not_recorded").length,
   };
 
+  // No counts until the courses arrive: a row of noughts while loading
+  // reads as "you have no courses".
+  const count = (n: number) => (loading ? undefined : n);
   const tabs = [
-    { value: "all", label: "All", count: stats.all },
-    { value: "ongoing", label: "Ongoing", count: stats.ongoing },
-    { value: "completed", label: "Completed", count: stats.completed },
-    { value: "upcoming", label: "Upcoming", count: stats.upcoming },
-    { value: "not_recorded", label: "Not Recorded", count: stats.notRecorded },
+    { value: "all", label: "All", count: count(stats.all) },
+    { value: "ongoing", label: "Ongoing", count: count(stats.ongoing) },
+    { value: "completed", label: "Completed", count: count(stats.completed) },
+    { value: "upcoming", label: "Upcoming", count: count(stats.upcoming) },
+    { value: "not_recorded", label: "Not Recorded", count: count(stats.notRecorded) },
   ];
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          My Courses
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          View and manage all your courses throughout your academic journey.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="My Courses"
+        description="Every course in your curriculum: what you are taking now, what you have finished, and what is still to come."
+      />
 
-      {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          {
-            label: "Total Courses",
-            value: stats.all,
-            icon: BookOpen,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "Ongoing",
-            value: stats.ongoing,
-            icon: Clock,
-            color: "bg-blue-100 text-blue-600",
-          },
-          {
-            label: "Completed",
-            value: stats.completed,
-            icon: CheckCircle2,
-            color: "bg-green-100 text-green-600",
-          },
-          {
-            label: "Upcoming",
-            value: stats.upcoming,
-            icon: Clock,
-            color: "bg-yellow-100 text-yellow-600",
-          },
-          {
-            label: "Not Recorded",
-            value: stats.notRecorded,
-            icon: FileQuestion,
-            color: "bg-gray-100 text-gray-500",
-          },
-        ].map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-            className="bg-card rounded-xl p-3 border border-border shadow-sm"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1.5 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">
-                  {loading ? "..." : stat.value}
-                </p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {/* Whose courses these are. The list below mixes the student's own
+          department with the shared Interdisciplinary modules, and each row
+          carries its department's colour; this is the key to it. The tab
+          counts carry the totals, so there is no separate row of number
+          cards repeating them. */}
+      {student?.department && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>Your curriculum:</span>
+          <DepartmentBadge department={student.department} />
+          <span aria-hidden="true">+</span>
+          <DepartmentBadge department="Interdisciplinary Studies" />
+        </div>
+      )}
 
       {/* Search and Filter */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-col sm:flex-row gap-3"
-      >
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -368,6 +314,7 @@ export default function Courses() {
             placeholder="Search courses by name or code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search courses"
             className="pl-9 h-9 bg-card border-border"
           />
         </div>
@@ -385,16 +332,18 @@ export default function Courses() {
             ))}
           </SelectContent>
         </Select>
-      </motion.div>
+      </div>
 
       {/* Tabs */}
       <div className="w-full">
-        <PillTabs
+        <SegmentedTabs
           tabs={tabs}
-          activeTab={activeTab}
+          value={activeTab}
           onChange={setActiveTab}
-          className="max-w-full mb-4"
           layoutId="courses-tab-indicator"
+          scrollable
+          className="mb-4"
+          aria-label="Filter courses by status"
         />
 
         {/* Tab Content — keyed on the active tab so switching tabs plays a
@@ -419,15 +368,34 @@ export default function Courses() {
                 ))}
               </div>
             ) : filteredCourses.length === 0 ? (
-              <div className="text-center py-12">
-                <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  No courses found
-                </h3>
-                <p className="text-muted-foreground">
-                  Try adjusting your search or filter criteria.
-                </p>
-              </div>
+              <EmptyState
+                icon={BookOpen}
+                title={
+                  allCourses.length === 0
+                    ? "No courses to show yet"
+                    : "No courses match"
+                }
+                description={
+                  allCourses.length === 0
+                    ? "Your curriculum appears here once your department's catalogue and your enrolments are recorded."
+                    : "Nothing in this view matches your search or semester filter."
+                }
+                action={
+                  allCourses.length > 0 &&
+                  (searchQuery !== "" || semesterFilter !== "all") ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSemesterFilter("all");
+                      }}
+                    >
+                      Clear search and filter
+                    </Button>
+                  ) : undefined
+                }
+              />
             ) : (
               <div className="space-y-5">
                 {coursesBySemester.map((group) => (

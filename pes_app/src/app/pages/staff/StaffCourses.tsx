@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronDown, ChevronRight, Users } from "lucide-react";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -246,9 +247,7 @@ export default function StaffCourses() {
                       )}
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">
-                            {o.course_code}
-                          </span>
+                          <CourseCode code={o.course_code} className="text-sm" />
                           <span className="truncate text-sm text-foreground">
                             {o.course_title}
                           </span>
