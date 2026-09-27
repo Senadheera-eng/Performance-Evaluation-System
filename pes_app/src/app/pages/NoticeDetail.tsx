@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  DepartmentDot,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -18,6 +19,8 @@ import {
   StatusBadge,
 } from "../components/common";
 import { categoryIcon, noticeAge } from "../components/notices/NoticeCard";
+import { cn } from "../components/ui/utils";
+import { departmentByCourseCode, departmentByName } from "../../lib/departments";
 import { notifyCountsChanged } from "../hooks/useNotificationCounts";
 import {
   describeScope,
@@ -91,6 +94,10 @@ export default function NoticeDetail() {
   }
 
   const Icon = categoryIcon(notice.category_icon);
+  // The same rule as the board: a department's notice takes its colour, a
+  // course's notice its course's department; faculty-wide stays neutral.
+  const dept =
+    departmentByName(notice.department) ?? departmentByCourseCode(notice.course_code);
   const pdfs = notice.attachments.filter(
     (a) => a.mime_type === "application/pdf",
   );
@@ -107,10 +114,19 @@ export default function NoticeDetail() {
         Back to notices
       </Button>
 
-      <SectionCard title="" flush>
+      <SectionCard
+        title=""
+        flush
+        className={cn("border-l-4", dept?.stripeClass ?? "border-l-border")}
+      >
         <div className="space-y-3 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium",
+                dept?.chipClass ?? "bg-muted text-muted-foreground",
+              )}
+            >
               <Icon className="h-3.5 w-3.5" aria-hidden="true" />
               {notice.category_label}
             </span>
@@ -137,7 +153,17 @@ export default function NoticeDetail() {
               </span>
             </Field>
             <Field label="Published">{noticeAge(notice.published_at)}</Field>
-            <Field label="For">{describeScope(notice)}</Field>
+            <Field label="For">
+              {dept && (
+                <DepartmentDot dept={dept} className="mr-1.5 inline-block align-middle" />
+              )}
+              {notice.course_code && (
+                <span className={cn("font-semibold", dept?.textClass)}>
+                  {notice.course_code} ·{" "}
+                </span>
+              )}
+              {describeScope({ ...notice, course_code: null })}
+            </Field>
             <Field label="Academic year">{notice.academic_year ?? "—"}</Field>
           </dl>
 

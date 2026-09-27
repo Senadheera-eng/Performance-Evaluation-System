@@ -15,7 +15,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { StatusBadge } from "../common";
+import { DepartmentDot, StatusBadge } from "../common";
 import { cn } from "../ui/utils";
 import { describeScope, type NoticeSummary } from "../../../lib/notices";
 import {
@@ -101,8 +101,10 @@ export function NoticeCard({
       type="button"
       onClick={() => onOpen(notice.id)}
       className={cn(
-        "flex w-full items-start gap-3 border-l-4 px-4 py-3 text-left transition-colors hover:bg-muted/60",
+        "flex w-full items-start gap-3 border-l-4 px-4 py-3 text-left transition-colors",
         dept?.stripeClass ?? "border-l-transparent",
+        // Plain at rest; the department's tint on hover.
+        dept?.hoverClass ?? "hover:bg-muted/60",
       )}
     >
       <span
@@ -147,14 +149,15 @@ export function NoticeCard({
         {/* Who it is for on one line, then when and from whom. Each item
             keeps its own icon instead of a "·" between them, which on a
             phone wrapped to the start of the next line on its own. */}
-        <span className="mt-1 block text-xs text-muted-foreground">
+        <span className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+          {dept && <DepartmentDot dept={dept} />}
           {notice.course_code && (
             <span className={cn("font-semibold", dept?.textClass ?? "text-foreground")}>
               {notice.course_code}
-              {" · "}
+              {" ·"}
             </span>
           )}
-          {describeScope({ ...notice, course_code: null })}
+          <span>{describeScope({ ...notice, course_code: null })}</span>
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1 whitespace-nowrap">
