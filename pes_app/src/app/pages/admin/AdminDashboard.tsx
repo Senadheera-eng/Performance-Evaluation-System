@@ -27,7 +27,7 @@ import {
 } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { getAdminOfferings } from "../../../lib/attendanceRegister";
 import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
@@ -216,7 +216,7 @@ export default function AdminDashboard() {
     <div className="space-y-5">
       <PageHeader
         title="Admin Dashboard"
-        description={`Overview of the Faculty of Engineering — ${describeAdminScope(student)}.`}
+        description={`Overview of ${describeAdminReach(student)}.`}
       />
 
       {/* Headline figures, each opening the page behind it */}

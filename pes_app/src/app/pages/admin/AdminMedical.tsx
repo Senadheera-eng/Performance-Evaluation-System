@@ -24,7 +24,7 @@ import { Badge } from "../../components/ui/badge";
 import { CourseCode, SegmentedTabs } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { describeAdminScope } from "../../../lib/adminScope";
+import { describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 
@@ -298,7 +298,8 @@ export default function AdminMedical() {
           Medical Submissions
         </h1>
         <p className="text-muted-foreground text-sm">
-          Submissions covering courses in {describeAdminScope(admin)}.
+          Submissions covering courses {admin?.role === "super_admin" ? "across" : "in"}{" "}
+          {describeAdminReach(admin)}.
         </p>
       </motion.div>
 

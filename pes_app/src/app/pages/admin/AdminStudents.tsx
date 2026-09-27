@@ -24,7 +24,7 @@ import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
-import { getAdminScope, describeAdminScope } from "../../../lib/adminScope";
+import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 
@@ -171,7 +171,7 @@ export default function AdminStudents() {
             ? "View and manage all registered students and their academic records."
             : scope.department === "Interdisciplinary Studies"
               ? "Students with results or enrollments in an Interdisciplinary Studies course."
-              : `Students in ${describeAdminScope(currentAdmin)}.`}
+              : `Students in ${describeAdminReach(currentAdmin)}.`}
         </p>
       </motion.div>
 

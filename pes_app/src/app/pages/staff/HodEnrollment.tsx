@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../../lib/format";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, GraduationCap, Users } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -237,8 +238,8 @@ export default function HodEnrollment() {
                             · Sem {p.semester} · {p.academic_year}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(p.opens_at).toLocaleString()} →{" "}
-                            {new Date(p.closes_at).toLocaleString()}
+                            {formatDateTime(p.opens_at)} →{" "}
+                            {formatDateTime(p.closes_at)}
                           </p>
                           {p.instructions && (
                             <p className="text-xs text-foreground mt-1 max-w-md">
