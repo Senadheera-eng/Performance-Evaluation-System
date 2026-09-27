@@ -65,6 +65,8 @@ The assistant is a **tool-calling language model with retrieval over the Faculty
 - Handbook questions use `search_handbook_hybrid`: 131 Handbook chunks searched by full text (with optional pgvector similarity), cited with a page number.
 - The model may state only what a tool returned and never does GPA arithmetic itself; that is delegated to the same functions the Graduation Planner uses.
 
+A plain-English explanation of RAG and the thirteen tools is in `docs/PES_Guide_AI_Assistant_RAG_Explained.docx`.
+
 **Current limit:** the project runs on the Gemini **free tier**, which allows only a few requests a minute, and one question can take three or four of them. A paid Gemini API key is required before PES is distributed to students. The key is a Supabase secret (`GEMINI_API_KEY`), so changing it needs no code change or redeploy; `GEMINI_MODEL` overrides the model, and `AI_DAILY_QUOTA` / `AI_PER_STUDENT_DAILY` set PES's own usage caps.
 
 ### Before distributing to students
