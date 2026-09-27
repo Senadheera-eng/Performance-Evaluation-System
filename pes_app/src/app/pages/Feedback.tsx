@@ -124,16 +124,6 @@ export default function Feedback() {
     );
   }, [bySemester, semester]);
 
-  /* Open on the semester with forms still to fill in (the newest, if
-     several), so a student with one round open is one tap from the course
-     rather than two. They can still pick any other semester. */
-  useEffect(() => {
-    if (semester !== null || rows.length === 0) return;
-    const owed = [...openInSemester.keys()];
-    const pick = owed.length > 0 ? Math.max(...owed) : Math.max(...bySemester.keys());
-    setSemester(pick);
-  }, [rows, semester, openInSemester, bySemester]);
-
   /* The rounds open for the course the student just tapped. */
   const roundsForCourse = useMemo(() => {
     if (!chosenCourse) return [];
