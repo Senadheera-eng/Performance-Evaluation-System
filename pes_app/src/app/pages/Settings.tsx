@@ -1,17 +1,9 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { User, Bell, Shield, Palette, Globe, Moon, Sun } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import { Switch } from "../components/ui/switch";
+import { useNavigate } from "react-router-dom";
+import { Bell, CheckCircle2, KeyRound, Monitor, Moon, Sun, XCircle } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
-import { Separator } from "../components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -20,14 +12,44 @@ import {
   DialogDescription,
   DialogFooter,
 } from "../components/ui/dialog";
+import { PageHeader, SectionCard } from "../components/common";
+import { cn } from "../components/ui/utils";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../../lib/supabase";
 
+const THEMES = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "auto", label: "Auto", icon: Monitor },
+] as const;
+
+/* What the bell reports, in the words a student would use. Each line is a
+   notification the database actually raises for a student (the notify_*
+   functions): nothing here is promised that is not sent. */
+const NOTIFIED_ABOUT = [
+  "A result is published for one of your courses",
+  "A lecturer opens a register you can sign in to",
+  "An enrolment window opens for your batch",
+  "A feedback form opens for a course you took",
+  "Your medical certificate is reviewed",
+  "You are given a mentor, or your mentor writes to you",
+];
+
+/**
+ * Settings: only what can actually be changed.
+ *
+ * This page used to carry five notification switches, a compact mode,
+ * two-factor authentication, profile visibility, an online status, a
+ * "Delete Account" button and a language section. None of them was stored
+ * or read anywhere: a student could turn two-factor authentication "on" and
+ * nothing happened. They are gone. What is left all works: the account's
+ * password, the theme, and a plain account of what PES notifies you about.
+ */
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState("Account");
   const { theme, setTheme } = useTheme();
   const { student } = useAuth();
+  const navigate = useNavigate();
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -65,361 +87,104 @@ export default function Settings() {
     }, 1500);
   };
 
-  const settings = [
-    { icon: User, label: "Account" },
-    { icon: Bell, label: "Notifications" },
-    { icon: Palette, label: "Appearance" },
-    { icon: Shield, label: "Privacy & Security" },
-    { icon: Globe, label: "Language" },
+  const account: [string, string][] = [
+    ["University email", student?.email ?? "—"],
+    ["Index number", student?.index_number ?? "—"],
+    ["Registration number", student?.reg_number ? `EN${student.reg_number}` : "—"],
   ];
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
-        <p className="text-muted-foreground text-sm">
-          Manage your account preferences and application settings.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Settings"
+        description="Your password, how PES looks, and what it tells you about."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Settings Navigation */}
-        <div className="lg:col-span-1">
-          <Card className="border-border">
-            <CardContent className="p-3">
-              <nav className="space-y-1">
-                {settings.map((item) => (
-                  <button
-                    key={item.label}
-                    onClick={() => setActiveTab(item.label)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      activeTab === item.label
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Settings Content */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Account Settings */}
-          {activeTab === "Account" && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <SectionCard
+          title="Account"
+          description="Your details come from the faculty's records. Ask your department office if any of them is wrong."
+        >
+          <dl className="space-y-3">
+            {account.map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="mt-0.5 break-words text-sm font-medium text-foreground">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="mt-4 border-t border-border/70 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFormError(null);
+                setFormSuccess(null);
+                setPasswordDialogOpen(true);
+              }}
             >
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle>Account Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="email">Email Address</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {student?.email ?? "—"}
-                      </p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label htmlFor="index-number">Index Number</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {student?.index_number ?? "—"}
-                      </p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label htmlFor="reg-number">Registration Number</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {student?.reg_number ? `EN${student.reg_number}` : "—"}
-                      </p>
-                    </div>
-                    <Separator />
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setFormError(null);
-                          setFormSuccess(null);
-                          setPasswordDialogOpen(true);
-                        }}
-                      >
-                        Change Password
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+              <KeyRound className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Change password
+            </Button>
+          </div>
+        </SectionCard>
 
-          {/* Notification Settings */}
-          {activeTab === "Notifications" && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-primary" />
-                    Notification Preferences
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Attendance Alerts</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Get notified when attendance drops below 80%
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Result Announcements</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Receive notifications when new results are published
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>AI Assistant Insights</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Get personalized academic recommendations
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Course Updates</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Updates about course materials and announcements
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Email Notifications</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Receive email summaries of important updates
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+        <SectionCard
+          title="Appearance"
+          description="Auto follows your device's light or dark setting."
+        >
+          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3">
+            {THEMES.map(({ value, label, icon: Icon }) => {
+              const active = theme === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setTheme(value)}
+                  className={cn(
+                    "rounded-xl border-2 p-3 text-center transition-colors",
+                    active
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50",
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "mx-auto mb-1.5 h-5 w-5",
+                      active ? "text-primary" : "text-muted-foreground",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="block text-sm font-medium text-foreground">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </SectionCard>
 
-          {/* Appearance Settings */}
-          {activeTab === "Appearance" && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Palette className="h-5 w-5 text-primary" />
-                    Appearance
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="mb-2 block">Theme</Label>
-                      <div className="grid grid-cols-3 gap-3">
-                        <button
-                          onClick={() => setTheme("light")}
-                          className={`p-3 rounded-xl border-2 transition-colors ${
-                            theme === "light"
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <Sun
-                            className={`h-5 w-5 mx-auto mb-1.5 ${theme === "light" ? "text-primary" : "text-muted-foreground"}`}
-                          />
-                          <p className="text-sm font-medium">Light</p>
-                        </button>
-                        <button
-                          onClick={() => setTheme("dark")}
-                          className={`p-3 rounded-xl border-2 transition-colors ${
-                            theme === "dark"
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <Moon
-                            className={`h-5 w-5 mx-auto mb-1.5 ${theme === "dark" ? "text-primary" : "text-muted-foreground"}`}
-                          />
-                          <p className="text-sm font-medium">Dark</p>
-                        </button>
-                        <button
-                          onClick={() => setTheme("auto")}
-                          className={`p-3 rounded-xl border-2 transition-colors ${
-                            theme === "auto"
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          }`}
-                        >
-                          <div
-                            className={`h-5 w-5 mx-auto mb-1.5 rounded-full bg-gradient-to-r from-yellow-400 to-blue-600 ${theme === "auto" ? "" : "opacity-75"}`}
-                          />
-                          <p className="text-sm font-medium">Auto</p>
-                        </button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-3">
-                        {theme === "light" && "Using light theme"}
-                        {theme === "dark" && "Using dark theme"}
-                        {theme === "auto" && "Following system preferences"}
-                      </p>
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Compact Mode</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Use a more compact layout to show more content
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Privacy & Security */}
-          {activeTab === "Privacy & Security" && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    Privacy & Security
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Two-Factor Authentication</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Add an extra layer of security to your account
-                        </p>
-                      </div>
-                      <Switch />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Profile Visibility</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Allow other students to view your profile
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Show Online Status</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Let others see when you're active
-                        </p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <Separator />
-                    <div className="pt-2">
-                      <Button
-                        variant="outline"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        Delete Account
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Language Settings */}
-          {activeTab === "Language" && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Card className="border-border">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-primary" />
-                    Language & Region
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="language">Language</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        English (US)
-                      </p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Asia/Colombo (UTC +5:30)
-                      </p>
-                    </div>
-                    <Separator />
-                    <div>
-                      <Label htmlFor="date-format">Date Format</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        DD/MM/YYYY
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </div>
+        <SectionCard
+          title="Notifications"
+          description="PES tells you in the app, under the bell at the top of every page, when:"
+          className="lg:col-span-2"
+          actions={
+            <Button variant="outline" size="sm" onClick={() => navigate("/app/notifications")}>
+              <Bell className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Open notifications
+            </Button>
+          }
+        >
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {NOTIFIED_ABOUT.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm text-foreground">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-fg" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
       </div>
 
       {/* Change Password Dialog */}
@@ -437,46 +202,60 @@ export default function Settings() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Password</DialogTitle>
+            <DialogTitle>Change password</DialogTitle>
             <DialogDescription>
-              Enter a new password for your account.
+              At least 6 characters. You stay signed in on this device.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <form
+            id="change-password"
+            className="space-y-4 py-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleChangePassword();
+            }}
+          >
             <div>
-              <Label htmlFor="new-password">New Password</Label>
+              <Label htmlFor="new-password">New password</Label>
               <Input
                 id="new-password"
                 type="password"
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="mt-1"
               />
             </div>
             <div>
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
+              <Label htmlFor="confirm-password">Confirm new password</Label>
               <Input
                 id="confirm-password"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="mt-1"
               />
             </div>
-            {formError && <p className="text-sm text-red-600">{formError}</p>}
-            {formSuccess && (
-              <p className="text-sm text-green-600">{formSuccess}</p>
+            {formError && (
+              <p role="alert" className="flex items-center gap-1.5 text-sm text-danger-fg">
+                <XCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                {formError}
+              </p>
             )}
-          </div>
+            {formSuccess && (
+              <p role="status" className="flex items-center gap-1.5 text-sm text-success-fg">
+                <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                {formSuccess}
+              </p>
+            )}
+          </form>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setPasswordDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleChangePassword} disabled={saving}>
-              {saving ? "Saving..." : "Save Password"}
+            <Button type="submit" form="change-password" disabled={saving}>
+              {saving ? "Saving…" : "Save password"}
             </Button>
           </DialogFooter>
         </DialogContent>
