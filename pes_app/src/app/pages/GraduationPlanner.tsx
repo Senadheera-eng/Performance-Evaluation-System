@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent } from "../components/ui/tabs";
-import { PillTabs } from "../components/dashboard/PillTabs";
+import { SegmentedTabs } from "../components/common";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { useSettings, getSettings } from "../../lib/settings";
@@ -414,18 +414,16 @@ export default function GraduationPlanner() {
         </Card>
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <PillTabs
+          <SegmentedTabs
             tabs={[
               { value: "standing", label: "Current Standing" },
-              {
-                value: "simulator",
-                label: "What-If Simulator",
-                icon: FlaskConical,
-              },
+              { value: "simulator", label: "What-If Simulator" },
             ]}
-            activeTab={activeTab}
+            value={activeTab}
             onChange={setActiveTab}
             layoutId="planner-tab-indicator"
+            aria-label="Planner view"
+            className="self-start"
           />
 
           <TabsContent value="standing" className="space-y-6 mt-6">

@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../ui/utils";
 import { StatusBadge, useListMotion, type StatusTone } from "../common";
+import { departmentByCourseCode } from "../../../lib/departments";
+import { useSettings } from "../../../lib/settings";
 
 export type CourseStatus = "ongoing" | "completed" | "upcoming" | "not_recorded";
 
@@ -21,10 +23,19 @@ export interface CourseListItem {
 const STATUS_TONE: Record<CourseStatus, StatusTone> = {
   ongoing: "info",
   completed: "success",
-  upcoming: "warning",
-  // Deliberately distinct from "upcoming": this course's semester has already
-  // been reached, it is only missing a record.
+  /* A course still to come is a plain fact, not a warning. It was amber,
+     which also read as Computer Engineering's stripe beside it; department
+     colour is identity and status must not borrow it. */
+  upcoming: "neutral",
+  // Deliberately distinct from "upcoming" (see STATUS_OUTLINE): this
+  // course's semester has already been reached, it is only missing a record.
   not_recorded: "neutral",
+};
+
+/* The two neutral statuses differ by label and by outline, a dashed edge
+   marking the record that is missing. */
+const STATUS_OUTLINE: Partial<Record<CourseStatus, string>> = {
+  not_recorded: "border-dashed",
 };
 
 const STATUS_LABEL: Record<CourseStatus, string> = {
@@ -58,7 +69,11 @@ const TONE_TEXT: Record<StatusTone, string> = {
  * continuous-assessment progress. Only one is shown so the row stays a
  * single line — the full breakdown lives on Results and Attendance.
  */
-function primaryMetric(course: CourseListItem): {
+function primaryMetric(
+  course: CourseListItem,
+  threshold: number,
+  prewarning: number,
+): {
   value: string;
   label: string;
   tone: StatusTone;
@@ -70,7 +85,14 @@ function primaryMetric(course: CourseListItem): {
     return {
       value: `${course.attendance}%`,
       label: "Attendance",
-      tone: course.attendance >= 80 ? "success" : "danger",
+      /* The same three bands as the dashboard and the Attendance page, from
+         the faculty's configured threshold rather than a literal 80. */
+      tone:
+        course.attendance < threshold
+          ? "danger"
+          : course.attendance < prewarning
+            ? "warning"
+            : "success",
     };
   }
   if (course.progress !== undefined) {
@@ -103,10 +125,21 @@ interface CourseListRowProps {
  * middle of the row that stole width from every title around it, which is
  * what turned "Machine Learning" into "Ma…"; as trailing text it costs no
  * layout and is the first thing dropped when a name is genuinely too long.
+ *
+ * The left edge carries the owning department's Handbook colour and the
+ * code is set in its hue, so a department's own modules and the shared
+ * Interdisciplinary ones separate at a glance. The code itself names the
+ * department, so colour is never the only cue.
  */
 export function CourseListRow({ course, index = 0, onClick }: CourseListRowProps) {
   const listMotion = useListMotion(index);
-  const metric = primaryMetric(course);
+  const settings = useSettings();
+  const metric = primaryMetric(
+    course,
+    settings.attendanceThreshold,
+    settings.attendancePrewarningThreshold,
+  );
+  const dept = departmentByCourseCode(course.code);
   const interactive = Boolean(onClick);
 
   const fullTitle = course.minor_category
@@ -115,14 +148,19 @@ export function CourseListRow({ course, index = 0, onClick }: CourseListRowProps
 
   const body = (
     <>
-      <span className="w-[3.75rem] flex-shrink-0 text-sm font-semibold text-primary">
+      <span
+        className={cn(
+          "w-[3.75rem] flex-shrink-0 text-sm font-semibold tabular-nums",
+          dept?.textClass ?? "text-foreground",
+        )}
+      >
         {course.code}
       </span>
 
       <span className="min-w-0 flex-1 truncate text-sm" title={fullTitle}>
         <span className="text-foreground">{course.name}</span>
         {course.minor_category && (
-          <span className="text-primary/70"> · {course.minor_category}</span>
+          <span className="text-muted-foreground"> · {course.minor_category}</span>
         )}
       </span>
 
@@ -148,7 +186,10 @@ export function CourseListRow({ course, index = 0, onClick }: CourseListRowProps
       <StatusBadge
         tone={STATUS_TONE[course.status]}
         dot
-        className="flex-shrink-0 sm:w-[7rem] sm:justify-center"
+        className={cn(
+          "flex-shrink-0 sm:w-[7rem] sm:justify-center",
+          STATUS_OUTLINE[course.status],
+        )}
       >
         {STATUS_LABEL[course.status]}
       </StatusBadge>
@@ -163,9 +204,10 @@ export function CourseListRow({ course, index = 0, onClick }: CourseListRowProps
   );
 
   const className = cn(
-    "flex w-full items-center gap-2.5 rounded-lg border border-border bg-card",
+    "flex w-full items-center gap-2.5 rounded-lg border border-l-4 border-border bg-card",
     "px-3 py-2 text-left transition-colors",
-    interactive && "hover:border-primary/40 hover:bg-muted/50",
+    dept?.stripeClass,
+    interactive && "hover:bg-muted/50",
   );
 
   return (
