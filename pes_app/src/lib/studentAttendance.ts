@@ -107,21 +107,28 @@ export interface Term {
  * joined, in the same half of the year as the course's own semester, so a
  * semester 5 module repeated during semester 7 is current and counted.
  *
- * Earlier terms are left out entirely: their registers are closed, and a
+ * Completed enrolments are set aside first: they belong to a term that has
+ * ended. Earlier terms are left out entirely: their registers are closed, and a
  * row of 100%s from two years ago only buried the courses that still count.
  */
 export function currentTermDeliveries(deliveries: CourseDelivery[]): {
   term: Term | null;
   deliveries: CourseDelivery[];
 } {
-  if (deliveries.length === 0) return { term: null, deliveries: [] };
+  /* A completed enrolment is a term that has ended, so it never names the
+     current one. Without this, a student between terms (or one whose new
+     term has nothing recorded yet) was shown their last finished semester
+     as though it were running. `in_progress` is true for an enrolment still
+     "enrolled" and absent for a course known only from the register. */
+  const open = deliveries.filter((d) => d.in_progress !== false);
+  if (open.length === 0) return { term: null, deliveries: [] };
 
   // "2024/2025" strings order correctly as text.
-  const latestYear = deliveries.reduce(
+  const latestYear = open.reduce(
     (max, d) => (d.academic_year > max ? d.academic_year : max),
-    deliveries[0].academic_year,
+    open[0].academic_year,
   );
-  const inYear = deliveries.filter((d) => d.academic_year === latestYear);
+  const inYear = open.filter((d) => d.academic_year === latestYear);
   const secondHalf = inYear.some((d) => d.semester !== null && d.semester % 2 === 0);
   const current = inYear.filter(
     (d) => d.semester === null || (d.semester % 2 === 0) === secondHalf,
