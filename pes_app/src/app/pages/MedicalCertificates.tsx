@@ -37,8 +37,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { departmentByCourseCode } from "../../lib/departments";
 import {
-  currentTermDeliveries,
-  getMyAttendance,
+  getCurrentTermAttendance,
   termLabel,
   type Term,
 } from "../../lib/studentAttendance";
@@ -170,19 +169,19 @@ export default function MedicalCertificates() {
     /* The courses of the term being taught now: the same list the
        Attendance page shows, and for the same reason. A certificate excuses
        lectures, so the courses it can name are the ones with a register this
-       term, whether the student enrolled on them or was marked in them.
-       Enrolment status alone missed the second kind and, since an enrolment
-       is never moved on from "enrolled", would keep old terms too. */
-    const attendance = await getMyAttendance();
-    if (!attendance.ok) {
+       term: enrolled on, marked in, or (for a semester recorded only as
+       results) graded in. Enrolment status alone missed the latter two and,
+       since an enrolment is never moved on from "enrolled", would keep old
+       terms too. */
+    const current = await getCurrentTermAttendance();
+    if (!current.ok) {
       setLoadError("The medical submission could not be loaded.");
       setLoading(false);
       return;
     }
-    const current = currentTermDeliveries(attendance.data.deliveries);
-    setTerm(current.term);
+    setTerm(current.data.term);
     setCourses(
-      current.deliveries
+      current.data.deliveries
         .filter((d) => d.is_latest_attempt)
         .map((d) => ({ id: d.course_id, code: d.course_code, title: d.title }))
         .sort((a, b) => a.code.localeCompare(b.code)),

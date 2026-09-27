@@ -97,38 +97,32 @@ export interface Term {
 /**
  * The deliveries of the term the student is in now, and that term.
  *
- * An enrolment is never moved on from "enrolled" when its term ends, so
- * `in_progress` cannot say which courses are current: once a student enrols
- * for semester 8 their semester 7 courses are still "enrolled" too. The term
- * is read from the record instead. Each academic year teaches two semesters,
- * odd first and even second, so the current term is the latest academic
- * year the student has a delivery in, and within it the even half once any
- * even-semester course has begun. A repeat is sat alongside the batch it
- * joined, in the same half of the year as the course's own semester, so a
- * semester 5 module repeated during semester 7 is current and counted.
+ * The term is the latest one on the student's record. An enrolment is
+ * never moved on from "enrolled" when its term ends, so enrolment status
+ * cannot say which term is current; the academic year and semester can.
+ * Each academic year teaches two semesters, odd first and even second, so
+ * the current term is the latest academic year on the record and, within
+ * it, the even half once any even-semester course is there.
  *
- * Completed enrolments are set aside first: they belong to a term that has
- * ended. Earlier terms are left out entirely: their registers are closed, and a
- * row of 100%s from two years ago only buried the courses that still count.
+ * A student keeps their last semester until they enrol on the next: a
+ * student who finished semester 6 and has not yet enrolled for semester 7
+ * sees semester 6, and sees semester 7 from the moment they enrol on it
+ * (or a lecture of theirs is marked). A repeat is sat in the same half of
+ * the year as its course's own semester, so a module repeated during the
+ * term is kept. Earlier terms are left out entirely.
  */
 export function currentTermDeliveries(deliveries: CourseDelivery[]): {
   term: Term | null;
   deliveries: CourseDelivery[];
 } {
-  /* A completed enrolment is a term that has ended, so it never names the
-     current one. Without this, a student between terms (or one whose new
-     term has nothing recorded yet) was shown their last finished semester
-     as though it were running. `in_progress` is true for an enrolment still
-     "enrolled" and absent for a course known only from the register. */
-  const open = deliveries.filter((d) => d.in_progress !== false);
-  if (open.length === 0) return { term: null, deliveries: [] };
+  if (deliveries.length === 0) return { term: null, deliveries: [] };
 
   // "2024/2025" strings order correctly as text.
-  const latestYear = open.reduce(
+  const latestYear = deliveries.reduce(
     (max, d) => (d.academic_year > max ? d.academic_year : max),
-    open[0].academic_year,
+    deliveries[0].academic_year,
   );
-  const inYear = open.filter((d) => d.academic_year === latestYear);
+  const inYear = deliveries.filter((d) => d.academic_year === latestYear);
   const secondHalf = inYear.some((d) => d.semester !== null && d.semester % 2 === 0);
   const current = inYear.filter(
     (d) => d.semester === null || (d.semester % 2 === 0) === secondHalf,
@@ -144,6 +138,84 @@ export function currentTermDeliveries(deliveries: CourseDelivery[]): {
       semester: semesters.length > 0 ? Math.max(...semesters) : null,
     },
     deliveries: current,
+  };
+}
+
+export interface CurrentTermAttendance {
+  threshold_percent: number;
+  prewarning_percent: number;
+  term: Term | null;
+  deliveries: CourseDelivery[];
+}
+
+/**
+ * This student's attendance for the current term (see currentTermDeliveries).
+ *
+ * The register only knows the courses a student enrolled on or was marked
+ * in, but earlier semesters were often recorded as results alone, with no
+ * enrolment behind them. Those courses are part of the record too, so the
+ * published results are read alongside and each course with a result but
+ * no delivery joins the list with no lectures recorded. Without them a
+ * student between semesters 6 and 7 would be told their current term was
+ * whichever older semester happened to have enrolments.
+ */
+export async function getCurrentTermAttendance(): Promise<Result<CurrentTermAttendance>> {
+  const [attendance, { data: results, error: resultsError }] = await Promise.all([
+    getMyAttendance(),
+    supabase
+      .from("my_published_results")
+      .select(
+        "course_id, course_code, course_title, semester, academic_year, attempt_number, has_repeat, is_latest_attempt",
+      ),
+  ]);
+  if (!attendance.ok) return attendance;
+  if (resultsError) {
+    console.error("[attendance] my_published_results", resultsError);
+    return {
+      ok: false,
+      error: "We could not load your attendance records. Please try again.",
+    };
+  }
+
+  const deliveries = [...attendance.data.deliveries];
+  const known = new Set(deliveries.map((d) => d.delivery_key));
+  for (const r of (results ?? []) as any[]) {
+    const key = `${r.course_id}:${r.academic_year}`;
+    if (!r.academic_year || known.has(key)) continue;
+    known.add(key);
+    deliveries.push({
+      delivery_key: key,
+      course_id: r.course_id,
+      course_code: r.course_code,
+      title: r.course_title,
+      semester: r.semester ?? null,
+      academic_year: r.academic_year,
+      enrolled_with_batch: null,
+      is_repeat: (r.attempt_number ?? 1) > 1,
+      attempt_number: r.attempt_number ?? 1,
+      is_latest_attempt: r.is_latest_attempt ?? true,
+      has_repeat: r.has_repeat ?? false,
+      in_progress: false,
+      present: 0,
+      absent: 0,
+      excused: 0,
+      lectures: 0,
+      percentage: null,
+      sessions: [],
+    });
+  }
+
+  const current = currentTermDeliveries(deliveries);
+  return {
+    ok: true,
+    data: {
+      threshold_percent: attendance.data.threshold_percent,
+      prewarning_percent: attendance.data.prewarning_percent,
+      term: current.term,
+      deliveries: current.deliveries.sort((a, b) =>
+        a.course_code.localeCompare(b.course_code),
+      ),
+    },
   };
 }
 
