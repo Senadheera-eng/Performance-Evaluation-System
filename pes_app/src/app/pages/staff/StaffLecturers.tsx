@@ -20,6 +20,7 @@ import {
   type AssignableLecturer,
   type DepartmentOffering,
 } from "../../../lib/staffService";
+import { departmentRowClass } from "../../../lib/departments";
 
 /**
  * Department academic staff and their current teaching load.
@@ -144,7 +145,7 @@ export default function StaffLecturers() {
               return (
                 <li
                   key={l.lecturer_id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${departmentRowClass(l.department)}`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                   <PersonAvatar name={l.name} url={avatars[l.lecturer_id]} department={l.department} size="md" />

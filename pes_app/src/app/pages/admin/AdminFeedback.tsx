@@ -1,5 +1,5 @@
 import { formatDateTime } from "../../../lib/format";
-import { CourseCode, EmptyState, StatusBadge } from "../../components/common";
+import { CourseCode, DepartmentSelect, EmptyState, StatusBadge } from "../../components/common";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
@@ -60,6 +60,7 @@ import {
   AdminFeedbackPeriod,
   FeedbackQuestion,
 } from "../../../lib/feedbackService";
+import { departmentStripeClass } from "../../../lib/departments";
 
 
 const QUESTION_TYPE_LABEL: Record<string, string> = {
@@ -476,18 +477,12 @@ function CreatePeriodForm({
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
                 Department
               </label>
-              <select
+              <DepartmentSelect
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
-              >
-                <option value="">All Departments (faculty-wide)</option>
-                {DEPARTMENTS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onChange={setDepartment}
+                departments={DEPARTMENTS}
+                allLabel="All Departments (faculty-wide)"
+              />
             </div>
           )}
           <div>
@@ -679,7 +674,7 @@ function PeriodCard({
   };
 
   return (
-    <Card className="border-border">
+    <Card className={`border-border ${departmentStripeClass(period.department)}`}>
       <CardContent className="p-3">
         <div
           className="flex items-center justify-between gap-2 flex-wrap cursor-pointer"

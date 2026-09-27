@@ -8,6 +8,7 @@ import {
 import { MinorSpecifications } from "../../components/courses/MinorSpecifications";
 import { Input } from "../../components/ui/input";
 import {
+  DepartmentSelect,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -223,17 +224,13 @@ export function CourseManagement({
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
               Minors for
-              <select
+              <DepartmentSelect
                 value={minorsDepartment}
-                onChange={(e) => setMinorsDepartment(e.target.value)}
-                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
-                {departments.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onChange={setMinorsDepartment}
+                departments={departments}
+                ariaLabel="Minors for department"
+                className="w-72 max-w-full"
+              />
             </label>
             {minorsDepartment && (
               <MinorSpecifications
@@ -266,19 +263,15 @@ export function CourseManagement({
       {/* Search, department (super admin) and semester filters */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         {scope.kind === "all" && (
-          <select
-            aria-label="Filter by department"
+          <DepartmentSelect
+            ariaLabel="Filter by department"
             value={filterDepartment}
-            onChange={(e) => setFilterDepartment(e.target.value)}
-            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground lg:w-64"
-          >
-            <option value="all">All departments</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterDepartment}
+            departments={departments}
+            allLabel="All departments"
+            allValue="all"
+            className="lg:w-72"
+          />
         )}
         <div className="relative flex-1">
           <Search

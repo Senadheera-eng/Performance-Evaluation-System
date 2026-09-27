@@ -56,7 +56,7 @@ export function PageHeader({
 /* ------------------------------------------------------------------ */
 
 interface SectionCardProps {
-  title?: string;
+  title?: React.ReactNode;
   description?: string;
   /** Right-hand controls: filters, links, export buttons. */
   actions?: React.ReactNode;

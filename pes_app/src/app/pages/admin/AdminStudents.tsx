@@ -27,6 +27,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
+import { cn } from "../../components/ui/utils";
+import { departmentRowClass } from "../../../lib/departments";
 
 /* A first-year is admitted to the faculty, not to a department, and is
    divided into one partway through. Until then students.department is null,
@@ -329,7 +331,10 @@ export default function AdminStudents() {
                     role="button"
                     tabIndex={0}
                     aria-expanded={expandedId === student.id}
-                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className={cn(
+                      "p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                      departmentRowClass(student.department),
+                    )}
                     onClick={() =>
                       setExpandedId(
                         expandedId === student.id ? null : student.id,

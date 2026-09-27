@@ -17,6 +17,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import { describeBatch } from "../../../lib/batch";
+import { departmentStripeClass } from "../../../lib/departments";
 
 type PeriodStatus = "scheduled" | "open" | "closed" | "archived";
 
@@ -218,7 +219,7 @@ export default function HodEnrollment() {
           >
             <div className="space-y-3">
                 {visible.map((p) => (
-                  <Card key={p.id} className="border-border">
+                  <Card key={p.id} className={`border-border ${departmentStripeClass(p.department)}`}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div>
