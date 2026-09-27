@@ -311,8 +311,8 @@ export default function Dashboard() {
                       type="button"
                       onClick={() => navigate("/app/attendance")}
                       className={cn(
-                        "flex w-full items-center gap-3 border-l-4 px-4 py-2.5 text-left transition-colors hover:bg-muted/50",
-                        dept?.stripeClass ?? "border-l-transparent",
+                        "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/50",
+                        dept?.rowClass ?? "border-l-4 border-l-transparent",
                       )}
                     >
                       <span className="min-w-0 flex-1">
@@ -323,6 +323,11 @@ export default function Dashboard() {
                           <span className="text-xs text-muted-foreground">
                             {c.credits} credit{c.credits === 1 ? "" : "s"}
                           </span>
+                          {dept && (
+                            <span className="hidden text-xs text-muted-foreground sm:inline">
+                              · {dept.name}
+                            </span>
+                          )}
                         </span>
                         <span className="block truncate text-sm text-foreground">{c.name}</span>
                       </span>

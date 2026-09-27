@@ -5,6 +5,8 @@ import { Button } from "../ui/button";
 import { SectionCard, SkeletonRows } from "../common";
 import { categoryIcon, noticeAge } from "../notices/NoticeCard";
 import { fetchNotices, type NoticeSummary } from "../../../lib/notices";
+import { departmentByCourseCode, departmentByName } from "../../../lib/departments";
+import { cn } from "../ui/utils";
 
 /**
  * The five most relevant notices, on the dashboard.
@@ -57,18 +59,28 @@ export function LatestNotices() {
         <ul className="divide-y divide-border/60">
           {items.map((n) => {
             const Icon = categoryIcon(n.category_icon);
+            // A department's notice takes its colour, a course's notice its
+            // course's department; a faculty-wide one stays neutral — the
+            // same rule as the notice board.
+            const dept =
+              departmentByName(n.department) ?? departmentByCourseCode(n.course_code);
             return (
               <li key={n.id}>
                 <button
                   type="button"
                   onClick={() => navigate(`/app/notices/${n.id}`)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted/60"
+                  className={cn(
+                    "flex w-full items-center gap-3 border-l-4 px-4 py-2.5 text-left transition-colors hover:bg-muted/60",
+                    dept?.stripeClass ?? "border-l-transparent",
+                  )}
                 >
-                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <Icon
-                      className="h-3.5 w-3.5 text-muted-foreground"
-                      aria-hidden="true"
-                    />
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
+                      dept?.chipClass ?? "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
