@@ -20,6 +20,8 @@ import {
   type RosterStudent,
   type TeachingOffering,
 } from "../../../lib/staffService";
+import { cn } from "../../components/ui/utils";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 /**
  * The courses this lecturer teaches, a batch at a time.
@@ -238,7 +240,11 @@ export default function StaffCourses() {
                   <button
                     type="button"
                     onClick={() => toggle(o)}
-                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    className={cn(
+                      "flex w-full items-start justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors",
+                      departmentByCourseCode(o.course_code)?.stripeClass ?? "border-l-transparent",
+                      departmentByCourseCode(o.course_code)?.hoverClass ?? "hover:bg-muted/50",
+                    )}
                   >
                     <div className="flex min-w-0 items-start gap-2">
                       {open ? (

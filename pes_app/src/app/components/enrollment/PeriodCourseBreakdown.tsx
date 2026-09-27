@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { DepartmentBadge, ErrorState, StatusBadge } from "../common";
+import { CourseCode, DepartmentBadge, ErrorState, StatusBadge } from "../common";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { supabase } from "../../../lib/supabase";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -131,12 +132,16 @@ export function PeriodCourseBreakdown({
         return (
           <div
             key={c.course_id}
-            className="rounded-lg border border-border/70 overflow-hidden"
+            className={`rounded-lg border border-l-4 border-border/70 overflow-hidden ${
+              departmentByCourseCode(c.course_code)?.stripeClass ?? ""
+            }`}
           >
             <button
               type="button"
               onClick={() => toggleCourse(c.course_id)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors bg-card"
+              className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors bg-card ${
+                departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50"
+              }`}
             >
               <div className="flex items-center gap-2 min-w-0">
                 {open ? (
@@ -144,9 +149,7 @@ export function PeriodCourseBreakdown({
                 ) : (
                   <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                 )}
-                <span className="text-sm font-semibold text-primary flex-shrink-0">
-                  {c.course_code}
-                </span>
+                <CourseCode code={c.course_code} className="text-sm flex-shrink-0" />
                 <span className="text-xs text-muted-foreground truncate">
                   {c.course_title}
                 </span>

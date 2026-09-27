@@ -27,6 +27,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import { describeBatch } from "../../../lib/batch";
 import { getMyTeaching, type TeachingOffering } from "../../../lib/staffService";
+import { cn } from "../../components/ui/utils";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
@@ -171,7 +173,11 @@ export default function StaffDashboard() {
                   <button
                     type="button"
                     onClick={() => navigate("/staff/courses")}
-                    className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    className={cn(
+                      "w-full border-l-4 px-4 py-3 text-left transition-colors",
+                      departmentByCourseCode(o.course_code)?.stripeClass ?? "border-l-transparent",
+                      departmentByCourseCode(o.course_code)?.hoverClass ?? "hover:bg-muted/50",
+                    )}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">

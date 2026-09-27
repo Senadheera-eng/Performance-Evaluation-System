@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -33,6 +34,7 @@ import {
   StatusBadge,
   type StatusTone,
 } from "../../components/common";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { useAuth } from "../../context/AuthContext";
 import { ResultsImportDialog } from "../../components/results/ResultsImportDialog";
@@ -632,7 +634,13 @@ export default function StaffResults() {
           ) : null}
 
           <SectionCard
-            title={`${selected.course_code} — ${selected.course_title} · ${describeBatch(selected.batch_year)}`}
+            title={
+              <>
+                <CourseCode code={selected.course_code} /> — {selected.course_title} ·{" "}
+                {describeBatch(selected.batch_year)}
+              </>
+            }
+            className={`border-l-4 ${departmentByCourseCode(selected.course_code)?.stripeClass ?? ""}`}
             description="Record the Mid-Sem and CA marks, then award the grade. The grade is your decision, not a calculation from the marks — the grade point follows from whichever grade you choose."
             flush
           >

@@ -16,6 +16,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Checkbox } from "../../components/ui/checkbox";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -246,7 +247,11 @@ export default function FeedbackFormEditor() {
       </Button>
 
       <PageHeader
-        title={`${form.course_code} — ${form.course_title}`}
+        title={
+          <>
+            <CourseCode code={form.course_code} /> — {form.course_title}
+          </>
+        }
         description={`${form.period_title} · ${
           form.semester ? `Semester ${form.semester} · ` : ""
         }${form.batch_year ? describeBatch(form.batch_year) : "All batches"}`}
