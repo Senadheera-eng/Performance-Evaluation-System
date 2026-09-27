@@ -1,24 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-  Bot,
-  Send,
-  Sparkles,
-  BookOpen,
-  Calendar,
-  Target,
-  Loader2,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
+import { motion, useReducedMotion } from "framer-motion";
+import { Bot, Info, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
+import { PageHeader, SectionCard } from "../components/common";
 import { ChatMarkdown } from "../components/chat/ChatMarkdown";
+import { cn } from "../components/ui/utils";
 import { getAssistantReply, type ChatHistoryItem } from "../../lib/chatbotEngine";
 
 interface Message {
@@ -37,23 +24,44 @@ const suggestedQuestions = [
   "What happens if I fail a course?",
 ];
 
+const GREETING: Message = {
+  id: "greeting",
+  role: "assistant",
+  content:
+    "Hi — ask me anything about your degree. I can look up your own results and standing, work out what you need for a target class, explain what the Faculty Handbook says, and tell you what's coming next semester. Everything I quote comes from your real records.",
+  timestamp: new Date(),
+};
+
+/** "10:32 AM": a chat does not need the seconds. */
+const timeOf = (d: Date) =>
+  d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+/**
+ * The AI assistant.
+ *
+ * The page is the conversation. It used to open on three cards reading
+ * "Course Guidance: Available", "Attendance: Your record" and "GPA Planning:
+ * Available", with a capabilities card beside the chat saying the same
+ * three things again. None of it was a figure or an action, so it is gone,
+ * and the chat takes the height of the screen instead of a fixed 560px.
+ * Suggested questions stay: beside the chat on a wide screen, and as a row
+ * above the box on a phone until the first question is asked.
+ */
 export default function AIAssistant() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hi — ask me anything about your degree. I can look up your own results and standing, work out what you need for a target class, explain what the Faculty Handbook says, and tell you what's coming next semester. Everything I quote comes from your real records.",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const reduce = useReducedMotion();
   const [inputMessage, setInputMessage] = useState("");
   const [isThinking, setIsThinking] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /* Scrolls the conversation, not the page: scrollIntoView moved the whole
+     window to the bottom of the chat on every reply. */
+  const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isThinking]);
+    const log = logRef.current;
+    if (log) log.scrollTo({ top: log.scrollHeight, behavior: reduce ? "auto" : "smooth" });
+  }, [messages, isThinking, reduce]);
+
+  const started = messages.some((m) => m.role === "user");
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || isThinking) return;
@@ -101,267 +109,166 @@ export default function AIAssistant() {
 
   return (
     <div className="space-y-5">
-      {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-gradient-secondary">
-            <Bot className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              AI Academic Assistant
-              <Badge className="bg-accent text-accent-foreground">Beta</Badge>
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              Get intelligent insights and guidance for your academic journey
-            </p>
-          </div>
-        </div>
-      </motion.div>
+      <PageHeader
+        eyebrow="Beta"
+        title="AI Assistant"
+        description="Ask about your results, attendance, enrolment and the Faculty Handbook. Answers come from your own record."
+        actions={
+          started ? (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isThinking}
+              onClick={() => setMessages([{ ...GREETING, timestamp: new Date() }])}
+            >
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              New chat
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        {/* The conversation */}
+        <section
+          aria-label="Conversation with the assistant"
+          className="flex h-[calc(100dvh-15rem)] min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-elevation-sm lg:col-span-2"
         >
-          <Card className="border-border">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Course Guidance
-                  </p>
-                  <p className="text-lg font-semibold text-foreground">
-                    Available
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Calendar className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  {/* True again: get_my_attendance was added in Phase 3, so
-                      this card no longer promises something the assistant
-                      cannot see. */}
-                  <p className="text-sm text-muted-foreground">
-                    Attendance
-                  </p>
-                  <p className="text-lg font-semibold text-foreground">
-                    Your record
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-        >
-          <Card className="border-border">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-100">
-                  <Target className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">GPA Planning</p>
-                  <p className="text-lg font-semibold text-foreground">
-                    Available
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Chat Interface */}
-        <div className="lg:col-span-2">
-          <Card className="border-border h-[560px] flex flex-col">
-            <CardHeader className="border-b border-border">
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                Chat with AI Assistant
-              </CardTitle>
-            </CardHeader>
-
-            {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((message) => (
+          <div
+            ref={logRef}
+            role="log"
+            aria-live="polite"
+            className="flex-1 space-y-3 overflow-y-auto p-4"
+          >
+            {messages.map((message) => {
+              const mine = message.role === "user";
+              return (
                 <motion.div
                   key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={reduce ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  transition={{ duration: 0.2 }}
+                  className={cn("flex gap-2", mine ? "justify-end" : "justify-start")}
                 >
+                  {!mine && (
+                    <span
+                      className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+                      aria-hidden="true"
+                    >
+                      <Bot className="h-4 w-4" />
+                    </span>
+                  )}
                   <div
-                    className={`max-w-[85%] rounded-2xl p-3 ${
-                      message.role === "user"
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-3 py-2",
+                      mine
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
+                        : "border border-border bg-muted/40 text-foreground",
+                    )}
                   >
-                    {message.role === "assistant" ? (
-                      <ChatMarkdown content={message.content} />
+                    <span className="sr-only">{mine ? "You:" : "Assistant:"}</span>
+                    {mine ? (
+                      <p className="whitespace-pre-line text-sm">{message.content}</p>
                     ) : (
-                      <p className="text-sm whitespace-pre-line">
-                        {message.content}
-                      </p>
+                      <ChatMarkdown content={message.content} />
                     )}
                     <p
-                      className={`text-xs mt-2 ${
-                        message.role === "user"
-                          ? "text-primary-foreground/70"
-                          : "text-muted-foreground"
-                      }`}
+                      className={cn(
+                        "mt-1 text-[11px]",
+                        mine ? "text-right text-primary-foreground/70" : "text-muted-foreground",
+                      )}
                     >
-                      {message.timestamp.toLocaleTimeString()}
+                      {timeOf(message.timestamp)}
                     </p>
                   </div>
                 </motion.div>
+              );
+            })}
+            {isThinking && (
+              <div className="flex justify-start gap-2">
+                <span
+                  className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+                  aria-hidden="true"
+                >
+                  <Bot className="h-4 w-4" />
+                </span>
+                <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  <span className="text-sm">Looking that up…</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* On a phone the suggestions sit here, one scrolling row, until
+              the first question is asked. */}
+          {!started && (
+            <div className="no-scrollbar flex gap-2 overflow-x-auto border-t border-border/70 px-3 pt-3 lg:hidden">
+              {suggestedQuestions.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => handleSendMessage(q)}
+                  className="flex-shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+                >
+                  {q}
+                </button>
               ))}
-              {isThinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex justify-start"
-                >
-                  <div className="max-w-[80%] rounded-2xl p-3 bg-muted text-muted-foreground flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-sm">Looking that up...</span>
-                  </div>
-                </motion.div>
-              )}
-              <div ref={messagesEndRef} />
             </div>
+          )}
 
-            {/* Input Area */}
-            <div className="p-3 border-t border-border">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask me anything about your academics..."
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  disabled={isThinking}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      handleSendMessage(inputMessage);
-                    }
-                  }}
-                  className="flex-1 h-9 bg-muted/50 border-0 focus:ring-2 focus:ring-primary/20"
-                />
-                <Button
-                  onClick={() => handleSendMessage(inputMessage)}
-                  disabled={isThinking}
-                  className="h-9 px-4 bg-primary hover:bg-primary/90"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
+          <form
+            className="flex gap-2 p-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage(inputMessage);
+            }}
+          >
+            <Input
+              placeholder="Ask about your results, attendance, a course…"
+              aria-label="Your question"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              disabled={isThinking}
+              maxLength={1000}
+              className="h-10 flex-1"
+            />
+            <Button
+              type="submit"
+              disabled={isThinking || !inputMessage.trim()}
+              aria-label="Send"
+              className="h-10 px-4"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </form>
+          <p className="flex items-start gap-1.5 px-3 pb-3 text-[11px] text-muted-foreground">
+            <Info className="mt-px h-3 w-3 flex-shrink-0" aria-hidden="true" />
+            The assistant can be wrong. Check anything that matters (a grade,
+            a deadline, a rule) with your department.
+          </p>
+        </section>
 
-        {/* Suggested Questions */}
-        <div>
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle className="text-lg">Suggested Questions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {suggestedQuestions.map((question, index) => (
-                <motion.button
-                  key={index}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  onClick={() => handleSendMessage(question)}
-                  className="w-full text-left p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm text-foreground"
-                >
-                  {question}
-                </motion.button>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Capabilities */}
-          <Card className="border-border mt-4">
-            <CardHeader>
-              <CardTitle className="text-lg">AI Capabilities</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-primary/10 mt-0.5">
-                  <BookOpen className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground text-sm">
-                    Course Guidance
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Information about modules, credits, and prerequisites
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-blue-100 mt-0.5">
-                  <Calendar className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground text-sm">
-                    Attendance & Minors
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Your attendance against the 80% rule, the modules you still
-                    owe, and which courses count toward each minor
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-green-100 mt-0.5">
-                  <Target className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground text-sm">
-                    GPA Planning
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Exact SGPA targets to reach your desired CGPA or
-                    classification
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Suggestions beside the chat on a wide screen */}
+        <SectionCard
+          title="Try asking"
+          description="Tap a question to send it."
+          className="hidden lg:block"
+          bodyClassName="space-y-2"
+        >
+          {suggestedQuestions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              disabled={isThinking}
+              onClick={() => handleSendMessage(question)}
+              className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+            >
+              <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
+              {question}
+            </button>
+          ))}
+        </SectionCard>
       </div>
     </div>
   );
