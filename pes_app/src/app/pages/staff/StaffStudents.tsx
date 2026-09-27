@@ -33,6 +33,7 @@ import {
   type DepartmentStudent,
   type StudentRecordRow,
 } from "../../../lib/staffService";
+import { departmentRowClass } from "../../../lib/departments";
 
 const gradeTone = (grade: string | null): StatusTone => {
   if (!grade) return "neutral";
@@ -243,7 +244,7 @@ export default function StaffStudents() {
         ) : (
           <ul className="divide-y divide-border/70">
             {visible.map((s) => (
-              <li key={s.student_id}>
+              <li key={s.student_id} className={departmentRowClass(s.department)}>
                 <button
                   type="button"
                   onClick={() => toggle(s.student_id)}

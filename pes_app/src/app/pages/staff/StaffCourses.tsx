@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronDown, ChevronRight, Users } from "lucide-react";
 import {
   CourseCode,
+  DepartmentBadge,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -327,7 +328,7 @@ export default function StaffCourses() {
                                     {formatRegNumber(s.reg_number)}
                                   </td>
                                   <td className="py-1.5 pr-3 text-muted-foreground">
-                                    {s.department}
+                                    <DepartmentBadge department={s.department} label="code" />
                                   </td>
                                   <td className="whitespace-nowrap py-1.5 text-muted-foreground">
                                     {describeBatch(s.batch_year)}

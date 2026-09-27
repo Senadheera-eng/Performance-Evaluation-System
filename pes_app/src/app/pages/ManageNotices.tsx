@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import {
+  DepartmentSelect,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -54,6 +55,7 @@ import {
   type NoticeDraft,
   type PublishingScope,
 } from "../../lib/notices";
+import { departmentByCourseCode, departmentStripeClass } from "../../lib/departments";
 
 interface OfferingOption {
   offering_id: string;
@@ -245,7 +247,9 @@ export default function ManageNotices() {
             {visible.map((n) => (
               <li
                 key={n.id}
-                className="flex flex-wrap items-center gap-2 px-4 py-3"
+                className={`flex flex-wrap items-center gap-2 px-4 py-3 ${departmentStripeClass(
+                  n.department ?? departmentByCourseCode(n.course_code)?.name,
+                )}`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -592,18 +596,12 @@ function NoticeForm({
             <>
               <Field label="Department">
                 {scope.can_target_faculty ? (
-                  <select
+                  <DepartmentSelect
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-                  >
-                    <option value="">All departments (faculty-wide)</option>
-                    {settings.studentDepartments.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setDepartment}
+                    departments={settings.studentDepartments}
+                    allLabel="All departments (faculty-wide)"
+                  />
                 ) : (
                   <div className="flex h-9 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm text-foreground">
                     {scope.department}

@@ -44,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { CourseCode, ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
+import { CourseCode, DepartmentSelect, ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
 import { PendingResultReviews } from "../../components/admin/PendingResultReviews";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -762,18 +762,13 @@ export default function AdminResults() {
                 <label className="text-sm font-medium text-foreground">
                   Department
                 </label>
-                <select
+                <DepartmentSelect
                   value={filterDepartment}
-                  onChange={(e) => setFilterDepartment(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="all">All departments</option>
-                  {departmentOptions.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFilterDepartment}
+                  departments={departmentOptions}
+                  allLabel="All departments"
+                  allValue="all"
+                />
               </div>
             )}
 

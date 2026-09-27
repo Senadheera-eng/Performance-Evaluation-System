@@ -26,6 +26,7 @@ import {
   type MentorAllocation,
   type MentorRosterRow,
 } from "../../../lib/mentorService";
+import { departmentRowClass } from "../../../lib/departments";
 
 /**
  * Mentor allocation, for the head of department.
@@ -298,7 +299,7 @@ export default function HodMentors() {
                 {filtered.map((s) => (
                   <li
                     key={s.student_id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${departmentRowClass(s.department)}`}
                   >
                     <div className="flex min-w-0 items-center gap-3">
                     <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />

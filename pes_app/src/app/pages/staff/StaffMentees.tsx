@@ -40,6 +40,7 @@ import {
   type MenteeOverview,
   type RiskBand,
 } from "../../../lib/mentorService";
+import { departmentRowClass } from "../../../lib/departments";
 
 /** Worst first: the order a mentor would want to work down the list in. */
 const RISK_ORDER: RiskBand[] = [
@@ -275,7 +276,7 @@ export default function StaffMentees() {
                     (a.index_number ?? "").localeCompare(b.index_number ?? ""),
                 )
                 .map((m) => (
-                  <li key={m.student_id}>
+                  <li key={m.student_id} className={departmentRowClass(m.department)}>
                     <button
                       type="button"
                       onClick={() => setOpen(m)}

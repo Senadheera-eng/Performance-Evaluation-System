@@ -6,6 +6,7 @@
  */
 export { StatusBadge, gradeTone, type StatusTone } from "./StatusBadge";
 export { CourseCode, DepartmentBadge, DepartmentDot } from "./DepartmentBadge";
+export { DepartmentSelect } from "./DepartmentSelect";
 export { PersonAvatar, initialsOf } from "./PersonAvatar";
 export {
   EmptyState,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { ErrorState, StatusBadge } from "../common";
+import { DepartmentBadge, ErrorState, StatusBadge } from "../common";
 import { supabase } from "../../../lib/supabase";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
@@ -207,7 +207,11 @@ export function PeriodCourseBreakdown({
                               {describeBatch(s.batch_year)}
                             </td>
                             <td className="py-1.5 pr-3 text-muted-foreground">
-                              {s.department ?? "Not yet assigned"}
+                              {s.department ? (
+                                <DepartmentBadge department={s.department} label="code" />
+                              ) : (
+                                "Not yet assigned"
+                              )}
                             </td>
                             <td className="py-1.5 pr-3">
                               <StatusBadge tone="success">{s.status}</StatusBadge>
