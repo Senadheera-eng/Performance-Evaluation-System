@@ -35,6 +35,8 @@ export interface Department {
    * the avatar is a photo.
    */
   rowClass: string;
+  /** A full border in the Handbook colour, for a chosen filter chip. */
+  borderClass: string;
   /** A ring round a photo avatar, which has no colour of its own. */
   ringClass: string;
   /** A dropdown option: tinted while highlighted or chosen. */
@@ -54,6 +56,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-ce-soft text-dept-ce-fg",
     textClass: "text-dept-ce-fg",
     rowClass: "border-l-4 border-l-dept-ce bg-dept-ce-soft/50",
+    borderClass: "border-dept-ce",
     ringClass: "ring-2 ring-dept-ce",
     optionClass: "focus:bg-dept-ce-soft focus:text-dept-ce-fg data-[state=checked]:bg-dept-ce-soft/60",
     colorVar: "var(--dept-ce)",
@@ -68,6 +71,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-co-soft text-dept-co-fg",
     textClass: "text-dept-co-fg",
     rowClass: "border-l-4 border-l-dept-co bg-dept-co-soft/50",
+    borderClass: "border-dept-co",
     ringClass: "ring-2 ring-dept-co",
     optionClass: "focus:bg-dept-co-soft focus:text-dept-co-fg data-[state=checked]:bg-dept-co-soft/60",
     colorVar: "var(--dept-co)",
@@ -82,6 +86,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-ee-soft text-dept-ee-fg",
     textClass: "text-dept-ee-fg",
     rowClass: "border-l-4 border-l-dept-ee bg-dept-ee-soft/50",
+    borderClass: "border-dept-ee",
     ringClass: "ring-2 ring-dept-ee",
     optionClass: "focus:bg-dept-ee-soft focus:text-dept-ee-fg data-[state=checked]:bg-dept-ee-soft/60",
     colorVar: "var(--dept-ee)",
@@ -96,6 +101,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-me-soft text-dept-me-fg",
     textClass: "text-dept-me-fg",
     rowClass: "border-l-4 border-l-dept-me bg-dept-me-soft/50",
+    borderClass: "border-dept-me",
     ringClass: "ring-2 ring-dept-me",
     optionClass: "focus:bg-dept-me-soft focus:text-dept-me-fg data-[state=checked]:bg-dept-me-soft/60",
     colorVar: "var(--dept-me)",
@@ -110,6 +116,7 @@ export const DEPARTMENTS: Record<DepartmentKey, Department> = {
     chipClass: "bg-dept-is-soft text-dept-is-fg",
     textClass: "text-dept-is-fg",
     rowClass: "border-l-4 border-l-dept-is bg-dept-is-soft/50",
+    borderClass: "border-dept-is",
     ringClass: "ring-2 ring-dept-is",
     optionClass: "focus:bg-dept-is-soft focus:text-dept-is-fg data-[state=checked]:bg-dept-is-soft/60",
     colorVar: "var(--dept-is)",

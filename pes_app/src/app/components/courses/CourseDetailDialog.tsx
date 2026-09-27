@@ -6,7 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { DepartmentBadge, ErrorState, SkeletonRows, StatusBadge } from "../common";
+import { CourseCode, DepartmentBadge, ErrorState, SkeletonRows, StatusBadge } from "../common";
+import { departmentByName } from "../../../lib/departments";
 import { supabase } from "../../../lib/supabase";
 
 interface CourseDetail {
@@ -88,7 +89,13 @@ export function CourseDetailDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {detail ? `${detail.course_code} — ${detail.title}` : "Course"}
+            {detail ? (
+              <>
+                <CourseCode code={detail.course_code} /> — {detail.title}
+              </>
+            ) : (
+              "Course"
+            )}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-2">
             {detail ? (
@@ -167,7 +174,9 @@ export function CourseDetailDialog({
                         role="presentation"
                       >
                         <div
-                          className="h-1.5 rounded-full bg-primary"
+                          className={`h-1.5 rounded-full ${
+                            departmentByName(detail.department)?.swatchClass ?? "bg-primary"
+                          }`}
                           style={{ width: pct(w) }}
                         />
                       </div>
