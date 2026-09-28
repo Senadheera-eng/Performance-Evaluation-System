@@ -29,6 +29,7 @@ import {
   type DepartmentLecturerRow,
   type DepartmentQuestionResult,
 } from "../../../lib/staffService";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 const RATING_LABELS: Record<string, string> = {
   "1": "Strongly Disagree",
@@ -297,7 +298,9 @@ export function DepartmentFeedback() {
                   <button
                     type="button"
                     onClick={() => toggle(r)}
-                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                    className={`flex w-full items-start justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors ${
+                      departmentByCourseCode(r.course_code)?.stripeClass ?? "border-l-transparent"
+                    } ${departmentByCourseCode(r.course_code)?.hoverClass ?? "hover:bg-muted/50"}`}
                   >
                     <div className="flex min-w-0 items-start gap-2">
                       {open ? (

@@ -26,6 +26,7 @@ import {
   publishOfferingResults,
   returnOfferingResults,
 } from "../../../lib/staffService";
+import { courseRowClass } from "../../../lib/departments";
 
 interface PendingReview {
   offering_id: string;
@@ -172,7 +173,7 @@ export function PendingResultReviews({
             {reviews.map((r) => (
               <li
                 key={r.offering_id}
-                className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                className={`flex flex-wrap items-start justify-between gap-3 px-4 py-3 transition-colors ${courseRowClass(r.course_code)}`}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">

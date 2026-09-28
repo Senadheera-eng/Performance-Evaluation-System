@@ -457,9 +457,13 @@ export function SemesterBaskets({
                       <li
                         key={c.course_id}
                         className={cn(
-                          "flex items-start gap-3 border-l-4 px-4 py-2.5",
+                          "flex items-start gap-3 border-l-4 px-4 py-2.5 transition-colors",
                           departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent",
-                          draft.has(c.course_id) && "bg-primary/5",
+                          // An unsaved change keeps its own tint; otherwise
+                          // the department's shows on hover.
+                          draft.has(c.course_id)
+                            ? "bg-primary/5"
+                            : departmentByCourseCode(c.course_code)?.hoverClass,
                         )}
                       >
                         <Checkbox
@@ -546,7 +550,11 @@ export function SemesterBaskets({
                 return (
                   <tr
                     key={c.course_id}
-                    className={`${changed ? "bg-primary/5" : ""} ${
+                    className={`transition-colors ${
+                      changed
+                        ? "bg-primary/5"
+                        : (departmentByCourseCode(c.course_code)?.hoverClass ?? "")
+                    } ${
                       endsBlock ? "border-b border-border" : "border-b border-border/40"
                     }`}
                   >

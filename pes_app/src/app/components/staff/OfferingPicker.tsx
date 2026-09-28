@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { describeBatch } from "../../../lib/batch";
+import { departmentByCourseCode } from "../../../lib/departments";
+import { DepartmentDot } from "../common";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { cn } from "../ui/utils";
 
 /** The minimum an offering must carry to be picked from. */
 export interface PickableOffering {
@@ -175,24 +185,44 @@ export function OfferingPicker({
         </label>
       )}
 
-      <label className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">
           {courseLabel}
         </span>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-        >
-          {coursesInBatch.map((o) => (
-            <option key={o.offering_id} value={o.offering_id}>
-              {o.course_code} — {o.course_title} · Sem {o.semester}
-              {spansDepartments && o.department ? ` · ${o.department}` : ""}
-              {showViewOnly && o.canEdit === false ? "  (view only)" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+        {/* Each course with its department's dot and its code in the
+            department's colour, tinted in its hue while highlighted — the
+            same cue the course carries everywhere else. */}
+        <Select value={value || undefined} onValueChange={onChange}>
+          <SelectTrigger
+            aria-label={courseLabel}
+            className="h-10 w-full rounded-xl border-border bg-card text-foreground dark:bg-card dark:hover:bg-muted/50"
+          >
+            <SelectValue placeholder="Choose a course" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl">
+            {coursesInBatch.map((o) => {
+              const dept = departmentByCourseCode(o.course_code);
+              return (
+                <SelectItem
+                  key={o.offering_id}
+                  value={o.offering_id}
+                  className={cn("rounded-lg", dept?.optionClass)}
+                >
+                  {dept && <DepartmentDot dept={dept} className="h-2.5 w-2.5" />}
+                  <span className={cn("font-semibold tabular-nums", dept?.textClass)}>
+                    {o.course_code}
+                  </span>
+                  <span className="truncate">
+                    {o.course_title} · Sem {o.semester}
+                    {spansDepartments && o.department ? ` · ${o.department}` : ""}
+                    {showViewOnly && o.canEdit === false ? "  (view only)" : ""}
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }

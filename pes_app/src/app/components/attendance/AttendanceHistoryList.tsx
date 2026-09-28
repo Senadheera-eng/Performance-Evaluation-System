@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { History } from "lucide-react";
 import {
+  CourseCode,
   EmptyState,
   SectionCard,
   SegmentedTabs,
@@ -107,7 +108,7 @@ export function AttendanceHistoryList({ records }: AttendanceHistoryListProps) {
                   {format(parseISO(r.date), "EEEE, MMMM d, yyyy")}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {r.courseCode} — {r.courseName}
+                  <CourseCode code={r.courseCode} className="font-medium" /> — {r.courseName}
                 </p>
               </div>
               <StatusBadge tone={STATUS_TONE[r.status]} className="flex-shrink-0">

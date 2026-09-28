@@ -9,7 +9,7 @@ import { StatusBadge, type StatusTone } from "./StatusBadge";
 /* ------------------------------------------------------------------ */
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   /** Primary action(s) for this page, right-aligned on desktop. */
   actions?: React.ReactNode;
@@ -56,8 +56,8 @@ export function PageHeader({
 /* ------------------------------------------------------------------ */
 
 interface SectionCardProps {
-  title?: string;
-  description?: string;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
   /** Right-hand controls: filters, links, export buttons. */
   actions?: React.ReactNode;
   children: React.ReactNode;

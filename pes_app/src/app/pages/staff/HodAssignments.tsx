@@ -35,6 +35,7 @@ import {
   type AssignableLecturer,
   type DepartmentOffering,
 } from "../../../lib/staffService";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 /**
  * Course assignments for a Head of Department.
@@ -233,7 +234,12 @@ export default function HodAssignments() {
         ) : (
           <ul className="divide-y divide-border/70">
             {visible.map((o) => (
-              <li key={o.offering_id} className="px-4 py-3">
+              <li
+                key={o.offering_id}
+                className={`border-l-4 px-4 py-3 transition-colors ${
+                  departmentByCourseCode(o.course_code)?.stripeClass ?? "border-l-transparent"
+                } ${departmentByCourseCode(o.course_code)?.hoverClass ?? ""}`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

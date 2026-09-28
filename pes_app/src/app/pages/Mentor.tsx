@@ -14,6 +14,7 @@ import {
 } from "../components/common";
 import { MentorChat } from "../components/mentor/MentorChat";
 import { getMyMentor, type MyMentor } from "../../lib/mentorService";
+import { departmentByName } from "../../lib/departments";
 
 /**
  * The student's academic mentor.
@@ -67,6 +68,7 @@ export default function Mentor() {
         <>
           <SectionCard
             title="Your mentor"
+            className={`border-l-4 ${departmentByName(mentor.department)?.stripeClass ?? ""}`}
             actions={
               <Button size="sm" variant="outline" asChild>
                 <a href={`mailto:${mentor.email}`}>

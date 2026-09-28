@@ -12,7 +12,7 @@ import {
 } from "../ui/dialog";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { ErrorState } from "../common";
+import { DepartmentSelect, ErrorState } from "../common";
 import { getDepartmentMinors } from "../../../lib/minors";
 import { supabase } from "../../../lib/supabase";
 import { useSettings } from "../../../lib/settings";
@@ -226,17 +226,12 @@ export function CourseEditorDialog({
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Department
               </label>
-              <select
+              <DepartmentSelect
                 value={newDepartment}
-                onChange={(e) => setNewDepartment(e.target.value)}
-                className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
-                {options.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
+                onChange={setNewDepartment}
+                departments={options}
+                size="lg"
+              />
             </div>
           )}
           <div>

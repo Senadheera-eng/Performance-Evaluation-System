@@ -26,14 +26,18 @@ import {
   AlertDialogTitle,
 } from "../../components/ui/alert-dialog";
 import {
+  DepartmentDot,
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
   SectionCard,
   SkeletonRows,
-  StatusBadge,
 } from "../../components/common";
+import { cn } from "../../components/ui/utils";
 import { supabase } from "../../../lib/supabase";
+import { useAvatarUrls } from "../../../lib/avatars";
+import { departmentByName } from "../../../lib/departments";
 import { useAuth } from "../../context/AuthContext";
 
 interface FacultyLecturer {
@@ -130,6 +134,10 @@ export default function AdminHods() {
       .sort((a, b) => a.department.localeCompare(b.department));
   }, [lecturers]);
 
+  const avatars = useAvatarUrls(
+    departments.map((d) => d.head?.lecturer_id),
+  );
+
   const loadHistory = async (department: string) => {
     if (history[department]) return;
     const { data, error: rpcError } = await supabase.rpc("get_hod_history", {
@@ -219,34 +227,58 @@ export default function AdminHods() {
           const appointable = staff.filter(
             (l) => l.status === "active" && !l.is_hod,
           );
+          const dept = departmentByName(department);
           return (
             <SectionCard
               key={department}
-              title={department}
+              className={cn("border-l-4", dept?.stripeClass)}
+              title={
+                <span className="flex items-center gap-2">
+                  {dept && <DepartmentDot dept={dept} className="h-2.5 w-2.5" />}
+                  <span className={dept?.textClass}>{department}</span>
+                  {dept && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {dept.code}
+                    </span>
+                  )}
+                </span>
+              }
               description={`${staff.length} lecturer${staff.length === 1 ? "" : "s"}`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   {head ? (
-                    <>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Award
-                          className="h-4 w-4 text-primary"
-                          aria-hidden="true"
-                        />
-                        <span className="text-sm font-semibold text-foreground">
-                          {head.title ? `${head.title} ` : ""}
-                          {head.name}
-                        </span>
-                        <StatusBadge tone="brand">Head of Department</StatusBadge>
+                    <div className="flex items-center gap-3">
+                      <PersonAvatar
+                        name={head.name}
+                        url={avatars[head.lecturer_id]}
+                        department={department}
+                        size="md"
+                      />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">
+                            {head.title ? `${head.title} ` : ""}
+                            {head.name}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                              dept?.chipClass ?? "bg-primary/10 text-primary",
+                            )}
+                          >
+                            <Award className="h-3 w-3" aria-hidden="true" />
+                            Head of Department
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {head.email}
+                          {head.hod_since
+                            ? ` · since ${formatDate(head.hod_since)}`
+                            : ""}
+                        </p>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {head.email}
-                        {head.hod_since
-                          ? ` · since ${formatDate(head.hod_since)}`
-                          : ""}
-                      </p>
-                    </>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       No head appointed. Nobody has department-wide access to{" "}
@@ -309,7 +341,12 @@ export default function AdminHods() {
               </button>
 
               {openHistory === department && (
-                <ul className="mt-2 space-y-1.5 border-l-2 border-border pl-3">
+                <ul
+                  className={cn(
+                    "mt-2 space-y-1.5 border-l-2 pl-3",
+                    dept?.stripeClass ?? "border-border",
+                  )}
+                >
                   {(history[department] ?? []).length === 0 ? (
                     <li className="text-xs text-muted-foreground">
                       No appointments on record.
