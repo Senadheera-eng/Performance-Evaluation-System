@@ -31,6 +31,8 @@ import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { getAdminOfferings } from "../../../lib/attendanceRegister";
 import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
+import { courseRowClass } from "../../../lib/departments";
+import { DepartmentBreakdown } from "../../components/admin/DepartmentBreakdown";
 
 interface DashboardStats {
   totalStudents: number;
@@ -271,6 +273,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* The whole faculty at a glance, one row per department in its
+          colour. A department admin's dashboard is one department already. */}
+      {scope.kind === "all" && <DepartmentBreakdown />}
+
       {/* Attendance alerts */}
       {alerts.length > 0 && (
         <SectionCard
@@ -291,7 +297,10 @@ export default function AdminDashboard() {
         >
           <ul className="divide-y divide-border/70">
             {alerts.map((alert, index) => (
-              <li key={index} className="flex items-center justify-between gap-3 px-4 py-2.5">
+              <li
+                key={index}
+                className={`flex items-center justify-between gap-3 px-4 py-2.5 transition-colors ${courseRowClass(alert.courseCode)}`}
+              >
                 <div className="flex min-w-0 items-center gap-3">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0 text-danger-fg" aria-hidden="true" />
                   <div className="min-w-0">
@@ -397,7 +406,10 @@ export default function AdminDashboard() {
         ) : (
           <ul className="divide-y divide-border/70">
             {recentResults.map((result) => (
-              <li key={result.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <li
+                key={result.id}
+                className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors ${courseRowClass(result.courseCode)}`}
+              >
                 <div className="flex min-w-0 items-center gap-3">
                   <CheckCircle className="h-4 w-4 flex-shrink-0 text-success-fg" aria-hidden="true" />
                   <div className="min-w-0">

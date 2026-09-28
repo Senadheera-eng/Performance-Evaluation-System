@@ -16,6 +16,7 @@ import {
   removeCourseQuestion,
   type CoordinatedRound,
 } from "../../../lib/staffService";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 const TYPES: { value: string; label: string }[] = [
   { value: "rating", label: "Rating 1–5" },
@@ -118,7 +119,12 @@ export function CoordinatorQuestions() {
             {actionable.map((round) => {
               const key = `${round.period_id}:${round.course_id}`;
               return (
-                <li key={key} className="px-4 py-3">
+                <li
+                  key={key}
+                  className={`border-l-4 px-4 py-3 ${
+                    departmentByCourseCode(round.course_code)?.stripeClass ?? "border-l-transparent"
+                  }`}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

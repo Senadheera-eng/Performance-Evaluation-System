@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Award, Camera, KeyRound, Loader2, Save, Trash2 } from "lucide-react";
+import { Camera, KeyRound, Loader2, Save, Shield, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -17,38 +17,29 @@ import { ChangePasswordDialog } from "../../components/account/ChangePasswordDia
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../../lib/supabase";
 import { removeMyAvatar, uploadMyAvatar } from "../../../lib/avatars";
-import { getStaffCapabilities } from "../../../lib/staffScope";
-import { departmentByName } from "../../../lib/departments";
+import { DEPARTMENTS, departmentByName } from "../../../lib/departments";
 import { cn } from "../../components/ui/utils";
 
-const TITLES = ["Prof.", "Dr.", "Eng.", "Mr.", "Mrs.", "Ms."];
-
-interface LecturerRow {
+interface AdminRow {
   name: string;
-  title: string | null;
-  email: string;
-  department: string;
-  staff_no: string | null;
+  role: string;
+  department: string | null;
   avatar_url: string | null;
 }
 
 /**
- * A lecturer's own profile: their photo, the title and name they are shown
- * by, and their password.
+ * An admin's own profile — the Faculty Admin's or a department admin's: their
+ * photo, the name they are shown by, and their password.
  *
- * The photo is the one students see beside their mentor's messages, on the
- * mentor card, and in the staff lists, so it is changed here once. Email
- * (their sign-in), department (what they may see) and staff number stay the
- * department's to change, and say so.
+ * Role and department decide what an admin may see and change, so they are
+ * shown but not editable here; the sign-in email is the account itself.
  */
-export default function StaffProfile() {
-  const { user, staff, refreshProfile } = useAuth();
-  const caps = getStaffCapabilities(staff);
+export default function AdminProfile() {
+  const { user, refreshProfile } = useAuth();
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const [row, setRow] = useState<LecturerRow | null>(null);
+  const [row, setRow] = useState<AdminRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -58,16 +49,15 @@ export default function StaffProfile() {
     if (!user) return;
     setError(null);
     const { data, error: readError } = await supabase
-      .from("lecturers")
-      .select("name, title, email, department, staff_no, avatar_url")
-      .eq("auth_user_id", user.id)
+      .from("admins")
+      .select("name, role, department, avatar_url")
+      .eq("id", user.id)
       .maybeSingle();
     if (readError || !data) {
       setError("Your profile could not be loaded.");
       return;
     }
-    setRow(data as LecturerRow);
-    setTitle(data.title ?? "");
+    setRow(data as AdminRow);
     setName(data.name);
   };
 
@@ -76,12 +66,11 @@ export default function StaffProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const dirty = row !== null && (name.trim() !== row.name || (title || null) !== row.title);
+  const dirty = row !== null && name.trim() !== row.name;
 
   const saveDetails = async () => {
     setSaving(true);
-    const { error: rpcError } = await supabase.rpc("update_my_lecturer_profile", {
-      p_title: title || null,
+    const { error: rpcError } = await supabase.rpc("update_my_admin_profile", {
       p_name: name,
     });
     setSaving(false);
@@ -128,14 +117,15 @@ export default function StaffProfile() {
     );
   }
 
-  const displayName = row ? `${row.title ? `${row.title} ` : ""}${row.name}` : "";
+  const isSuper = row?.role === "super_admin";
   const dept = departmentByName(row?.department);
+  const roleLabel = isSuper ? "Super Admin" : "Department Admin";
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="My Profile"
-        description="Your photo and the name students and colleagues see, and your password."
+        description="Your photo and the name others see, and your password."
       />
 
       {!row ? (
@@ -145,27 +135,32 @@ export default function StaffProfile() {
           {/* Photo */}
           <SectionCard
             title="Photo"
-            description="Shown wherever your name appears, including your mentees' chat."
-            className={cn("border-l-4", dept?.stripeClass)}
+            description="Shown beside your name in the portal."
+            className={cn("border-l-4", dept?.stripeClass ?? "border-l-primary")}
           >
             <div className="flex flex-col items-center text-center">
-              <PersonAvatar name={displayName} url={row.avatar_url} department={row.department} size="xl" />
-              <p className="mt-3 text-base font-semibold text-foreground">{displayName}</p>
+              <PersonAvatar name={row.name} url={row.avatar_url} department={row.department} size="xl" />
+              <p className="mt-3 text-base font-semibold text-foreground">{row.name}</p>
               <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
-                <DepartmentBadge department={row.department} />
-                {caps.isHod && (
-                  /* The headship in the department's own colour, as on the
-                     Heads of Department page. */
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      dept?.chipClass ?? "bg-primary/10 text-primary",
-                    )}
-                  >
-                    <Award className="h-3 w-3" aria-hidden="true" />
-                    Head of Department
+                {dept ? (
+                  <DepartmentBadge department={row.department} />
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+                    <AllDepartmentDots />
+                    All departments
                   </span>
                 )}
+                {/* The role in the department's own colour, as a head's
+                    headship is; the faculty's admin keeps the brand. */}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                    dept?.chipClass ?? "bg-primary/10 text-primary",
+                  )}
+                >
+                  <Shield className="h-3 w-3" aria-hidden="true" />
+                  {roleLabel}
+                </span>
               </div>
               <input
                 ref={fileInput}
@@ -199,7 +194,14 @@ export default function StaffProfile() {
 
           <div className="space-y-4 lg:col-span-2">
             {/* Editable details */}
-            <SectionCard title="Your name" description="How you appear to students and colleagues.">
+            <SectionCard
+              title="Your name"
+              description={
+                isSuper
+                  ? "How you appear across the portal."
+                  : "How you appear across the portal, e.g. the office's name or your own."
+              }
+            >
               <form
                 className="space-y-4"
                 onSubmit={(e) => {
@@ -207,42 +209,19 @@ export default function StaffProfile() {
                   if (dirty) saveDetails();
                 }}
               >
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
-                  <div>
-                    <Label htmlFor="profile-title" className="mb-1.5 block">Title</Label>
-                    <select
-                      id="profile-title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-                    >
-                      <option value="">No title</option>
-                      {TITLES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label htmlFor="profile-name" className="mb-1.5 block">Name</Label>
-                    <Input
-                      id="profile-name"
-                      value={name}
-                      maxLength={120}
-                      onChange={(e) => setName(e.target.value)}
-                      className="h-10"
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="admin-profile-name" className="mb-1.5 block">Name</Label>
+                  <Input
+                    id="admin-profile-name"
+                    value={name}
+                    maxLength={120}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-10"
+                  />
                 </div>
                 <div className="flex justify-end gap-2">
                   {dirty && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setTitle(row.title ?? "");
-                        setName(row.name);
-                      }}
-                    >
+                    <Button type="button" variant="outline" onClick={() => setName(row.name)}>
                       Discard
                     </Button>
                   )}
@@ -257,20 +236,29 @@ export default function StaffProfile() {
             {/* Fixed details */}
             <SectionCard
               title="Account"
-              description="These come from your department's records. Ask the department office if any of them is wrong."
+              description="Your role and department set what you can see and change, so they are kept by the faculty."
             >
               <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {([
-                  ["University email", row.email],
+                {(
                   [
-                    "Department",
-                    <span className="inline-flex items-center gap-1.5">
-                      {dept && <DepartmentDot dept={dept} />}
-                      <span className={dept?.textClass}>{row.department}</span>
-                    </span>,
-                  ],
-                  ["Staff number", row.staff_no ?? "—"],
-                ] as [string, React.ReactNode][]).map(([label, value]) => (
+                    ["Sign-in email", user?.email ?? "—"],
+                    ["Role", roleLabel],
+                    [
+                      "Department",
+                      dept ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <DepartmentDot dept={dept} />
+                          <span className={dept.textClass}>{row.department}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          <AllDepartmentDots />
+                          All departments (whole faculty)
+                        </span>
+                      ),
+                    ],
+                  ] as [string, React.ReactNode][]
+                ).map(([label, value]) => (
                   <div key={label} className="min-w-0">
                     <dt className="text-xs text-muted-foreground">{label}</dt>
                     <dd className="mt-0.5 break-words text-sm font-medium text-foreground">{value}</dd>
@@ -290,5 +278,16 @@ export default function StaffProfile() {
 
       <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
+  );
+}
+
+/** Every department's dot, side by side: the whole faculty at a glance. */
+function AllDepartmentDots() {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+      {Object.values(DEPARTMENTS).map((d) => (
+        <DepartmentDot key={d.key} dept={d} />
+      ))}
+    </span>
   );
 }

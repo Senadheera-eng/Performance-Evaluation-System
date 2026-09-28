@@ -261,8 +261,11 @@ function CourseRow({
         type="button"
         onClick={onOpen}
         className={cn(
-          "w-full border-l-4 px-4 py-3 text-left transition-colors hover:bg-muted/50",
+          "w-full border-l-4 px-4 py-3 text-left transition-colors",
+          // The department's stripe, and its tint on hover; the bar and
+          // figures below keep the status colours.
           departmentByCourseCode(summary.code)?.stripeClass ?? "border-l-transparent",
+          departmentByCourseCode(summary.code)?.hoverClass ?? "hover:bg-muted/50",
         )}
       >
         <div className="flex items-start justify-between gap-3">

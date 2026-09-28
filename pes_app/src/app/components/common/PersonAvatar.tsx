@@ -26,7 +26,8 @@ export function initialsOf(name: string | null | undefined): string {
 /**
  * A person: their photo when they have one, otherwise their initials in
  * their department's colour. The one avatar every page uses, so a photo a
- * lecturer or student sets shows up everywhere they appear.
+ * lecturer or student sets shows up everywhere they appear — and the
+ * department colour survives the photo, as a ring.
  */
 export function PersonAvatar({
   name,
@@ -43,12 +44,17 @@ export function PersonAvatar({
 }) {
   const [broken, setBroken] = useState<string | null>(null);
   const showPhoto = Boolean(url) && broken !== url;
+  const dept = departmentByName(department);
   return (
     <span
       className={cn(
         "inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold",
         SIZES[size],
-        !showPhoto && (departmentByName(department)?.chipClass ?? "bg-primary/10 text-primary"),
+        // Initials sit on the department's tint; a photo has no colour of
+        // its own, so it wears a ring in the department's hue instead.
+        showPhoto ? dept?.ringClass : (dept?.chipClass ?? "bg-primary/10 text-primary"),
+        // A large photo gets a bolder ring, set off from the card.
+        showPhoto && dept && (size === "lg" || size === "xl") && "ring-[3px] ring-offset-2 ring-offset-card",
         className,
       )}
       aria-hidden="true"

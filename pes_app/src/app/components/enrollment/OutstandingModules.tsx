@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
-import { ErrorState, SectionCard, SkeletonRows, StatusBadge } from "../common";
+import { CourseCode, ErrorState, SectionCard, SkeletonRows, StatusBadge } from "../common";
+import { departmentByCourseCode } from "../../../lib/departments";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
@@ -208,8 +209,12 @@ export function OutstandingModules({ onChanged }: { onChanged?: () => void }) {
                 return (
                   <li
                     key={o.course_id}
-                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${
-                      changed ? "bg-primary/5" : ""
+                    className={`flex flex-wrap items-center justify-between gap-3 border-l-4 px-4 py-3 transition-colors ${
+                      departmentByCourseCode(o.course_code)?.stripeClass ?? "border-l-transparent"
+                    } ${
+                      changed
+                        ? "bg-primary/5"
+                        : (departmentByCourseCode(o.course_code)?.hoverClass ?? "")
                     }`}
                   >
                     <label
@@ -225,9 +230,7 @@ export function OutstandingModules({ onChanged }: { onChanged?: () => void }) {
                       />
                       <span className="min-w-0">
                         <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-primary">
-                            {o.course_code}
-                          </span>
+                          <CourseCode code={o.course_code} className="text-sm" />
                           <span className="text-sm text-foreground">
                             {o.title}
                           </span>

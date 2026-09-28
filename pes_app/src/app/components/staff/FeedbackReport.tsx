@@ -1,5 +1,5 @@
 import { Lock, MessageSquareQuote, Star } from "lucide-react";
-import { SectionCard, StatusBadge, type StatusTone } from "../common";
+import { CourseCode, SectionCard, StatusBadge, type StatusTone } from "../common";
 import { describeBatch } from "../../../lib/batch";
 import type {
   CourseFeedbackReport,
@@ -218,7 +218,12 @@ export function FeedbackReport({ report }: { report: CourseFeedbackReport }) {
       <SectionCard flush>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3">
           {[
-            ["Course", `${report.course_code} — ${report.course_title}`],
+            [
+              "Course",
+              <>
+                <CourseCode code={report.course_code} /> — {report.course_title}
+              </>,
+            ],
             ["Lecturer", report.lecturer_name],
             [
               "Feedback type",
@@ -235,7 +240,7 @@ export function FeedbackReport({ report }: { report: CourseFeedbackReport }) {
             ],
             ["Responses", `${report.response_count} student(s)`],
           ].map(([label, value]) => (
-            <div key={label} className="min-w-0">
+            <div key={label as string} className="min-w-0">
               <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {label}
               </dt>

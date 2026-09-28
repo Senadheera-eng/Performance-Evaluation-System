@@ -42,12 +42,16 @@ import {
   SkeletonRows,
   StatCard,
   StatusBadge,
+  DepartmentDot,
   useChartMotion,
   type StatusTone,
 } from "../components/common";
 import { cn } from "../components/ui/utils";
 import { supabase } from "../../lib/supabase";
-import { departmentByCourseCode } from "../../lib/departments";
+import {
+  departmentByCourseCode,
+  type Department,
+} from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
 import { useSettings } from "../../lib/settings";
@@ -682,6 +686,7 @@ export default function Results() {
                   {activeSemester.courses.length === 1 ? "" : "s"} ·{" "}
                   {activeSemester.totalCredits} credits counting toward GPA
                 </p>
+                <CreditsByDepartment courses={activeSemester.courses} />
               </div>
               <div className="text-right">
                 {/* A semester GPA is only a fact once the semester is. Until
@@ -732,8 +737,12 @@ export default function Results() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="hidden w-[110px] sm:table-cell">Code</TableHead>
-                    <TableHead>Course</TableHead>
+                    <TableHead className="hidden w-[110px] border-l-4 border-l-transparent sm:table-cell">
+                      Code
+                    </TableHead>
+                    <TableHead className="border-l-4 border-l-transparent sm:border-l-0">
+                      Course
+                    </TableHead>
                     <TableHead className="hidden w-[80px] text-center sm:table-cell">
                       Credits
                     </TableHead>
@@ -749,19 +758,28 @@ export default function Results() {
                     // per attempt — so the key has to say which attempt.
                     const superseded =
                       course.attempt !== undefined && !course.attempt.isLatest;
+                    const dept = departmentByCourseCode(course.code);
                     const codeClass = cn(
                       "font-semibold tabular-nums whitespace-nowrap",
-                      departmentByCourseCode(course.code)?.textClass ?? "text-foreground",
+                      dept?.textClass ?? "text-foreground",
                     );
+                    // The department's stripe sits on whichever cell starts
+                    // the row: the code from sm up, the course on a phone.
+                    const stripe = cn("border-l-4", dept?.stripeClass ?? "border-l-transparent");
                     return (
                     <TableRow
                       key={`${course.code}-${course.attempt?.number ?? 1}`}
-                      className={superseded ? "opacity-60" : undefined}
+                      className={cn(
+                        // Plain at rest; the department's tint on hover, as
+                        // on Courses and Attendance.
+                        dept?.hoverClass,
+                        superseded && "opacity-60",
+                      )}
                     >
-                      <TableCell className={cn("hidden sm:table-cell", codeClass)}>
+                      <TableCell className={cn("hidden sm:table-cell", stripe, codeClass)}>
                         {course.code}
                       </TableCell>
-                      <TableCell className="whitespace-normal">
+                      <TableCell className={cn("whitespace-normal sm:border-l-0", stripe)}>
                         <span className="mb-0.5 flex items-center gap-2 text-xs sm:hidden">
                           <span className={codeClass}>{course.code}</span>
                           <span className="text-muted-foreground">
@@ -817,5 +835,39 @@ export default function Results() {
       </SectionCard>
 
     </div>
+  );
+}
+
+/**
+ * The semester's credits by department — "● CO 10 cr  ● IS 5 cr" — as a
+ * quiet key to the stripes on the table below. Every course's credits
+ * count, GPA or not: it says where the semester's work came from.
+ */
+function CreditsByDepartment({
+  courses,
+}: {
+  courses: { code: string; credits: number }[];
+}) {
+  const byDept = new Map<string, { dept: Department; credits: number }>();
+  for (const c of courses) {
+    const dept = departmentByCourseCode(c.code);
+    if (!dept) continue;
+    const entry = byDept.get(dept.key) ?? { dept, credits: 0 };
+    entry.credits += c.credits;
+    byDept.set(dept.key, entry);
+  }
+  if (byDept.size === 0) return null;
+  return (
+    <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      {[...byDept.values()]
+        .sort((a, b) => b.credits - a.credits)
+        .map(({ dept, credits }) => (
+          <span key={dept.key} className="inline-flex items-center gap-1.5" title={dept.name}>
+            <DepartmentDot dept={dept} />
+            <span className={cn("font-semibold", dept.textClass)}>{dept.code}</span>
+            <span className="tabular-nums text-muted-foreground">{credits} cr</span>
+          </span>
+        ))}
+    </p>
   );
 }

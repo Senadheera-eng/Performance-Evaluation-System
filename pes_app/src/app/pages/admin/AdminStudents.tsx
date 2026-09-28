@@ -19,7 +19,11 @@ import {
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { PersonAvatar, SegmentedTabs } from "../../components/common";
+import {
+  DepartmentChips,
+  PersonAvatar,
+  SegmentedTabs,
+} from "../../components/common";
 import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
 import { supabase } from "../../../lib/supabase";
@@ -27,6 +31,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
+import { cn } from "../../components/ui/utils";
+import { departmentRowClass } from "../../../lib/departments";
 
 /* A first-year is admitted to the faculty, not to a department, and is
    divided into one partway through. Until then students.department is null,
@@ -57,6 +63,9 @@ export default function AdminStudents() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "cgpa" | "attendance">("name");
   const [batchFilter, setBatchFilter] = useState<number | "all">("all");
+  /* The Super Admin sees every department at once; one at a time, from the
+     department chips. A department admin's list is one department already. */
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [movingStudent, setMovingStudent] = useState<{
     id: string;
     name: string;
@@ -138,10 +147,23 @@ export default function AdminStudents() {
     (a, b) => b - a,
   );
 
-  const batchFiltered =
+  const inBatch =
     batchFilter === "all"
       ? students
       : students.filter((s) => s.batchYear === batchFilter);
+
+  // Departments in this batch, largest first, with "No department yet" last.
+  const deptCounts = new Map<string, number>();
+  for (const s of inBatch) deptCounts.set(s.department, (deptCounts.get(s.department) ?? 0) + 1);
+  const deptItems = [...deptCounts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) =>
+      a.name === NO_DEPARTMENT_YET ? 1 : b.name === NO_DEPARTMENT_YET ? -1 : b.count - a.count,
+    );
+
+  const batchFiltered = deptFilter
+    ? inBatch.filter((s) => s.department === deptFilter)
+    : inBatch;
 
   const filtered = batchFiltered
     .filter(
@@ -203,6 +225,16 @@ export default function AdminStudents() {
           ))}
         </select>
       </div>
+
+      {scope.kind === "all" && deptItems.length > 1 && (
+        <DepartmentChips
+          items={deptItems}
+          value={deptFilter}
+          onChange={setDeptFilter}
+          total={inBatch.length}
+          ariaLabel="Show students from"
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -329,7 +361,10 @@ export default function AdminStudents() {
                     role="button"
                     tabIndex={0}
                     aria-expanded={expandedId === student.id}
-                    className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    className={cn(
+                      "p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                      departmentRowClass(student.department),
+                    )}
                     onClick={() =>
                       setExpandedId(
                         expandedId === student.id ? null : student.id,

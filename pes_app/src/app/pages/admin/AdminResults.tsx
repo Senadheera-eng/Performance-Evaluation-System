@@ -44,7 +44,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
-import { CourseCode, ErrorState, SegmentedTabs, StatusBadge } from "../../components/common";
+import {
+  CourseCode,
+  DepartmentDot,
+  DepartmentSelect,
+  ErrorState,
+  SegmentedTabs,
+  StatusBadge,
+} from "../../components/common";
 import { PendingResultReviews } from "../../components/admin/PendingResultReviews";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -72,6 +79,7 @@ import {
   type SheetMeta,
   type SheetStudent,
 } from "../../../lib/resultsWorkbook";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 interface Course {
   id: string;
@@ -762,18 +770,13 @@ export default function AdminResults() {
                 <label className="text-sm font-medium text-foreground">
                   Department
                 </label>
-                <select
+                <DepartmentSelect
                   value={filterDepartment}
-                  onChange={(e) => setFilterDepartment(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="all">All departments</option>
-                  {departmentOptions.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFilterDepartment}
+                  departments={departmentOptions}
+                  allLabel="All departments"
+                  allValue="all"
+                />
               </div>
             )}
 
@@ -818,9 +821,17 @@ export default function AdminResults() {
                         : "text-muted-foreground"
                     }
                   >
-                    {selectedCourse
-                      ? `${selectedCourse.code} — ${selectedCourse.name}`
-                      : "Select a course..."}
+                    {selectedCourse ? (
+                      <span className="flex items-center gap-2">
+                        {departmentByCourseCode(selectedCourse.code) && (
+                          <DepartmentDot dept={departmentByCourseCode(selectedCourse.code)!} />
+                        )}
+                        <CourseCode code={selectedCourse.code} />
+                        <span className="truncate">{selectedCourse.name}</span>
+                      </span>
+                    ) : (
+                      "Select a course..."
+                    )}
                   </span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 </button>
@@ -839,10 +850,12 @@ export default function AdminResults() {
                           setSelectedCourse(course);
                           setCourseDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted transition-colors text-sm ${
+                        className={`w-full flex items-center gap-3 border-l-4 px-3 py-2 text-left transition-colors text-sm text-foreground ${
+                          departmentByCourseCode(course.code)?.stripeClass ?? "border-l-transparent"
+                        } ${
                           selectedCourse?.id === course.id
-                            ? "bg-primary/10 text-primary"
-                            : "text-foreground"
+                            ? (departmentByCourseCode(course.code)?.softClass ?? "bg-muted")
+                            : (departmentByCourseCode(course.code)?.hoverClass ?? "hover:bg-muted")
                         }`}
                       >
                         <CourseCode code={course.code} className="text-xs flex-shrink-0" />
@@ -910,12 +923,16 @@ export default function AdminResults() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <Card className="border-border">
+          <Card
+            className={`border-border border-l-4 ${
+              departmentByCourseCode(selectedCourse.code)?.stripeClass ?? ""
+            }`}
+          >
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle>
-                    {selectedCourse.code} — {selectedCourse.name}
+                    <CourseCode code={selectedCourse.code} /> — {selectedCourse.name}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
                     {selectedBatch !== null && describeBatch(selectedBatch)} ·{" "}

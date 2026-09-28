@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Input } from "../ui/input";
+import { departmentByName } from "../../../lib/departments";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -47,6 +48,8 @@ interface AppShellProps {
   userName: string;
   /** The signed-in person's photo, if they have set one. */
   userAvatarUrl?: string | null;
+  /** Their department, whose colour their avatar wears. */
+  userDepartment?: string | null;
   /** Secondary identity line, e.g. index/reg number or department scope. */
   userMeta: string;
   /** Route treated as the index for active-state matching. */
@@ -78,6 +81,7 @@ export function AppShell({
   roleBadge,
   userName,
   userAvatarUrl,
+  userDepartment,
   userMeta,
   homeHref,
   headerSubtitle,
@@ -88,6 +92,7 @@ export function AppShell({
 }: AppShellProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const userDept = departmentByName(userDepartment);
   // The matched route's element, rather than <Outlet />: AnimatePresence has
   // to hold on to the *previous* page's element while it animates out, and it
   // can only do that if the element is a child it was handed. <Outlet /> would
@@ -323,11 +328,11 @@ export function AppShell({
               onProfileClick && "hover:bg-muted transition-colors",
             )}
           >
-            <Avatar className="w-8 h-8 flex-shrink-0">
+            <Avatar className={cn("w-8 h-8 flex-shrink-0", userAvatarUrl && userDept?.ringClass)}>
               {userAvatarUrl && (
                 <AvatarImage src={userAvatarUrl} alt="" className="object-cover" />
               )}
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+              <AvatarFallback className={cn("text-xs", userDept?.chipClass ?? "bg-primary text-primary-foreground")}>
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -507,11 +512,11 @@ export function AppShell({
                     aria-label={userName}
                     className="lg:hidden h-10 w-10 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
                   >
-                    <Avatar className="w-7 h-7">
+                    <Avatar className={cn("w-7 h-7", userAvatarUrl && userDept?.ringClass)}>
                       {userAvatarUrl && (
                         <AvatarImage src={userAvatarUrl} alt="" className="object-cover" />
                       )}
-                      <AvatarFallback className="bg-primary text-primary-foreground text-[11px]">
+                      <AvatarFallback className={cn("text-[11px]", userDept?.chipClass ?? "bg-primary text-primary-foreground")}>
                         {initials}
                       </AvatarFallback>
                     </Avatar>

@@ -472,12 +472,20 @@ export default function MedicalCertificates() {
               </p>
             ) : (
               <div className="max-h-56 divide-y divide-border overflow-y-auto rounded-xl border border-border">
-                {courses.map((c) => (
+                {courses.map((c) => {
+                  const dept = departmentByCourseCode(c.code);
+                  const chosen = selectedCourseIds.includes(c.id);
+                  return (
                   <label
                     key={c.id}
                     className={cn(
-                      "flex cursor-pointer items-center gap-2.5 border-l-4 px-3 py-2 text-sm transition-colors hover:bg-muted/50",
-                      departmentByCourseCode(c.code)?.stripeClass ?? "border-l-transparent",
+                      "flex cursor-pointer items-center gap-2.5 border-l-4 px-3 py-2 text-sm transition-colors",
+                      // The department's stripe always; its full tint once
+                      // ticked, so what is chosen reads at a glance.
+                      dept?.stripeClass ?? "border-l-transparent",
+                      chosen
+                        ? (dept?.softClass ?? "bg-muted")
+                        : "hover:bg-muted/50",
                     )}
                   >
                     <Checkbox
@@ -487,7 +495,8 @@ export default function MedicalCertificates() {
                     <CourseCode code={c.code} className="text-xs" />
                     <span className="truncate text-foreground">{c.title}</span>
                   </label>
-                ))}
+                  );
+                })}
               </div>
             )}
           </fieldset>
@@ -684,6 +693,7 @@ export default function MedicalCertificates() {
                           className={cn(
                             "flex items-start justify-between gap-2 rounded-lg border border-l-4 border-border/60 bg-muted/30 p-2",
                             departmentByCourseCode(c.code)?.stripeClass,
+                            departmentByCourseCode(c.code)?.washClass,
                           )}
                         >
                           <div className="min-w-0">

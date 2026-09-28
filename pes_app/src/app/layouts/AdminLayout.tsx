@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   GraduationCap,
   UserCog,
+  UserRound,
   Megaphone,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
@@ -70,10 +71,16 @@ export default function AdminLayout() {
           student?.role === "super_admin" ? "Super Admin" : "Department Admin",
         icon: Shield,
       }}
+      bottomNavigation={[
+        { name: "My Profile", href: "/admin/profile", icon: UserRound },
+      ]}
       userName={student?.name ?? "Admin"}
+      userAvatarUrl={student?.avatar_url}
+      userDepartment={student?.department}
       userMeta={describeAdminScope(student)}
       homeHref="/admin"
       headerSubtitle="Faculty of Engineering — USJ"
+      onProfileClick={() => navigate("/admin/profile")}
       onLogout={handleLogout}
       showNotifications
     />

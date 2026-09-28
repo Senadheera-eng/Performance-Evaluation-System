@@ -41,6 +41,7 @@ import {
   type CourseFeedbackReport,
   type FeedbackOverviewRow,
 } from "../../../lib/staffService";
+import { departmentByCourseCode } from "../../../lib/departments";
 
 /** How often an open round's report re-reads itself, in milliseconds. */
 const LIVE_INTERVAL = 30_000;
@@ -316,7 +317,9 @@ export default function StaffFeedback() {
                                 )
                               : setSelectedCourse(c.course_id)
                           }
-                          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                          className={`flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors ${
+                            departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent"
+                          } ${departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50"}`}
                         >
                           <span className="min-w-0">
                             <span className="flex flex-wrap items-center gap-2">
@@ -563,7 +566,11 @@ function ReportPanel({
 
   return (
     <SectionCard
-      title={`${row.course_code} — ${row.course_title}`}
+      title={
+        <>
+          <CourseCode code={row.course_code} /> — {row.course_title}
+        </>
+      }
       description={`${row.response_count} of ${row.eligible_count} responded (${row.response_rate}%) · answers are anonymous`}
       actions={
         <div className="flex flex-wrap gap-2">

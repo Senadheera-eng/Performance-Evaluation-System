@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useNotifications } from "../../hooks/useNotifications";
+import { departmentInText } from "../../../lib/departments";
 import {
   relativeTime,
   SOURCE_LABEL,
@@ -120,17 +121,26 @@ export function NotificationBell() {
             <ul className="divide-y divide-border/60">
               {recent.map((n) => {
                 const Icon = SOURCE_ICON[n.source] ?? Bell;
+                // A course's notification in its department's colour, as on
+                // the Notifications page.
+                const dept = departmentInText(n.title, n.body);
                 return (
                   <li key={n.id}>
                     <button
                       type="button"
                       onClick={() => openNotification(n)}
-                      className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/60 ${
+                      className={`flex w-full items-start gap-2.5 border-l-4 px-3 py-2.5 text-left transition-colors ${
+                        dept?.stripeClass ?? "border-l-transparent"
+                      } ${dept?.hoverClass ?? "hover:bg-muted/60"} ${
                         n.read_at ? "" : "bg-primary/5"
                       }`}
                     >
-                      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span
+                        className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${
+                          dept?.chipClass ?? "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">

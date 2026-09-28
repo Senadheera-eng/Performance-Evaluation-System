@@ -4,11 +4,17 @@ import { Search, Filter, BookOpen } from "lucide-react";
 import { CourseListRow } from "../components/courses/CourseListRow";
 import { CourseDetailDialog } from "../components/courses/CourseDetailDialog";
 import {
-  DepartmentBadge,
+  DepartmentChips,
   EmptyState,
   PageHeader,
   SegmentedTabs,
 } from "../components/common";
+import {
+  DEPARTMENTS,
+  departmentByCourseCode,
+  departmentByName,
+  type DepartmentKey,
+} from "../../lib/departments";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -44,6 +50,9 @@ export default function Courses() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [semesterFilter, setSemesterFilter] = useState<string>("all");
+  /* One department's courses at a time, from the colour key: the student's
+     own department, or the shared Interdisciplinary modules. */
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   /* Opening a course tells the student how it is marked, which is the one
      thing about a course they cannot work out from their own grade. */
@@ -245,6 +254,7 @@ export default function Courses() {
     const matchesSemester =
       semesterFilter === "all" || course.semester === Number(semesterFilter);
     if (!matchesSearch || !matchesSemester) return false;
+    if (deptFilter && departmentByCourseCode(course.code)?.name !== deptFilter) return false;
     if (activeTab === "all") return true;
     if (activeTab === "ongoing") return course.status === "ongoing";
     if (activeTab === "completed") return course.status === "completed";
@@ -264,6 +274,20 @@ export default function Courses() {
     }))
     .filter((group) => group.courses.length > 0)
     .sort((a, b) => b.semester - a.semester);
+
+  /* The departments this curriculum draws on, own department first, each
+     with how many of its courses are in the list. */
+  const ownKey = departmentByName(student?.department)?.key;
+  const deptCounts = new Map<DepartmentKey, number>();
+  for (const c of allCourses) {
+    const k = departmentByCourseCode(c.code)?.key;
+    if (k) deptCounts.set(k, (deptCounts.get(k) ?? 0) + 1);
+  }
+  const curriculumDepts = [...deptCounts.entries()]
+    .sort(([a, na], [b, nb]) =>
+      a === ownKey ? -1 : b === ownKey ? 1 : nb - na,
+    )
+    .map(([key, n]) => ({ dept: DEPARTMENTS[key], n }));
 
   const stats = {
     all: allCourses.length,
@@ -291,18 +315,18 @@ export default function Courses() {
         description="Every course in your curriculum: what you are taking now, what you have finished, and what is still to come."
       />
 
-      {/* Whose courses these are. The list below mixes the student's own
-          department with the shared Interdisciplinary modules, and each row
-          carries its department's colour; this is the key to it. The tab
-          counts carry the totals, so there is no separate row of number
-          cards repeating them. */}
-      {student?.department && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Your curriculum:</span>
-          <DepartmentBadge department={student.department} />
-          <span aria-hidden="true">+</span>
-          <DepartmentBadge department="Interdisciplinary Studies" />
-        </div>
+      {/* Whose courses these are, and a way to see one department's at a
+          time. The list mixes the student's own department with the shared
+          Interdisciplinary modules, and each row carries its department's
+          colour; these chips are the key to it. */}
+      {!loading && curriculumDepts.length > 1 && (
+        <DepartmentChips
+          items={curriculumDepts.map(({ dept, n }) => ({ name: dept.name, count: n }))}
+          value={deptFilter}
+          onChange={setDeptFilter}
+          total={allCourses.length}
+          ariaLabel="Show courses from"
+        />
       )}
 
       {/* Search and Filter */}
@@ -382,13 +406,14 @@ export default function Courses() {
                 }
                 action={
                   allCourses.length > 0 &&
-                  (searchQuery !== "" || semesterFilter !== "all") ? (
+                  (searchQuery !== "" || semesterFilter !== "all" || deptFilter !== null) ? (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
                         setSearchQuery("");
                         setSemesterFilter("all");
+                        setDeptFilter(null);
                       }}
                     >
                       Clear search and filter

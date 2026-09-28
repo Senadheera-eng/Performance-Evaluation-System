@@ -38,12 +38,13 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
-import { CourseCode, SegmentedTabs } from "../../components/common";
+import { CourseCode, DepartmentSelect, SegmentedTabs } from "../../components/common";
 import { PeriodCourseBreakdown } from "../../components/enrollment/PeriodCourseBreakdown";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { useSettings } from "../../../lib/settings";
+import { departmentByCourseCode, departmentStripeClass } from "../../../lib/departments";
 
 type PeriodStatus = "draft" | "scheduled" | "open" | "closed" | "archived";
 
@@ -306,7 +307,7 @@ export default function AdminEnrollment() {
       ) : (
         <div className="space-y-3">
           {filteredPeriods.map((p) => (
-            <Card key={p.id} className="border-border">
+            <Card key={p.id} className={`border-border ${departmentStripeClass(p.department)}`}>
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
@@ -728,18 +729,12 @@ function PeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Department
             </label>
-            <select
+            <DepartmentSelect
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
-            >
-              <option value="">All Departments</option>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              onChange={setDepartment}
+              departments={DEPARTMENTS}
+              allLabel="All Departments"
+            />
           </div>
           <div />
           <div>
@@ -817,7 +812,9 @@ function PeriodForm({
                           key={c.id}
                           value={`${c.code} ${c.title}`}
                           onSelect={() => toggleCourse(c.id)}
-                          className="cursor-pointer"
+                          className={`cursor-pointer border-l-4 ${
+                            departmentByCourseCode(c.code)?.stripeClass ?? "border-l-transparent"
+                          } ${departmentByCourseCode(c.code)?.commandClass ?? ""}`}
                         >
                           <Checkbox
                             checked={isSelected}
