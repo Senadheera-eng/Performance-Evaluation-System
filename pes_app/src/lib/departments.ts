@@ -210,3 +210,15 @@ export function departmentInText(...texts: (string | null | undefined)[]): Depar
 export function courseRowClass(code: string | null | undefined): string {
   return departmentByCourseCode(code)?.rowClass ?? "border-l-4 border-l-transparent hover:bg-muted/50";
 }
+
+/**
+ * A notification's department: the one the database resolved from what it is
+ * about, or failing that, the first course code its text mentions.
+ */
+export function departmentOfNotification(n: {
+  department?: string | null;
+  title: string;
+  body: string | null;
+}): Department | null {
+  return departmentByName(n.department) ?? departmentInText(n.title, n.body);
+}

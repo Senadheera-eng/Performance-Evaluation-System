@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { useNotifications } from "../../hooks/useNotifications";
-import { departmentInText } from "../../../lib/departments";
+import { departmentOfNotification } from "../../../lib/departments";
 import {
   relativeTime,
   SOURCE_LABEL,
@@ -123,7 +123,7 @@ export function NotificationBell() {
                 const Icon = SOURCE_ICON[n.source] ?? Bell;
                 // A course's notification in its department's colour, as on
                 // the Notifications page.
-                const dept = departmentInText(n.title, n.body);
+                const dept = departmentOfNotification(n);
                 return (
                   <li key={n.id}>
                     <button

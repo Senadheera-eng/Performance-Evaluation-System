@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Bell, CheckCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  DepartmentDot,
   EmptyState,
   PageHeader,
   SectionCard,
@@ -10,7 +11,7 @@ import {
 } from "../components/common";
 import { SOURCE_ICON } from "../components/layout/NotificationBell";
 import { cn } from "../components/ui/utils";
-import { departmentInText } from "../../lib/departments";
+import { departmentOfNotification } from "../../lib/departments";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   relativeTime,
@@ -140,9 +141,10 @@ export default function Notifications() {
                       {group.map((n) => {
                         const Icon = SOURCE_ICON[n.source] ?? Bell;
                         const isUnread = !n.read_at;
-                        // A notification about a course takes that course's
-                        // department colour; anything else stays neutral.
-                        const dept = departmentInText(n.title, n.body);
+                        // The department it comes from — a course's, a
+                        // round's, a mentor's — in that department's colour;
+                        // anything faculty-wide stays neutral.
+                        const dept = departmentOfNotification(n);
                         return (
                           <li key={n.id}>
                             {/* Unread is a dot and a heavier title. The whole
@@ -177,6 +179,15 @@ export default function Notifications() {
                                   <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                                     {SOURCE_LABEL[n.source] ?? n.source}
                                   </span>
+                                  {dept && (
+                                    <span
+                                      className={cn("inline-flex items-center gap-1 text-[10px] font-semibold", dept.textClass)}
+                                      title={dept.name}
+                                    >
+                                      <DepartmentDot dept={dept} className="h-1.5 w-1.5" />
+                                      {dept.code}
+                                    </span>
+                                  )}
                                   <span className="text-[11px] text-muted-foreground">
                                     {relativeTime(n.created_at)}
                                   </span>
