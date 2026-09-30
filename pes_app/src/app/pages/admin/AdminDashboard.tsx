@@ -33,6 +33,7 @@ import { useSettings } from "../../../lib/settings";
 import { formatRegNumber } from "../../../lib/format";
 import { courseRowClass } from "../../../lib/departments";
 import { DepartmentBreakdown } from "../../components/admin/DepartmentBreakdown";
+import { FacultyWebsiteCard } from "../../components/admin/FacultyWebsiteCard";
 
 interface DashboardStats {
   totalStudents: number;
@@ -442,6 +443,10 @@ export default function AdminDashboard() {
           </ul>
         )}
       </SectionCard>
+
+      {/* The faculty website the AI assistant answers from, read nightly;
+          only the Super Admin can start a reading. */}
+      {scope.kind === "all" && <FacultyWebsiteCard />}
     </div>
   );
 }
