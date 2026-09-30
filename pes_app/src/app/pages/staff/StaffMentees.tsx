@@ -14,11 +14,12 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
-  PersonAvatar,
   CourseCode,
+  DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
   SectionCard,
   SkeletonRows,
   StatCard,
@@ -372,7 +373,12 @@ function MenteeDetail({
         </Button>
         <PageHeader
           title={mentee.name}
-          description={`${mentee.index_number ?? mentee.reg_number} · ${describeBatch(mentee.batch_year)} · ${mentee.department}`}
+          description={
+            <>
+              {mentee.index_number ?? mentee.reg_number} · {describeBatch(mentee.batch_year)} ·{" "}
+              <DepartmentName department={mentee.department} />
+            </>
+          }
           actions={
             <Button variant="outline" size="sm" asChild>
               <a href={`mailto:${mentee.email}`}>

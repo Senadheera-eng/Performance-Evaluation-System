@@ -2,10 +2,11 @@ import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
 import { Award, Mail, Users } from "lucide-react";
 import {
-  PersonAvatar,
+  DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
   SectionCard,
   SkeletonRows,
   StatCard,
@@ -162,7 +163,12 @@ export default function StaffLecturers() {
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Mail className="h-3 w-3" aria-hidden="true" />
                       {l.email}
-                      {l.department !== caps.hodDepartment && ` · ${l.department}`}
+                      {l.department !== caps.hodDepartment && (
+                        <>
+                          {" · "}
+                          <DepartmentName department={l.department} />
+                        </>
+                      )}
                     </p>
                   </div>
                   </div>

@@ -15,7 +15,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { DepartmentDot, StatusBadge } from "../common";
+import { CodedText, DepartmentDot, StatusBadge } from "../common";
 import { cn } from "../ui/utils";
 import { describeScope, type NoticeSummary } from "../../../lib/notices";
 import {
@@ -137,12 +137,12 @@ export function NoticeCard({
             notice.is_expired ? "text-muted-foreground" : "text-foreground",
           )}
         >
-          {notice.title}
+          <CodedText text={notice.title} />
         </span>
 
         {notice.body && !notice.is_expired && (
           <span className="mt-0.5 block line-clamp-2 text-sm text-muted-foreground">
-            {notice.body}
+            <CodedText text={notice.body} />
           </span>
         )}
 

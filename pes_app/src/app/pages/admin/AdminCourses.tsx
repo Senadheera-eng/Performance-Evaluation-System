@@ -8,6 +8,7 @@ import {
 import { MinorSpecifications } from "../../components/courses/MinorSpecifications";
 import { Input } from "../../components/ui/input";
 import {
+  DepartmentName,
   DepartmentSelect,
   EmptyState,
   PageHeader,
@@ -345,7 +346,7 @@ export function CourseManagement({
                     </div>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       Sem {course.semester} · {course.credits} credits ·{" "}
-                      {course.department}
+                      <DepartmentName department={course.department} />
                       {/* How the course is marked, on the row that manages it
                           — the split is a property of the course now, so it
                           belongs where the course is read. */}

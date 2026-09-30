@@ -25,6 +25,7 @@ import {
 } from "../../components/ui/alert-dialog";
 import {
   CourseCode,
+  DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -872,7 +873,8 @@ export default function StaffResults() {
             <AlertDialogTitle>Submit this sheet for review?</AlertDialogTitle>
             <AlertDialogDescription>
               {graded} graded result{graded === 1 ? "" : "s"} for{" "}
-              {selected?.course_code} go to the {selected?.department} department
+              <CourseCode code={selected?.course_code} /> go to the{" "}
+              <DepartmentName department={selected?.department} /> department
               admin. You will not be able to edit them unless the department
               returns the sheet to you. Publication to students is the
               department's decision, not yours.
