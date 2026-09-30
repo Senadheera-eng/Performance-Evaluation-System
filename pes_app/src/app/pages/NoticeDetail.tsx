@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  CodedText,
   DepartmentDot,
   EmptyState,
   PageHeader,
@@ -143,7 +144,7 @@ export default function NoticeDetail() {
             )}
           </div>
 
-          <h1 className="text-xl font-bold text-foreground">{notice.title}</h1>
+          <h1 className="text-xl font-bold text-foreground"><CodedText text={notice.title} /></h1>
 
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
             <Field label="Published by">
@@ -173,7 +174,7 @@ export default function NoticeDetail() {
           {notice.body && (
             <div className="border-t border-border/60 pt-3">
               <p className="whitespace-pre-wrap text-[0.9375rem] leading-relaxed text-foreground">
-                {notice.body}
+                <CodedText text={notice.body} />
               </p>
             </div>
           )}

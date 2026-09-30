@@ -5,7 +5,13 @@
  * which is what kept the two portals looking like different products.
  */
 export { StatusBadge, gradeTone, type StatusTone } from "./StatusBadge";
-export { CourseCode, DepartmentBadge, DepartmentDot } from "./DepartmentBadge";
+export {
+  CodedText,
+  CourseCode,
+  DepartmentBadge,
+  DepartmentDot,
+  DepartmentName,
+} from "./DepartmentBadge";
 export { DepartmentSelect } from "./DepartmentSelect";
 export { DepartmentChips } from "./DepartmentChips";
 export { CourseSelect, type CourseSelectOption } from "./CourseSelect";
