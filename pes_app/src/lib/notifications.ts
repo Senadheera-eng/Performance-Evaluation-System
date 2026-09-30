@@ -29,6 +29,12 @@ export interface AppNotification {
   href: string | null;
   created_at: string;
   read_at: string | null;
+  /**
+   * The department it comes from, read from what it is about: the course,
+   * the enrolment or feedback round, the mentor or mentee. Null when it
+   * spans the faculty.
+   */
+  department?: string | null;
 }
 
 export async function fetchNotifications(
