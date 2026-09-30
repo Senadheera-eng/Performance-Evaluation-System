@@ -63,9 +63,10 @@ The assistant is a **tool-calling language model with retrieval over the Faculty
 - Every message goes to the `ai-assistant` Supabase Edge Function, which calls **Google Gemini** with a set of tools.
 - Each tool is a PostgreSQL function called **with the student's own token**, so row level security decides what it can see — a student cannot ask about anyone else.
 - Handbook questions use `search_handbook_hybrid`: 131 Handbook chunks searched by full text (with optional pgvector similarity), cited with a page number.
+- Everything the faculty publishes — notices, news, the academic calendar, staff, contacts — comes from its official website, **eng.sjp.ac.lk**. The `faculty-site-sync` Edge Function reads the site every night at 02:07 (a `pg_cron` job, calling through `pg_net` with a key kept in the Supabase vault), splits each page into sections, and keeps them in `faculty_site_chunks`. The assistant searches them with `search_faculty_site` and links the page it answered from. It follows robots.txt, stays on the faculty's host, skips theme placeholder pages, keeps the links to PDFs and Drive folders a notice points to, and reads the academic calendar's embedded Google Sheet as dated runs per batch. The Super Admin's dashboard shows how much of the site is read and has a **Read now** button.
 - The model may state only what a tool returned and never does GPA arithmetic itself; that is delegated to the same functions the Graduation Planner uses.
 
-A plain-English explanation of RAG and the thirteen tools is in `docs/PES_Guide_AI_Assistant_RAG_Explained.docx`.
+A plain-English explanation of RAG and the assistant's tools is in `docs/PES_Guide_AI_Assistant_RAG_Explained.docx` (written for the first thirteen; the fourteenth, `search_faculty_website`, is described above).
 
 **Current limit:** the project runs on the Gemini **free tier**, which allows only a few requests a minute, and one question can take three or four of them. A paid Gemini API key is required before PES is distributed to students. The key is a Supabase secret (`GEMINI_API_KEY`), so changing it needs no code change or redeploy; `GEMINI_MODEL` overrides the model, and `AI_DAILY_QUOTA` / `AI_PER_STUDENT_DAILY` set PES's own usage caps.
 
@@ -97,7 +98,8 @@ Supabase
   ├── PostgreSQL    the data and every access rule (row level security)
   ├── Storage       avatars (public); medical-certificates, mentor-attachments, notice-attachments (private)
   ├── Realtime      mentor chat
-  └── Edge Function ai-assistant → Google Gemini
+  ├── Edge Function ai-assistant → Google Gemini
+  └── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
 ```
 
 | Layer              | Technology                                          |
@@ -107,7 +109,7 @@ Supabase
 | Charts / exports   | Recharts; jsPDF for PDFs; ExcelJS for workbooks     |
 | Database           | Supabase PostgreSQL 17 with row level security      |
 | Authentication     | Supabase Auth (email + password)                    |
-| AI Assistant       | Google Gemini (tool calling) + Handbook RAG (pgvector + full text) |
+| AI Assistant       | Google Gemini (tool calling) + Handbook and faculty-website RAG (pgvector + full text) |
 | Deployment         | Vercel (frontend, `main` only) + Supabase (backend) |
 
 ---
@@ -147,7 +149,7 @@ The live schema has **41 tables**, all with row level security enabled. The main
 | Medical       | `medical_submissions`, `medical_submission_courses`, `medical_submission_files`                 |
 | Mentoring     | `mentor_assignments`, `mentor_messages`, `mentor_notes`                                         |
 | Communication | `notices`, `notice_categories`, `notice_attachments`, `notifications`                           |
-| Rules and AI  | `system_settings` (the regulation engine), `handbook_chunks`, `ai_assistant_usage_log`          |
+| Rules and AI  | `system_settings` (the regulation engine), `handbook_chunks`, `faculty_site_pages`, `faculty_site_chunks`, `ai_assistant_usage_log` |
 
 Students read results only through the `my_published_results` view and RPCs, never the `results` table directly. Every migration file in `supabase/migrations/` explains in its header why the change was made.
 
