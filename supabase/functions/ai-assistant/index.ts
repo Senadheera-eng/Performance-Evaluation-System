@@ -222,6 +222,22 @@ const TOOLS = [
           required: ["p_search"],
         },
       },
+      {
+        name: "search_faculty_website",
+        description:
+          "Search the faculty's official website, eng.sjp.ac.lk, read nightly: notices (enrolment, hostels, Mahapola, convocation, transcripts), news and events, the academic calendar (each batch's semesters, exam weeks and vacations by date), the dean, the faculty's history, departments and undergraduate programmes, staff, research centres, the library, medical centre and IT centre, downloads, vacancies and contact details. Use it for what the faculty has announced or publishes about itself, and whenever the handbook has nothing. Each result carries the page's url. Pass the question as you received it; for the dates of a semester, exams or a vacation, add 'academic calendar' and the batch, e.g. 'academic calendar batch 09 exams'.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            p_query: {
+              type: "STRING",
+              description:
+                "The question in natural language, e.g. 'when are the batch 09 exams' or 'who is the dean'",
+            },
+          },
+          required: ["p_query"],
+        },
+      },
     ],
   },
 ];
@@ -235,6 +251,8 @@ const SYSTEM_INSTRUCTION = `You are the academic assistant inside PES, the Perfo
 - If a tool errors or returns nothing, say so plainly. Do not fill the gap with something plausible.
 - For anything personal — results, grades, GPA, standing — use get_student_results, get_student_course_result, get_academic_standing or calculate_gpa_target. Never answer a personal question from search_handbook or get_courses_by_semester: those are policy and curriculum, not this student's record. If no results exist for the semester asked about, say exactly that; never substitute another semester's results, and never describe a curriculum as though it answered a question about grades.
 - When you use search_handbook, cite the section and page from the result. If the first search comes back thin, try once more with different wording before concluding there is no answer.
+- The handbook is the regulations; the faculty website (search_faculty_website) is what the faculty announces and publishes — notices, news, the academic calendar, people, places, contacts. When a question could be either, search both in the same turn. When you answer from the website, link the page you used as a markdown link with its title, e.g. [Notices](https://eng.sjp.ac.lk/notices/), and for a notice give the date it was posted when the result has one. The website can be up to a day old: for something time-critical, such as a deadline, point the student to the page to check.
+- A batch in the academic calendar is the intake: Batch 10 is the 25ENG students, Batch 09 is 24ENG, and so on. In it, S1–S8 are semesters, S a study break, E exams, MB the mid-semester break, V vacation, IT industrial training, SC survey camp, and a plain number the week of the semester; each date is the week that begins then.
 
 ## Reaching for tools
 
@@ -403,6 +421,10 @@ Deno.serve(async (req: Request) => {
       .from("handbook_chunks")
       .select("*", { count: "exact", head: true });
     report.handbook_chunks = chunkCount;
+    const { count: siteChunkCount } = await adminClient
+      .from("faculty_site_chunks")
+      .select("*", { count: "exact", head: true });
+    report.faculty_site_chunks = siteChunkCount;
     return jsonResponse(report);
   }
 
@@ -452,9 +474,23 @@ Deno.serve(async (req: Request) => {
   const studentFirstName =
     typeof studentRow?.name === "string" ? studentRow.name.split(" ")[0] : null;
 
-  const systemInstructionText = studentFirstName
-    ? `${SYSTEM_INSTRUCTION}\n\nThe student you're talking to is named ${studentFirstName} — you may use their first name occasionally where it feels natural (e.g. in a greeting), but don't overdo it.`
-    : SYSTEM_INSTRUCTION;
+  /* Today's date, where the faculty is. Without it "this semester" or "is
+     the deadline over" has no answer, and the calendar's dates are only a
+     list: asked for this semester's exams, the model gave last March's. */
+  const today = new Date().toLocaleDateString("en-GB", {
+    timeZone: "Asia/Colombo",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const systemInstructionText = [
+    SYSTEM_INSTRUCTION,
+    `Today is ${today} in Sri Lanka. Use it for "this semester", "next week", "upcoming" and whether a date has passed. If the academic calendar does not reach the date asked about, say so rather than answering with another semester's dates.`,
+    studentFirstName
+      ? `The student you're talking to is named ${studentFirstName} — you may use their first name occasionally where it feels natural (e.g. in a greeting), but don't overdo it.`
+      : null,
+  ].filter(Boolean).join("\n\n");
 
   async function executeTool(name: string, args: Record<string, unknown>) {
     switch (name) {
@@ -532,6 +568,14 @@ Deno.serve(async (req: Request) => {
           p_limit: 4,
         });
         return error ? { error: error.message } : data;
+      }
+      case "search_faculty_website": {
+        const { data, error } = await userClient.rpc("search_faculty_site", {
+          p_query: args.p_query,
+          p_limit: 5,
+        });
+        if (error) return { error: error.message };
+        return (data ?? []).length ? data : { results: [], note: "Nothing on the faculty website matched." };
       }
       default:
         return { error: `Unknown tool: ${name}` };
