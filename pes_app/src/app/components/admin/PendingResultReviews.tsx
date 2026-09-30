@@ -14,6 +14,7 @@ import {
 } from "../ui/alert-dialog";
 import {
   CourseCode,
+  DepartmentName,
   EmptyState,
   ErrorState,
   SectionCard,
@@ -189,7 +190,7 @@ export function PendingResultReviews({
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {describeBatch(r.batch_year)} · Semester {r.semester} ·{" "}
-                    {r.academic_year} · {r.department}
+                    {r.academic_year} · <DepartmentName department={r.department} />
                   </p>
                   <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Users className="h-3 w-3" aria-hidden="true" />
@@ -242,7 +243,7 @@ export function PendingResultReviews({
             <AlertDialogDescription>
               {publishing?.submitted_count} result
               {publishing?.submitted_count === 1 ? "" : "s"} for{" "}
-              {publishing?.course_code} become visible to students immediately.
+              <CourseCode code={publishing?.course_code} /> become visible to students immediately.
               Students see their grade, GPV and continuous-assessment marks —
               not the End-Semester Examination mark.
               {publishing && publishing.draft_count > 0 &&
@@ -265,7 +266,7 @@ export function PendingResultReviews({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Return {returning?.course_code} to the lecturer?
+              Return <CourseCode code={returning?.course_code} /> to the lecturer?
             </AlertDialogTitle>
             <AlertDialogDescription>
               The sheet goes back to draft and becomes editable by its assigned

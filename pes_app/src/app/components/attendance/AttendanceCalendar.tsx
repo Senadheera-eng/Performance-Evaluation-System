@@ -152,7 +152,7 @@ export function AttendanceCalendar({
       <div className="p-4 space-y-4">
         {!hasLectureThisMonth && (
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-            No lectures recorded for {courseCode} in {format(month, "MMMM yyyy")}.
+            No lectures recorded for <CourseCode code={courseCode} /> in {format(month, "MMMM yyyy")}.
           </p>
         )}
 
@@ -260,7 +260,7 @@ export function AttendanceCalendar({
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {courseCode} — {courseName}
+                  <CourseCode code={courseCode} /> — {courseName}
                 </p>
                 {selectedRecord ? (
                   <div className="flex flex-wrap items-center gap-2 pt-1">

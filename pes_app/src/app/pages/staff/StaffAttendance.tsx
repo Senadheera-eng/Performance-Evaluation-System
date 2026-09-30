@@ -380,7 +380,7 @@ export default function StaffAttendance() {
                   onClick={() => setSelectedId(u.offering_id)}
                   className="rounded-full border border-warning-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-muted"
                 >
-                  {u.course_code} · {u.lecture_date} · {u.checked_in} signed in
+                  <CourseCode code={u.course_code} /> · {u.lecture_date} · {u.checked_in} signed in
                 </button>
               ))}
           </div>

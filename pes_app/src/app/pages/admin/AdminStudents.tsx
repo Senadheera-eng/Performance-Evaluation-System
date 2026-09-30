@@ -21,6 +21,7 @@ import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import {
   DepartmentChips,
+  DepartmentName,
   PersonAvatar,
   SegmentedTabs,
 } from "../../components/common";
@@ -390,7 +391,8 @@ export default function AdminStudents() {
                             {student.name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {student.regNumber} · {student.department}
+                            {student.regNumber} ·{" "}
+                            <DepartmentName department={student.department} />
                             {student.department === NO_DEPARTMENT_YET && (
                               <span className="ml-1 text-xs">
                                 (Super Admin holds their records)

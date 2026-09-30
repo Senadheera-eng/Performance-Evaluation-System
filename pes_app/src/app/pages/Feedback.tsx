@@ -509,7 +509,12 @@ function FeedbackFormView({
         <EmptyState
           icon={CheckCircle2}
           title="Thank you — your feedback has been submitted"
-          description={`${row.course_code} · ${TYPE_LABEL[row.feedback_type]}. Your response is recorded without your name.`}
+          description={
+            <>
+              <CourseCode code={row.course_code} /> · {TYPE_LABEL[row.feedback_type]}. Your
+              response is recorded without your name.
+            </>
+          }
         />
       </div>
     );

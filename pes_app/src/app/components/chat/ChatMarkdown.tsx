@@ -1,5 +1,15 @@
+import { Children, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CodedText } from "../common";
+
+/* Course codes in a reply take their department's colour, as they do
+   everywhere else in the portal. Only plain text runs are touched; links,
+   code and nested elements pass through as they are. */
+const coded = (children: ReactNode) =>
+  Children.map(children, (child) =>
+    typeof child === "string" ? <CodedText text={child} /> : child,
+  );
 
 /**
  * Renders LLM/RAG chat replies as formatted markdown (headings, lists,
@@ -9,7 +19,7 @@ import remarkGfm from "remark-gfm";
 
 const components: Components = {
   p: ({ children }) => (
-    <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+    <p className="mb-2 last:mb-0 leading-relaxed">{coded(children)}</p>
   ),
   h1: ({ children }) => (
     <h1 className="mt-3 mb-1.5 first:mt-0 text-[0.95rem] font-semibold text-foreground">
@@ -36,9 +46,9 @@ const components: Components = {
       {children}
     </ol>
   ),
-  li: ({ children }) => <li className="pl-0.5 leading-relaxed">{children}</li>,
+  li: ({ children }) => <li className="pl-0.5 leading-relaxed">{coded(children)}</li>,
   strong: ({ children }) => (
-    <strong className="font-semibold text-foreground">{children}</strong>
+    <strong className="font-semibold text-foreground">{coded(children)}</strong>
   ),
   em: ({ children }) => <em className="italic">{children}</em>,
   a: ({ href, children }) => (
@@ -95,7 +105,7 @@ const components: Components = {
   ),
   td: ({ children }) => (
     <td className="border border-border/60 px-2 py-1 align-top">
-      {children}
+      {coded(children)}
     </td>
   ),
 };

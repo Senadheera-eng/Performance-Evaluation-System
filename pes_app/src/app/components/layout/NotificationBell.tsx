@@ -21,6 +21,7 @@ import {
   type AppNotification,
   type NotificationSource,
 } from "../../../lib/notifications";
+import { CodedText } from "../common";
 
 export const SOURCE_ICON: Record<NotificationSource, LucideIcon> = {
   results: TrendingUp,
@@ -155,11 +156,11 @@ export function NotificationBell() {
                           )}
                         </span>
                         <span className="block text-sm text-foreground">
-                          {n.title}
+                          <CodedText text={n.title} />
                         </span>
                         {n.body && (
                           <span className="block truncate text-xs text-muted-foreground">
-                            {n.body}
+                            <CodedText text={n.body} />
                           </span>
                         )}
                         <span className="block text-[11px] text-muted-foreground">

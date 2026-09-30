@@ -46,6 +46,7 @@ import {
 } from "../../components/ui/dialog";
 import {
   CourseCode,
+  PersonAvatar,
   DepartmentDot,
   DepartmentSelect,
   ErrorState,
@@ -80,6 +81,7 @@ import {
   type SheetStudent,
 } from "../../../lib/resultsWorkbook";
 import { departmentByCourseCode } from "../../../lib/departments";
+import { useAvatarUrls } from "../../../lib/avatars";
 
 interface Course {
   id: string;
@@ -178,6 +180,7 @@ export default function AdminResults() {
   const [batches, setBatches] = useState<number[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentResult[]>([]);
+  const avatars = useAvatarUrls(students.map((s) => s.studentId));
   const [correcting, setCorrecting] = useState<{
     id: string;
     studentName: string;
@@ -1115,17 +1118,15 @@ export default function AdminResults() {
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-start">
                         {/* Student info */}
                         <div className="md:col-span-3 flex items-center gap-2.5">
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 bg-primary/10 text-primary"
-                            aria-hidden="true"
-                          >
-                            {student.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </div>
+                          {/* The student's photo, or initials in their home
+                              department's colour — a shared course's sheet
+                              mixes departments. */}
+                          <PersonAvatar
+                            name={student.name}
+                            url={avatars[student.studentId]}
+                            department={student.department}
+                            className="h-7 w-7 text-xs"
+                          />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-sm font-medium text-foreground truncate">
@@ -1440,7 +1441,7 @@ export default function AdminResults() {
             <AlertDialogTitle>Unpublish these results?</AlertDialogTitle>
             <AlertDialogDescription>
               {publishedCount} published result{publishedCount === 1 ? "" : "s"}{" "}
-              for {selectedCourse?.code} will be hidden from students again.
+              for <CourseCode code={selectedCourse?.code} /> will be hidden from students again.
               The marks themselves are kept as a draft — nothing is deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1461,7 +1462,7 @@ export default function AdminResults() {
           <DialogHeader>
             <DialogTitle>Download Result Sheet PDF</DialogTitle>
             <DialogDescription>
-              {selectedCourse?.code} — {publishedCount} published result
+              <CourseCode code={selectedCourse?.code} /> — {publishedCount} published result
               {publishedCount === 1 ? "" : "s"} for {selectedYear}
               {repeatCount > 0
                 ? `, including ${repeatCount} repeat candidate${repeatCount === 1 ? "" : "s"}`
