@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Bell, CheckCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
+  CodedText,
   DepartmentDot,
   EmptyState,
   PageHeader,
@@ -198,11 +199,11 @@ export default function Notifications() {
                                     isUnread ? "font-semibold" : "font-normal"
                                   }`}
                                 >
-                                  {n.title}
+                                  <CodedText text={n.title} />
                                 </span>
                                 {n.body && (
                                   <span className="block text-xs text-muted-foreground">
-                                    {n.body}
+                                    <CodedText text={n.body} />
                                   </span>
                                 )}
                               </span>

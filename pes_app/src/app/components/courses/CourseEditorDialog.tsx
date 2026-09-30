@@ -12,7 +12,12 @@ import {
 } from "../ui/dialog";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { DepartmentSelect, ErrorState } from "../common";
+import {
+  CourseCode,
+  DepartmentName,
+  DepartmentSelect,
+  ErrorState,
+} from "../common";
 import { getDepartmentMinors } from "../../../lib/minors";
 import { supabase } from "../../../lib/supabase";
 import { useSettings } from "../../../lib/settings";
@@ -210,11 +215,18 @@ export function CourseEditorDialog({
         <DialogHeader>
           <DialogTitle>{course ? "Edit course" : "New course"}</DialogTitle>
           <DialogDescription>
-            {course
-              ? `${course.course_code} — ${course.department}`
-              : department
-                ? `A new course in ${department}.`
-                : "A new course. Say which department owns it."}
+            {course ? (
+              <>
+                <CourseCode code={course.course_code} /> —{" "}
+                <DepartmentName department={course.department} />
+              </>
+            ) : department ? (
+              <>
+                A new course in <DepartmentName department={department} />.
+              </>
+            ) : (
+              "A new course. Say which department owns it."
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -390,7 +402,7 @@ export function CourseEditorDialog({
         {course && confirmDelete && (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300">
             <span className="flex-1">
-              Delete {course.course_code} from the catalogue? This is only
+              Delete <CourseCode code={course.course_code} /> from the catalogue? This is only
               possible while nothing has used it.
             </span>
             <Button

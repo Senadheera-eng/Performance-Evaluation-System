@@ -245,7 +245,17 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     return (
       <SectionCard
         title="Are you still in the lecture?"
-        description={`Your lecturer is checking the room${pending.course_code ? ` for ${pending.course_code}` : ""}. Confirm from the phone you signed in with.`}
+        description={
+          <>
+            Your lecturer is checking the room
+            {pending.course_code && (
+              <>
+                {" "}for <CourseCode code={pending.course_code} />
+              </>
+            )}
+            . Confirm from the phone you signed in with.
+          </>
+        }
       >
         {error && <ErrorState message={error} size="inline" />}
         <div className="flex flex-wrap items-center gap-3">
@@ -338,7 +348,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
       {mode === "camera" && (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Point your camera at the code for {active?.course_code}.
+            Point your camera at the code for <CourseCode code={active?.course_code} />.
           </p>
           <video
             ref={videoRef}
@@ -371,7 +381,12 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
         <div className="space-y-3">
           <label className="block text-sm font-medium text-foreground">
             Six digits from the screen
-            {active ? ` — ${active.course_code}` : ""}
+            {active && (
+              <>
+                {" — "}
+                <CourseCode code={active.course_code} />
+              </>
+            )}
           </label>
           <Input
             value={code}

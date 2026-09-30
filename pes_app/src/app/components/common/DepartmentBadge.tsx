@@ -86,3 +86,53 @@ export function CourseCode({
     </span>
   );
 }
+
+/**
+ * A department named inline, in running text or a meta line: its dot and its
+ * name in the department's colour. Lighter than a chip, for places a chip
+ * would crowd. Plain text for a name that is not a department.
+ */
+export function DepartmentName({
+  department,
+  label = "name",
+  className,
+}: {
+  department: string | null | undefined;
+  label?: "code" | "name";
+  className?: string;
+}) {
+  const dept = departmentByName(department);
+  if (!dept) return <span className={className}>{department}</span>;
+  return (
+    <span
+      className={cn("inline-flex items-center gap-1 whitespace-nowrap", dept.textClass, className)}
+      title={dept.name}
+    >
+      <DepartmentDot dept={dept} className="h-1.5 w-1.5" />
+      {label === "code" ? dept.code : dept.name}
+    </span>
+  );
+}
+
+const CODES_IN_TEXT = /\b(?:CE|CO|EE|ME|IS)\d{4}\b/g;
+
+/**
+ * A sentence with every course code in it set in its department's colour —
+ * "Attendance is open for CO4204 — Computer Vision" — and the rest left as
+ * it was. For titles and messages written as plain text: notifications,
+ * notices, insights, the assistant's replies.
+ */
+export function CodedText({ text }: { text: string | null | undefined }) {
+  if (!text) return null;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(CODES_IN_TEXT)) {
+    const at = m.index ?? 0;
+    if (at > last) parts.push(text.slice(last, at));
+    parts.push(<CourseCode key={at} code={m[0]} />);
+    last = at + m[0].length;
+  }
+  if (parts.length === 0) return <>{text}</>;
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}

@@ -18,6 +18,7 @@ import { Input } from "../../components/ui/input";
 import { Calendar } from "../../components/ui/calendar";
 import {
   CourseCode,
+  DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -174,7 +175,11 @@ export default function AdminAttendance() {
         {selected && (
           <p className="mt-2 text-xs text-muted-foreground">
             {describeBatch(selected.batch_year)} · {selected.academic_year} ·{" "}
-            {facultyWide && `${selected.department} · `}
+            {facultyWide && (
+              <>
+                <DepartmentName department={selected.department} /> ·{" "}
+              </>
+            )}
             {selected.student_count} student{selected.student_count === 1 ? "" : "s"} ·{" "}
             {selected.lectures_held === 0
               ? "no lectures recorded yet"

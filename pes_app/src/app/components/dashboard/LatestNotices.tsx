@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Megaphone, Paperclip, Pin } from "lucide-react";
 import { Button } from "../ui/button";
-import { SectionCard, SkeletonRows } from "../common";
+import { CodedText, SectionCard, SkeletonRows } from "../common";
 import { categoryIcon, noticeAge } from "../notices/NoticeCard";
 import { fetchNotices, type NoticeSummary } from "../../../lib/notices";
 import { departmentByCourseCode, departmentByName } from "../../../lib/departments";
@@ -91,7 +91,7 @@ export function LatestNotices() {
                         />
                       )}
                       <span className="truncate text-sm font-medium text-foreground">
-                        {n.title}
+                        <CodedText text={n.title} />
                       </span>
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

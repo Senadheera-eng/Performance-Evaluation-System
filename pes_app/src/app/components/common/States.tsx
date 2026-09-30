@@ -11,7 +11,7 @@ import { usePageMotion } from "./motion";
 interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
   /** `inline` fits inside a card; `page` centres in a full page region. */

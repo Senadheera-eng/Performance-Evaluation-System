@@ -11,7 +11,12 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "../ui/button";
-import { ErrorState, SectionCard, StatusBadge } from "../common";
+import {
+  CourseCode,
+  ErrorState,
+  SectionCard,
+  StatusBadge,
+} from "../common";
 import { supabase } from "../../../lib/supabase";
 
 interface RosterRow {
@@ -303,7 +308,11 @@ export function LectureRegister({
 
   return (
     <SectionCard
-      title={`Sign-in register — ${courseLabel}`}
+      title={
+        <>
+          Sign-in register — <CourseCode code={courseLabel} />
+        </>
+      }
       description="Show this on the projector. The code changes every few seconds, so a photograph of it is worthless within one."
     >
       {error && <ErrorState message={error} size="inline" />}

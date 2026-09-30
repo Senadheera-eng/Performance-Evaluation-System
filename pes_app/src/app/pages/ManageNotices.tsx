@@ -27,6 +27,7 @@ import {
 } from "../components/ui/alert-dialog";
 import {
   CourseSelect,
+  DepartmentName,
   DepartmentSelect,
   EmptyState,
   ErrorState,
@@ -608,8 +609,8 @@ function NoticeForm({
                     allLabel="All departments (faculty-wide)"
                   />
                 ) : (
-                  <div className="flex h-9 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm text-foreground">
-                    {scope.department}
+                  <div className="flex h-9 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm">
+                    <DepartmentName department={scope.department} />
                   </div>
                 )}
               </Field>

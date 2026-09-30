@@ -3,6 +3,7 @@ import { Check, GraduationCap, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
+  CourseCode,
   EmptyState,
   ErrorState,
   SectionCard,
@@ -187,12 +188,13 @@ export function MinorSpecifications({
                         </p>
                         {m.courses.length > 0 && (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {m.courses
-                              .map(
-                                (c) =>
-                                  `${c.course_code} (Sem ${c.semester}, ${c.credits}cr)`,
-                              )
-                              .join(" · ")}
+                            {m.courses.map((c, i) => (
+                              <span key={c.course_code}>
+                                {i > 0 && " · "}
+                                <CourseCode code={c.course_code} className="font-medium" /> (Sem{" "}
+                                {c.semester}, {c.credits}cr)
+                              </span>
+                            ))}
                           </p>
                         )}
                         {short && (

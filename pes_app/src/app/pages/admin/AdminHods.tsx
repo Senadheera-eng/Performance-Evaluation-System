@@ -455,6 +455,8 @@ function ChoosePopover({
   onChoose: (lecturer: FacultyLecturer) => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Photos only once the list is open: most heads are never changed.
+  const avatars = useAvatarUrls(open ? lecturers.map((l) => l.lecturer_id) : []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -478,8 +480,9 @@ function ChoosePopover({
                     setOpen(false);
                     onChoose(l);
                   }}
-                  className="cursor-pointer"
+                  className={`cursor-pointer ${departmentByName(department)?.commandClass ?? ""}`}
                 >
+                  <PersonAvatar name={l.name} url={avatars[l.lecturer_id]} department={department} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-foreground">
                       {l.title ? `${l.title} ` : ""}
