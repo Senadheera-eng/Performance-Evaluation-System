@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Bot, Info, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
+import { Bot, Globe, Info, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { PageHeader, SectionCard } from "../components/common";
@@ -15,20 +15,42 @@ interface Message {
   timestamp: Date;
 }
 
-const suggestedQuestions = [
-  "How am I doing so far?",
-  "What do I need for First Class from here?",
-  "What courses do I need for the Data Management minor?",
-  "Is my attendance okay?",
-  "Do I still owe any modules?",
-  "What happens if I fail a course?",
+/* Two kinds of question, in two groups: the student's own record and the
+   Handbook, and what the faculty publishes on its website (read nightly). */
+const suggestionGroups = [
+  {
+    label: "Your record and the Handbook",
+    icon: Sparkles,
+    questions: [
+      "How am I doing so far?",
+      "What do I need for First Class from here?",
+      "What courses do I need for my minor?",
+      "Is my attendance okay?",
+      "Do I still owe any modules?",
+      "What happens if I fail a course?",
+    ],
+  },
+  {
+    label: "From the faculty website",
+    icon: Globe,
+    questions: [
+      "Are there any new notices from the faculty?",
+      "How do I apply for my academic transcript?",
+      "When is the convocation and what do I need to send?",
+      "Who is the dean of the faculty?",
+      "What does the faculty's medical centre offer?",
+      "Are there any vacancies at the faculty?",
+    ],
+  },
 ];
+
+const suggestedQuestions = suggestionGroups.flatMap((g) => g.questions);
 
 const GREETING: Message = {
   id: "greeting",
   role: "assistant",
   content:
-    "Hi — ask me anything about your degree. I can look up your own results and standing, work out what you need for a target class, explain what the Faculty Handbook says, and tell you what's coming next semester. Everything I quote comes from your real records.",
+    "Hi — ask me anything about your degree. I can look up your own results and standing, work out what you need for a target class, explain what the Faculty Handbook says, and tell you what's coming next semester. I can also answer from the faculty website — notices, the academic calendar, staff and contacts — with a link to the page. Everything I quote comes from your real records or those pages.",
   timestamp: new Date(),
 };
 
@@ -112,7 +134,7 @@ export default function AIAssistant() {
       <PageHeader
         eyebrow="Beta"
         title="AI Assistant"
-        description="Ask about your results, attendance, enrolment and the Faculty Handbook. Answers come from your own record."
+        description="Ask about your results, attendance, enrolment, the Faculty Handbook and the faculty website. Answers come from your own record and the faculty's pages."
         actions={
           started ? (
             <Button
@@ -254,19 +276,27 @@ export default function AIAssistant() {
           title="Try asking"
           description="Tap a question to send it."
           className="hidden lg:block"
-          bodyClassName="space-y-2"
+          bodyClassName="space-y-4"
         >
-          {suggestedQuestions.map((question) => (
-            <button
-              key={question}
-              type="button"
-              disabled={isThinking}
-              onClick={() => handleSendMessage(question)}
-              className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-            >
-              <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
-              {question}
-            </button>
+          {suggestionGroups.map((group) => (
+            <div key={group.label} className="space-y-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <group.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                {group.label}
+              </p>
+              {group.questions.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  disabled={isThinking}
+                  onClick={() => handleSendMessage(question)}
+                  className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                >
+                  <group.icon className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
+                  {question}
+                </button>
+              ))}
+            </div>
           ))}
         </SectionCard>
       </div>
