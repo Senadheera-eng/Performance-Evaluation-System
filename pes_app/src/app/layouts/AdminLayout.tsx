@@ -12,6 +12,7 @@ import {
   UserCog,
   UserRound,
   Megaphone,
+  Layers,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -33,10 +34,12 @@ const navigation: ShellNavItem[] = [
   { name: "Notices", href: "/admin/notices", icon: Megaphone },
 ];
 
-/* A headship covers a whole department, so it is granted from the faculty
-   level. A department admin has no business appointing their own head, and
-   the RPC refuses them — the sidebar should say so before they click. */
+/* Faculty-level work. A headship covers a whole department, so it is granted
+   from the faculty level; a batch is the whole faculty's, so bringing one in
+   or removing it is too. The RPCs refuse a department admin either way — the
+   sidebar should say so before they click. */
 const superAdminOnly: ShellNavItem[] = [
+  { name: "Batches", href: "/admin/batches", icon: Layers },
   { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
 ];
 

@@ -92,6 +92,7 @@ const AdminMedical = page(() => import("./pages/admin/AdminMedical"));
 const AdminFeedback = page(() => import("./pages/admin/AdminFeedback"));
 const AdminEnrollment = page(() => import("./pages/admin/AdminEnrollment"));
 const AdminHods = page(() => import("./pages/admin/AdminHods"));
+const AdminBatches = page(() => import("./pages/admin/AdminBatches"));
 const AdminProfile = page(() => import("./pages/admin/AdminProfile"));
 
 /* Staff (lecturer + HOD). One portal for both: a head of department is a
@@ -167,6 +168,7 @@ export const router = createBrowserRouter([
       { path: "feedback", element: held(<AdminFeedback />) },
       { path: "enrollment", element: held(<AdminEnrollment />) },
       { path: "hods", element: held(<AdminHods />) },
+      { path: "batches", element: held(<AdminBatches />) },
       { path: "profile", element: held(<AdminProfile />) },
       { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
