@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   BookOpen,
   CalendarOff,
-  CheckCircle2,
   GraduationCap,
   Lock,
   Minus,
@@ -11,11 +10,30 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import { EmptyState, ErrorState, SectionCard, StatusBadge } from "../common";
 import { cn } from "../ui/utils";
 import { supabase } from "../../../lib/supabase";
 import { departmentByCourseCode } from "../../../lib/departments";
 import type { EnrolmentWindowState } from "./EnrolmentWindow";
+import { MinorSelection } from "./MinorSelection";
+import { MinorShortfallAlert } from "../minors/MinorProgress";
+import {
+  minorShortfalls,
+  minorTitle,
+  statusCounts,
+  type MinorPlanBasket,
+  type MinorPlanCourse,
+  type StudentMinorPlan,
+} from "../../../lib/minorPlan";
 
 export interface PlanCourse {
   course_id: string;
@@ -23,6 +41,7 @@ export interface PlanCourse {
   title: string;
   credits: number;
   contributes_to_gpa: boolean;
+  /** The minors whose study plan lists this course in this semester. */
   minor: string | null;
   selected: boolean;
   already_passed: boolean;
@@ -44,21 +63,15 @@ export interface Basket {
   courses: PlanCourse[];
 }
 
-export interface MinorProgress {
-  minor: string;
-  required_credits: number;
-  earned_credits: number;
-  selected_credits: number;
-  status: "complete" | "partial" | "none";
-}
-
 export interface Plan {
   semester: number;
   academic_year: string;
   department: string;
   window: EnrolmentWindowState | null;
   baskets: Basket[];
-  minors: MinorProgress[];
+  /** The department's minors as its study plan sets them out, with where
+      the student stands in each. */
+  minor_plan?: StudentMinorPlan;
 }
 
 /** One course as it sits in the sheet, carrying the category it belongs to. */
@@ -122,6 +135,8 @@ export function SemesterBaskets({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Mandatory minor courses the student is about to save without. */
+  const [guard, setGuard] = useState<Row[] | null>(null);
 
   const open = plan.window?.is_open ?? false;
 
@@ -202,19 +217,40 @@ export function SemesterBaskets({
     return map;
   }, [rows, draft]);
 
-  /* What the pending ticks would do to each minor. The server counts credits
-     already earned and already enrolled; only this semester's unsaved changes
-     are missing from that, and every course carrying them is on this page. */
-  const minorDelta = useMemo(() => {
-    const map = new Map<string, number>();
-    const move = (c: Row, sign: number) => {
-      if (!c.minor) return;
-      map.set(c.minor, (map.get(c.minor) ?? 0) + sign * c.credits);
-    };
-    adds.forEach((c) => move(c, 1));
-    removes.forEach((c) => move(c, -1));
-    return map;
-  }, [adds, removes]);
+  /* This semester's courses by id, for the minor table: its rows are these
+     same courses, ticked through the same draft. */
+  const byId = useMemo(() => new Map(rows.map((r) => [r.course_id, r])), [rows]);
+
+  /** Whether a minor-plan course counts toward its basket right now: from
+      the draft for this semester's courses, from the record otherwise. */
+  const minorCounts = useMemo(
+    () => (course: MinorPlanCourse, basket: MinorPlanBasket) => {
+      const pc = basket.semester === plan.semester ? byId.get(course.course_id) : undefined;
+      return pc ? pc.already_passed || (draft.get(pc.course_id) ?? pc.selected) : statusCounts(course.status);
+    },
+    [byId, draft, plan.semester],
+  );
+
+  /* The minor the student has said they are taking, and this semester's
+     part of it. What it still asks of them is said before Save, and its
+     mandatory course is not left out without being asked. */
+  const takingMinor = plan.minor_plan?.minors.find(
+    (m) => m.minor === plan.minor_plan?.chosen_minor,
+  );
+  const minorBaskets = takingMinor?.baskets.filter((b) => b.semester === plan.semester) ?? [];
+  const missingMandatory = useMemo(() => {
+    const out: Row[] = [];
+    minorBaskets
+      .filter((b) => b.mandatory)
+      .forEach((b) =>
+        b.courses.forEach((c) => {
+          const pc = byId.get(c.course_id);
+          if (pc && !minorCounts(c, b) && pc.enrollable && !pc.locked) out.push(pc);
+        }),
+      );
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [takingMinor, byId, minorCounts, plan.semester]);
 
   /* Two different things to say. What the student still has to decide, and
      what this round simply is not offering -- which is not their problem to
@@ -251,14 +287,26 @@ export function SemesterBaskets({
     return { warnings: out, notOffered: absent };
   }, [plan, totals, draft]);
 
-  const save = async () => {
-    if (!dirty) return;
+  /* Save, unless it would leave out a mandatory course of the student's
+     minor: then ask first. They may still go ahead -- a minor is optional --
+     but not by not noticing. */
+  const requestSave = () => {
+    if (missingMandatory.length > 0) {
+      setGuard(missingMandatory);
+      return;
+    }
+    save();
+  };
+
+  const save = async (extra: Row[] = []) => {
+    const toAdd = [...adds, ...extra.filter((c) => !adds.includes(c))];
+    if (toAdd.length + removes.length === 0) return;
     setSaving(true);
     setError(null);
     setNotice(null);
 
     const { error: rpcError } = await supabase.rpc("update_my_enrolment", {
-      p_add: adds.map((c) => c.course_id),
+      p_add: toAdd.map((c) => c.course_id),
       p_remove: removes.map((c) => c.course_id),
     });
     setSaving(false);
@@ -269,8 +317,8 @@ export function SemesterBaskets({
     }
 
     const parts = [
-      adds.length > 0 &&
-        `added ${adds.length} course${adds.length === 1 ? "" : "s"}`,
+      toAdd.length > 0 &&
+        `added ${toAdd.length} course${toAdd.length === 1 ? "" : "s"}`,
       removes.length > 0 &&
         `removed ${removes.length} course${removes.length === 1 ? "" : "s"}`,
     ].filter(Boolean);
@@ -364,55 +412,19 @@ export function SemesterBaskets({
         </div>
       )}
 
-      {plan.minors.length > 0 && (
-        <SectionCard
-          title="Minors"
-          description="Optional. A minor is claimed once you have completed enough credits from its courses — across the whole degree, not one semester."
-        >
-          <ul className="space-y-2">
-            {plan.minors.map((m) => {
-              const have = Math.max(
-                0,
-                m.earned_credits +
-                  m.selected_credits +
-                  (minorDelta.get(m.minor) ?? 0),
-              );
-              const short = Math.max(0, m.required_credits - have);
-              // Recomputed rather than read off the plan: the badge has to
-              // follow the ticks, or unticking the last course of a minor
-              // would leave it reading Complete.
-              const status =
-                have >= m.required_credits
-                  ? "complete"
-                  : have > 0
-                    ? "partial"
-                    : "none";
-              return (
-                <li key={m.minor} className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {m.minor}
-                  </span>
-                  {status === "complete" ? (
-                    <StatusBadge tone="success" icon={CheckCircle2}>
-                      Complete
-                    </StatusBadge>
-                  ) : status === "partial" ? (
-                    <StatusBadge tone="warning">
-                      {short} more credit{short === 1 ? "" : "s"} needed
-                    </StatusBadge>
-                  ) : (
-                    <StatusBadge tone="neutral">Not selected</StatusBadge>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    {have} of {m.required_credits} credits
-                    {m.earned_credits > 0 &&
-                      ` · ${m.earned_credits} already passed`}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </SectionCard>
+      {plan.minor_plan && plan.minor_plan.minors.length > 0 && (
+        <MinorSelection
+          semester={plan.semester}
+          plan={plan.minor_plan}
+          coursesById={byId}
+          counts={minorCounts}
+          chosen={chosen}
+          editable={editable}
+          toggle={toggle}
+          changed={(id) => draft.has(id)}
+          open={open}
+          onMinorChanged={onChanged}
+        />
       )}
 
       <SectionCard
@@ -633,6 +645,18 @@ export function SemesterBaskets({
         </div>
       )}
 
+      {/* The minor the student is taking, in red: it is the one thing on
+          this page they chose to commit to, and leaving its course out
+          costs them the minor. */}
+      {open && takingMinor && (
+        <MinorShortfallAlert
+          minor={takingMinor.minor}
+          semester={plan.semester}
+          shortfalls={minorShortfalls(takingMinor, plan.semester, minorCounts)}
+          hint="Tick them in the minor table or the semester list above, or stop taking the minor."
+        />
+      )}
+
       {open && warnings.length > 0 && (
         <div className="rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
           <p className="flex items-center gap-1.5 font-medium">
@@ -676,7 +700,7 @@ export function SemesterBaskets({
               changes" bar beside the line saying so only repeated it. */}
           {dirty && (
             <div className="flex gap-2">
-              <Button className="flex-1" disabled={saving} onClick={save}>
+              <Button className="flex-1" disabled={saving} onClick={requestSave}>
                 {saving ? "Saving…" : "Save changes"}
               </Button>
               <Button
@@ -690,6 +714,53 @@ export function SemesterBaskets({
           )}
         </div>
       )}
+
+      <AlertDialog open={guard !== null} onOpenChange={(o) => !o && setGuard(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave out a mandatory minor course?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  {takingMinor ? minorTitle(takingMinor.minor) : "Your minor"} requires{" "}
+                  {guard?.length === 1 ? "this course" : "these courses"} in Semester{" "}
+                  {plan.semester}:
+                </p>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {guard?.map((c) => (
+                    <li key={c.course_id}>
+                      <span className="font-semibold text-danger-fg">{c.course_code}</span>{" "}
+                      {c.title}
+                    </li>
+                  ))}
+                </ul>
+                <p>Without {guard?.length === 1 ? "it" : "them"} you cannot claim the minor.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go back</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setGuard(null);
+                save();
+              }}
+            >
+              Save without {guard?.length === 1 ? "it" : "them"}
+            </Button>
+            <Button
+              onClick={() => {
+                const extra = guard ?? [];
+                setGuard(null);
+                save(extra);
+              }}
+            >
+              Add {guard?.length === 1 ? "it" : "them"} and save
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
