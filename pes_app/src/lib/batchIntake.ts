@@ -288,6 +288,21 @@ async function newWorkbook(): Promise<Workbook> {
   return wb;
 }
 
+/**
+ * Widens each column to its longest entry, so a full name -- the faculty
+ * records four or five names for many students -- shows without being cut
+ * off. A column never shrinks below the width it was given.
+ */
+export function fitColumns(ws: Worksheet, max = 80): void {
+  ws.columns.forEach((column) => {
+    let longest = 0;
+    column.eachCell?.({ includeEmpty: false }, (cell) => {
+      longest = Math.max(longest, cellText(cell.value).length);
+    });
+    column.width = Math.min(max, Math.max(column.width ?? 10, longest + 2));
+  });
+}
+
 /** A sheet with a bold, frozen heading row and columns sized to fit. */
 function addTable(
   wb: Workbook,
@@ -301,6 +316,7 @@ function addTable(
   ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEDEFF5" } };
   ws.views = [{ state: "frozen", ySplit: 1 }];
   rows.forEach((r) => ws.addRow(r));
+  fitColumns(ws);
   if (rows.length > 0) {
     ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
   }

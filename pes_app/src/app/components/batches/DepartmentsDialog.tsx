@@ -15,6 +15,7 @@ import { describeBatch } from "../../../lib/batch";
 import { departmentByName } from "../../../lib/departments";
 import {
   fileSafe,
+  fitColumns,
   parseDepartmentsFile,
   saveBlob,
   STUDENT_DEPARTMENTS,
@@ -95,6 +96,7 @@ export function DepartmentsDialog({
     (data ?? []).forEach((s) =>
       ws.addRow({ reg: s.reg_number, index: s.index_number, name: s.name, department: s.department ?? "" }),
     );
+    fitColumns(ws);
     // A drop-down of the four departments in every row.
     const last = Math.max(2, (data ?? []).length + 1);
     for (let r = 2; r <= last; r++) {
