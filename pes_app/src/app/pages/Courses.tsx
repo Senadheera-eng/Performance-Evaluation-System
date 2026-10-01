@@ -27,6 +27,8 @@ import {
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { getMyAttendance } from "../../lib/studentAttendance";
+import { MyMinor } from "../components/courses/MyMinor";
+import { minorTitle, type StudentMinorPlan } from "../../lib/minorPlan";
 
 interface Course {
   id: string;
@@ -57,11 +59,27 @@ export default function Courses() {
   /* Opening a course tells the student how it is marked, which is the one
      thing about a course they cannot work out from their own grade. */
   const [detailId, setDetailId] = useState<string | null>(null);
+  /* The department's minors with where the student stands in each. Null
+     until loaded; a department with no minors gets no Minor view at all. */
+  const [minorPlan, setMinorPlan] = useState<
+    (StudentMinorPlan & { current_semester: number }) | null
+  >(null);
+  const [view, setView] = useState<"courses" | "minor">("courses");
+
+  const loadMinorPlan = async () => {
+    const { data, error } = await supabase.rpc("get_my_minor_progress");
+    if (error || !data) return;
+    setMinorPlan(data as StudentMinorPlan & { current_semester: number });
+  };
 
   useEffect(() => {
     if (!student?.id) return;
     fetchCourses();
+    loadMinorPlan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [student?.id]);
+
+  const hasMinors = (minorPlan?.minors.length ?? 0) > 0;
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -315,6 +333,32 @@ export default function Courses() {
         description="Every course in your curriculum: what you are taking now, what you have finished, and what is still to come."
       />
 
+      {/* The courses, or the minor the student is taking -- its whole study
+          plan, as the department prints it. */}
+      {hasMinors && (
+        <SegmentedTabs
+          aria-label="Courses or minor"
+          layoutId="courses-view-tabs"
+          value={view}
+          onChange={(v) => setView(v as "courses" | "minor")}
+          tabs={[
+            { value: "courses", label: "My Courses" },
+            {
+              value: "minor",
+              label: minorPlan?.chosen_minor ? minorTitle(minorPlan.chosen_minor) : "Minors",
+            },
+          ]}
+        />
+      )}
+
+      {view === "minor" && minorPlan && hasMinors ? (
+        <MyMinor
+          plan={minorPlan}
+          semester={minorPlan.current_semester}
+          onChanged={loadMinorPlan}
+        />
+      ) : (
+        <>
       {/* Whose courses these are, and a way to see one department's at a
           time. The list mixes the student's own department with the shared
           Interdisciplinary modules, and each row carries its department's
@@ -457,6 +501,8 @@ export default function Courses() {
           </motion.div>
         </AnimatePresence>
       </div>
+        </>
+      )}
 
       <CourseDetailDialog
         courseId={detailId}

@@ -174,3 +174,41 @@ export async function removePlanCourse(basketId: string, courseId: string): Prom
   if (error) return fail("removePlanCourse", error);
   return { ok: true, data: null };
 }
+
+/** What a minor still asks of a student in one semester. */
+export type MinorShortfall =
+  | { kind: "mandatory"; basket: MinorPlanBasket; course: MinorPlanCourse }
+  | { kind: "elective"; basket: MinorPlanBasket; have: number };
+
+/**
+ * The mandatory courses not taken and the elective baskets short of their
+ * minimum, for one semester of a minor. `counts` says whether a course is
+ * taken -- passed, enrolled, or ticked and not yet saved.
+ */
+export function minorShortfalls(
+  plan: MinorPlan,
+  semester: number,
+  counts: (course: MinorPlanCourse, basket: MinorPlanBasket) => boolean,
+): MinorShortfall[] {
+  const out: MinorShortfall[] = [];
+  plan.baskets
+    .filter((b) => b.semester === semester)
+    .sort((a, b) => a.position - b.position)
+    .forEach((b) => {
+      if (b.mandatory) {
+        b.courses.filter((c) => !counts(c, b)).forEach((c) => out.push({ kind: "mandatory", basket: b, course: c }));
+      } else {
+        const have = b.courses.reduce((n, c) => n + (counts(c, b) ? c.credits : 0), 0);
+        if (have < b.min_credits) out.push({ kind: "elective", basket: b, have });
+      }
+    });
+  return out;
+}
+
+/** A shortfall in a sentence, e.g. "take at least 3 credits from CO4351 or CO4352 (you have 0)". */
+export function describeShortfall(s: MinorShortfall): string {
+  if (s.kind === "mandatory") return `${s.course.course_code} ${s.course.title} — mandatory`;
+  const codes = s.basket.courses.map((c) => c.course_code);
+  const list = codes.length > 1 ? `${codes.slice(0, -1).join(", ")} or ${codes[codes.length - 1]}` : codes[0];
+  return `at least ${s.basket.min_credits} credit${s.basket.min_credits === 1 ? "" : "s"} from ${list} (you have ${s.have})`;
+}

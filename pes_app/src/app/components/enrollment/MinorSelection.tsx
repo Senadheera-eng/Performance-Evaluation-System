@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarOff,
-  CheckCircle2,
   ChevronDown,
   GraduationCap,
   Lock,
   Minus,
   Plus,
 } from "lucide-react";
-import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { SectionCard, SegmentedTabs, StatusBadge } from "../common";
 import { cn } from "../ui/utils";
 import { MinorPlanTable, type BasketState } from "../minors/MinorPlanTable";
 import {
+  MinorDeclaration,
+  MinorSemesterChips,
+  MinorShortfallAlert,
+} from "../minors/MinorProgress";
+import {
   basketMet,
+  minorShortfalls,
   minorTitle,
   planSemesters,
-  setMyMinor,
   type MinorPlan,
   type MinorPlanBasket,
   type MinorPlanCourse,
@@ -69,8 +72,6 @@ export function MinorSelection({
   const [tab, setTab] = useState<string>(plan.chosen_minor ?? plan.minors[0]?.minor ?? "");
   /** Null until the student chooses: open by default only before the minor starts. */
   const [showAll, setShowAll] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // A minor renamed or removed since the page opened.
   useEffect(() => {
@@ -99,17 +100,10 @@ export function MinorSelection({
   const taking = plan.chosen_minor === minor.minor;
   const expanded = showAll ?? semester < first;
 
-  const declare = async (value: string | null) => {
-    setBusy(true);
-    setError(null);
-    const result = await setMyMinor(value);
-    setBusy(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    await onMinorChanged();
-  };
+  /* The minor the student is taking, whichever tab is showing: what it still
+     asks of them this semester is said in red at the top of the card. */
+  const takingPlan = plan.minors.find((m) => m.minor === plan.chosen_minor);
+  const shortfalls = open && takingPlan ? minorShortfalls(takingPlan, semester, counts) : [];
 
   /* What a row says beyond code, title and credits — the same words the
      semester sheet uses for the same course. */
@@ -214,65 +208,28 @@ export function MinorSelection({
               {minor.earned_credits ? ` · ${minor.earned_credits} passed` : ""}
             </p>
           </div>
-          {taking ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge tone="success" icon={CheckCircle2}>
-                You're taking this minor
-              </StatusBadge>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => declare(null)}>
-                Stop taking it
-              </Button>
-            </div>
-          ) : (
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => declare(minor.minor)}>
-              <GraduationCap className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              {plan.chosen_minor ? "Switch to this minor" : "I'm taking this minor"}
-            </Button>
-          )}
+          <MinorDeclaration
+            chosenMinor={plan.chosen_minor}
+            minor={minor.minor}
+            onChanged={onMinorChanged}
+          />
         </div>
-        {error && <p className="text-sm text-danger-fg">{error}</p>}
-        {!taking && (
+        {!taking && !plan.chosen_minor && (
           <p className="-mt-2 text-xs text-muted-foreground">
-            Say which minor you are taking and enrolment will stop you leaving out its mandatory
-            courses by accident.
+            Say which minor you are taking and enrolment will warn you before you leave out its
+            courses.
           </p>
         )}
 
-        {/* Semester by semester through the plan: what is met, what is now,
-            what comes later. */}
-        <ol className="flex flex-wrap gap-2" aria-label="Progress through the minor">
-          {semesters.map((s) => {
-            const baskets = minor.baskets.filter((b) => b.semester === s);
-            const have = baskets.reduce((n, b) => n + Math.min(stateOf(b).have, b.min_credits), 0);
-            const need = baskets.reduce((n, b) => n + b.min_credits, 0);
-            const met = baskets.every((b) => stateOf(b).met);
-            const now = s === semester;
-            const later = s > semester;
-            return (
-              <li
-                key={s}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-                  met
-                    ? "border-success-border bg-success-bg text-success-fg"
-                    : later
-                      ? "border-border bg-muted/40 text-muted-foreground"
-                      : now
-                        ? "border-primary/40 bg-primary/5 text-foreground"
-                        : "border-warning-border bg-warning-bg text-warning-fg",
-                  now && "ring-2 ring-primary/30",
-                )}
-              >
-                {met && <CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
-                <span className="font-medium">Semester {s}</span>
-                <span className="tabular-nums">
-                  {have}/{need}
-                </span>
-                {now && <span className="font-medium">· now</span>}
-              </li>
-            );
-          })}
-        </ol>
+        {takingPlan && (
+          <MinorShortfallAlert
+            minor={takingPlan.minor}
+            semester={semester}
+            shortfalls={shortfalls}
+          />
+        )}
+
+        <MinorSemesterChips minor={minor} semester={semester} stateOf={stateOf} />
       </div>
 
       <div className="border-t border-border">

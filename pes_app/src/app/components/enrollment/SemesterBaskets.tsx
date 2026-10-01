@@ -25,7 +25,9 @@ import { supabase } from "../../../lib/supabase";
 import { departmentByCourseCode } from "../../../lib/departments";
 import type { EnrolmentWindowState } from "./EnrolmentWindow";
 import { MinorSelection } from "./MinorSelection";
+import { MinorShortfallAlert } from "../minors/MinorProgress";
 import {
+  minorShortfalls,
   minorTitle,
   statusCounts,
   type MinorPlanBasket,
@@ -282,30 +284,8 @@ export function SemesterBaskets({
         }
       }
     });
-    if (takingMinor) {
-      const title = minorTitle(takingMinor.minor);
-      minorBaskets.forEach((b) => {
-        if (b.mandatory) {
-          b.courses
-            .filter((c) => !minorCounts(c, b))
-            .forEach((c) =>
-              out.push(`${title}: ${c.course_code} ${c.title} is mandatory this semester.`),
-            );
-        } else {
-          const have = b.courses.reduce((n, c) => n + (minorCounts(c, b) ? c.credits : 0), 0);
-          if (have < b.min_credits) {
-            out.push(
-              `${title}: take at least ${b.min_credits} credit${b.min_credits === 1 ? "" : "s"} from ${b.courses
-                .map((c) => c.course_code)
-                .join(" or ")} — you have ${have}.`,
-            );
-          }
-        }
-      });
-    }
     return { warnings: out, notOffered: absent };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, totals, draft, takingMinor, minorCounts]);
+  }, [plan, totals, draft]);
 
   /* Save, unless it would leave out a mandatory course of the student's
      minor: then ask first. They may still go ahead -- a minor is optional --
@@ -663,6 +643,18 @@ export function SemesterBaskets({
             these separately — there is nothing for you to do here.
           </p>
         </div>
+      )}
+
+      {/* The minor the student is taking, in red: it is the one thing on
+          this page they chose to commit to, and leaving its course out
+          costs them the minor. */}
+      {open && takingMinor && (
+        <MinorShortfallAlert
+          minor={takingMinor.minor}
+          semester={plan.semester}
+          shortfalls={minorShortfalls(takingMinor, plan.semester, minorCounts)}
+          hint="Tick them in the minor table or the semester list above, or stop taking the minor."
+        />
       )}
 
       {open && warnings.length > 0 && (
