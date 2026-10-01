@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, GraduationCap, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ClipboardList, GraduationCap, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
-  CourseCode,
   EmptyState,
   ErrorState,
   SectionCard,
@@ -13,11 +12,17 @@ import {
 import {
   addMinor,
   deleteMinor,
-  getDepartmentMinors,
   renameMinor,
   setMinorCredits,
-  type DepartmentMinor,
 } from "../../../lib/minors";
+import {
+  getDepartmentMinorPlan,
+  minorTitle,
+  planSemesters,
+  type MinorPlan,
+} from "../../../lib/minorPlan";
+import { MinorPlanTable } from "../minors/MinorPlanTable";
+import { MinorPlanEditor } from "../minors/MinorPlanEditor";
 
 /**
  * A department's minor specialisations, managed in one place.
@@ -28,11 +33,12 @@ import {
  * department's, so the number is set here rather than guessed once in a
  * migration and then quietly wrong for four years.
  *
- * Which courses carry a stream is a property of each course, set in the
- * course editor; this screen shows what that adds up to. Renaming a stream
- * retags its courses and removing one untags them, both in a single database
- * call — done as two writes from here, a half-finished rename would leave
- * courses pointing at a minor that no longer exists.
+ * Each minor's study plan is set out here too, as the table students see at
+ * enrolment: per semester, a mandatory basket and an elective basket with a
+ * minimum number of credits. "Edit study plan" changes it; nothing about a
+ * minor is fixed in the pages, so a revised plan from the faculty is entered
+ * here rather than coded. Renaming a minor carries its plan and its course
+ * tags with it, in a single database call.
  */
 export function MinorSpecifications({
   department,
@@ -42,7 +48,8 @@ export function MinorSpecifications({
   /** False for a reader — the lists still show, the controls do not. */
   canWrite: boolean;
 }) {
-  const [minors, setMinors] = useState<DepartmentMinor[]>([]);
+  const [minors, setMinors] = useState<MinorPlan[]>([]);
+  const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -58,7 +65,7 @@ export function MinorSpecifications({
   const load = useCallback(async () => {
     if (!department) return;
     setLoading(true);
-    const result = await getDepartmentMinors(department);
+    const result = await getDepartmentMinorPlan(department);
     if (!result.ok) {
       setError(result.error);
     } else {
@@ -114,7 +121,7 @@ export function MinorSpecifications({
 
       <SectionCard
         title="Minor specialisations"
-        description={`Which minors ${department} offers, how many credits each takes, and the courses carrying them. A course joins a minor in the course editor.`}
+        description={`Which minors ${department} offers, the credits that claim each, and its study plan — the table students see when they enrol.`}
         flush
       >
         {loading ? (
@@ -128,7 +135,7 @@ export function MinorSpecifications({
               title="No minors yet"
               description={
                 canWrite
-                  ? "Add a stream below, then tag its courses in the course editor."
+                  ? "Add a minor below, then set out its study plan."
                   : "This department has not set up any minor specialisations."
               }
             />
@@ -136,7 +143,12 @@ export function MinorSpecifications({
         ) : (
           <ul className="divide-y divide-border/70">
             {minors.map((m) => {
-              const short = m.tagged_credits < m.required_credits;
+              const semesters = planSemesters(m);
+              const courseCount = new Set(
+                m.baskets.flatMap((b) => b.courses.map((c) => c.course_id)),
+              ).size;
+              const minimums = m.baskets.reduce((n, b) => n + b.min_credits, 0);
+              const short = minimums < m.required_credits;
               return (
                 <li key={m.minor} className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -181,29 +193,18 @@ export function MinorSpecifications({
                           />
                           {m.minor}
                           <StatusBadge tone={short ? "warning" : "success"}>
-                            {m.tagged_courses} course
-                            {m.tagged_courses === 1 ? "" : "s"} ·{" "}
-                            {m.tagged_credits} of {m.required_credits} credits
+                            {m.baskets.length === 0
+                              ? "No study plan yet"
+                              : `Semesters ${semesters[0]}–${semesters[semesters.length - 1]} · ${courseCount} course${courseCount === 1 ? "" : "s"} · ${m.required_credits} credits`}
                           </StatusBadge>
                         </p>
-                        {m.courses.length > 0 && (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {m.courses.map((c, i) => (
-                              <span key={c.course_code}>
-                                {i > 0 && " · "}
-                                <CourseCode code={c.course_code} className="font-medium" /> (Sem{" "}
-                                {c.semester}, {c.credits}cr)
-                              </span>
-                            ))}
-                          </p>
-                        )}
-                        {short && (
-                          /* Not an error: a stream can be short while its
-                             courses are still being tagged. Worth saying,
-                             because a student cannot claim it either way. */
+                        {short && m.baskets.length > 0 && (
+                          /* Not an error: a plan can be short while it is
+                             still being entered. Worth saying, because a
+                             student cannot claim the minor either way. */
                           <p className="mt-1 text-xs text-warning-fg">
-                            Tagged courses come to fewer credits than this minor
-                            requires.
+                            The baskets' minimums add up to {minimums} — fewer than the{" "}
+                            {m.required_credits} credits the minor requires.
                           </p>
                         )}
                       </div>
@@ -277,9 +278,9 @@ export function MinorSpecifications({
                   {confirmDelete === m.minor && (
                     <div className="mt-2 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/40 bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-500/10 dark:text-red-300">
                       <span className="flex-1">
-                        Remove {m.minor}? Its {m.tagged_courses} course
-                        {m.tagged_courses === 1 ? "" : "s"} stay in the
-                        catalogue and stop belonging to a stream.
+                        Remove {m.minor}? Its study plan goes with it; its{" "}
+                        {courseCount} course{courseCount === 1 ? "" : "s"} stay in the
+                        catalogue.
                       </span>
                       <Button
                         size="sm"
@@ -304,6 +305,38 @@ export function MinorSpecifications({
                       </Button>
                     </div>
                   )}
+
+                  <div className="mt-3 overflow-hidden rounded-xl border border-border">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-3 py-2">
+                      <span className="text-sm font-medium text-foreground">
+                        {minorTitle(m.minor)} — study plan
+                      </span>
+                      {canWrite && (
+                        <Button
+                          size="sm"
+                          variant={editingPlan === m.minor ? "default" : "outline"}
+                          onClick={() =>
+                            setEditingPlan(editingPlan === m.minor ? null : m.minor)
+                          }
+                        >
+                          <ClipboardList className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          {editingPlan === m.minor ? "Done" : "Edit study plan"}
+                        </Button>
+                      )}
+                    </div>
+                    {editingPlan === m.minor ? (
+                      <div className="p-3">
+                        <MinorPlanEditor department={department} plan={m} onChanged={load} />
+                      </div>
+                    ) : m.baskets.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-muted-foreground">
+                        No study plan yet.
+                        {canWrite && " Edit it to add each semester's baskets."}
+                      </p>
+                    ) : (
+                      <MinorPlanTable plan={m} caption={`${minorTitle(m.minor)} study plan`} />
+                    )}
+                  </div>
                 </li>
               );
             })}
