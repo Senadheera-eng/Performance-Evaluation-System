@@ -28,7 +28,7 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import { getMyAttendance } from "../../lib/studentAttendance";
 import { MyMinor } from "../components/courses/MyMinor";
-import { minorTitle, type StudentMinorPlan } from "../../lib/minorPlan";
+import type { StudentMinorPlan } from "../../lib/minorPlan";
 
 interface Course {
   id: string;
@@ -341,12 +341,13 @@ export default function Courses() {
           layoutId="courses-view-tabs"
           value={view}
           onChange={(v) => setView(v as "courses" | "minor")}
+          equal
+          className="w-full sm:w-80"
           tabs={[
             { value: "courses", label: "My Courses" },
-            {
-              value: "minor",
-              label: minorPlan?.chosen_minor ? minorTitle(minorPlan.chosen_minor) : "Minors",
-            },
+            /* "Minor", not the minor's name: the view is the same for every
+               minor, and the name is the first thing it shows. */
+            { value: "minor", label: "Minor" },
           ]}
         />
       )}
