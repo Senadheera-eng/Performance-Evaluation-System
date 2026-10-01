@@ -21,6 +21,7 @@ import {
   withBadges,
 } from "../hooks/useNotificationCounts";
 import { formatRegNumber } from "../../lib/format";
+import { FirstSignInPassword } from "../components/account/FirstSignInPassword";
 
 const navigation: ShellNavItem[] = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
@@ -59,21 +60,24 @@ export default function AppLayout() {
     .join(" · ");
 
   return (
-    <AppShell
-      brandTitle="PES"
-      brandSubtitle="Performance Evaluation System"
-      navigation={withBadges(navigation, counts)}
-      bottomNavigation={bottomNavigation}
-      userName={student?.name ?? "Student"}
-      userAvatarUrl={student?.avatar_url}
-      userDepartment={student?.department}
-      userMeta={meta || "Student"}
-      homeHref="/app"
-      headerSubtitle="Faculty of Engineering — USJ"
-      onProfileClick={() => navigate("/app/profile")}
-      onLogout={handleLogout}
-      showSearch
-      showNotifications
-    />
+    <>
+      <FirstSignInPassword />
+      <AppShell
+        brandTitle="PES"
+        brandSubtitle="Performance Evaluation System"
+        navigation={withBadges(navigation, counts)}
+        bottomNavigation={bottomNavigation}
+        userName={student?.name ?? "Student"}
+        userAvatarUrl={student?.avatar_url}
+        userDepartment={student?.department}
+        userMeta={meta || "Student"}
+        homeHref="/app"
+        headerSubtitle="Faculty of Engineering — USJ"
+        onProfileClick={() => navigate("/app/profile")}
+        onLogout={handleLogout}
+        showSearch
+        showNotifications
+      />
+    </>
   );
 }

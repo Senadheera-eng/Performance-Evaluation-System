@@ -53,6 +53,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - Manual attendance registers, result review and grade correction (the original grade is kept)
 - The course catalogue and minors; enrolment windows and HOD appointments are the super admin's, and department offices watch enrolment read-only
 - Medical certificate review, feedback rounds (create, open, close, and approve lecturers' requests), notices, and department-wide dashboards
+- **Batches** (super admin): bring a new intake in from the faculty's Excel/CSV list — each student gets a sign-in account and a temporary password, handed out as a sheet and changed at first sign-in — divide a batch into departments from a list, and remove a batch that has left with all its records (results, attendance, enrolments, medical submissions and files, mentoring, sign-in accounts). Course feedback is kept without names unless the super admin chooses otherwise, and the batch's records can be downloaded as a workbook first
 
 ---
 
@@ -99,7 +100,8 @@ Supabase
   ├── Storage       avatars (public); medical-certificates, mentor-attachments, notice-attachments (private)
   ├── Realtime      mentor chat
   ├── Edge Function ai-assistant → Google Gemini
-  └── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
+  ├── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
+  └── Edge Function manage-batches    creates and deletes students' sign-in accounts (super admin only)
 ```
 
 | Layer              | Technology                                          |
