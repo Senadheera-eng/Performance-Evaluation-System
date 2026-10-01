@@ -17,6 +17,8 @@ interface SegmentedTabsProps {
   className?: string;
   /** Horizontal scroll instead of wrapping — for long semester lists. */
   scrollable?: boolean;
+  /** Every tab the same width, whatever its label: for a short set of views. */
+  equal?: boolean;
   "aria-label"?: string;
 }
 
@@ -34,6 +36,7 @@ export function SegmentedTabs({
   layoutId,
   className,
   scrollable = false,
+  equal = false,
   "aria-label": ariaLabel,
 }: SegmentedTabsProps) {
   const reduce = useReducedMotion();
@@ -59,10 +62,12 @@ export function SegmentedTabs({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "relative inline-flex gap-1 p-1 rounded-xl bg-muted/70 border border-border/60",
+        "relative gap-1 p-1 rounded-xl bg-muted/70 border border-border/60",
+        equal ? "inline-grid" : "inline-flex",
         scrollable && "overflow-x-auto max-w-full no-scrollbar",
         className,
       )}
+      style={equal ? { gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` } : undefined}
     >
       {tabs.map((tab) => {
         const active = value === tab.value;
