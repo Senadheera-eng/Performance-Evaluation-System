@@ -61,7 +61,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 
 The assistant is a **tool-calling language model with retrieval over the Faculty Handbook (RAG)**. There is no trained prediction model.
 
-- Every message goes to the `ai-assistant` Supabase Edge Function, which calls **Google Gemini** with a set of tools.
+- Every message goes to the `ai-assistant` Supabase Edge Function, which calls a language model with a set of tools: a model the faculty runs itself (Llama, Qwen or similar, under Ollama), Google Gemini, or both — tried in order, so a model that is rate limited, busy or down is stepped past to the next. Gemini can take several API keys.
 - Each tool is a PostgreSQL function called **with the student's own token**, so row level security decides what it can see — a student cannot ask about anyone else.
 - Handbook questions use `search_handbook_hybrid`: 131 Handbook chunks searched by full text (with optional pgvector similarity), cited with a page number.
 - Everything the faculty publishes — notices, news, the academic calendar, staff, contacts — comes from its official website, **eng.sjp.ac.lk**. The `faculty-site-sync` Edge Function reads the site every night at 02:07 (a `pg_cron` job, calling through `pg_net` with a key kept in the Supabase vault), splits each page into sections, and keeps them in `faculty_site_chunks`. The assistant searches them with `search_faculty_site` and links the page it answered from. It follows robots.txt, stays on the faculty's host, skips theme placeholder pages, keeps the links to PDFs and Drive folders a notice points to, and reads the academic calendar's embedded Google Sheet as dated runs per batch. The Super Admin's dashboard shows how much of the site is read and has a **Read now** button.
@@ -69,13 +69,24 @@ The assistant is a **tool-calling language model with retrieval over the Faculty
 
 A plain-English explanation of RAG and the assistant's tools is in `docs/PES_Guide_AI_Assistant_RAG_Explained.docx` (written for the first thirteen; the fourteenth, `search_faculty_website`, is described above).
 
-**Current limit:** the project runs on the Gemini **free tier**, which allows only a few requests a minute, and one question can take three or four of them. A paid Gemini API key is required before PES is distributed to students. The key is a Supabase secret (`GEMINI_API_KEY`), so changing it needs no code change or redeploy; `GEMINI_MODEL` overrides the model, and `AI_DAILY_QUOTA` / `AI_PER_STUDENT_DAILY` set PES's own usage caps.
+**Which model answers** is set by Supabase secrets, so changing it needs no code change or redeploy:
+
+| Secret | What it does |
+| --- | --- |
+| `LOCAL_LLM_URL`, `LOCAL_LLM_MODEL`, `LOCAL_LLM_API_KEY` | The faculty's own model, through any OpenAI-compatible server (Ollama, llama.cpp, vLLM). Hardware and setup: [`docs/local-llm.md`](docs/local-llm.md) |
+| `GEMINI_API_KEYS` (comma-separated) / `GEMINI_API_KEY` | Gemini; a key out of allowance or refused is rested and the next is used |
+| `AI_PROVIDERS` | The order, default `local,gemini` |
+| `GEMINI_MODEL` | Overrides the Gemini model |
+| `AI_DEADLINE_MS` | How long one question may take, default 60 s, at most 140 s |
+| `AI_DAILY_QUOTA` / `AI_PER_STUDENT_DAILY` | PES's own usage caps |
+
+**Current limit:** the project runs on one Gemini **free-tier** key, which allows only a few requests a minute, and one question can take three or four of them. Before PES is distributed to students it needs either the faculty's own model or a paid Gemini key. Pooling free keys from several accounts is not a substitute: Google's terms forbid getting around its limits that way, and free-tier prompts — here, students' grades — may be used by Google.
 
 ### Before distributing to students
 
 Two settings are relaxed while PES is developed by one person, and both must go back before a real cohort uses it:
 
-1. **A paid Gemini API key** in the `GEMINI_API_KEY` secret, as above.
+1. **A model that is not the free tier**: the faculty's own (see [`docs/local-llm.md`](docs/local-llm.md)) and/or a paid Gemini key, as above.
 2. **The feedback anonymity threshold.** `feedback_min_responses_for_analytics` is `1` for testing; with one respondent a course's analytics identify who wrote the comment. Set it back to the Faculty's `5`:
    ```sql
    update system_settings set value = '5' where key = 'feedback_min_responses_for_analytics';
@@ -99,7 +110,7 @@ Supabase
   ├── PostgreSQL    the data and every access rule (row level security)
   ├── Storage       avatars (public); medical-certificates, mentor-attachments, notice-attachments (private)
   ├── Realtime      mentor chat
-  ├── Edge Function ai-assistant → Google Gemini
+  ├── Edge Function ai-assistant → the faculty's own model (Ollama) and/or Google Gemini
   ├── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
   └── Edge Function manage-batches    creates and deletes students' sign-in accounts (super admin only)
 ```
