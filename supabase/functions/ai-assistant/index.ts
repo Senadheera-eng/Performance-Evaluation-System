@@ -15,9 +15,22 @@
 // the app uses, so there is exactly one source of truth for that maths, not
 // two. Every tool runs through the caller's own token, so row-level security
 // decides what it can see: a student cannot ask this about anyone else.
+//
+// Which model answers is configuration, not code (see providers.ts): a model
+// the faculty runs itself, such as Llama or Qwen under Ollama, and/or Gemini
+// with one or more API keys, tried in order. A provider that is rate limited,
+// busy or down is stepped past to the next, so one spent allowance is not an
+// outage.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  answerWithFirstAvailable,
+  configuredProviders,
+  geminiModelInUse,
+  Unavailable,
+  type ChatStart,
+  type Provider,
+} from "./providers.ts";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -79,7 +92,19 @@ const MODEL_CANDIDATES = [
   // GEMINI_MODEL, if one becomes available.
 ].filter((m): m is string => !!m);
 
-let resolvedModel: string | null = null;
+/*
+  The providers, in the order they are tried. Configured by secrets:
+    LOCAL_LLM_URL, LOCAL_LLM_MODEL, LOCAL_LLM_API_KEY  the faculty's own model
+    GEMINI_API_KEYS (comma-separated) and/or GEMINI_API_KEY
+    AI_PROVIDERS  the order, default "local,gemini"
+*/
+const PROVIDERS: Provider[] = configuredProviders((name) => Deno.env.get(name), MODEL_CANDIDATES);
+
+/* When each provider may next be tried, by provider id. A key that has had
+   its share for the minute -- or the day -- is left alone until then rather
+   than costing every question a refused round trip. Lives as long as the
+   worker does, which is long enough to matter on a busy day. */
+const cooldownUntil = new Map<string, number>();
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -305,8 +330,11 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: CORS_HEADERS });
   }
 
-  if (!GEMINI_API_KEY) {
-    return jsonResponse({ error: "GEMINI_API_KEY is not configured" }, 500);
+  if (PROVIDERS.length === 0) {
+    return jsonResponse(
+      { error: "No AI model is configured: set LOCAL_LLM_URL or GEMINI_API_KEY(S)" },
+      500,
+    );
   }
 
   const authHeader = req.headers.get("Authorization");
@@ -342,14 +370,13 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  /* Declared before anything can call Gemini — the health check below does,
-     and these are what bound its waiting.
-
-     The platform kills a worker that runs too long, and a killed worker never
+  /* The platform kills a worker that runs too long, and a killed worker never
      reaches an error handler: the caller gets WORKER_RESOURCE_LIMIT and the
      logs say nothing. Stopping ourselves in time to say something is better
-     than being stopped. */
-  const DEADLINE_MS = 60_000;
+     than being stopped. A model on the faculty's own hardware can be slower
+     than Gemini, so the deadline is configurable, but it stays under the
+     platform's own limit. */
+  const DEADLINE_MS = Math.min(Number(Deno.env.get("AI_DEADLINE_MS") ?? 60_000), 140_000);
   const RETRY_WAIT_MS = 21_000;
   /* An overloaded model is not a spent quota — it clears in seconds, not in a
      rate-limit window, so waiting the full window would burn the deadline for
@@ -357,7 +384,6 @@ Deno.serve(async (req: Request) => {
   const OVERLOAD_WAIT_MS = 4_000;
   const MAX_RATE_LIMIT_RETRIES = 2;
   const startedAt = Date.now();
-  let rateLimitRetries = 0;
   let ranOutOfTime = false;
 
   // Scoped to the calling student's own session — every RPC call through
@@ -376,8 +402,8 @@ Deno.serve(async (req: Request) => {
   });
 
   /* Operator health check. Answers the one question that cannot be answered
-     from outside this function: which Gemini model this key can actually
-     serve. Gated on the service role key itself — a student token can never
+     from outside this function: which of the configured models and keys
+     actually answer. Gated on the service role key itself — a student token can never
      reach it, and it touches no academic data. */
   if (isDiagnose) {
     /* Read the role out of the token rather than string-comparing it to the
@@ -401,22 +427,42 @@ Deno.serve(async (req: Request) => {
       .slice(0, 16);
 
     const report: Record<string, unknown> = {
-      candidates: MODEL_CANDIDATES,
+      providers: PROVIDERS.map((p) => p.label),
+      gemini_model_candidates: MODEL_CANDIDATES,
       tools: TOOLS[0].functionDeclarations.map((t) => t.name),
       max_tool_turns: MAX_TOOL_TURNS,
+      deadline_ms: DEADLINE_MS,
       per_student_daily: PER_STUDENT_DAILY,
       prompt_sha256_16: promptDigest,
     };
-    try {
-      const probe = await callGemini({
-        contents: [{ role: "user", parts: [{ text: "Reply with the single word: ok" }] }],
-      });
-      report.working_model = resolvedModel;
-      report.reply = probe.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    } catch (err) {
-      report.working_model = null;
-      report.error = err instanceof Error ? err.message : String(err);
-    }
+    /* Every provider is probed, not just the first: a backup key that was
+       revoked months ago is exactly what nobody notices until it is needed. */
+    report.probes = await Promise.all(
+      PROVIDERS.map(async (p) => {
+        const began = Date.now();
+        try {
+          const turn = await p
+            .start({
+              system: "You are a health check.",
+              history: [],
+              message: "Reply with the single word: ok",
+              tools: [],
+              temperature: 0,
+            })
+            .next(30_000);
+          return { provider: p.label, ok: true, reply: turn.text, ms: Date.now() - began };
+        } catch (err) {
+          return {
+            provider: p.label,
+            ok: false,
+            reason: err instanceof Unavailable ? err.reason : "error",
+            error: err instanceof Error ? err.message : String(err),
+            ms: Date.now() - began,
+          };
+        }
+      }),
+    );
+    report.gemini_model = geminiModelInUse();
     const { count: chunkCount } = await adminClient
       .from("handbook_chunks")
       .select("*", { count: "exact", head: true });
@@ -582,193 +628,62 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  // deno-lint-ignore no-explicit-any
-  const historyContents: any[] = history.map((h) => ({
-    role: h.role === "assistant" ? "model" : "user",
-    parts: [{ text: h.content }],
-  }));
-  // deno-lint-ignore no-explicit-any
-  const contents: any[] = [
-    ...historyContents,
-    { role: "user", parts: [{ text: message }] },
-  ];
-  let finalText: string | null = null;
+  const chat: ChatStart = {
+    system: systemInstructionText,
+    history,
+    message,
+    tools: TOOLS[0].functionDeclarations,
+    // Greetings/small talk benefit from a little more natural variation
+    // than the grounded-answer default; the model still can't invent
+    // facts since tool results are unaffected by this.
+    temperature: 0.4,
+  };
 
-  /* Calls Gemini, trying each candidate model until one is actually served.
-     Only a "model not found" moves on to the next; every other failure is a
-     real failure and is returned. */
-  // deno-lint-ignore no-explicit-any
-  async function callGemini(body: Record<string, unknown>): Promise<any> {
-    /* When a model is already resolved, keep the rest of the list behind it
-       rather than dropping it: if that model has just run out of its daily
-       allowance, the others are exactly what we need. */
-    const tryList = resolvedModel
-      ? [resolvedModel, ...MODEL_CANDIDATES.filter((m) => m !== resolvedModel)]
-      : MODEL_CANDIDATES;
-    let lastError = "";
-    let rateLimitedSomewhere = false;
+  const outcome = await answerWithFirstAvailable({
+    providers: PROVIDERS,
+    cooldownUntil,
+    chat,
+    executeTool,
+    startedAt,
+    deadlineMs: DEADLINE_MS,
+    maxToolTurns: MAX_TOOL_TURNS,
+    maxWaits: MAX_RATE_LIMIT_RETRIES,
+    shortWaitMs: OVERLOAD_WAIT_MS,
+    longWaitMs: RETRY_WAIT_MS,
+  });
+  const { answeredBy, rateLimited, realError, failures } = outcome;
+  const finalText = outcome.text;
+  ranOutOfTime = outcome.ranOutOfTime;
 
-    for (const model of tryList) {
-      // Inner loop so a rate-limit retry goes back to the SAME model. A
-      // `continue` on the outer loop would quietly fall through to the next
-      // candidate, which is a different question entirely.
-      let res: Response;
-      for (;;) {
-        res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          },
-        );
-        /* 429 is "you have had your share this minute"; 503 is "this model
-           is busy right now, try again". The API says so itself, in those
-           words. Both are worth waiting out, and a 503 needs only a moment
-           rather than a whole rate-limit window — treating it as a hard
-           failure turned a transient spike into a visible "I can't reach the
-           assistant" for the student. */
-        const transient = res.status === 429 || res.status === 503;
-        if (!transient) break;
-        const waitMs = res.status === 503 ? OVERLOAD_WAIT_MS : RETRY_WAIT_MS;
-
-        /* Gemini's free tier allows only a handful of requests per minute,
-           and one question costs several — the first call plus one per tool
-           turn. So the limit is reached by asking two questions in a row, not
-           by being popular.
-
-           It is also a limit you wait out rather than one you are out of: the
-           window is a minute. Waiting and trying again is what a person would
-           do, so this does it — bounded by the deadline, so it can still
-           answer rather than be killed mid-wait. */
-        const elapsed = Date.now() - startedAt;
-        const roomToWait = elapsed + waitMs + 8_000 < DEADLINE_MS;
-        if (rateLimitRetries >= MAX_RATE_LIMIT_RETRIES || !roomToWait) break;
-
-        rateLimitRetries++;
-        console.warn(
-          `ai-assistant: ${model} returned ${res.status}, waiting ${waitMs}ms (retry ${rateLimitRetries})`,
-        );
-        await new Promise((r) => setTimeout(r, waitMs));
-      }
-
-      if (res.ok) {
-        if (resolvedModel !== model) {
-          console.log(`ai-assistant: using model ${model}`);
-          resolvedModel = model;
-        }
-        return await res.json();
-      }
-
-      lastError = await res.text();
-
-      /* Still 429 after the waiting above. Rate limits are counted PER MODEL
-         — the console shows a separate requests-per-day figure for each — so
-         a candidate that is out of allowance says nothing about the next
-         one. Fall through and try it, exactly as for a model that does not
-         exist. Only when every candidate is exhausted does this become an
-         error the student sees. */
-      if (res.status === 429 || res.status === 503) {
-        rateLimitedSomewhere = true;
-        console.warn(
-          `ai-assistant: model "${model}" returned ${res.status} after retries — trying the next candidate`,
-        );
-        if (resolvedModel === model) resolvedModel = null;
-        continue;
-      }
-
-      const notFound =
-        res.status === 404 || /not found|not supported|unsupported model/i.test(lastError);
-      if (!notFound) throw new Error(`Gemini ${res.status}: ${lastError.slice(0, 400)}`);
-
-      console.error(
-        `ai-assistant: model "${model}" is not available to this key — trying the next candidate. ${lastError.slice(0, 200)}`,
-      );
-      if (resolvedModel === model) resolvedModel = null; // it stopped working
-    }
-
-    if (rateLimitedSomewhere) {
-      const err = new Error(
-        `every model is rate limited (tried ${tryList.join(", ")})`,
-      ) as Error & { rateLimited?: boolean };
-      err.rateLimited = true;
-      throw err;
-    }
-
-    throw new Error(
-      `No usable Gemini model. Tried: ${tryList.join(", ")}. Last error: ${lastError.slice(0, 400)}`,
-    );
-  }
-
-  try {
-    for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
-      if (Date.now() - startedAt > DEADLINE_MS) {
-        ranOutOfTime = true;
-        console.warn(`ai-assistant: deadline hit after ${turn} tool turns`);
-        break;
-      }
-      const geminiData = await callGemini({
-        contents,
-        tools: TOOLS,
-        systemInstruction: { parts: [{ text: systemInstructionText }] },
-        // Greetings/small talk benefit from a little more natural variation
-        // than the grounded-answer default; the model still can't invent
-        // facts since tool results are unaffected by this.
-        generationConfig: { temperature: 0.4 },
-      });
-
-      const candidate = geminiData.candidates?.[0];
-      // deno-lint-ignore no-explicit-any
-      const parts: any[] = candidate?.content?.parts ?? [];
-
-      // deno-lint-ignore no-explicit-any
-      const calls = parts.filter((p: any) => p.functionCall);
-
-      if (calls.length > 0) {
-        /* Echo the model's turn back exactly as it came.
-
-           This used to rebuild the part as { functionCall: { name, args } },
-           which drops the thought_signature Gemini 3 attaches to it — and
-           the API rejects the next request outright:
-           "Function call is missing a thought_signature in functionCall
-           parts". Every question that needed a tool failed with a 400, so
-           only greetings, which call no tools, ever worked.
-
-           All calls in the turn are answered, not just the first: the model
-           can ask for two lookups at once, and serving one of them silently
-           dropped the other. */
-        contents.push(candidate.content);
-
-        const responses = [];
-        for (const part of calls) {
-          const { name, args } = part.functionCall;
-          const result = await executeTool(name, args ?? {});
-          responses.push({ functionResponse: { name, response: { result } } });
-        }
-        contents.push({ role: "user", parts: responses });
-        continue;
-      }
-
-      // deno-lint-ignore no-explicit-any
-      const textPart = parts.find((p: any) => typeof p.text === "string");
-      finalText = textPart?.text ?? null;
-      break;
-    }
-  } catch (err) {
-    if ((err as { rateLimited?: boolean })?.rateLimited) {
-      console.warn("ai-assistant: rate limited by Gemini");
+  if (answeredBy === null) {
+    if (!realError && rateLimited) {
+      console.warn("ai-assistant: rate limited everywhere");
       return jsonResponse({
         reply:
           "I'm being rate limited by the AI service — it allows only a few requests a minute, and one question uses several of them. I already waited and tried again. Give it a minute and ask once more.",
       });
     }
-    /* Say what actually failed. The previous version returned a bare
-       "Internal error", which is how a wrong model name managed to look like
-       a merely unhelpful assistant for weeks instead of a broken one. */
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error("ai-assistant function error:", detail);
-    return jsonResponse({ error: "AI service error", detail: detail.slice(0, 500) }, 502);
+    if (!realError && ranOutOfTime) {
+      return jsonResponse({
+        reply:
+          "That one took me longer than I'm allowed — the AI model was too slow to answer in time. Try again in a moment, or ask it in a smaller piece.",
+      });
+    }
+    if (!realError) {
+      return jsonResponse({
+        reply:
+          "I can't reach the AI model right now — it may be busy or restarting. Give it a minute and ask again. Your **Results**, **Graduation Planner** and **Enrollment** pages have the same information in the meantime.",
+      });
+    }
+    /* Say what actually failed. A bare "Internal error" is how a wrong model
+       name once passed for a merely unhelpful assistant for weeks. */
+    console.error("ai-assistant: no provider could answer:", failures.join(" | "));
+    return jsonResponse(
+      { error: "AI service error", detail: failures.join(" | ").slice(0, 500) },
+      502,
+    );
   }
+  console.log(`ai-assistant: answered by ${answeredBy}`);
 
   if (!finalText) {
     return jsonResponse({
