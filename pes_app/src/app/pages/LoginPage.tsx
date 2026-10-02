@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Eye, EyeOff, GraduationCap, Landmark, Lock, Mail } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, GraduationCap, Landmark, Lock, Mail } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/AuthContext";
+import { accountCall } from "../../lib/accounts";
+import { takeSignOutReason } from "../../lib/accountGuard";
 import { homeFor } from "../components/ProtectedRoute";
 import type { Role } from "../../lib/types";
 import universityLogo from "../../assets/logo.jpg";
@@ -13,14 +15,34 @@ import facultyBuilding from "../../assets/faculty-building-wide.webp";
 export default function LoginPage() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
+  const [params] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
+  // Arriving from "Go to sign in" after setting a password: the address is known.
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
-  /* Passwords are reset by the faculty, not by the app, so "Forgot
-     password?" says how rather than being a button that did nothing. */
-  const [showReset, setShowReset] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(params.get("forgot") === "1");
+  const [resetFor, setResetFor] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  // Why the app signed this person out, e.g. their account was deactivated.
+  const [error, setError] = useState<string | null>(takeSignOutReason);
   const [loading, setLoading] = useState(false);
+
+  /* The link goes to the email the account is registered with. The answer
+     is the same whether or not an account matched, so this cannot be used
+     to find out who has one. */
+  const requestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetMessage(null);
+    if (!resetFor.trim()) return setResetError("Enter your email address or registration number.");
+    setResetSending(true);
+    const { data, error: e2 } = await accountCall<{ message: string }>({ action: "request_reset", identifier: resetFor.trim() });
+    setResetSending(false);
+    if (e2 || !data) setResetError(e2 ?? "The request could not be sent. Try again.");
+    else setResetMessage(data.message);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +56,10 @@ export default function LoginPage() {
       setError(
         /invalid login credentials/i.test(error)
           ? "Invalid email or password. Please try again."
+          : /banned/i.test(error)
+            ? "This account has been deactivated. Contact the faculty office if you think this is a mistake."
+          : /email not confirmed/i.test(error)
+            ? "This account is not set up yet. Use the link in your invitation email to choose a password."
           : /fetch|network/i.test(error)
             ? "Could not reach PES. Check your connection and try again."
             : `Sign-in failed: ${error}`,
@@ -121,29 +147,15 @@ export default function LoginPage() {
                   type="button"
                   aria-expanded={showReset}
                   aria-controls="reset-help"
-                  onClick={() => setShowReset((v) => !v)}
+                  onClick={() => {
+                    setShowReset((v) => !v);
+                    if (!resetFor) setResetFor(email);
+                  }}
                   className="rounded text-[15px] font-semibold text-[#d11238] transition-colors hover:text-[#aa0e2c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c81436]/30"
                 >
                   Forgot password?
                 </button>
               </div>
-              {showReset && (
-                <p
-                  id="reset-help"
-                  className="rounded-lg border border-[#d7dbe4] bg-[#f7f8fa] px-4 py-3 text-sm text-[#5d6479]"
-                >
-                  Passwords are reset by the faculty, not here. To ask for
-                  one, email{" "}
-                  <a
-                    href="mailto:support@sjp.ac.lk?subject=PES%20password%20reset"
-                    className="font-semibold text-[#d11238] hover:underline"
-                  >
-                    support@sjp.ac.lk
-                  </a>{" "}
-                  from your university address with your index number.
-                </p>
-              )}
-
               {error && (
                 <div role="alert" className="rounded-lg border border-[#d11238]/20 bg-[#d11238]/[0.06] px-4 py-3 text-sm text-[#b40f30]">
                   {error}
@@ -168,6 +180,49 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            {showReset && (
+              <form
+                id="reset-help"
+                onSubmit={requestReset}
+                className="mt-5 space-y-3 rounded-lg border border-[#d7dbe4] bg-[#f7f8fa] px-4 py-4"
+              >
+                <div>
+                  <p className="text-[15px] font-semibold text-[#111a3a]">Reset your password</p>
+                  <p className="mt-0.5 text-sm text-[#5d6479]">
+                    Enter your email address or registration number. A link to choose a new password goes to the email address
+                    your PES account is registered with.
+                  </p>
+                </div>
+                {resetMessage ? (
+                  <p role="status" className="flex items-start gap-2 text-sm text-emerald-800">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                    {resetMessage}
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        aria-label="Email address or registration number"
+                        placeholder="Email or registration number"
+                        value={resetFor}
+                        onChange={(e) => setResetFor(e.target.value)}
+                        autoComplete="username"
+                        className="h-11 flex-1 rounded-lg border-[#d7dbe4] bg-white text-[15px] text-[#111a3a] dark:bg-white"
+                      />
+                      <Button
+                        type="submit"
+                        disabled={resetSending}
+                        className="h-11 rounded-lg bg-[#111a3a] px-5 font-semibold text-white hover:bg-[#1f2a52]"
+                      >
+                        {resetSending ? "Sending…" : "Send link"}
+                      </Button>
+                    </div>
+                    {resetError && <p role="alert" className="text-sm text-[#b40f30]">{resetError}</p>}
+                  </>
+                )}
+              </form>
+            )}
 
             <div className="mt-7 flex items-center gap-4 text-[#a2a8b8]">
               <span className="h-px flex-1 bg-[#d8dce5]" />

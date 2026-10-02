@@ -3,6 +3,11 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { Student, StaffContext } from "../../lib/types";
 import { loadSettings } from "../../lib/settings";
+import {
+  accountStillActive,
+  DEACTIVATED_MESSAGE,
+  rememberSignOutReason,
+} from "../../lib/accountGuard";
 
 interface AuthContextType {
   user: User | null;
@@ -141,6 +146,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStudent(profile);
       setStaff(staffContext);
     });
+  }, [user?.id]);
+
+  /* A deactivated account is signed out at once, not when its login token
+     next expires: checked now, whenever the tab comes back into view, and
+     every five minutes. */
+  useEffect(() => {
+    if (!user) return;
+    let stopped = false;
+    const check = async () => {
+      if (stopped || (await accountStillActive())) return;
+      stopped = true;
+      rememberSignOutReason(DEACTIVATED_MESSAGE);
+      await supabase.auth.signOut().catch(() => undefined);
+      window.location.assign("/");
+    };
+    check();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(check, 5 * 60_000);
+    return () => {
+      stopped = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
   }, [user?.id]);
 
   const signIn = async (email: string, password: string) => {

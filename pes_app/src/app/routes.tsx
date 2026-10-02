@@ -93,6 +93,9 @@ const AdminFeedback = page(() => import("./pages/admin/AdminFeedback"));
 const AdminEnrollment = page(() => import("./pages/admin/AdminEnrollment"));
 const AdminHods = page(() => import("./pages/admin/AdminHods"));
 const AdminBatches = page(() => import("./pages/admin/AdminBatches"));
+const AdminUsers = page(() => import("./pages/admin/AdminUsers"));
+/* Where emailed invitation and password-reset links land; no sign-in needed. */
+const AccountLinkPage = page(() => import("./pages/AccountLinkPage"));
 const AdminProfile = page(() => import("./pages/admin/AdminProfile"));
 
 /* Staff (lecturer + HOD). One portal for both: a head of department is a
@@ -126,6 +129,8 @@ export const router = createBrowserRouter([
     path: "/",
     element: <LoginPage />,
   },
+  { path: "/account/setup", element: held(<AccountLinkPage />) },
+  { path: "/account/reset", element: held(<AccountLinkPage />) },
   {
     path: "/app",
     element: held(
@@ -169,6 +174,7 @@ export const router = createBrowserRouter([
       { path: "enrollment", element: held(<AdminEnrollment />) },
       { path: "hods", element: held(<AdminHods />) },
       { path: "batches", element: held(<AdminBatches />) },
+      { path: "users", element: held(<AdminUsers />) },
       { path: "profile", element: held(<AdminProfile />) },
       { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },

@@ -13,6 +13,7 @@ import {
   UserRound,
   Megaphone,
   Layers,
+  UsersRound,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -39,6 +40,7 @@ const navigation: ShellNavItem[] = [
    or removing it is too. The RPCs refuse a department admin either way — the
    sidebar should say so before they click. */
 const superAdminOnly: ShellNavItem[] = [
+  { name: "Users", href: "/admin/users", icon: UsersRound },
   { name: "Batches", href: "/admin/batches", icon: Layers },
   { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
 ];
