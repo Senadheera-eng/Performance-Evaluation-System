@@ -36,11 +36,19 @@ export interface ModelTurn {
 }
 
 export interface ChatStart {
+  /** The instructions: the same for every student and every question. */
   system: string;
+  /** What changes per question -- today's date, the student's name. Kept
+      apart from `system` so a model server can keep the instructions'
+      prompt cached across students. */
+  context?: string;
   history: { role: "user" | "assistant"; content: string }[];
   message: string;
   tools: ToolDeclaration[];
   temperature: number;
+  /** Shorter instructions and tool descriptions, for a small model on a CPU,
+      and a hint naming the lookup the question probably needs. */
+  compact?: { system: string; tools: ToolDeclaration[]; hint?: string | null };
 }
 
 /** One question's conversation with one provider, in its own wire format. */
@@ -54,6 +62,11 @@ export interface Provider {
   id: string;
   /** For logs and the operator health check. Never contains a key. */
   label: string;
+  /** Fewer lookups per question than the default, for a slow model. */
+  maxToolTurns?: number;
+  /** Lists are laid out by code rather than retyped by this model, and its
+      search answers get their sources listed (see present.ts). */
+  presentsDirectly?: boolean;
   start(chat: ChatStart): ModelSession;
 }
 
@@ -118,29 +131,91 @@ function callWrittenAsText(text: string, toolNames: Set<string>): ToolCall | nul
   }
 }
 
-/** Tool results can be long; a local model's context is not. */
-const LOCAL_RESULT_LIMIT = 12_000;
+/*
+  A tool result, made small: nulls and empty values dropped, long decimals
+  rounded. A model on a CPU reads every character of it before it can write
+  a word, so a third off a result is a third off the wait.
+*/
+function compactResult(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(compactResult);
+  if (typeof value === "number" && !Number.isInteger(value)) return Math.round(value * 100) / 100;
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) continue;
+    out[k] = compactResult(v);
+  }
+  return out;
+}
+
+/** Thinking models (Qwen 3 and others) may write their reasoning first. */
+const stripThinking = (text: string) => text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+/*
+  How a local model is used.
+
+  "small" is for a 1.5-4B model on a CPU with a few GB of memory: the short
+  instructions and tool descriptions (under half the full ones), short
+  history, trimmed tool results, a cap on the answer's length and at most
+  three lookups per question. "full" sends exactly what Gemini gets, for a
+  7B+ model on a GPU.
+
+  Either way the instructions open every request unchanged, and what changes
+  per question (the date, the student's name) travels with the question
+  instead. llama.cpp and Ollama keep the last prompt's processed state and
+  reuse whatever beginning the next one shares with it, so the instructions
+  are read once, not once per question: a 3B model on a CPU took 24 s to
+  answer "hi" the first time and 2 s every time after.
+*/
+export type LocalProfile = "small" | "full";
+
+const PROFILE = {
+  small: { resultLimit: 3_500, historyTurns: 4, historyChars: 600, maxTokens: 450, toolTurns: 3 },
+  full: { resultLimit: 12_000, historyTurns: 8, historyChars: 4_000, maxTokens: 1_500, toolTurns: 6 },
+} as const;
 
 export function localProvider(opts: {
   url: string;
   model: string;
   apiKey?: string | null;
+  profile?: LocalProfile;
 }): Provider {
   const endpoint = opts.url.replace(/\/+$/, "") + "/chat/completions";
+  const profileName: LocalProfile = opts.profile ?? "small";
+  const profile = PROFILE[profileName];
+  const thinkingModel = /qwen3|deepseek-r1|think/i.test(opts.model);
   return {
     id: "local",
-    label: `local model ${opts.model}`,
+    label: `local model ${opts.model} (${profileName})`,
+    maxToolTurns: profile.toolTurns,
+    presentsDirectly: profileName === "small",
     start(chat) {
-      const toolNames = new Set(chat.tools.map((t) => t.name));
-      const tools = chat.tools.map((t) => ({
+      const small = profileName === "small" && chat.compact;
+      const system = small ? chat.compact!.system : chat.system;
+      const declared = small ? chat.compact!.tools : chat.tools;
+      const toolNames = new Set(declared.map((t) => t.name));
+      const tools = declared.map((t) => ({
         type: "function",
         function: { name: t.name, description: t.description, parameters: toJsonSchema(t.parameters) },
       }));
+      const history = chat.history.slice(-profile.historyTurns).map((h) => ({
+        role: h.role,
+        content: h.content.length > profile.historyChars
+          ? h.content.slice(0, profile.historyChars) + " …"
+          : h.content,
+      }));
       // deno-lint-ignore no-explicit-any
       const messages: any[] = [
-        { role: "system", content: chat.system },
-        ...chat.history.map((h) => ({ role: h.role, content: h.content })),
-        { role: "user", content: chat.message },
+        { role: "system", content: system },
+        ...history,
+        {
+          role: "user",
+          content: [
+            chat.context ? `(${chat.context})` : null,
+            small && chat.compact!.hint ? `(${chat.compact!.hint})` : null,
+            chat.message,
+          ].filter(Boolean).join("\n\n"),
+        },
       ];
       let callCount = 0;
 
@@ -158,8 +233,19 @@ export function localProvider(opts: {
                 model: opts.model,
                 messages,
                 ...(tools.length ? { tools } : {}),
-                temperature: chat.temperature,
+                // A small model copies dates and numbers more faithfully
+                // when it is not asked to vary its wording.
+                temperature: profileName === "small" ? 0 : chat.temperature,
+                max_tokens: profile.maxTokens,
                 stream: false,
+                /* A thinking model reasons before it answers: on a CPU that
+                   took a one-word answer from 0.3 s to 50 s in testing.
+                   Ollama turns it off with reasoning_effort "none" (its
+                   "think" flag is ignored on this endpoint); llama.cpp and
+                   vLLM with the chat template's enable_thinking. */
+                ...(thinkingModel
+                  ? { reasoning_effort: "none", chat_template_kwargs: { enable_thinking: false } }
+                  : {}),
               }),
               signal: AbortSignal.timeout(Math.max(1_000, timeoutMs)),
             });
@@ -197,7 +283,7 @@ export function localProvider(opts: {
               name: c.function.name,
               args: parseArgs(c.function.arguments),
             }));
-          const content = typeof msg.content === "string" ? msg.content : null;
+          const content = typeof msg.content === "string" ? stripThinking(msg.content) : null;
 
           if (calls.length === 0 && content) {
             const written = callWrittenAsText(content, toolNames);
@@ -222,9 +308,9 @@ export function localProvider(opts: {
 
         answer(results) {
           for (const { call, result } of results) {
-            let content = JSON.stringify(result ?? null);
-            if (content.length > LOCAL_RESULT_LIMIT) {
-              content = content.slice(0, LOCAL_RESULT_LIMIT) + " …(truncated)";
+            let content = JSON.stringify(compactResult(result ?? null));
+            if (content.length > profile.resultLimit) {
+              content = content.slice(0, profile.resultLimit) + " …(truncated: ask about one semester or course for the rest)";
             }
             messages.push({ role: "tool", tool_call_id: call.id, content });
           }
@@ -275,7 +361,9 @@ export function geminiProvider(opts: {
       const body = () => ({
         contents,
         ...(chat.tools.length ? { tools: [{ functionDeclarations: chat.tools }] } : {}),
-        systemInstruction: { parts: [{ text: chat.system }] },
+        systemInstruction: {
+          parts: [{ text: chat.context ? `${chat.system}\n\n${chat.context}` : chat.system }],
+        },
         generationConfig: { temperature: chat.temperature },
       });
 
@@ -434,6 +522,13 @@ export async function answerWithFirstAvailable(opts: {
   cooldownUntil: Map<string, number>;
   chat: ChatStart;
   executeTool: (name: string, args: Record<string, unknown>) => Promise<unknown>;
+  /** For a provider that presentsDirectly. */
+  present?: {
+    result: (name: string, args: Record<string, unknown>, result: unknown) => string | null;
+    sources: (name: string, result: unknown) => string[];
+    /** The result as the model is given it. */
+    simplify: (name: string, result: unknown) => unknown;
+  };
   startedAt: number;
   deadlineMs: number;
   maxToolTurns: number;
@@ -454,7 +549,10 @@ export async function answerWithFirstAvailable(opts: {
 
   async function answerWith(provider: Provider): Promise<string | null> {
     const session = provider.start(opts.chat);
-    for (let turn = 0; turn < opts.maxToolTurns; turn++) {
+    const turns = Math.min(opts.maxToolTurns, provider.maxToolTurns ?? opts.maxToolTurns);
+    const present = provider.presentsDirectly ? opts.present : undefined;
+    const sources: string[] = [];
+    for (let turn = 0; turn < turns; turn++) {
       const remaining = opts.deadlineMs - elapsed();
       if (remaining < 2_000) {
         out.ranOutOfTime = true;
@@ -462,12 +560,31 @@ export async function answerWithFirstAvailable(opts: {
         return null;
       }
       const reply = await session.next(remaining);
-      if (reply.calls.length === 0) return reply.text;
+      if (reply.calls.length === 0) {
+        // Sources are listed under an answer that cites none itself.
+        const cites = /\]\(https?:|\bp(age|\.)\s*\d/i.test(reply.text ?? "");
+        return reply.text && sources.length && !cites
+          ? `${reply.text}\n\nSource: ${sources.join(" · ")}`
+          : reply.text;
+      }
       /* All calls in the turn are answered, not just the first: the model
          can ask for two lookups at once. */
       const results = [];
       for (const call of reply.calls) {
         results.push({ call, result: await opts.executeTool(call.name, call.args) });
+      }
+      if (present) {
+        for (const r of results) {
+          for (const s of present.sources(r.call.name, r.result)) if (!sources.includes(s)) sources.push(s);
+        }
+        /* One list lookup: its table is the answer, written from the data
+           rather than retyped by the model. */
+        if (results.length === 1) {
+          const direct = present.result(results[0].call.name, results[0].call.args, results[0].result);
+          if (direct) return direct;
+        }
+        session.answer(results.map((r) => ({ ...r, result: present.simplify(r.call.name, r.result) })));
+        continue;
       }
       session.answer(results);
     }
@@ -531,8 +648,9 @@ export function configuredProviders(env: (name: string) => string | undefined, m
   const local = env("LOCAL_LLM_URL")?.trim()
     ? localProvider({
         url: env("LOCAL_LLM_URL")!.trim(),
-        model: env("LOCAL_LLM_MODEL")?.trim() || "llama3.1:8b",
+        model: env("LOCAL_LLM_MODEL")?.trim() || "qwen2.5:3b",
         apiKey: env("LOCAL_LLM_API_KEY")?.trim() || null,
+        profile: env("LOCAL_LLM_PROFILE")?.trim().toLowerCase() === "full" ? "full" : "small",
       })
     : null;
 

@@ -73,7 +73,8 @@ A plain-English explanation of RAG and the assistant's tools is in `docs/PES_Gui
 
 | Secret | What it does |
 | --- | --- |
-| `LOCAL_LLM_URL`, `LOCAL_LLM_MODEL`, `LOCAL_LLM_API_KEY` | The faculty's own model, through any OpenAI-compatible server (Ollama, llama.cpp, vLLM). Hardware and setup: [`docs/local-llm.md`](docs/local-llm.md) |
+| `LOCAL_LLM_URL`, `LOCAL_LLM_MODEL`, `LOCAL_LLM_API_KEY` | The faculty's own model, through any OpenAI-compatible server (Ollama, llama.cpp, vLLM). No GPU needed: `qwen2.5:3b` runs in 8 GB of RAM on a CPU. Hardware, measured speeds and setup: [`docs/local-llm.md`](docs/local-llm.md) |
+| `LOCAL_LLM_PROFILE` | `small` (default, for a 1.7–4B model on a CPU: short instructions, tables written by code, readable search results) or `full` (a 7B+ model on a GPU) |
 | `GEMINI_API_KEYS` (comma-separated) / `GEMINI_API_KEY` | Gemini; a key out of allowance or refused is rested and the next is used |
 | `AI_PROVIDERS` | The order, default `local,gemini` |
 | `GEMINI_MODEL` | Overrides the Gemini model |
