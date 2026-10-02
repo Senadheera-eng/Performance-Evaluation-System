@@ -53,6 +53,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - Manual attendance registers, result review and grade correction (the original grade is kept)
 - The course catalogue and minors; enrolment windows and HOD appointments are the super admin's, and department offices watch enrolment read-only
 - Medical certificate review, feedback rounds (create, open, close, and approve lecturers' requests), notices, and department-wide dashboards
+- **Users** (super admin): add students, lecturers and department admins by **email invitation** — each chooses their own password from a single-use link that expires in 72 hours — and **deactivate** or reactivate anyone below the super admin. Deactivation ends access at once (sign-in barred, admin and lecturer rights refused by the database, open sessions signed out by the app) and deletes nothing: results, attendance, feedback and enrolment history stay. **Forgot password** on the sign-in page sends a single-use reset link, valid 60 minutes, to the email the account is registered with
 - **Batches** (super admin): bring a new intake in from the faculty's Excel/CSV list — each student gets a sign-in account and a temporary password, handed out as a sheet and changed at first sign-in — divide a batch into departments from a list, and remove a batch that has left with all its records (results, attendance, enrolments, medical submissions and files, mentoring, sign-in accounts). Course feedback is kept without names unless the super admin chooses otherwise, and the batch's records can be downloaded as a workbook first
 
 ---
@@ -93,6 +94,15 @@ Two settings are relaxed while PES is developed by one person, and both must go 
    update system_settings set value = '5' where key = 'feedback_min_responses_for_analytics';
    ```
 
+3. **Email for invitations and password resets.** Create a [Resend](https://resend.com) account, verify a sending domain (e.g. `eng.sjp.ac.lk`, by adding the DNS records Resend gives you), create an API key, and set these Supabase secrets:
+   - `RESEND_API_KEY` — the key
+   - `PES_EMAIL_FROM` — e.g. `PES <no-reply@eng.sjp.ac.lk>`
+   - `PES_APP_URL` — the address the links open, default `https://pes-usj.vercel.app`
+
+   Until then, the Users page shows each invitation link for the super admin to send by hand, and "Forgot password" cannot deliver its email. Resend's test sender (`onboarding@resend.dev`) only delivers to the email the Resend account was opened with.
+
+4. **Turn off public sign-up** under Supabase → Authentication → Sign In / Providers ("Allow new users to sign up"). Accounts are created only by invitation and batch intake; with sign-up on, anyone holding the public key could create a sign-in account (one with no access to any data).
+
 Also enable **leaked password protection** under Supabase → Authentication → Settings (it needs the Pro plan).
 
 ---
@@ -113,7 +123,8 @@ Supabase
   ├── Realtime      mentor chat
   ├── Edge Function ai-assistant → the faculty's own model (Ollama) and/or Google Gemini
   ├── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
-  └── Edge Function manage-batches    creates and deletes students' sign-in accounts (super admin only)
+  ├── Edge Function manage-batches    creates and deletes students' sign-in accounts (super admin only)
+  └── Edge Function account           invitations, password resets, deactivation; emails through Resend
 ```
 
 | Layer              | Technology                                          |
