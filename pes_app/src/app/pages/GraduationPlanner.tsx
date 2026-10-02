@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   Award,
   CheckCircle2,
+  ClipboardPen,
   FlaskConical,
   GraduationCap,
   Hourglass,
@@ -48,6 +49,9 @@ const EXPECTED_ELECTIVE_CREDITS: Record<string, Record<number, number>> = {
 
 
 
+/** The "—" choice: no guess, so the course is not counted. */
+const NO_GUESS = "__none__";
+
 const classificationForGpa = (gpa: number): string => {
   const match = getSettings().honoursClassifications.find(
     (c) => gpa >= c.threshold,
@@ -70,6 +74,36 @@ interface CourseResult {
   actualGpv: number | null;
 }
 
+/** A course the student is sitting now, with no result yet. */
+interface InProgressCourse {
+  courseId: string;
+  code: string;
+  title: string;
+  semester: number;
+  credits: number;
+}
+
+/* Guessed grades stay in this browser. They are the student's own
+   what-ifs, never sent anywhere, and kept only so they survive a reload. */
+const guessKey = (studentId: string) => `pes.planner.guesses.${studentId}`;
+function loadGuesses(studentId: string): Record<string, string> {
+  try {
+    const raw = window.localStorage.getItem(guessKey(studentId));
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+function saveGuesses(studentId: string, guesses: Record<string, string>) {
+  try {
+    if (Object.keys(guesses).length === 0) window.localStorage.removeItem(guessKey(studentId));
+    else window.localStorage.setItem(guessKey(studentId), JSON.stringify(guesses));
+  } catch {
+    /* Private window or blocked storage: the guesses just don't persist. */
+  }
+}
+
 interface SemesterCredit {
   semester: number;
   compulsoryCredits: number;
@@ -88,6 +122,10 @@ export default function GraduationPlanner() {
   const [simulatedGrades, setSimulatedGrades] = useState<
     Record<string, string>
   >({});
+  const [inProgress, setInProgress] = useState<InProgressCourse[]>([]);
+  // Keyed by course id: the grade the student expects in a course they are
+  // sitting now. A course left without one is not counted.
+  const [guessedGrades, setGuessedGrades] = useState<Record<string, string>>({});
   const [remainingSemesterCredits, setRemainingSemesterCredits] = useState<
     SemesterCredit[]
   >([]);
@@ -104,9 +142,47 @@ export default function GraduationPlanner() {
     const { data: results } = await supabase
       .from("my_published_results")
       .select(
-        "id, grade, gpv, course_id, course_code, course_title, semester, credits, contributes_to_gpa",
+        "id, grade, gpv, course_id, course_code, course_title, semester, credits, contributes_to_gpa, academic_year",
       )
       .not("gpv", "is", null);
+
+    /* The courses the student is sitting this semester. One already graded
+       for this academic year is in the results above; the rest are what the
+       student can put a guess against. A course with no GPA weight cannot
+       move the GPA, so it is left out. */
+    const { data: enrolled } = await supabase
+      .from("enrollments")
+      .select(
+        "course_id, academic_year, courses(course_code, title, semester, credits, contributes_to_gpa)",
+      )
+      .eq("student_id", student!.id)
+      .eq("status", "enrolled");
+    const graded = new Set(
+      (results ?? []).map((r: any) => `${r.course_id}|${r.academic_year}`),
+    );
+    const current: InProgressCourse[] = (enrolled ?? [])
+      .filter(
+        (e: any) =>
+          e.courses?.contributes_to_gpa &&
+          !graded.has(`${e.course_id}|${e.academic_year}`),
+      )
+      .map((e: any) => ({
+        courseId: e.course_id,
+        code: e.courses.course_code,
+        title: e.courses.title,
+        semester: e.courses.semester,
+        credits: e.courses.credits,
+      }))
+      .sort((a, b) => a.semester - b.semester || a.code.localeCompare(b.code));
+    setInProgress(current);
+    const saved = loadGuesses(student!.id);
+    setGuessedGrades(
+      Object.fromEntries(
+        Object.entries(saved).filter(
+          ([id, g]) => current.some((c) => c.courseId === id) && g in GPV,
+        ),
+      ),
+    );
 
     const courseRows: CourseResult[] = (results ?? []).map((r: any) => ({
       resultRowId: r.id,
@@ -152,7 +228,10 @@ export default function GraduationPlanner() {
     setLoading(false);
   };
 
-  const computeStanding = (gradeOverrides: Record<string, string>) => {
+  const computeStanding = (
+    gradeOverrides: Record<string, string>,
+    guesses: Record<string, string> = {},
+  ) => {
     const gpaCourses = allCourses.filter((c) => c.contributesToGpa);
     let totalWeighted = 0;
     let totalCredits = 0;
@@ -168,6 +247,22 @@ export default function GraduationPlanner() {
       const gpv = override
         ? (GPV[override] ?? 0)
         : (c.actualGpv ?? (c.actualGrade ? (GPV[c.actualGrade] ?? 0) : 0));
+      totalWeighted += gpv * c.credits;
+      totalCredits += c.credits;
+      if (!bySemester[c.semester])
+        bySemester[c.semester] = { weighted: 0, credits: 0 };
+      bySemester[c.semester].weighted += gpv * c.credits;
+      bySemester[c.semester].credits += c.credits;
+    });
+
+    /* A guess counts as one more result, the way the official CGPA will
+       count it once the real grade is published: credits from the course
+       catalogue, worth what the scale says. A course being repeated keeps
+       its earlier attempt, as the official record does. */
+    inProgress.forEach((c) => {
+      const guess = guesses[c.courseId];
+      if (!guess) return;
+      const gpv = GPV[guess] ?? 0;
       totalWeighted += gpv * c.credits;
       totalCredits += c.credits;
       if (!bySemester[c.semester])
@@ -195,11 +290,42 @@ export default function GraduationPlanner() {
 
   const actualStanding = useMemo(() => computeStanding({}), [allCourses]);
   const simulatedStanding = useMemo(
-    () => computeStanding(simulatedGrades),
-    [allCourses, simulatedGrades],
+    () => computeStanding(simulatedGrades, guessedGrades),
+    [allCourses, simulatedGrades, inProgress, guessedGrades],
   );
 
-  const hasSimulation = Object.keys(simulatedGrades).length > 0;
+  const guessCount = Object.keys(guessedGrades).length;
+  const guessedCredits = inProgress
+    .filter((c) => guessedGrades[c.courseId])
+    .reduce((n, c) => n + c.credits, 0);
+  const hasSimulation = Object.keys(simulatedGrades).length > 0 || guessCount > 0;
+
+  const setGuess = (courseId: string, grade: string | null) => {
+    setGuessedGrades((prev) => {
+      const next = { ...prev };
+      if (grade) next[courseId] = grade;
+      else delete next[courseId];
+      if (student?.id) saveGuesses(student.id, next);
+      return next;
+    });
+  };
+
+  const resetSimulation = () => {
+    setSimulatedGrades({});
+    setGuessedGrades({});
+    if (student?.id) saveGuesses(student.id, {});
+  };
+
+  const inProgressBySemester = useMemo(() => {
+    const groups: Record<number, InProgressCourse[]> = {};
+    inProgress.forEach((c) => {
+      (groups[c.semester] ??= []).push(c);
+    });
+    return Object.entries(groups)
+      .map(([sem, courses]) => ({ semester: Number(sem), courses }))
+      .sort((a, b) => a.semester - b.semester);
+  }, [inProgress]);
+  const inProgressSemesters = inProgressBySemester.map((g) => g.semester);
 
   const buildProjections = (cgpa: number, credits: number) => {
     const remaining = Math.max(0, TOTAL_CREDITS_REQUIRED - credits);
@@ -244,7 +370,15 @@ export default function GraduationPlanner() {
 
   // Accurate per-semester total credits: confirmed compulsory (from DB) +
   // expected elective credits (from the handbook's Elective(N) labels)
-  const semesterTotals = remainingSemesterCredits.map((sem) => {
+  const fullyGuessed = (semester: number) =>
+    activeTab === "simulator" &&
+    inProgress.some((c) => c.semester === semester) &&
+    inProgress
+      .filter((c) => c.semester === semester)
+      .every((c) => guessedGrades[c.courseId]);
+  const semesterTotals = remainingSemesterCredits
+    .filter((sem) => !fullyGuessed(sem.semester))
+    .map((sem) => {
     const expectedElective =
       EXPECTED_ELECTIVE_CREDITS[student?.department ?? ""]?.[sem.semester] ??
       null;
@@ -269,23 +403,32 @@ export default function GraduationPlanner() {
 
   const renderStandingCards = (cgpa: number, credits: number) => {
     const simulated = activeTab === "simulator";
+    const projected = simulated && hasSimulation;
     return (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           index={0}
-          label={simulated ? "Simulated CGPA" : "Current CGPA"}
+          label={projected ? "Projected CGPA" : "Current CGPA"}
           value={cgpa.toFixed(2)}
           icon={Award}
           tone="brand"
-          hint={classificationForGpa(cgpa)}
+          hint={
+            projected
+              ? `${classificationForGpa(cgpa)} · now ${actualStanding.cgpa.toFixed(2)}`
+              : classificationForGpa(cgpa)
+          }
         />
         <StatCard
           index={1}
-          label="Credits completed"
+          label={projected && guessedCredits > 0 ? "Credits counted" : "Credits completed"}
           value={credits}
           icon={GraduationCap}
           tone="neutral"
-          hint={`of ${TOTAL_CREDITS_REQUIRED} counted toward the GPA`}
+          hint={
+            projected && guessedCredits > 0
+              ? `including ${guessedCredits} you are sitting now`
+              : `of ${TOTAL_CREDITS_REQUIRED} counted toward the GPA`
+          }
         />
         <StatCard
           index={2}
@@ -380,12 +523,24 @@ export default function GraduationPlanner() {
           )}
         </div>
       ))}
-      {activeTab === "standing" && (
-        <p className="pt-1 text-xs text-muted-foreground">
-          Want to plan one semester harder than another, or see what a
-          different grade would have done? Try the What-If Simulator.
-        </p>
-      )}
+      {activeTab === "standing" &&
+        (inProgress.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <p className="text-xs text-muted-foreground">
+              Semester {inProgressSemesters.join(" and ")} is in progress. Put
+              in the grades you expect and see your CGPA with them.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setActiveTab("simulator")}>
+              <ClipboardPen className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Guess this semester's grades
+            </Button>
+          </div>
+        ) : (
+          <p className="pt-1 text-xs text-muted-foreground">
+            Want to plan one semester harder than another, or see what a
+            different grade would have done? Try the What-If Simulator.
+          </p>
+        ))}
     </SectionCard>
   );
 
@@ -442,20 +597,17 @@ export default function GraduationPlanner() {
               <div className="flex gap-2.5">
                 <FlaskConical className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-foreground">
-                  Change any past module's grade below to see how it would have
-                  affected your SGPA, CGPA, and what you'd need going forward.
-                  This is a sandbox only —{" "}
+                  {inProgress.length > 0
+                    ? "Put in the grades you expect this semester, or change a past grade, to see your SGPA, CGPA and what you'd need going forward."
+                    : "Change any past module's grade below to see how it would have affected your SGPA, CGPA, and what you'd need going forward."}{" "}
+                  These are projections only —{" "}
                   <strong>
                     nothing here changes your real academic record.
                   </strong>
                 </p>
               </div>
               {hasSimulation && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSimulatedGrades({})}
-                >
+                <Button variant="outline" size="sm" onClick={resetSimulation}>
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                   Reset to actual results
                 </Button>
@@ -466,6 +618,100 @@ export default function GraduationPlanner() {
               simulatedStanding.cgpa,
               simulatedStanding.totalCredits,
             )}
+
+            {inProgressBySemester.length > 0 && (
+              <SectionCard
+                title="This semester's courses"
+                description="No results yet. Pick the grade you expect in each; a course left at “—” is not counted. Your guesses stay on this device."
+                bodyClassName="space-y-4"
+              >
+                {inProgressBySemester.map((group) => {
+                  const guessed = group.courses.filter((c) => guessedGrades[c.courseId]);
+                  const sem = simulatedStanding.semesterGpas.find(
+                    (s) => s.semester === group.semester,
+                  );
+                  return (
+                    <div key={group.semester}>
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <h4 className="font-semibold text-foreground">
+                          Semester {group.semester} — in progress
+                        </h4>
+                        <StatusBadge tone={guessed.length > 0 ? "brand" : "neutral"}>
+                          {guessed.length > 0 && sem
+                            ? `Projected SGPA: ${sem.sgpa.toFixed(2)}`
+                            : "Pick grades to see your SGPA"}
+                        </StatusBadge>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {guessed.length} of {group.courses.length} courses
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {group.courses.map((c) => {
+                          const guess = guessedGrades[c.courseId];
+                          const dept = departmentByCourseCode(c.code);
+                          return (
+                            <div
+                              key={c.courseId}
+                              className={cn(
+                                "flex items-center justify-between gap-3 rounded-lg border-l-4 p-2.5 transition-colors",
+                                dept?.stripeClass ?? "border-l-transparent",
+                                guess
+                                  ? "bg-primary/5 ring-1 ring-inset ring-primary/20"
+                                  : cn("bg-muted/30", dept?.hoverClass),
+                              )}
+                            >
+                              <div className="flex min-w-0 flex-col gap-x-2 sm:flex-row sm:items-center">
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "text-xs font-semibold tabular-nums flex-shrink-0",
+                                      dept?.textClass ?? "text-foreground",
+                                    )}
+                                  >
+                                    {c.code}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground sm:hidden">
+                                    {c.credits} credit{c.credits === 1 ? "" : "s"}
+                                  </span>
+                                </span>
+                                <span className="text-sm text-foreground sm:truncate">
+                                  {c.title}
+                                </span>
+                                <span className="hidden text-xs text-muted-foreground flex-shrink-0 sm:inline">
+                                  ({c.credits}cr)
+                                </span>
+                              </div>
+                              <Select
+                                value={guess ?? NO_GUESS}
+                                onValueChange={(val) =>
+                                  setGuess(c.courseId, val === NO_GUESS ? null : val)
+                                }
+                              >
+                                <SelectTrigger
+                                  className="w-24 h-8"
+                                  aria-label={`Expected grade for ${c.code}`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value={NO_GUESS}>—</SelectItem>
+                                  {GRADE_OPTIONS.map((g) => (
+                                    <SelectItem key={g} value={g}>
+                                      {g}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </SectionCard>
+            )}
+
             {renderProjectionsCard()}
 
             <SectionCard
