@@ -1,6 +1,6 @@
 # Database migrations
 
-The 267 migrations in this folder, numbered in the order they were applied.
+The 268 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -279,3 +279,4 @@ New migrations are added to the end of this list.
 | 265 | 2026-10-02 | Accounts are invited reset and deactivated | [`20261002082754_accounts_are_invited_reset_and_deactivated.sql`](20261002082754_accounts_are_invited_reset_and_deactivated.sql) |
 | 266 | 2026-10-02 | An account without a password has not been set up | [`20261002083150_an_account_without_a_password_has_not_been_set_up.sql`](20261002083150_an_account_without_a_password_has_not_been_set_up.sql) |
 | 267 | 2026-10-28 | A course taught over two semesters is graded once | [`20261028113540_a_course_taught_over_two_semesters_is_graded_once.sql`](20261028113540_a_course_taught_over_two_semesters_is_graded_once.sql) |
+| 268 | 2026-10-28 | A result still reports its credits as credits | [`20261028114641_a_result_still_reports_its_credits_as_credits.sql`](20261028114641_a_result_still_reports_its_credits_as_credits.sql) |
