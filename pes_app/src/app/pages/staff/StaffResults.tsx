@@ -63,6 +63,7 @@ import {
   type OfferingResultRow,
   type RosterStudent,
 } from "../../../lib/staffService";
+import { gradedElsewhereMessage, useGradedElsewhere } from "../../../lib/splitCourses";
 
 /**
  * One offering as this page needs it, whichever call it came from.
@@ -154,6 +155,8 @@ export default function StaffResults() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const selected = offerings.find((o) => o.offering_id === selectedId) ?? null;
+  // The first part of a course graded at the end of its second semester.
+  const gradedElsewhere = useGradedElsewhere(selected?.course_id);
 
   /* The grades this faculty awards, in the order the handbook lists them.
      The database refuses anything outside this set, so the dropdown and the
@@ -314,7 +317,9 @@ export default function StaffResults() {
    * database will refuse, and the save would come back half-applied.
    */
   const rowEditable = (r: Row) =>
-    (selected?.canEdit ?? false) && (r.status === null || r.status === "draft");
+    (selected?.canEdit ?? false) &&
+    !gradedElsewhere &&
+    (r.status === null || r.status === "draft");
 
   const publishedCount = rows.filter((r) => r.status === "published").length;
   const submittedCount = rows.filter((r) => r.status === "submitted").length;
@@ -604,7 +609,12 @@ export default function StaffResults() {
             </div>
           )}
 
-          {selected && !selected.canEdit ? (
+          {selected && gradedElsewhere ? (
+            <div className="flex items-start gap-2 rounded-xl border border-info-border bg-info-bg px-3 py-2.5 text-sm text-info-fg">
+              <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              {gradedElsewhereMessage(selected.course_code, selected.semester, gradedElsewhere)}
+            </div>
+          ) : selected && !selected.canEdit ? (
             <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
               <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
               You are viewing this as Head of Department. Marks are entered by
