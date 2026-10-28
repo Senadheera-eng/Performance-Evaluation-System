@@ -9,11 +9,13 @@ import {
   FlaskConical,
   GraduationCap,
   Hourglass,
+  Medal,
   MoreHorizontal,
   Plus,
   RotateCcw,
   Target,
   TrendingUp,
+  Users,
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -78,6 +80,7 @@ import {
   gradeCap,
   isGradedNow,
   DEANS_LIST_SGPA,
+  GOLD_MEDAL_OGPA,
   gradeImpact,
   targetWorking,
   OUTSTANDING_LABEL,
@@ -93,11 +96,15 @@ import {
 import {
   createScenario,
   deleteScenario,
+  getAim,
   listScenarios,
+  saveAim,
+  shareScenario,
   updateScenario,
   type PlannerScenario,
   type ScenarioContent,
 } from "../../lib/plannerScenarios";
+import { getMyMentor } from "../../lib/mentorService";
 
 /** The "—" choice: no guess, so the course is not counted. */
 const NO_GUESS = "__none__";
@@ -179,6 +186,9 @@ export default function GraduationPlanner() {
   const [scenarioError, setScenarioError] = useState<string | null>(null);
   const [nameDialog, setNameDialog] = useState<null | { mode: "new" | "rename"; value: string }>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The mentor a scenario can be shared with; null when there is none.
+  const [mentorName, setMentorName] = useState<string | null>(null);
+  const pendingAim = useRef<{ timer: number; run: () => void } | null>(null);
   // A scenario being opened is not a change to save; and nothing is saved
   // before the page has loaded what it would be saving over.
   const applying = useRef(false);
@@ -190,6 +200,7 @@ export default function GraduationPlanner() {
   useEffect(() => {
     if (!student?.id) return;
     fetchData();
+    getMyMentor().then((r) => setMentorName(r.ok ? (r.data?.name ?? null) : null));
   }, [student?.id]);
 
   const fetchData = async () => {
@@ -235,7 +246,8 @@ export default function GraduationPlanner() {
     /* Saved scenarios. The one opened last on this device, else the newest.
        What-ifs this browser kept before scenarios existed become the first
        one, "My plan", and are then cleared from the browser. */
-    const { data: saved } = await listScenarios();
+    const [{ data: saved }, aim] = await Promise.all([listScenarios(), getAim()]);
+    if (aim && CLASSIFICATIONS.some((c) => c.key === aim)) setTargetClass(aim);
     let list = saved;
     if (list.length === 0) {
       const legacy: ScenarioContent = {
@@ -448,6 +460,10 @@ export default function GraduationPlanner() {
         window.clearTimeout(pending.current.timer);
         void pending.current.run();
       }
+      if (pendingAim.current) {
+        window.clearTimeout(pendingAim.current.timer);
+        pendingAim.current.run();
+      }
     },
     [],
   );
@@ -480,6 +496,32 @@ export default function GraduationPlanner() {
       setScenarios((list) => list.map((x) => (x.id === data.id ? data : x)));
     }
     setNameDialog(null);
+  };
+
+  /* The class picked in Semester targets is the one the student is aiming
+     for: kept with their account (a moment after the last pick), so the
+     planner opens on it and the notice after a semester's results speaks
+     to it. */
+  const pickClass = (key: string) => {
+    setTargetClass(key);
+    if (!student?.id) return;
+    if (pendingAim.current) window.clearTimeout(pendingAim.current.timer);
+    const id = student.id;
+    const run = () => {
+      pendingAim.current = null;
+      void saveAim(id, key);
+    };
+    pendingAim.current = { timer: window.setTimeout(run, 800), run };
+  };
+
+  /* One scenario at a time is shared with the mentor, who sees it read-only
+     with the class aimed for. */
+  const toggleShare = async (sc: PlannerScenario) => {
+    setScenarioError(null);
+    const next = sc.sharedWithMentor ? null : sc.id;
+    const { error } = await shareScenario(next);
+    if (error) return setScenarioError(error);
+    setScenarios((list) => list.map((x) => ({ ...x, sharedWithMentor: x.id === next })));
   };
 
   const removeScenario = async () => {
@@ -671,7 +713,7 @@ export default function GraduationPlanner() {
         <SegmentedTabs
           tabs={CLASSIFICATIONS.map((c) => ({ value: c.key, label: SHORT_CLASS[c.key] ?? c.label }))}
           value={t.key}
-          onChange={setTargetClass}
+          onChange={pickClass}
           layoutId={`planner-class-${activeTab}`}
           aria-label="Class to plan for"
           equal
@@ -835,12 +877,14 @@ export default function GraduationPlanner() {
         {scenarios.length > 0 ? (
           <Select value={activeId ?? undefined} onValueChange={openScenario}>
             <SelectTrigger className="h-8 w-44" aria-label="Open a scenario">
-              <SelectValue placeholder="Pick a scenario" />
+              {/* The name alone: the note beside it says when it is shared. */}
+              <SelectValue placeholder="Pick a scenario">{active?.name}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {scenarios.map((x) => (
                 <SelectItem key={x.id} value={x.id}>
                   {x.name}
+                  {x.sharedWithMentor && <span className="text-muted-foreground"> · shared</span>}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -869,11 +913,22 @@ export default function GraduationPlanner() {
               <DropdownMenuItem onSelect={() => setNameDialog({ mode: "rename", value: active.name })}>
                 Rename
               </DropdownMenuItem>
+              {mentorName && (
+                <DropdownMenuItem onSelect={() => void toggleShare(active)}>
+                  {active.sharedWithMentor ? "Stop sharing with your mentor" : "Share with your mentor"}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-danger-fg" onSelect={() => setConfirmDelete(true)}>
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+        )}
+        {mentorName && active?.sharedWithMentor && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Shared with {mentorName}
+          </span>
         )}
         <span className="text-xs text-muted-foreground" aria-live="polite">
           {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
@@ -1150,10 +1205,14 @@ export default function GraduationPlanner() {
 
   /* What the degree asks for besides a GPA (Handbook p. 25): pass grades for
      144 credits, Industrial Training, and every failed, referred or deferred
-     module cleared. One line each, so it reads as a checklist. */
+     module cleared. One line each, so it reads as a checklist. The gold
+     medal joins it only for a student whose best possible CGPA reaches it. */
   const renderRequirements = () => {
     if (!plan) return null;
     const r = plan.requirements;
+    const gold = classTargets(standing, open, [
+      { key: "gold", label: "Gold medal", threshold: GOLD_MEDAL_OGPA },
+    ])[0];
     const passedPct = Math.min(100, Math.round((r.creditsPassed / r.creditsRequired) * 100));
     const firstFew = toClear
       .slice(0, 3)
@@ -1167,6 +1226,7 @@ export default function GraduationPlanner() {
       detail?: string;
       bar?: number;
       action?: React.ReactNode;
+      icon?: typeof Medal;
     }[] = [
       {
         key: "credits",
@@ -1208,12 +1268,43 @@ export default function GraduationPlanner() {
             },
           ]
         : []),
+      ...(best >= GOLD_MEDAL_OGPA
+        ? [
+            {
+              key: "gold",
+              icon: Medal,
+              // Secured is the OGPA alone: four years and no disciplinary
+              // action are not PES's to know.
+              state: (r.repeated.length === 0 && gold.alreadySecured ? "done" : "todo") as "done" | "todo",
+              label: "Gold medal",
+              value:
+                r.repeated.length > 0
+                  ? "Not eligible"
+                  : gold.alreadySecured
+                    ? `OGPA ${GOLD_MEDAL_OGPA.toFixed(2)} secured`
+                    : `Average ${Math.max(0, gold.required).toFixed(2)} needed`,
+              detail:
+                r.repeated.length > 2
+                  ? `${r.repeated.slice(0, 2).join(", ")} and ${r.repeated.length - 2} more repeated`
+                  : r.repeated.length > 0
+                    ? `${andList(r.repeated)} repeated`
+                    : `OGPA ${GOLD_MEDAL_OGPA.toFixed(2)} in four years, no repeats`,
+            },
+          ]
+        : []),
     ];
 
     return (
-      <SectionCard title="Graduation requirements" bodyClassName="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <SectionCard
+        title="Graduation requirements"
+        bodyClassName={cn(
+          "grid gap-2 sm:grid-cols-2",
+          items.length % 3 === 0 || items.length === 5 ? "lg:grid-cols-3" : "lg:grid-cols-4",
+        )}
+      >
         {items.map((it) => {
-          const Icon = it.state === "done" ? CheckCircle2 : it.state === "attention" ? AlertTriangle : Circle;
+          const Icon =
+            it.icon ?? (it.state === "done" ? CheckCircle2 : it.state === "attention" ? AlertTriangle : Circle);
           return (
             <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-border p-3">
               <Icon

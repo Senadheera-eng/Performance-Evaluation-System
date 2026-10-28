@@ -145,6 +145,42 @@ export async function getMenteeOverview(
   return { ok: true, data: data as MenteeOverview };
 }
 
+/** A mentee's Graduation Planner as their mentor may see it: the plan and
+ *  record the targets are worked out from, and the scenario the student has
+ *  shared (null until they share one), with the class they aim for. */
+export interface MenteeGraduationPlan {
+  plan: unknown;
+  results: {
+    id: string;
+    grade: string | null;
+    gpv: number | null;
+    course_id: string;
+    course_code: string;
+    course_title: string;
+    semester: number;
+    credits: number;
+    contributes_to_gpa: boolean;
+  }[];
+  shared: {
+    name: string;
+    guesses: Record<string, string>;
+    plans: Record<string, number>;
+    past: Record<string, string>;
+    updated_at: string;
+    aim: string | null;
+  } | null;
+}
+
+export async function getMenteeGraduationPlan(
+  studentId: string,
+): Promise<Result<MenteeGraduationPlan>> {
+  const { data, error } = await supabase.rpc("get_mentee_graduation_plan", {
+    p_student: studentId,
+  });
+  if (error) return fail("get_mentee_graduation_plan", error);
+  return { ok: true, data: data as MenteeGraduationPlan };
+}
+
 /* ------------------------------------------------------------------ */
 /* Head of department side                                             */
 /* ------------------------------------------------------------------ */
