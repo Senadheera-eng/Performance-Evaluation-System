@@ -62,7 +62,24 @@ export interface GraduationPlan {
   resitMaxGrade: string;
   semesters: PlanSemester[];
   courses: SittingCourse[];
+  /** Courses whose latest grade is F, R or L, not being sat now. Each must
+   *  be passed to graduate; its grade will replace the one on the record. */
+  outstanding: SittingCourse[];
+  requirements: {
+    /** Credits passed towards the degree, GPA or not, Industrial Training aside. */
+    creditsPassed: number;
+    creditsRequired: number;
+    trainingDone: boolean;
+    minor: { name: string; earned: number; planned: number; required: number; complete: boolean } | null;
+  };
 }
+
+/** What an F, R or L means for the student, in a word. */
+export const OUTSTANDING_LABEL: Record<string, string> = {
+  F: "Failed",
+  R: "Referred",
+  L: "Deferred",
+};
 
 export type GpvScale = Record<string, number>;
 
@@ -119,6 +136,32 @@ export function parsePlan(raw: any): GraduationPlan {
         : null,
       earlierParts: c.earlier_parts ?? [],
     })),
+    outstanding: (raw?.outstanding ?? []).map((o: any) => ({
+      courseId: o.course_id,
+      code: o.course_code,
+      title: o.title,
+      semester: o.semester,
+      credits: o.credits,
+      resultCredits: o.result_credits ?? o.credits,
+      contributesToGpa: !!o.contributes_to_gpa,
+      previous: { grade: o.grade, gpv: Number(o.gpv ?? 0), originalGrade: o.original_grade ?? null },
+      gradedIn: null,
+      earlierParts: [],
+    })),
+    requirements: {
+      creditsPassed: raw?.requirements?.credits_passed ?? 0,
+      creditsRequired: raw?.requirements?.credits_required ?? 144,
+      trainingDone: !!raw?.requirements?.training_done,
+      minor: raw?.requirements?.minor
+        ? {
+            name: raw.requirements.minor.minor,
+            earned: raw.requirements.minor.earned ?? 0,
+            planned: raw.requirements.minor.planned ?? 0,
+            required: raw.requirements.minor.required ?? 20,
+            complete: !!raw.requirements.minor.complete,
+          }
+        : null,
+    },
   };
 }
 
