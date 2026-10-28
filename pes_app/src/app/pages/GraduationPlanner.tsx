@@ -450,7 +450,10 @@ export default function GraduationPlanner() {
           onChange={setTargetClass}
           layoutId={`planner-class-${activeTab}`}
           aria-label="Class to plan for"
-          scrollable
+          equal
+          // Four equal tabs as wide as "Second Upper" do not fit a phone:
+          // there they sit two by two.
+          className="max-sm:w-full max-sm:grid-cols-2!"
         />
         <p className="text-sm text-muted-foreground">
           {t.label} needs a final CGPA of {t.threshold.toFixed(2)} over your{" "}
