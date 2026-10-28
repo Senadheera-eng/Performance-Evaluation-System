@@ -82,6 +82,7 @@ import {
 } from "../../../lib/resultsWorkbook";
 import { departmentByCourseCode } from "../../../lib/departments";
 import { useAvatarUrls } from "../../../lib/avatars";
+import { gradedElsewhereMessage, useGradedElsewhere } from "../../../lib/splitCourses";
 
 interface Course {
   id: string;
@@ -604,6 +605,11 @@ export default function AdminResults() {
   // Publishing never touches a row with no grade — an incomplete row (missing
   // or invalid marks) has nothing valid to show a student, so it's silently
   // excluded from the update rather than pushed through half-finished.
+  // The first part of a course graded at the end of its second semester has
+  // no result of its own; its sheet says so instead of taking marks.
+  const gradedElsewhere = useGradedElsewhere(selectedCourse?.id);
+  const sheetLocked = gradedElsewhere !== null;
+
   const publishableCount = students.filter((s) => s.grade !== "").length;
   const incompleteCount = students.length - publishableCount;
 
@@ -990,6 +996,13 @@ export default function AdminResults() {
                 />
               )}
 
+              {selectedCourse && gradedElsewhere && (
+                <div className="flex items-start gap-2 rounded-xl border border-info-border bg-info-bg px-3 py-2.5 text-sm text-info-fg">
+                  <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  {gradedElsewhereMessage(selectedCourse.code, selectedCourse.semester, gradedElsewhere)}
+                </div>
+              )}
+
               {/* Search + candidate filter */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
@@ -1037,7 +1050,7 @@ export default function AdminResults() {
                   size="sm"
                   className="flex-1"
                   onClick={() => fileInput.current?.click()}
-                  disabled={students.length === 0}
+                  disabled={students.length === 0 || sheetLocked}
                 >
                   <FileUp className="h-4 w-4 mr-1.5" />
                   Upload filled sheet
@@ -1162,7 +1175,7 @@ export default function AdminResults() {
                                 e.target.value,
                               )
                             }
-                            disabled={student.isPublished}
+                            disabled={student.isPublished || sheetLocked}
                             aria-invalid={!!student.errors.midSem}
                             className={`h-8 text-center text-sm bg-card ${
                               student.errors.midSem
@@ -1195,7 +1208,7 @@ export default function AdminResults() {
                                 e.target.value,
                               )
                             }
-                            disabled={student.isPublished}
+                            disabled={student.isPublished || sheetLocked}
                             aria-invalid={!!student.errors.ca}
                             className={`h-8 text-center text-sm bg-card ${
                               student.errors.ca
@@ -1212,7 +1225,7 @@ export default function AdminResults() {
 
                         {/* Grade — awarded, not computed */}
                         <div className="md:col-span-3 flex items-center justify-center gap-2">
-                          {student.isPublished ? (
+                          {student.isPublished || sheetLocked ? (
                             <>
                               {student.grade ? (
                                 <Badge
@@ -1328,7 +1341,7 @@ export default function AdminResults() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={() => void handleSaveDraft()}
-                      disabled={saving || dirtyValidRows().length === 0}
+                      disabled={saving || sheetLocked || dirtyValidRows().length === 0}
                       variant="outline"
                       className="flex-1 h-10 border-warning-border text-warning-fg hover:bg-warning-bg"
                     >
@@ -1347,7 +1360,7 @@ export default function AdminResults() {
 
                     <Button
                       onClick={() => setConfirmDialog("publish")}
-                      disabled={publishing || publishableCount === 0}
+                      disabled={publishing || sheetLocked || publishableCount === 0}
                       className="flex-1 h-10 bg-primary hover:bg-primary/90"
                     >
                       {publishing ? (
