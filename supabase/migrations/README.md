@@ -1,6 +1,6 @@
 # Database migrations
 
-The 269 migrations in this folder, numbered in the order they were applied.
+The 270 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -281,3 +281,4 @@ New migrations are added to the end of this list.
 | 267 | 2026-10-28 | A course taught over two semesters is graded once | [`20261028113540_a_course_taught_over_two_semesters_is_graded_once.sql`](20261028113540_a_course_taught_over_two_semesters_is_graded_once.sql) |
 | 268 | 2026-10-28 | A result still reports its credits as credits | [`20261028114641_a_result_still_reports_its_credits_as_credits.sql`](20261028114641_a_result_still_reports_its_credits_as_credits.sql) |
 | 269 | 2026-10-28 | The engineering project is graded once in semester 8 | [`20261028180247_the_engineering_project_is_graded_once_in_semester_8.sql`](20261028180247_the_engineering_project_is_graded_once_in_semester_8.sql) |
+| 270 | 2026-10-28 | What a student still has to do to graduate | [`20261028195635_what_a_student_still_has_to_do_to_graduate.sql`](20261028195635_what_a_student_still_has_to_do_to_graduate.sql) |
