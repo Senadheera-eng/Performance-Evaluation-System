@@ -29,6 +29,7 @@ import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import { MentorChat } from "../../components/mentor/MentorChat";
 import { MentorNotes } from "../../components/mentor/MentorNotes";
+import { MenteePlanCard } from "../../components/mentor/MenteePlanCard";
 import {
   getMenteeNoteCounts,
   getMenteeOverview,
@@ -465,6 +466,8 @@ function MenteeDetail({
               }
             />
           </div>
+
+          <MenteePlanCard studentId={mentee.student_id} />
 
           <SectionCard
             title="Semester performance"
