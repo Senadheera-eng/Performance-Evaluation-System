@@ -47,6 +47,9 @@ import {
   expectableGrades,
   gradeCap,
   isGradedNow,
+  DEANS_LIST_SGPA,
+  gradeImpact,
+  targetWorking,
   OUTSTANDING_LABEL,
   openSemesters,
   orderedGrades,
@@ -470,7 +473,8 @@ export default function GraduationPlanner() {
         />
         <p className="text-sm text-muted-foreground">
           {t.label} needs a final CGPA of {t.threshold.toFixed(2)} over your{" "}
-          {t.finalCredits} GPA credits.
+          {t.finalCredits} GPA credits. The Dean's List needs an SGPA of{" "}
+          {DEANS_LIST_SGPA.toFixed(2)} in a semester, with every course passed.
         </p>
 
         <ul className="space-y-2">
@@ -506,6 +510,10 @@ export default function GraduationPlanner() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {!allGuessed &&
+                    (s.planned ?? (t.feasible && !t.alreadySecured ? t.required : 0)) >= DEANS_LIST_SGPA && (
+                      <StatusBadge tone="success">Also Dean's List</StatusBadge>
+                    )}
                   {allGuessed ? (
                     <span className="text-sm text-muted-foreground">All guessed</span>
                   ) : s.planned !== null ? (
@@ -559,6 +567,8 @@ export default function GraduationPlanner() {
           </p>
         )}
 
+        {renderWorking(t)}
+
         {!simulator && sittingSemesters.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <p className="text-xs text-muted-foreground">
@@ -572,6 +582,61 @@ export default function GraduationPlanner() {
           </div>
         )}
       </SectionCard>
+    );
+  };
+
+  /* The sum behind a class target, in the student's own numbers, folded
+     away until asked for. */
+  const renderWorking = (t: ClassTarget) => {
+    const w = targetWorking(standing, open, t.threshold);
+    const f2 = (n: number) => n.toFixed(2);
+    const f1 = (n: number) => (Math.round(n * 10) / 10).toString();
+    const heaviest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => b.credits - a.credits)[0];
+    const lightest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => a.credits - b.credits)[0];
+    return (
+      <details className="group rounded-xl border border-border px-3 py-2 text-sm">
+        <summary className="cursor-pointer select-none font-medium text-primary marker:text-muted-foreground">
+          How is this worked out?
+        </summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+          <li>
+            Your CGPA is the sum of credits × grade point, divided by your credits.{" "}
+            {t.label} needs {f2(t.threshold)} × {w.finalCredits} credits ={" "}
+            <strong className="text-foreground tabular-nums">{f1(w.pointsNeeded)}</strong> grade points.
+          </li>
+          <li>
+            You have {f1(w.pointsSoFar)} from {w.creditsSoFar} credits
+            {w.plannedPoints > 0 && <>, and your plans add {f1(w.plannedPoints)}</>}, so{" "}
+            <strong className="text-foreground tabular-nums">{f1(Math.max(0, w.pointsLeft))}</strong> are
+            still needed
+            {w.freeCredits > 0 ? (
+              <>
+                {" "}over {w.freeCredits} credits: {f1(Math.max(0, w.pointsLeft))} ÷ {w.freeCredits} ={" "}
+                <strong className="text-foreground tabular-nums">{f2(Math.max(0, w.required))}</strong>.
+              </>
+            ) : (
+              "."
+            )}
+            {w.pointsLeft <= 0 && " That is nothing more, so the class is already secured."}
+            {w.freeCredits > 0 && w.required > 4 && " That is more than 4.00, so it cannot be reached."}
+          </li>
+          {w.freeCredits > 0 && w.pointsLeft > 0 && w.required <= 4 && (
+            <li>
+              The same SGPA in each semester supplies exactly that:{" "}
+              {w.semesters
+                .map((x) => `Semester ${x.semester}, ${x.credits} × ${f2(x.sgpa)} ≈ ${Math.round(x.points)} points`)
+                .join("; ")}
+              .
+              {heaviest && lightest && heaviest.credits !== lightest.credits && (
+                <>
+                  {" "}Semester {heaviest.semester} has more credits, so doing better there lowers what Semester{" "}
+                  {lightest.semester} needs more than the other way round.
+                </>
+              )}
+            </li>
+          )}
+        </ol>
+      </details>
     );
   };
 
@@ -596,7 +661,7 @@ export default function GraduationPlanner() {
     sittingGroups.length > 0 && (
       <SectionCard
         title="Expected grades"
-        description="Pick the grade you expect in each; a course left at “—” is not counted. Your guesses stay on this device."
+        description="Pick the grade you expect in each; a course left at “—” is not counted. The ± figure is how far one full grade (A to B) in a course moves your CGPA. Your guesses stay on this device."
         bodyClassName="space-y-4"
       >
         {sittingGroups.map((group) => {
@@ -621,6 +686,14 @@ export default function GraduationPlanner() {
                       : "Pick grades to see your SGPA"}
                   </StatusBadge>
                 )}
+                {group.semester !== null &&
+                  sem &&
+                  guessed.length === gradable.length &&
+                  gradable.length > 0 &&
+                  sem.sgpa >= DEANS_LIST_SGPA &&
+                  !guessed.some((c) => guessedGrades[c.courseId] === "F") && (
+                    <StatusBadge tone="success">Dean's List</StatusBadge>
+                  )}
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {guessed.length} of {gradable.length} guessed
                 </span>
@@ -669,6 +742,13 @@ export default function GraduationPlanner() {
                         {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
                       </div>
                       {isGradedNow(c) ? (
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                        <span
+                          className="text-xs tabular-nums text-muted-foreground"
+                          title={`One full grade in ${c.code} (for example A to B) moves your CGPA by this much`}
+                        >
+                          ±{gradeImpact(c, actualStanding, sitting).toFixed(2)}
+                        </span>
                         <Select
                           value={guess ?? NO_GUESS}
                           onValueChange={(val) => setGuess(c.courseId, val === NO_GUESS ? null : val)}
@@ -685,6 +765,7 @@ export default function GraduationPlanner() {
                             ))}
                           </SelectContent>
                         </Select>
+                        </div>
                       ) : (
                         <span className="flex-shrink-0 text-xs text-muted-foreground">No grade yet</span>
                       )}
