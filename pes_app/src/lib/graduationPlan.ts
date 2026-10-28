@@ -398,3 +398,97 @@ export function targetWorking(standing: Standing, open: OpenSemester[], threshol
       }),
   };
 }
+
+/**
+ * A target SGPA as grades a student can picture. Between the two grade
+ * levels around it, the share of credits needed at the higher one, rounded
+ * up so the mix always reaches the target: 3.93 over 16 credits is "A in 13
+ * of 16 credits, A- in the rest" (13 x 4.0 + 3 x 3.7 = 63.1 >= 62.9).
+ */
+export function gradeMix(target: number, credits: number, scale: GpvScale): string | null {
+  if (!(credits > 0) || !Number.isFinite(target) || target > 4) return null;
+  // One name per grade point: A and A+ are both 4.00, and "A" says it.
+  const levels: { grade: string; gpv: number }[] = [];
+  for (const g of orderedGrades(scale)) {
+    const gpv = scale[g];
+    if (gpv <= 0 || levels.some((l) => l.gpv === gpv)) continue;
+    levels.push({ grade: g === "A+" && scale.A === gpv ? "A" : g, gpv });
+  }
+  if (levels.length === 0) return null;
+  const lowest = levels[levels.length - 1];
+  if (target <= lowest.gpv + 1e-9) return `≈ ${lowest.grade} in every course`;
+  const exact = levels.find((l) => Math.abs(l.gpv - target) < 0.005);
+  if (exact) return `≈ ${exact.grade} in every course`;
+  const hiIdx = levels.findIndex((l, i) => l.gpv > target && (levels[i + 1]?.gpv ?? -1) < target);
+  if (hiIdx < 0 || hiIdx + 1 >= levels.length) return `≈ ${levels[0].grade} in every course`;
+  const hi = levels[hiIdx];
+  const lo = levels[hiIdx + 1];
+  const hiCredits = Math.ceil(((target - lo.gpv) / (hi.gpv - lo.gpv)) * credits - 1e-9);
+  if (hiCredits >= credits) return `≈ ${hi.grade} in every course`;
+  return `≈ ${hi.grade} in ${hiCredits} of ${credits} credits, ${lo.grade} in the rest`;
+}
+
+/** One point on the CGPA path: after a semester, on the record or projected. */
+export interface PathPoint {
+  semester: number;
+  /** CGPA on the record after this semester. */
+  actual: number | null;
+  /** CGPA if the semesters ahead go as the path assumes. */
+  projected: number | null;
+}
+
+/**
+ * The CGPA after each semester: from the record (with any what-ifs), then
+ * projected through the semesters still open at the given SGPA for each
+ * (a plan where there is one). The projected line starts on the last
+ * recorded point so the two join.
+ */
+export function cgpaPath(
+  standing: Standing,
+  open: OpenSemester[],
+  sgpaFor: (s: OpenSemester) => number,
+  totalSemesters: number,
+): PathPoint[] {
+  const bySem = new Map(standing.semesterGpas.map((s) => [s.semester, s]));
+  const openBySem = new Map(open.map((s) => [s.semester, s]));
+  const lastRecorded = Math.max(0, ...standing.semesterGpas.map((s) => s.semester));
+  // A guessed semester is a projection too, not the record.
+  const firstOpen = Math.min(
+    Infinity,
+    ...open.filter((s) => s.openCredits > 0).map((s) => s.semester),
+    ...Object.entries(standing.guessedNewCreditsBySemester)
+      .filter(([, cr]) => cr > 0)
+      .map(([sem]) => Number(sem)),
+  );
+  // Points from the record and guesses, up to a semester.
+  let points = 0;
+  let credits = 0;
+  const out: PathPoint[] = [];
+  let joined = false;
+  for (let sem = 1; sem <= totalSemesters; sem++) {
+    const rec = bySem.get(sem);
+    if (rec) {
+      points += rec.sgpa * rec.credits;
+      credits += rec.credits;
+    }
+    const o = openBySem.get(sem);
+    const projectedHere = o && o.openCredits > 0;
+    if (projectedHere) {
+      points += sgpaFor(o!) * o!.openCredits;
+      credits += o!.openCredits;
+    }
+    const cgpa = credits > 0 ? round2(points / credits) : null;
+    const onRecord = sem <= lastRecorded && sem < firstOpen;
+    const point: PathPoint = { semester: sem, actual: null, projected: null };
+    if (onRecord) point.actual = cgpa;
+    if (!onRecord && cgpa !== null) point.projected = cgpa;
+    out.push(point);
+    // The projection starts from the last point on the record.
+    if (!joined && !onRecord && cgpa !== null && out.length > 1) {
+      const prev = out[out.length - 2];
+      if (prev.actual !== null) prev.projected = prev.actual;
+      joined = true;
+    }
+  }
+  return out.filter((p) => p.actual !== null || p.projected !== null);
+}
