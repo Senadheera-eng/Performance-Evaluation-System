@@ -14,12 +14,14 @@ export interface PlannerScenario {
   plans: Record<string, number>;
   /** Result id -> a past grade tried differently. */
   past: Record<string, string>;
+  /** The one scenario the student's mentor can see, if any. */
+  sharedWithMentor: boolean;
   updatedAt: string;
 }
 
 export type ScenarioContent = Pick<PlannerScenario, "guesses" | "plans" | "past">;
 
-const COLUMNS = "id, name, guesses, plans, past, updated_at";
+const COLUMNS = "id, name, guesses, plans, past, shared_with_mentor, updated_at";
 
 const parse = (r: any): PlannerScenario => ({
   id: r.id,
@@ -27,6 +29,7 @@ const parse = (r: any): PlannerScenario => ({
   guesses: r.guesses ?? {},
   plans: r.plans ?? {},
   past: r.past ?? {},
+  sharedWithMentor: !!r.shared_with_mentor,
   updatedAt: r.updated_at,
 });
 
@@ -75,4 +78,30 @@ export async function updateScenario(
 export async function deleteScenario(id: string): Promise<{ error: string | null }> {
   const { error } = await supabase.from("planner_scenarios").delete().eq("id", id);
   return { error: error ? message(error) : null };
+}
+
+/** Let the student's mentor see this scenario (one at a time), or, with
+ *  null, none. The mentor sees it read-only, with the class aimed for. */
+export async function shareScenario(id: string | null): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("share_planner_scenario", { p_id: id });
+  if (error) console.error("[plannerScenarios] share", error);
+  return { error: error ? "Sharing did not work. Try again." : null };
+}
+
+/** The class the student last picked in Semester targets. It decides what
+ *  the notice after a semester's results talks about. */
+export async function getAim(): Promise<string | null> {
+  const { data } = await supabase.from("planner_aims").select("class_key").maybeSingle();
+  return data?.class_key ?? null;
+}
+
+export async function saveAim(studentId: string, classKey: string): Promise<void> {
+  const { error } = await supabase
+    .from("planner_aims")
+    .upsert(
+      { student_id: studentId, class_key: classKey, updated_at: new Date().toISOString() },
+      { onConflict: "student_id" },
+    );
+  // Only a convenience: the planner works the same without it.
+  if (error) console.error("[plannerScenarios] aim", error);
 }
