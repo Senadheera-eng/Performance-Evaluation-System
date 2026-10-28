@@ -71,6 +71,8 @@ export interface GraduationPlan {
     creditsRequired: number;
     trainingDone: boolean;
     minor: { name: string; earned: number; planned: number; required: number; complete: boolean } | null;
+    /** Compulsory or elective courses failed and repeated (course codes). */
+    repeated: string[];
   };
 }
 
@@ -161,6 +163,7 @@ export function parsePlan(raw: any): GraduationPlan {
             complete: !!raw.requirements.minor.complete,
           }
         : null,
+      repeated: raw?.requirements?.repeated ?? [],
     },
   };
 }
@@ -343,6 +346,11 @@ export function bestPossibleCgpa(standing: Standing, open: OpenSemester[]): numb
  *  completing all Courses prescribed ... will be recommended ... to be
  *  included in the Dean's List" (Handbook p. 25). */
 export const DEANS_LIST_SGPA = 3.8;
+
+/** The faculty gold medal: the degree completed in four academic years with
+ *  an OGPA of 3.80 or more, no compulsory or elective course repeated, and
+ *  no disciplinary action (Handbook p. 25). PES can check all but the last. */
+export const GOLD_MEDAL_OGPA = 3.8;
 
 /**
  * How much one full grade (a grade point, A to B) in a course moves the
