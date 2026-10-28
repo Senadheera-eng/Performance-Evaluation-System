@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   Award,
   CheckCircle2,
+  Circle,
   ClipboardPen,
   FlaskConical,
   GraduationCap,
@@ -45,6 +47,7 @@ import {
   expectableGrades,
   gradeCap,
   isGradedNow,
+  OUTSTANDING_LABEL,
   openSemesters,
   orderedGrades,
   parsePlan,
@@ -122,6 +125,8 @@ export default function GraduationPlanner() {
   const [plannedSgpa, setPlannedSgpa] = useState<Record<number, number>>({});
   const [activeTab, setActiveTab] = useState("standing");
   const [targetClass, setTargetClass] = useState<string | null>(null);
+  // A long list of modules to clear opens folded.
+  const [showAllToClear, setShowAllToClear] = useState(false);
 
   useEffect(() => {
     if (!student?.id) return;
@@ -174,7 +179,7 @@ export default function GraduationPlanner() {
     setGuessedGrades(
       Object.fromEntries(
         Object.entries(saved).filter(([id, g]) => {
-          const c = parsed.courses.find((x) => x.courseId === id);
+          const c = [...parsed.courses, ...parsed.outstanding].find((x) => x.courseId === id);
           return (
             c && isGradedNow(c) &&
             capGrades(EXPECTABLE, gradeCap(c, parsed.resitMaxGrade), GPV).includes(g as string)
@@ -194,7 +199,10 @@ export default function GraduationPlanner() {
     setLoading(false);
   };
 
-  const sitting = plan?.courses ?? [];
+  const sitting = useMemo(
+    () => [...(plan?.courses ?? []), ...(plan?.outstanding ?? [])],
+    [plan],
+  );
 
   const actualStanding = useMemo(() => computeStanding(results, GPV), [results, GPV]);
   const simulatedStanding = useMemo(
@@ -223,9 +231,9 @@ export default function GraduationPlanner() {
   }, [targets]);
   const selectedClass = targets.find((t) => t.key === (targetClass ?? defaultClass)) ?? targets[0];
 
-  // Courses being sat now, by semester, with repeats of earlier courses in a
-  // group of their own. A course that does not count towards the GPA cannot
-  // move it, so it is left out.
+  // Courses being sat now, by semester, then everything still to clear
+  // (repeats and earlier F, R or L grades) in a group of its own. A course
+  // that does not count towards the GPA cannot move it, so it is left out.
   const sittingGroups = useMemo(() => {
     const bySem: Record<number, SittingCourse[]> = {};
     const repeats: SittingCourse[] = [];
@@ -241,6 +249,8 @@ export default function GraduationPlanner() {
     if (repeats.length > 0) groups.push({ key: "repeats", semester: null, courses: repeats });
     return groups;
   }, [sitting]);
+  const toClear = plan?.outstanding ?? [];
+  const gpaToClear = toClear.filter((c) => c.contributesToGpa);
   // The semester being sat, as the plan has it (a repeat is not one).
   const sittingSemesters = (plan?.semesters ?? [])
     .filter((s) => s.source === "enrolled")
@@ -380,6 +390,9 @@ export default function GraduationPlanner() {
             ? `The average your remaining GPA credits must reach: ${remainingText}.`
             : "The average your remaining GPA credits must reach.",
           plannedText ? `With ${plannedText} as planned.` : "",
+          gpaToClear.some((c) => !(simulator && guessedGrades[c.courseId]))
+            ? "A module still to clear counts as 0 until you pass it."
+            : "",
         ].join(" ")
       }
       bodyClassName="space-y-2.5"
@@ -573,7 +586,8 @@ export default function GraduationPlanner() {
     }
     if (c.previous) {
       const cap = gradeCap(c, plan?.resitMaxGrade ?? "C");
-      return `Semester ${c.semester} course: replaces your ${c.previous.grade ?? "earlier grade"}${cap ? `, up to ${cap}` : ""}`;
+      const what = OUTSTANDING_LABEL[c.previous.grade ?? ""] ?? `Your ${c.previous.grade}`;
+      return `Semester ${c.semester} · ${what}${cap ? ` · best grade ${cap}` : ""}`;
     }
     return null;
   };
@@ -581,8 +595,8 @@ export default function GraduationPlanner() {
   const renderSittingCard = () =>
     sittingGroups.length > 0 && (
       <SectionCard
-        title="This semester's courses"
-        description="No results yet. Pick the grade you expect in each; a course left at “—” is not counted. Your guesses stay on this device."
+        title="Expected grades"
+        description="Pick the grade you expect in each; a course left at “—” is not counted. Your guesses stay on this device."
         bodyClassName="space-y-4"
       >
         {sittingGroups.map((group) => {
@@ -598,7 +612,7 @@ export default function GraduationPlanner() {
                 <h4 className="font-semibold text-foreground">
                   {group.semester !== null
                     ? `Semester ${group.semester} — in progress`
-                    : "Repeating"}
+                    : "Modules to clear"}
                 </h4>
                 {group.semester !== null && (
                   <StatusBadge tone={guessed.length > 0 ? "brand" : "neutral"}>
@@ -612,7 +626,10 @@ export default function GraduationPlanner() {
                 </span>
               </div>
               <div className="space-y-2">
-                {group.courses.map((c) => {
+                {(group.semester === null && !showAllToClear
+                  ? group.courses.slice(0, 5)
+                  : group.courses
+                ).map((c) => {
                   const guess = guessedGrades[c.courseId];
                   const dept = departmentByCourseCode(c.code);
                   const note = sittingNote(c);
@@ -675,13 +692,121 @@ export default function GraduationPlanner() {
                   );
                 })}
               </div>
+              {group.semester === null && group.courses.length > 5 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => setShowAllToClear((v) => !v)}
+                >
+                  {showAllToClear ? "Show fewer" : `Show all ${group.courses.length}`}
+                </Button>
+              )}
             </div>
           );
         })}
       </SectionCard>
     );
 
-  const finished = !loading && plan !== null && openCredits === 0 && sitting.length === 0;
+  /* What the degree asks for besides a GPA (Handbook p. 25): pass grades for
+     144 credits, Industrial Training, and every failed, referred or deferred
+     module cleared. One line each, so it reads as a checklist. */
+  const renderRequirements = () => {
+    if (!plan) return null;
+    const r = plan.requirements;
+    const passedPct = Math.min(100, Math.round((r.creditsPassed / r.creditsRequired) * 100));
+    const firstFew = toClear
+      .slice(0, 3)
+      .map((c) => `${c.code} (${c.previous?.grade})`)
+      .join(", ");
+    const items: {
+      key: string;
+      state: "done" | "todo" | "attention";
+      label: string;
+      value: string;
+      detail?: string;
+      bar?: number;
+      action?: React.ReactNode;
+    }[] = [
+      {
+        key: "credits",
+        state: r.creditsPassed >= r.creditsRequired ? "done" : "todo",
+        label: "Credits passed",
+        value: `${r.creditsPassed} of ${r.creditsRequired}`,
+        bar: passedPct,
+      },
+      {
+        key: "clear",
+        state: toClear.length === 0 ? "done" : "attention",
+        label: "Modules to clear",
+        value: toClear.length === 0 ? "None" : `${toClear.length} module${toClear.length === 1 ? "" : "s"}`,
+        detail:
+          toClear.length > 0
+            ? `${firstFew}${toClear.length > 3 ? ` +${toClear.length - 3} more` : ""}`
+            : undefined,
+        action:
+          gpaToClear.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={() => setActiveTab("simulator")}>
+              Plan
+            </Button>
+          ) : undefined,
+      },
+      {
+        key: "training",
+        state: r.trainingDone ? "done" : "todo",
+        label: "Industrial Training",
+        value: r.trainingDone ? "Completed" : "Not recorded yet",
+      },
+      ...(r.minor
+        ? [
+            {
+              key: "minor",
+              state: (r.minor.complete ? "done" : "todo") as "done" | "todo",
+              label: `Minor: ${r.minor.name}`,
+              value: `${r.minor.earned} of ${r.minor.required} credits`,
+              detail: r.minor.planned > 0 ? `${r.minor.planned} in progress` : undefined,
+            },
+          ]
+        : []),
+    ];
+
+    return (
+      <SectionCard title="Graduation requirements" bodyClassName="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {items.map((it) => {
+          const Icon = it.state === "done" ? CheckCircle2 : it.state === "attention" ? AlertTriangle : Circle;
+          return (
+            <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-border p-3">
+              <Icon
+                aria-hidden="true"
+                className={cn(
+                  "mt-0.5 h-4 w-4 flex-shrink-0",
+                  it.state === "done"
+                    ? "text-success-fg"
+                    : it.state === "attention"
+                      ? "text-warning-fg"
+                      : "text-muted-foreground",
+                )}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">{it.label}</p>
+                <p className="text-sm font-semibold text-foreground tabular-nums">{it.value}</p>
+                {it.bar !== undefined && (
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${it.bar}%` }} />
+                  </div>
+                )}
+                {it.detail && <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.detail}</p>}
+              </div>
+              {it.action}
+            </div>
+          );
+        })}
+      </SectionCard>
+    );
+  };
+
+  const finished =
+    !loading && plan !== null && openCredits === 0 && sitting.length === 0 && toClear.length === 0;
 
   return (
     <div className="space-y-5">
@@ -722,6 +847,7 @@ export default function GraduationPlanner() {
 
           <TabsContent value="standing" className="mt-5 space-y-5">
             {renderStandingCards()}
+            {renderRequirements()}
             {renderSemesterTargets()}
             {renderProjectionsCard()}
           </TabsContent>
