@@ -338,3 +338,63 @@ export function bestPossibleCgpa(standing: Standing, open: OpenSemester[]): numb
   const final = standing.credits + openCredits;
   return final > 0 ? round2((standing.points + 4 * openCredits) / final) : standing.cgpa;
 }
+
+/** "A student who achieves an SGPA of 3.80 or higher, after successfully
+ *  completing all Courses prescribed ... will be recommended ... to be
+ *  included in the Dean's List" (Handbook p. 25). */
+export const DEANS_LIST_SGPA = 3.8;
+
+/**
+ * How much one full grade (a grade point, A to B) in a course moves the
+ * CGPA at the end of this semester: its credits over the GPA credits the
+ * record will then carry. A 5-credit project moves it five times as far as
+ * a 1-credit course, which is the point of showing it.
+ */
+export function gradeImpact(course: SittingCourse, standing: Standing, sitting: SittingCourse[]): number {
+  const newCredits = sitting
+    .filter((c) => isGradedNow(c) && !c.previous)
+    .reduce((n, c) => n + c.resultCredits, 0);
+  // Guessed courses are already in standing.credits; count each new course once.
+  const base = standing.credits - standing.guessedNewCredits + newCredits;
+  return base > 0 ? course.resultCredits / base : 0;
+}
+
+/** The numbers behind a class target, for the "How is this worked out?" note. */
+export interface TargetWorking {
+  finalCredits: number;
+  pointsNeeded: number;
+  pointsSoFar: number;
+  creditsSoFar: number;
+  plannedPoints: number;
+  pointsLeft: number;
+  freeCredits: number;
+  required: number;
+  /** Each open semester and the points its share of the target supplies. */
+  semesters: { semester: number; credits: number; sgpa: number; points: number; planned: boolean }[];
+}
+
+export function targetWorking(standing: Standing, open: OpenSemester[], threshold: number): TargetWorking {
+  const openCredits = open.reduce((n, s) => n + s.openCredits, 0);
+  const finalCredits = standing.credits + openCredits;
+  const pointsNeeded = threshold * finalCredits;
+  const plannedPoints = open.reduce((n, s) => n + (s.planned !== null ? s.planned * s.openCredits : 0), 0);
+  const freeCredits = open.reduce((n, s) => n + (s.planned === null ? s.openCredits : 0), 0);
+  const pointsLeft = pointsNeeded - standing.points - plannedPoints;
+  const required = freeCredits > 0 ? pointsLeft / freeCredits : 0;
+  return {
+    finalCredits,
+    pointsNeeded,
+    pointsSoFar: standing.points,
+    creditsSoFar: standing.credits,
+    plannedPoints,
+    pointsLeft,
+    freeCredits,
+    required,
+    semesters: open
+      .filter((s) => s.openCredits > 0)
+      .map((s) => {
+        const sgpa = s.planned ?? Math.max(0, required);
+        return { semester: s.semester, credits: s.openCredits, sgpa, points: sgpa * s.openCredits, planned: s.planned !== null };
+      }),
+  };
+}
