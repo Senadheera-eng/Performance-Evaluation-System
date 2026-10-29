@@ -12,7 +12,6 @@ import {
   GpaTrendChart,
   CourseAttendanceChart,
   HeroCard,
-  PillTabs,
   Reveal,
   SectionCard,
   SkeletonHero,
@@ -20,7 +19,6 @@ import {
   Sparkline,
   StatStrip,
   StatusBadge,
-  TabPanel,
   heroButtonClass,
   heroGhostButtonClass,
   usePageMotion,
@@ -180,7 +178,6 @@ export default function Dashboard() {
     pct === null ? "neutral" : pct < threshold ? "danger" : pct < prewarning ? "warning" : "success";
 
   const scoredCourses = courses.filter((c) => c.attendance !== null);
-  const [trend, setTrend] = useState<"gpa" | "attendance">("gpa");
 
   // The class the CGPA puts the student in, from the faculty's thresholds.
   const classLabel =
@@ -299,9 +296,31 @@ export default function Dashboard() {
         <InsightsPanel />
       </div>
 
+      {/* The two charts side by side near the top, as the dashboard had them
+          before: the GPA by semester, and this semester's attendance by
+          course. Each says in a line what it means. */}
+      <Reveal index={1} className="grid items-start gap-4 lg:grid-cols-2">
+        <GpaTrendChart
+          data={semesterData}
+          cgpa={cgpa ?? 0}
+          loading={loading}
+          height={260}
+          takeaway={gpaTakeaway}
+        />
+        <CourseAttendanceChart
+          title="Attendance by course"
+          data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
+          threshold={threshold}
+          prewarning={prewarning}
+          awaitingCount={awaiting}
+          loading={loading}
+          takeaway={attendanceTakeaway}
+        />
+      </Reveal>
+
       {/* This semester, with the notice board beside it. The notices column
           hides itself when there are none, and the courses take the width. */}
-      <Reveal index={1} className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <Reveal index={2} className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <SectionCard
           title="This semester"
           description="The courses you are enrolled on, with attendance for this sitting."
@@ -382,49 +401,6 @@ export default function Dashboard() {
         </div>
       </Reveal>
 
-      {/* Trends, both charts in one card: the GPA by semester, or this
-          semester's attendance by course. Each says in a line what it means. */}
-      <Reveal index={2}>
-        <SectionCard
-          title="Trends"
-          description="How your degree is going, semester by semester, and this semester's attendance."
-          bodyClassName="space-y-4"
-        >
-          <PillTabs
-            tabs={[
-              { value: "gpa", label: "GPA trend" },
-              { value: "attendance", label: "Attendance by course" },
-            ]}
-            value={trend}
-            onChange={(v) => setTrend(v as "gpa" | "attendance")}
-            layoutId="dashboard-trends"
-            aria-label="Trend to show"
-          />
-          <TabPanel value={trend}>
-            {trend === "gpa" ? (
-              <GpaTrendChart
-                bare
-                data={semesterData}
-                cgpa={cgpa ?? 0}
-                loading={loading}
-                height={240}
-                takeaway={gpaTakeaway}
-              />
-            ) : (
-              <CourseAttendanceChart
-                bare
-                title="Attendance by course"
-                data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
-                threshold={threshold}
-                prewarning={prewarning}
-                awaitingCount={awaiting}
-                loading={loading}
-                takeaway={attendanceTakeaway}
-              />
-            )}
-          </TabPanel>
-        </SectionCard>
-      </Reveal>
     </div>
   );
 }

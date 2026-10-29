@@ -54,11 +54,34 @@ const DESTINATION: Record<string, { label: string; to: string }> = {
   outstanding_modules: { label: "Go to enrolment", to: "/app/enrollment" },
 };
 
-const LOOK: Record<Severity, { icon: LucideIcon; chip: string }> = {
-  critical: { icon: AlertCircle, chip: "bg-danger-bg text-danger-fg" },
-  warning: { icon: AlertTriangle, chip: "bg-warning-bg text-warning-fg" },
-  info: { icon: Info, chip: "bg-info-bg text-info-fg" },
-  positive: { icon: CheckCircle2, chip: "bg-success-bg text-success-fg" },
+/* Each notice in its own status colour, so "enrolment is open" reads blue
+   and an attendance warning red at a glance, as the dashboard's notices did
+   before the redesign. The button carries the colour too. */
+const LOOK: Record<Severity, { icon: LucideIcon; box: string; text: string; button: string }> = {
+  critical: {
+    icon: AlertCircle,
+    box: "border-danger-border bg-danger-bg",
+    text: "text-danger-fg",
+    button: "bg-danger-fg text-card hover:opacity-90",
+  },
+  warning: {
+    icon: AlertTriangle,
+    box: "border-warning-border bg-warning-bg",
+    text: "text-warning-fg",
+    button: "bg-warning-fg text-card hover:opacity-90",
+  },
+  info: {
+    icon: Info,
+    box: "border-info-border bg-info-bg",
+    text: "text-info-fg",
+    button: "bg-info-fg text-card hover:opacity-90",
+  },
+  positive: {
+    icon: CheckCircle2,
+    box: "border-success-border bg-success-bg",
+    text: "text-success-fg",
+    button: "bg-success-fg text-card hover:opacity-90",
+  },
 };
 
 /* Worst first. A student scanning the top of their dashboard should meet the
@@ -125,7 +148,7 @@ export function InsightsPanel({ className }: { className?: string }) {
           variants={stagger(0.05)}
           initial={reduce ? false : "hidden"}
           animate="show"
-          className="divide-y divide-border/60"
+          className="space-y-2 p-3"
         >
           {insights.map((insight, i) => {
             const destination = DESTINATION[insight.kind];
@@ -135,19 +158,20 @@ export function InsightsPanel({ className }: { className?: string }) {
               <motion.li
                 key={`${insight.kind}-${insight.course_code ?? i}`}
                 variants={listItem}
-                className="flex items-start gap-3 px-4 py-3"
+                className={cn("flex items-start gap-3 rounded-control border px-3 py-3", look.box)}
               >
-                <span className={cn("mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full", look.chip)}>
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                </span>
+                <Icon className={cn("mt-0.5 h-5 w-5 flex-shrink-0", look.text)} aria-hidden="true" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{insight.title}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{insight.detail}</p>
+                  <p className={cn("text-sm font-semibold", look.text)}>{insight.title}</p>
+                  <p className={cn("mt-0.5 text-xs opacity-90", look.text)}>{insight.detail}</p>
                   {destination && (
                     <button
                       type="button"
                       onClick={() => navigate(destination.to)}
-                      className="group mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80"
+                      className={cn(
+                        "group mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity",
+                        look.button,
+                      )}
                     >
                       {destination.label}
                       <ArrowRight
