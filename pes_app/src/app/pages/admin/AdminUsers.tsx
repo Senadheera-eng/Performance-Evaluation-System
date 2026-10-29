@@ -5,7 +5,6 @@ import {
   MailWarning,
   MoreHorizontal,
   RotateCcw,
-  Search,
   Send,
   Shield,
   UserCheck,
@@ -14,7 +13,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import {
@@ -36,6 +34,9 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
+  PillTabs,
+  SearchField,
   SectionCard,
   SegmentedTabs,
   SkeletonRows,
@@ -122,6 +123,19 @@ export default function AdminUsers() {
     for (const u of users) c[u.kind] = (c[u.kind] ?? 0) + 1;
     return c;
   }, [users]);
+
+  /* Within the kind being looked at, as the state filter applies there.
+     An expired invitation counts as invited, as the filter treats it. */
+  const stateCounts = useMemo(() => {
+    const c = { active: 0, invited: 0, deactivated: 0 };
+    for (const u of users) {
+      if (kind !== "all" && u.kind !== kind) continue;
+      if (u.state === "active") c.active++;
+      else if (u.state === "invited" || u.state === "invite_expired") c.invited++;
+      else if (u.state === "deactivated") c.deactivated++;
+    }
+    return c;
+  }, [users, kind]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -220,51 +234,44 @@ export default function AdminUsers() {
 
       {error && <ErrorState message={error} onRetry={load} size="inline" />}
 
-      <SectionCard flush>
-        <div className="space-y-3 border-b border-border p-4">
-          <SegmentedTabs
-            aria-label="Kind of user"
-            layoutId="users-kind"
-            value={kind}
-            onChange={(v) => setKind(v as typeof kind)}
-            tabs={[
-              { value: "all", label: `All ${counts.all ?? 0}` },
-              { value: "student", label: `Students ${counts.student ?? 0}` },
-              { value: "lecturer", label: `Lecturers ${counts.lecturer ?? 0}` },
-              { value: "dept_admin", label: `Dept. Admins ${counts.dept_admin ?? 0}` },
-            ]}
+      {/* Who, then which state, then a search: one bar above the list. */}
+      <div className="space-y-3">
+        <SegmentedTabs
+          aria-label="Kind of user"
+          layoutId="users-kind"
+          value={kind}
+          onChange={(v) => setKind(v as typeof kind)}
+          scrollable
+          tabs={[
+            { value: "all", label: "All", count: counts.all ?? 0 },
+            { value: "student", label: "Students", count: counts.student ?? 0 },
+            { value: "lecturer", label: "Lecturers", count: counts.lecturer ?? 0 },
+            { value: "dept_admin", label: "Dept. Admins", count: counts.dept_admin ?? 0 },
+          ]}
+        />
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Search name, email, registration or index number"
+            label="Search users"
           />
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, email, registration or index number"
-                aria-label="Search users"
-                className="pl-9"
-              />
-            </div>
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Account state">
-              {(["all", "active", "invited", "deactivated"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={state === s}
-                  onClick={() => setState(s)}
-                  className={
-                    state === s
-                      ? "h-8 rounded-full border border-foreground/20 bg-foreground px-3 text-xs font-medium text-background"
-                      : "h-8 rounded-full border border-border bg-card px-3 text-xs font-medium text-muted-foreground hover:bg-muted"
-                  }
-                >
-                  {s === "all" ? "Any state" : STATE[s].label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <PillTabs
+            aria-label="Account state"
+            layoutId="users-state"
+            value={state}
+            onChange={(v) => setState(v as typeof state)}
+            scrollable
+            tabs={(["all", "active", "invited", "deactivated"] as const).map((s) => ({
+              value: s,
+              label: s === "all" ? "Any state" : STATE[s].label,
+              count: s === "all" ? undefined : stateCounts[s],
+            }))}
+          />
         </div>
+      </div>
 
+      <SectionCard flush>
         {loading ? (
           <div className="p-4">
             <SkeletonRows count={6} height="h-14" />
@@ -278,19 +285,24 @@ export default function AdminUsers() {
               const s = STATE[u.state];
               const key = u.user_id ?? `${u.kind}-${u.detail.lecturer_id ?? u.email}`;
               return (
-                <li key={key} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                      <span className="truncate">{u.name}</span>
-                      <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
-                      {u.kind !== "student" && <span className="text-xs text-muted-foreground">{KIND_LABEL[u.kind]}</span>}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {u.email}
-                      {describe(u) && u.kind === "student" ? ` · ${describe(u)}` : ""}
-                      {dept ? ` · ${dept.code}` : u.kind === "student" ? " · No department yet" : ""}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
+                <li key={key} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
+                  <PersonAvatar name={u.name} department={u.department} size="md" />
+                  <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
+                    <div className="min-w-0 sm:flex-1">
+                      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-foreground">
+                        <span className="min-w-0 truncate">{u.name}</span>
+                        <StatusBadge tone={s.tone}>{s.label}</StatusBadge>
+                        {u.kind !== "student" && <span className="text-xs text-muted-foreground">{KIND_LABEL[u.kind]}</span>}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {u.email}
+                        {describe(u) && u.kind === "student" ? ` · ${describe(u)}` : ""}
+                        {dept ? ` · ${dept.code}` : u.kind === "student" ? " · No department yet" : ""}
+                      </p>
+                    </div>
+                    {/* When they last signed in, or where the invitation
+                        stands: to the right on a wide screen. */}
+                    <p className="mt-0.5 text-xs text-muted-foreground sm:mt-0 sm:max-w-[45%] sm:text-right">
                       {u.state === "deactivated"
                         ? `Deactivated ${when(u.deactivated_at) ?? ""}${u.deactivation_reason ? ` — ${u.deactivation_reason}` : ""}`
                         : u.state === "invited"
