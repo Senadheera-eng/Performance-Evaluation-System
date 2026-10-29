@@ -803,7 +803,7 @@ export default function AdminResults() {
                 value={String(filterSemester)}
                 onValueChange={(v) => setFilterSemester(v === "all" ? "all" : Number(v))}
               >
-                <SelectTrigger aria-labelledby="results-semester-label" className="h-9 w-full rounded-control bg-card">
+                <SelectTrigger aria-labelledby="results-semester-label" className="h-9 w-full rounded-control border-border bg-card">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -895,7 +895,7 @@ export default function AdminResults() {
                 value={selectedBatch !== null ? String(selectedBatch) : undefined}
                 onValueChange={(v) => setSelectedBatch(v ? Number(v) : null)}
               >
-                <SelectTrigger aria-labelledby="results-batch-label" className="h-9 w-full rounded-control bg-card">
+                <SelectTrigger aria-labelledby="results-batch-label" className="h-9 w-full rounded-control border-border bg-card">
                   <SelectValue placeholder="Select a batch..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -1275,7 +1275,7 @@ export default function AdminResults() {
                             >
                               <SelectTrigger
                                 aria-label={`Grade for ${student.name}`}
-                                className="h-8 w-full rounded-control bg-card text-sm"
+                                className="h-8 w-full rounded-control border-border bg-card text-sm"
                               >
                                 <SelectValue />
                               </SelectTrigger>

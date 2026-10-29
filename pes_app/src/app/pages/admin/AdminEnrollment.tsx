@@ -856,7 +856,7 @@ function PeriodForm({
               Semester
             </label>
             <Select value={String(semester)} onValueChange={(v) => setSemester(Number(v))}>
-              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

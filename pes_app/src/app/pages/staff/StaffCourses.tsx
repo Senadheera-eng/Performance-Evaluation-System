@@ -171,7 +171,7 @@ export default function StaffCourses() {
               value={semester === "all" ? "all" : String(semester)}
               onValueChange={(v) => setSemester(v === "all" ? "all" : Number(v))}
             >
-              <SelectTrigger aria-label="Semester" className="h-9 w-52 rounded-control bg-card">
+              <SelectTrigger aria-label="Semester" className="h-9 w-52 rounded-control border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

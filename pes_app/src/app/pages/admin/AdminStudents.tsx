@@ -242,7 +242,7 @@ export default function AdminStudents() {
             value={String(batchFilter)}
             onValueChange={(v) => setBatchFilter(v === "all" ? "all" : Number(v))}
           >
-            <SelectTrigger aria-label="Batch" className="h-9 w-52 rounded-control bg-card">
+            <SelectTrigger aria-label="Batch" className="h-9 w-52 rounded-control border-border bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
