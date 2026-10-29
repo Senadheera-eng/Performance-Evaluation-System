@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
   Award,
   CheckCircle2,
+  ChevronDown,
   Circle,
   ClipboardPen,
   FlaskConical,
@@ -54,15 +55,20 @@ import {
 } from "../components/ui/dropdown-menu";
 import { CgpaPathChart } from "../components/planner/CgpaPathChart";
 import {
+  AnimatedBar,
+  AnimatedNumber,
   EmptyState,
   ErrorState,
   PageHeader,
   SectionCard,
   SegmentedTabs,
+  SkeletonHero,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  TabPanel,
+  cardReveal,
+  useExpandMotion,
 } from "../components/common";
 import { cn } from "../components/ui/utils";
 import { departmentByCourseCode } from "../../lib/departments";
@@ -176,6 +182,10 @@ export default function GraduationPlanner() {
   // SGPAs the student plans for a remaining semester, keyed by semester.
   const [plannedSgpa, setPlannedSgpa] = useState<Record<number, number>>({});
   const [activeTab, setActiveTab] = useState("standing");
+  /* Semesters opened by hand under "Edit past module grades". */
+  const [pastOpen, setPastOpen] = useState<Record<number, boolean>>({});
+  const reduce = useReducedMotion();
+  const expand = useExpandMotion();
   const [targetClass, setTargetClass] = useState<string | null>(null);
   // A long list of modules to clear opens folded.
   const [showAllToClear, setShowAllToClear] = useState(false);
@@ -569,56 +579,143 @@ export default function GraduationPlanner() {
       .map((s) => `Semester ${s.semester} at ${s.planned!.toFixed(2)}`),
   );
 
-  const renderStandingCards = () => {
+  /* The one thing the planner is for, first: the class the student is
+     aiming at, and the SGPA it asks of what is left. The four numbers the
+     page used to open with as cards sit along its foot. */
+  const renderHero = () => {
+    const t = selectedClass;
     const projected = simulator && hasSimulation;
     const finalCredits = standing.credits + openCredits;
+    const toGo = open.filter((s) => s.openCredits > 0);
+    const mix =
+      t && t.feasible && !t.alreadySecured && t.freeCredits > 0
+        ? gradeMix(Math.max(0, t.required), t.freeCredits, GPV)
+        : null;
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          index={0}
-          label={projected ? "Projected CGPA" : "Current CGPA"}
-          value={standing.cgpa.toFixed(2)}
-          icon={Award}
-          tone="brand"
-          hint={
-            projected
-              ? `${classificationForGpa(standing.cgpa)} · now ${actualStanding.cgpa.toFixed(2)}`
-              : classificationForGpa(standing.cgpa)
-          }
-        />
-        <StatCard
-          index={1}
-          label="GPA credits so far"
-          value={standing.credits}
-          icon={GraduationCap}
-          tone="neutral"
-          hint={
-            projected && standing.guessedNewCredits > 0
-              ? `including ${standing.guessedNewCredits} you guessed · of ${finalCredits}`
-              : `of ${finalCredits} in your degree`
-          }
-        />
-        <StatCard
-          index={2}
-          label="GPA credits to go"
-          value={openCredits}
-          icon={Hourglass}
-          tone="info"
-          hint={
-            open.filter((s) => s.openCredits > 0).length > 0
-              ? `Semester ${andList(open.filter((s) => s.openCredits > 0).map((s) => String(s.semester)))}`
-              : undefined
-          }
-        />
-        <StatCard
-          index={3}
-          label="Best possible CGPA"
-          value={best.toFixed(2)}
-          icon={TrendingUp}
-          tone="success"
-          hint="With an A+ in every remaining course"
-        />
-      </div>
+      <motion.section
+        variants={cardReveal}
+        initial={reduce ? false : "hidden"}
+        animate="show"
+        className="rounded-card border border-primary/15 surface-tint p-5 shadow-elevation-sm sm:p-6"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Aiming for
+          </p>
+          <SegmentedTabs
+            tabs={CLASSIFICATIONS.map((c) => ({ value: c.key, label: SHORT_CLASS[c.key] ?? c.label }))}
+            value={t?.key ?? ""}
+            onChange={pickClass}
+            layoutId={`planner-class-${activeTab}`}
+            aria-label="Class to plan for"
+            equal
+            // Four equal tabs as wide as "Second Upper" do not fit a phone:
+            // there they sit two by two.
+            className="max-sm:w-full max-sm:grid-cols-2!"
+          />
+        </div>
+
+        {t && (
+          <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
+            <TabPanel value={t.key}>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                {t.alreadySecured ? (
+                  <span className="text-5xl font-bold leading-none tracking-tight text-success-fg">Secured</span>
+                ) : !t.feasible ? (
+                  <span className="text-5xl font-bold leading-none tracking-tight text-danger-fg">Out of reach</span>
+                ) : t.freeCredits === 0 ? (
+                  <span className="text-5xl font-bold leading-none tracking-tight text-foreground">Reached</span>
+                ) : (
+                  <>
+                    <span className="text-base font-semibold text-muted-foreground">SGPA</span>
+                    <span className="text-5xl font-bold leading-none tracking-tight tabular-nums text-foreground">
+                      <AnimatedNumber value={Math.max(0, t.required)} decimals={2} />
+                    </span>
+                  </>
+                )}
+                {verdictBadge(t)}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t.alreadySecured
+                  ? `${t.label}: even a 0.00 average in your remaining ${t.freeCredits} credits keeps you above ${t.threshold.toFixed(2)}.`
+                  : !t.feasible
+                    ? t.freeCredits > 0
+                      ? `${t.label} would need more than a 4.00 average in your remaining ${t.freeCredits} credits.`
+                      : `${t.label} is not reached with what you have planned.`
+                    : t.freeCredits === 0
+                      ? `${t.label} is reached with what you have planned.`
+                      : `What ${t.label} needs on average across your remaining ${t.freeCredits} GPA credits${
+                          toGo.length > 0 ? `, in Semester ${andList(toGo.map((x) => String(x.semester)))}` : ""
+                        }.`}
+              </p>
+              {mix && <p className="mt-1 text-sm font-medium text-foreground">{mix}</p>}
+              {t.plannedFinalCgpa !== null && (
+                <p className="mt-1 text-sm text-foreground">
+                  With your plans you finish on{" "}
+                  <strong className="tabular-nums">{t.plannedFinalCgpa.toFixed(2)}</strong>:{" "}
+                  {classificationForGpa(t.plannedFinalCgpa)}.
+                </p>
+              )}
+            </TabPanel>
+            <div>
+              <AnimatedBar
+                value={standing.cgpa}
+                max={4}
+                marker={t.threshold}
+                tone={standing.cgpa >= t.threshold ? "success" : "brand"}
+                label={`CGPA ${standing.cgpa.toFixed(2)} against ${t.threshold.toFixed(2)} for ${t.label}`}
+              />
+              <p className="mt-1.5 flex justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+                <span>
+                  {projected ? "Projected" : "CGPA"}{" "}
+                  <strong className="text-foreground">{standing.cgpa.toFixed(2)}</strong>
+                </span>
+                <span>
+                  {SHORT_CLASS[t.key] ?? t.label} at {t.threshold.toFixed(2)}
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-5 border-t border-border pt-4">
+          <StatStrip
+            items={[
+              {
+                label: `${projected ? "projected" : "current"} CGPA · ${classificationForGpa(standing.cgpa)}${
+                  projected ? ` · now ${actualStanding.cgpa.toFixed(2)}` : ""
+                }`,
+                value: standing.cgpa.toFixed(2),
+                icon: Award,
+                tone: "brand",
+              },
+              {
+                label:
+                  projected && standing.guessedNewCredits > 0
+                    ? `GPA credits so far, including ${standing.guessedNewCredits} you guessed · of ${finalCredits}`
+                    : `GPA credits so far · of ${finalCredits} in your degree`,
+                value: standing.credits,
+                icon: GraduationCap,
+              },
+              {
+                label:
+                  toGo.length > 0
+                    ? `GPA credits to go · Semester ${andList(toGo.map((x) => String(x.semester)))}`
+                    : "GPA credits to go",
+                value: openCredits,
+                icon: Hourglass,
+                tone: "info",
+              },
+              {
+                label: "best possible CGPA, with an A+ in every remaining course",
+                value: best.toFixed(2),
+                icon: TrendingUp,
+                tone: "success",
+              },
+            ]}
+          />
+        </div>
+      </motion.section>
     );
   };
 
@@ -637,6 +734,17 @@ export default function GraduationPlanner() {
   const renderProjectionsCard = () => (
     <SectionCard
       title="What you need for each class"
+      collapsible
+      defaultOpen={false}
+      storageKey="planner-classes"
+      summary={targets
+        .map(
+          (t) =>
+            `${SHORT_CLASS[t.key] ?? t.label} ${
+              t.alreadySecured ? "secured" : !t.feasible ? "out of reach" : Math.max(0, t.required).toFixed(2)
+            }`,
+        )
+        .join(" · ")}
       description={
         [
           remainingText
@@ -653,7 +761,7 @@ export default function GraduationPlanner() {
       {targets.map((t) => (
         <div
           key={t.key}
-          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-border p-3"
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-control border border-border p-3"
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -702,25 +810,14 @@ export default function GraduationPlanner() {
     const totalOpen = openCredits;
     return (
       <SectionCard
-        title="Semester targets"
+        title={`Semester targets · ${SHORT_CLASS[t.key] ?? t.label}`}
         description={
           simulator
-            ? "The SGPA each remaining semester needs for the class you pick. A semester counts in proportion to its GPA credits: plan one higher and the others need less."
-            : "The SGPA each remaining semester needs for the class you pick. A semester counts in proportion to its GPA credits. To plan one semester higher than another, use the What-If Simulator."
+            ? "The SGPA each remaining semester needs for the class picked above. A semester counts in proportion to its GPA credits: plan one higher and the others need less."
+            : "The SGPA each remaining semester needs for the class picked above. A semester counts in proportion to its GPA credits. To plan one semester higher than another, use the What-If Simulator."
         }
         bodyClassName="space-y-3"
       >
-        <SegmentedTabs
-          tabs={CLASSIFICATIONS.map((c) => ({ value: c.key, label: SHORT_CLASS[c.key] ?? c.label }))}
-          value={t.key}
-          onChange={pickClass}
-          layoutId={`planner-class-${activeTab}`}
-          aria-label="Class to plan for"
-          equal
-          // Four equal tabs as wide as "Second Upper" do not fit a phone:
-          // there they sit two by two.
-          className="max-sm:w-full max-sm:grid-cols-2!"
-        />
         <p className="text-sm text-muted-foreground">
           {t.label} needs a final CGPA of {t.threshold.toFixed(2)} over your{" "}
           {t.finalCredits} GPA credits. The Dean's List needs an SGPA of{" "}
@@ -735,7 +832,7 @@ export default function GraduationPlanner() {
             return (
               <li
                 key={s.semester}
-                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-border p-3"
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-control border border-border p-3"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -816,7 +913,7 @@ export default function GraduationPlanner() {
         </ul>
 
         {t.plannedFinalCgpa !== null && (
-          <p className="rounded-xl bg-primary/5 p-3 text-sm text-foreground ring-1 ring-inset ring-primary/20">
+          <p className="rounded-control bg-primary/5 p-3 text-sm text-foreground ring-1 ring-inset ring-primary/20">
             With these plans you finish on a CGPA of{" "}
             <strong className="tabular-nums">{t.plannedFinalCgpa.toFixed(2)}</strong>:{" "}
             {classificationForGpa(t.plannedFinalCgpa)}.
@@ -872,7 +969,7 @@ export default function GraduationPlanner() {
   const renderScenarioBar = () => {
     const active = scenarios.find((x) => x.id === activeId) ?? null;
     return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-primary/15 pt-3">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">Scenario</span>
         {scenarios.length > 0 ? (
           <Select value={activeId ?? undefined} onValueChange={openScenario}>
@@ -966,6 +1063,10 @@ export default function GraduationPlanner() {
       <SectionCard
         title="Compare scenarios"
         description="A final CGPA shows once every semester ahead has a planned SGPA."
+        collapsible
+        defaultOpen={false}
+        storageKey="planner-compare"
+        summary={`${scenarios.length} scenarios`}
         bodyClassName="space-y-2"
       >
         {rows.map(({ sc, cgpa, semGpa, fin }) => (
@@ -974,7 +1075,7 @@ export default function GraduationPlanner() {
             type="button"
             onClick={() => openScenario(sc.id)}
             className={cn(
-              "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border p-3 text-left transition-colors",
+              "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-control border p-3 text-left transition-colors",
               sc.id === activeId ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40",
             )}
             aria-current={sc.id === activeId ? "true" : undefined}
@@ -1008,7 +1109,7 @@ export default function GraduationPlanner() {
     const heaviest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => b.credits - a.credits)[0];
     const lightest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => a.credits - b.credits)[0];
     return (
-      <details className="group rounded-xl border border-border px-3 py-2 text-sm">
+      <details className="group rounded-control border border-border px-3 py-2 text-sm">
         <summary className="cursor-pointer select-none font-medium text-primary marker:text-muted-foreground">
           How is this worked out?
         </summary>
@@ -1297,16 +1398,14 @@ export default function GraduationPlanner() {
     return (
       <SectionCard
         title="Graduation requirements"
-        bodyClassName={cn(
-          "grid gap-2 sm:grid-cols-2",
-          items.length % 3 === 0 || items.length === 5 ? "lg:grid-cols-3" : "lg:grid-cols-4",
-        )}
+        className="h-full"
+        bodyClassName="grid gap-2 sm:grid-cols-2 lg:grid-cols-1"
       >
         {items.map((it) => {
           const Icon =
             it.icon ?? (it.state === "done" ? CheckCircle2 : it.state === "attention" ? AlertTriangle : Circle);
           return (
-            <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-border p-3">
+            <div key={it.key} className="flex items-start gap-2.5 rounded-control border border-border p-3">
               <Icon
                 aria-hidden="true"
                 className={cn(
@@ -1322,9 +1421,7 @@ export default function GraduationPlanner() {
                 <p className="text-xs text-muted-foreground">{it.label}</p>
                 <p className="text-sm font-semibold text-foreground tabular-nums">{it.value}</p>
                 {it.bar !== undefined && (
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${it.bar}%` }} />
-                  </div>
+                  <AnimatedBar value={it.bar} max={100} label={`${it.label}: ${it.value}`} className="mt-1.5 h-1.5" />
                 )}
                 {it.detail && <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.detail}</p>}
               </div>
@@ -1348,7 +1445,7 @@ export default function GraduationPlanner() {
 
       {loading ? (
         <div className="space-y-4">
-          <SkeletonStatGrid count={4} />
+          <SkeletonHero />
           <SkeletonRows count={4} height="h-16" />
         </div>
       ) : loadError ? (
@@ -1377,10 +1474,14 @@ export default function GraduationPlanner() {
           />
 
           <TabsContent value="standing" className="mt-5 space-y-5">
-            {renderStandingCards()}
-            {renderRequirements()}
+            {renderHero()}
             {renderSemesterTargets()}
-            {renderPath()}
+            {/* The checklist beside the path: what the degree asks for
+                besides a GPA, and where the GPA is heading. */}
+            <div className="grid gap-5 lg:grid-cols-5 lg:items-stretch">
+              <div className="lg:col-span-2">{renderRequirements()}</div>
+              <div className="lg:col-span-3">{renderPath()}</div>
+            </div>
             {renderProjectionsCard()}
           </TabsContent>
 
@@ -1388,23 +1489,25 @@ export default function GraduationPlanner() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-3"
+              className="flex gap-2.5 rounded-card border border-primary/20 bg-primary/5 p-3"
             >
-              <div className="flex gap-2.5">
-                <FlaskConical className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-foreground">
-                  {sittingSemesters.length > 0
-                    ? "Put in the grades you expect this semester, plan an SGPA for a semester ahead, or change a past grade."
-                    : "Plan an SGPA for a semester ahead, or change a past grade."}{" "}
-                  These are projections only —{" "}
-                  <strong>nothing here changes your real academic record.</strong>
-                </p>
-              </div>
-              {renderScenarioBar()}
+              <FlaskConical className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground">
+                {sittingSemesters.length > 0
+                  ? "Put in the grades you expect this semester, plan an SGPA for a semester ahead, or change a past grade."
+                  : "Plan an SGPA for a semester ahead, or change a past grade."}{" "}
+                These are projections only —{" "}
+                <strong>nothing here changes your real academic record.</strong>
+              </p>
             </motion.div>
+            {/* The open scenario stays in reach while the grades below it
+                scroll past. */}
+            <div className="sticky top-14 z-20 rounded-control border border-border bg-card/95 px-3 py-2 shadow-elevation-sm backdrop-blur">
+              {renderScenarioBar()}
+            </div>
             {renderCompare()}
 
-            {renderStandingCards()}
+            {renderHero()}
             {renderSittingCard()}
             {renderSemesterTargets()}
             {renderPath()}
@@ -1412,8 +1515,8 @@ export default function GraduationPlanner() {
 
             <SectionCard
               title="Edit past module grades"
-              description="Pick a different grade for any course to see what it would change."
-              bodyClassName="space-y-4"
+              description="Pick a different grade for any course to see what it would change. Open a semester to edit it."
+              bodyClassName="space-y-2"
             >
               {pastBySemester.length === 0 && (
                 <EmptyState icon={Target} title="No published results yet" size="inline" />
@@ -1427,16 +1530,52 @@ export default function GraduationPlanner() {
                 );
                 const changed =
                   semStanding && actualSemStanding && semStanding.sgpa !== actualSemStanding.sgpa;
+                const edits = group.courses.filter(
+                  (c) => simulatedGrades[c.resultRowId] && simulatedGrades[c.resultRowId] !== c.grade,
+                ).length;
+                // Closed until opened, except a semester with a changed grade,
+                // which opens so the change is never hidden.
+                const isOpen = pastOpen[group.semester] ?? edits > 0;
+                const bodyId = `planner-past-${group.semester}`;
                 return (
-                  <div key={group.semester}>
-                    <div className="flex items-center gap-2 mb-3">
+                  <div key={group.semester} className="rounded-control border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setPastOpen((prev) => ({ ...prev, [group.semester]: !isOpen }))}
+                      aria-expanded={isOpen}
+                      aria-controls={bodyId}
+                      className="flex w-full flex-wrap items-center gap-2 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
+                          !isOpen && "-rotate-90",
+                        )}
+                        aria-hidden="true"
+                      />
                       <h4 className="font-semibold text-foreground">Semester {group.semester}</h4>
                       <StatusBadge tone={changed ? "brand" : "neutral"}>
                         SGPA: {semStanding?.sgpa.toFixed(2) ?? "0.00"}
                         {changed && ` (was ${actualSemStanding!.sgpa.toFixed(2)})`}
                       </StatusBadge>
-                    </div>
-                    <div className="space-y-2">
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {edits > 0
+                          ? `${edits} grade${edits === 1 ? "" : "s"} changed`
+                          : `${group.courses.length} course${group.courses.length === 1 ? "" : "s"}`}
+                      </span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                    {isOpen && (
+                    <motion.div
+                      id={bodyId}
+                      key="body"
+                      variants={expand}
+                      initial="collapsed"
+                      animate="open"
+                      exit="collapsed"
+                      className="overflow-hidden"
+                    >
+                    <div className="space-y-2 px-3 pb-3">
                       {group.courses.map((c) => {
                         const effectiveGrade = simulatedGrades[c.resultRowId] ?? c.grade;
                         const isChanged =
@@ -1498,6 +1637,9 @@ export default function GraduationPlanner() {
                         );
                       })}
                     </div>
+                    </motion.div>
+                    )}
+                    </AnimatePresence>
                   </div>
                 );
               })}
