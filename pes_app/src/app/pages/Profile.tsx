@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Award,
   BookOpenCheck,
@@ -15,9 +16,9 @@ import {
   PageHeader,
   SectionCard,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  cardReveal,
 } from "../components/common";
 import { cn } from "../components/ui/utils";
 import { supabase } from "../../lib/supabase";
@@ -251,6 +252,7 @@ export default function Profile() {
   );
 
   const dept = departmentByName(student?.department);
+  const reduce = useReducedMotion();
 
   const details: [string, React.ReactNode][] = [
     ["Index number", student?.index_number ?? "—"],
@@ -272,10 +274,20 @@ export default function Profile() {
         description="Your record on the faculty's books, and how your degree is going."
       />
 
-      {/* Who you are */}
-      <SectionCard>
-        <div className="flex flex-col gap-5 md:flex-row md:items-start">
-          <div className="flex items-center gap-4 md:w-72 md:flex-shrink-0 md:flex-col md:items-center md:text-center">
+      {/* Who you are: a brand band, the photo across its edge, the name and
+          badges beside it, then the faculty's record of you, then the
+          numbers, each opening the page that explains it. */}
+      <motion.section
+        variants={cardReveal}
+        initial={reduce ? false : "hidden"}
+        animate="show"
+        className="overflow-hidden rounded-card border border-border bg-card shadow-elevation-sm"
+      >
+        <div className="surface-hero h-20 sm:h-24" aria-hidden="true" />
+        <div className="px-4 pb-5 sm:px-6">
+          {/* The photo across the band's edge, the name under it: a long
+              name wraps in the card, never over the band. */}
+          <div className="-mt-10 flex flex-col items-start gap-3 sm:-mt-12">
             {/* A real button, so the photo can be changed by keyboard and on
                 a phone; the change used to appear only on mouse hover. */}
             <button
@@ -283,14 +295,14 @@ export default function Profile() {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               aria-label="Change profile photo"
-              className="group relative flex-shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+              className="group relative flex-shrink-0 rounded-full ring-4 ring-card focus-visible:outline-none focus-visible:ring-primary"
             >
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
                   alt=""
                   className={cn(
-                    "h-20 w-20 rounded-full object-cover md:h-24 md:w-24",
+                    "h-20 w-20 rounded-full bg-card object-cover sm:h-24 sm:w-24",
                     // The department colour survives the photo, as a ring.
                     dept && cn(dept.ringClass, "ring-[3px] ring-offset-2 ring-offset-card"),
                   )}
@@ -298,14 +310,14 @@ export default function Profile() {
               ) : (
                 <span
                   className={cn(
-                    "flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold md:h-24 md:w-24",
+                    "flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold sm:h-24 sm:w-24",
                     dept?.chipClass ?? "bg-primary/10 text-primary",
                   )}
                 >
                   {initials}
                 </span>
               )}
-              <span className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-elevation-sm">
+              <span className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-elevation-sm transition-transform group-hover:scale-110">
                 {uploading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 ) : (
@@ -322,27 +334,27 @@ export default function Profile() {
             />
 
             <div className="min-w-0">
-              <h2 className="text-lg font-bold leading-tight text-foreground">
+              <h2 className="text-xl font-bold leading-tight text-foreground">
                 {student?.name ?? "—"}
               </h2>
-              {avatarUrl && (
-                <button
-                  type="button"
-                  onClick={handleAvatarRemove}
-                  disabled={uploading}
-                  className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:text-danger-fg hover:underline"
-                >
-                  Remove photo
-                </button>
-              )}
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:justify-center">
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {student?.department && <DepartmentBadge department={student.department} />}
                 {!loading && <StatusBadge tone="brand">{yearLabel}</StatusBadge>}
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleAvatarRemove}
+                    disabled={uploading}
+                    className="ml-1 text-xs text-muted-foreground underline-offset-2 hover:text-danger-fg hover:underline"
+                  >
+                    Remove photo
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          <dl className="grid flex-1 grid-cols-1 gap-x-6 gap-y-3 border-t border-border/70 pt-4 sm:grid-cols-2 md:border-l md:border-t-0 md:pl-6 md:pt-0">
+          <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-border/70 pt-4 sm:grid-cols-2 lg:grid-cols-4">
             {details.map(([label, value]) => (
               <div key={label} className="min-w-0">
                 <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -352,55 +364,54 @@ export default function Profile() {
               </div>
             ))}
           </dl>
-        </div>
-      </SectionCard>
 
-      {/* The numbers, each opening the page that explains it */}
-      {loading ? (
-        <SkeletonStatGrid count={4} />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            index={0}
-            label="Current CGPA"
-            value={stats.totalCredits > 0 ? stats.cgpa.toFixed(2) : "—"}
-            icon={TrendingUp}
-            tone="brand"
-            hint="Cumulative GPA"
-            onClick={() => navigate("/app/results")}
-          />
-          <StatCard
-            index={1}
-            label="Credits earned"
-            value={stats.totalCredits}
-            icon={GraduationCap}
-            tone="success"
-            hint="Counted toward the GPA"
-            onClick={() => navigate("/app/planner")}
-          />
-          <StatCard
-            index={2}
-            label="Courses completed"
-            value={stats.completedCourses}
-            icon={BookOpenCheck}
-            tone="neutral"
-            hint="With a published grade"
-            onClick={() => navigate("/app/courses")}
-          />
-          <StatCard
-            index={3}
-            label="Dean's List"
-            value={deansListSemesters.length}
-            icon={Award}
-            tone="brand"
-            hint={
-              deansListSemesters.length > 0
-                ? deansListSemesters.map((s) => `Sem ${s.semNum}`).join(", ")
-                : "An SGPA of 3.80 or more in a semester"
-            }
-          />
+          {/* The numbers that used to be four cards, each still opening the
+              page that explains it. */}
+          <div className="mt-4 border-t border-border/70 pt-4">
+            {loading ? (
+              <div className="flex gap-2" aria-hidden="true">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="skeleton-shimmer h-7 w-36 rounded-full bg-muted" />
+                ))}
+              </div>
+            ) : (
+              <StatStrip
+                items={[
+                  {
+                    label: "CGPA",
+                    value: stats.totalCredits > 0 ? stats.cgpa.toFixed(2) : "—",
+                    icon: TrendingUp,
+                    tone: "brand",
+                    onClick: () => navigate("/app/results"),
+                  },
+                  {
+                    label: "credits earned toward the GPA",
+                    value: stats.totalCredits,
+                    icon: GraduationCap,
+                    tone: "success",
+                    onClick: () => navigate("/app/planner"),
+                  },
+                  {
+                    label: "courses completed with a published grade",
+                    value: stats.completedCourses,
+                    icon: BookOpenCheck,
+                    onClick: () => navigate("/app/courses"),
+                  },
+                  {
+                    label:
+                      deansListSemesters.length > 0
+                        ? `Dean's List · ${deansListSemesters.map((x) => `Sem ${x.semNum}`).join(", ")}`
+                        : "Dean's List (an SGPA of 3.80 or more in a semester)",
+                    value: deansListSemesters.length,
+                    icon: Award,
+                    tone: "brand",
+                  },
+                ]}
+              />
+            )}
+          </div>
         </div>
-      )}
+      </motion.section>
 
       {/* Semester by semester, without the progress bars: a finished
           semester was always a full bar and the current one a fixed 60%,
@@ -408,6 +419,16 @@ export default function Profile() {
       <SectionCard
         title="Semester record"
         description="Your GPA for each semester so far."
+        collapsible
+        defaultOpen={false}
+        storageKey="profile-semesters"
+        summary={
+          semesterStats.length > 0
+            ? `${semesterStats.filter((x) => x.completed).length} completed · latest SGPA ${
+                [...semesterStats].reverse().find((x) => x.completed)?.sgpa.toFixed(2) ?? "—"
+              }`
+            : undefined
+        }
         actions={
           <Button
             variant="ghost"
