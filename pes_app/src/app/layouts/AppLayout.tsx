@@ -23,18 +23,20 @@ import {
 import { formatRegNumber } from "../../lib/format";
 import { FirstSignInPassword } from "../components/account/FirstSignInPassword";
 
+/* In sections, so the eye finds a page by what it is for: studying,
+   asking for something, or getting help. Same pages, same names. */
 const navigation: ShellNavItem[] = [
   { name: "Dashboard", href: "/app", icon: LayoutDashboard },
-  { name: "Courses", href: "/app/courses", icon: BookOpen },
-  { name: "Attendance", href: "/app/attendance", icon: Calendar },
-  { name: "Medical Certificates", href: "/app/medical", icon: FileHeart },
-  { name: "Results", href: "/app/results", icon: TrendingUp },
-  { name: "Notices", href: "/app/notices", icon: Megaphone },
-  { name: "Enrollment", href: "/app/enrollment", icon: GraduationCap },
-  { name: "Feedback", href: "/app/feedback", icon: MessageSquareText },
-  { name: "Mentor", href: "/app/mentor", icon: UserRound },
-  { name: "Graduation Planner", href: "/app/planner", icon: Target },
-  { name: "AI Assistant", href: "/app/ai-assistant", icon: Bot, badge: "New" },
+  { name: "Courses", href: "/app/courses", icon: BookOpen, group: "Academics" },
+  { name: "Results", href: "/app/results", icon: TrendingUp, group: "Academics" },
+  { name: "Attendance", href: "/app/attendance", icon: Calendar, group: "Academics" },
+  { name: "Enrollment", href: "/app/enrollment", icon: GraduationCap, group: "Academics" },
+  { name: "Graduation Planner", href: "/app/planner", icon: Target, group: "Academics" },
+  { name: "Medical Certificates", href: "/app/medical", icon: FileHeart, group: "Requests" },
+  { name: "Feedback", href: "/app/feedback", icon: MessageSquareText, group: "Requests" },
+  { name: "Mentor", href: "/app/mentor", icon: UserRound, group: "Help" },
+  { name: "AI Assistant", href: "/app/ai-assistant", icon: Bot, badge: "New", group: "Help" },
+  { name: "Notices", href: "/app/notices", icon: Megaphone, group: "Help" },
 ];
 
 const bottomNavigation: ShellNavItem[] = [

@@ -192,6 +192,19 @@
   --motion-base: 250ms;
   --motion-slow: 400ms;
   --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Hero surfaces: the one card per page that carries the number that
+     matters (CGPA, overall attendance). Crimson into the crest's deep red;
+     white text on either end clears WCAG AA (5.8:1 and 10.7:1). */
+  --hero-from: #C41E3A;
+  --hero-to: #7A1230;
+  --hero-fg: #FFFFFF;
+  --hero-muted: rgb(255 255 255 / 0.8);
+  --hero-track: rgb(255 255 255 / 0.22);
+  /* A whisper of the brand for secondary emphasis (attention lists, tinted
+     heroes), and the sweep across a loading skeleton. */
+  --surface-tint: color-mix(in oklab, var(--primary) 5%, var(--card));
+  --shimmer: rgb(255 255 255 / 0.65);
 }
 
 .dark {
@@ -275,6 +288,15 @@
   --elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
   --elevation-md: 0 2px 8px -2px rgb(0 0 0 / 0.45), 0 1px 3px -1px rgb(0 0 0 / 0.30);
   --elevation-lg: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 4px 10px -4px rgb(0 0 0 / 0.35);
+
+  /* A deeper hero on a dark page, so it glows rather than shouts. */
+  --hero-from: #8E1630;
+  --hero-to: #3A0B18;
+  --hero-fg: #FFFFFF;
+  --hero-muted: rgb(255 255 255 / 0.78);
+  --hero-track: rgb(255 255 255 / 0.18);
+  --surface-tint: color-mix(in oklab, var(--primary) 9%, var(--card));
+  --shimmer: rgb(255 255 255 / 0.06);
 }
 
 .light {
@@ -458,6 +480,13 @@
   --shadow-elevation-lg: var(--elevation-lg);
 }
 
+/* One radius per kind of surface: every card, sheet and hero is a card;
+   every input, button and list row is a control. */
+@theme {
+  --radius-card: 1.125rem;
+  --radius-control: 0.75rem;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -604,4 +633,35 @@
   .shadow-glow-accent {
     box-shadow: 0 0 20px rgba(253, 185, 19, 0.3);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces and loading                                                */
+/* ------------------------------------------------------------------ */
+
+/* The hero card: the brand gradient with a soft highlight in the corner. */
+@utility surface-hero {
+  background-color: var(--hero-to);
+  background-image:
+    radial-gradient(120% 140% at 100% 0%, rgb(255 255 255 / 0.16), transparent 55%),
+    linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  color: var(--hero-fg);
+}
+
+@utility surface-tint {
+  background-color: var(--surface-tint);
+}
+
+/* A light sweep across a skeleton block, so loading reads as progress rather
+   than a flat grey box. Reduced motion stops it (see the base layer). */
+@utility skeleton-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, var(--shimmer) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: pes-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes pes-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
 }

@@ -20,28 +20,58 @@ export {
   EmptyState,
   ErrorState,
   Skeleton,
+  SkeletonHero,
   SkeletonStatGrid,
   SkeletonRows,
 } from "./States";
 export {
   PageHeader,
+  HeroCard,
+  StatStrip,
   SectionCard,
   StatCard,
   ActionCard,
+  Reveal,
+  heroButtonClass,
+  heroGhostButtonClass,
+  type StripItem,
 } from "./Surfaces";
+export { AnimatedNumber, AnimatedBar } from "./Animated";
+export {
+  Toolbar,
+  SearchField,
+  FilterButton,
+  ActiveFilters,
+  type ActiveFilter,
+} from "./Toolbar";
+export { DataTable, type DataColumn } from "./DataTable";
+export { StickyActionBar } from "./StickyActionBar";
 export { ChartContainer, ChartTooltip } from "./ChartContainer";
 export { GpaTrendChart, type GpaTrendPoint } from "./GpaTrendChart";
 export {
   CourseAttendanceChart,
   type CourseAttendancePoint,
 } from "./CourseAttendanceChart";
-export { SegmentedTabs, type SegmentedTabItem } from "./SegmentedTabs";
+export {
+  SegmentedTabs,
+  PillTabs,
+  TabPanel,
+  type SegmentedTabItem,
+} from "./SegmentedTabs";
 export { ProgressRing } from "./ProgressRing";
 export {
   DURATION,
   EASE,
+  SPRING,
+  pageEnter,
+  stagger,
+  cardReveal,
+  listItem,
+  sectionExpand,
+  tabContent,
   usePageMotion,
   useListMotion,
   useHoverLift,
   useChartMotion,
+  useExpandMotion,
 } from "./motion";

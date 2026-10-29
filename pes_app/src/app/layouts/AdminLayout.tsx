@@ -23,16 +23,17 @@ import {
 } from "../hooks/useNotificationCounts";
 import { describeAdminScope } from "../../lib/adminScope";
 
+/* In sections: students' records, the curriculum, and notices. */
 const navigation: ShellNavItem[] = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Attendance", href: "/admin/attendance", icon: Calendar },
-  { name: "Results", href: "/admin/results", icon: TrendingUp },
-  { name: "Students", href: "/admin/students", icon: Users },
-  { name: "Courses", href: "/admin/courses", icon: BookOpen },
-  { name: "Medical", href: "/admin/medical", icon: FileHeart },
-  { name: "Feedback", href: "/admin/feedback", icon: MessageSquareText },
-  { name: "Enrollment", href: "/admin/enrollment", icon: GraduationCap },
-  { name: "Notices", href: "/admin/notices", icon: Megaphone },
+  { name: "Attendance", href: "/admin/attendance", icon: Calendar, group: "Records" },
+  { name: "Results", href: "/admin/results", icon: TrendingUp, group: "Records" },
+  { name: "Students", href: "/admin/students", icon: Users, group: "Records" },
+  { name: "Medical", href: "/admin/medical", icon: FileHeart, group: "Records" },
+  { name: "Courses", href: "/admin/courses", icon: BookOpen, group: "Curriculum" },
+  { name: "Enrollment", href: "/admin/enrollment", icon: GraduationCap, group: "Curriculum" },
+  { name: "Feedback", href: "/admin/feedback", icon: MessageSquareText, group: "Curriculum" },
+  { name: "Notices", href: "/admin/notices", icon: Megaphone, group: "Communication" },
 ];
 
 /* Faculty-level work. A headship covers a whole department, so it is granted
@@ -40,9 +41,9 @@ const navigation: ShellNavItem[] = [
    or removing it is too. The RPCs refuse a department admin either way — the
    sidebar should say so before they click. */
 const superAdminOnly: ShellNavItem[] = [
-  { name: "Users", href: "/admin/users", icon: UsersRound },
-  { name: "Batches", href: "/admin/batches", icon: Layers },
-  { name: "Heads of Department", href: "/admin/hods", icon: UserCog },
+  { name: "Users", href: "/admin/users", icon: UsersRound, group: "Faculty" },
+  { name: "Batches", href: "/admin/batches", icon: Layers, group: "Faculty" },
+  { name: "Heads of Department", href: "/admin/hods", icon: UserCog, group: "Faculty" },
 ];
 
 export default function AdminLayout() {

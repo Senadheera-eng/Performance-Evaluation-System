@@ -27,6 +27,10 @@ interface GpaTrendChartProps {
   height?: number;
   loading?: boolean;
   className?: string;
+  /** One sentence on what the trend means; see ChartContainer. */
+  takeaway?: React.ReactNode;
+  /** Plot only, inside another card. */
+  bare?: boolean;
 }
 
 /**
@@ -44,6 +48,8 @@ export function GpaTrendChart({
   height = 250,
   loading = false,
   className,
+  takeaway,
+  bare,
 }: GpaTrendChartProps) {
   const chartDuration = useChartMotion();
   // Unique per instance — two charts sharing a gradient id collide.
@@ -62,6 +68,8 @@ export function GpaTrendChart({
         .map((p) => `${p.semester} ${p.gpa.toFixed(2)}`)
         .join(", ")}. Cumulative GPA ${cgpa.toFixed(2)} out of 4.00.`}
       className={className}
+      takeaway={takeaway}
+      bare={bare}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
