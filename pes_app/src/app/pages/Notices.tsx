@@ -1,15 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Megaphone, Search, SlidersHorizontal, X } from "lucide-react";
+import { Megaphone } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Switch } from "../components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  ActiveFilters,
   EmptyState,
+  FilterButton,
   PageHeader,
+  SearchField,
   SectionCard,
   SegmentedTabs,
   SkeletonRows,
+  type ActiveFilter,
 } from "../components/common";
+import { cn } from "../components/ui/utils";
 import { NoticeCard, categoryIcon } from "../components/notices/NoticeCard";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -22,6 +35,8 @@ import {
 import { useSettings } from "../../lib/settings";
 
 const PAGE_SIZE = 20;
+/* Radix's Select cannot hold an empty value, so "any" has its own. */
+const ANY = "__any__";
 
 /**
  * The academic notice board, as a student reads it.
@@ -67,9 +82,6 @@ export default function Notices() {
   const includeExpired = params.get("archived") === "1";
 
   const [searchBox, setSearchBox] = useState(searchTerm);
-  const [showFilters, setShowFilters] = useState(
-    Boolean(semester || academicYear || includeExpired),
-  );
 
   const setParam = useCallback(
     (patch: Record<string, string | null>) => {
@@ -150,6 +162,31 @@ export default function Notices() {
   const clearAll = () =>
     setParams(new URLSearchParams({ scope }), { replace: true });
 
+  /* The filters in force as chips, so a short list never just looks short.
+     The category's own tile shows it too, but it can be scrolled away. */
+  const filterChips: ActiveFilter[] = [
+    ...(category
+      ? [
+          {
+            key: "category",
+            label: categories.find((c) => c.slug === category)?.label ?? "Category",
+            onRemove: () => setParam({ category: null }),
+          },
+        ]
+      : []),
+    ...(semester
+      ? [{ key: "semester", label: `Semester ${semester}`, onRemove: () => setParam({ semester: null }) }]
+      : []),
+    ...(academicYear
+      ? [{ key: "year", label: academicYear, onRemove: () => setParam({ year: null }) }]
+      : []),
+    ...(includeExpired
+      ? [{ key: "archived", label: "Including expired", onRemove: () => setParam({ archived: null }) }]
+      : []),
+  ];
+  // The Filters button counts what is behind it; the category is a tile.
+  const panelFilters = activeFilters - (category ? 1 : 0);
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -157,45 +194,96 @@ export default function Notices() {
         description="Timetables, results, schedules and announcements — everything official, in one place."
       />
 
-      {/* Search */}
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
+      {/* One row of controls, as on Courses: who the list is for, the
+          search, and the rarer filters behind one button. */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <SegmentedTabs
+          aria-label="Notice scope"
+          value={scope}
+          onChange={(v) => setParam({ scope: v })}
+          layoutId="notice-scope-tabs"
+          className="lg:flex-shrink-0"
+          tabs={[
+            { value: "for_me", label: "For you" },
+            { value: "all", label: "All notices" },
+          ]}
+        />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SearchField
             value={searchBox}
-            onChange={(e) => setSearchBox(e.target.value)}
-            placeholder="Search notices, course codes, documents..."
-            aria-label="Search notices"
-            className="h-10 bg-card pl-9"
+            onChange={setSearchBox}
+            placeholder="Search notices, course codes, documents…"
+            label="Search notices"
           />
-          {searchBox && (
-            <button
-              type="button"
-              onClick={() => setSearchBox("")}
-              aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <FilterButton count={panelFilters}>
+            <div className="space-y-2">
+              <Label htmlFor="notices-semester" className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Semester
+              </Label>
+              <Select
+                value={semester ?? ANY}
+                onValueChange={(v) => setParam({ semester: v === ANY ? null : v })}
+              >
+                <SelectTrigger id="notices-semester" className="h-9 w-full rounded-control border-border bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY}>Any semester</SelectItem>
+                  {semesterOptions.map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      Semester {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notices-year" className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Academic year
+              </Label>
+              <Select
+                value={academicYear ?? ANY}
+                onValueChange={(v) => setParam({ year: v === ANY ? null : v })}
+              >
+                <SelectTrigger id="notices-year" className="h-9 w-full rounded-control border-border bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY}>Any year</SelectItem>
+                  {/* The year in force stays a choice even when this page of
+                      notices has none from it. */}
+                  {(academicYear && !academicYearOptions.includes(academicYear)
+                    ? [academicYear, ...academicYearOptions]
+                    : academicYearOptions
+                  ).map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-control border border-border px-3 py-2.5">
+              <Label htmlFor="notices-archived" className="flex flex-col items-start gap-0.5 font-normal">
+                <span className="text-sm font-medium text-foreground">Include expired notices</span>
+                <span className="text-xs text-muted-foreground">Past deadlines and old timetables</span>
+              </Label>
+              <Switch
+                id="notices-archived"
+                checked={includeExpired}
+                onCheckedChange={(v) => setParam({ archived: v ? "1" : null })}
+              />
+            </div>
+          </FilterButton>
         </div>
-        <Button
-          variant={activeFilters > 0 ? "default" : "outline"}
-          onClick={() => setShowFilters((v) => !v)}
-          aria-expanded={showFilters}
-          className="sm:w-auto"
-        >
-          <SlidersHorizontal className="mr-1.5 h-4 w-4" />
-          Filter{activeFilters > 0 ? ` (${activeFilters})` : ""}
-        </Button>
       </div>
 
-      {/* Quick access — the six things people actually come for. */}
+      <ActiveFilters filters={filterChips} onClearAll={clearAll} />
+
+      {/* Quick access: the categories people actually come for, each with
+          the unread count the sidebar's number is made of. */}
       <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Quick access
         </p>
         {/* One scrolling row on a phone. As a two-column grid the nine
@@ -216,14 +304,25 @@ export default function Notices() {
                     : c.label
                 }
                 onClick={() => setParam({ category: active ? null : c.slug })}
-                className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-2 text-left text-sm transition-colors sm:py-2.5 ${
+                className={cn(
+                  "group flex flex-shrink-0 items-center gap-2.5 whitespace-nowrap rounded-control border px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   active
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted"
-                }`}
+                    ? "border-primary/40 bg-primary/10 text-foreground ring-1 ring-inset ring-primary/20"
+                    : "border-border bg-card text-foreground hover:border-primary/30 hover:bg-muted/60",
+                )}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span className="sm:min-w-0 sm:flex-1 sm:truncate">{c.label}</span>
+                <span
+                  className={cn(
+                    "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground group-hover:text-primary",
+                  )}
+                  aria-hidden="true"
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="font-medium sm:min-w-0 sm:flex-1 sm:truncate">{c.label}</span>
                 {/* Says which category the sidebar's number is actually in.
                     Absent rather than zero, so a quiet category stays quiet. */}
                 {unread > 0 && (
@@ -239,98 +338,6 @@ export default function Notices() {
           })}
         </div>
       </div>
-
-      {showFilters && (
-        <SectionCard title="Filters">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Semester
-              </span>
-              <select
-                value={semester ?? "all"}
-                onChange={(e) =>
-                  setParam({
-                    semester: e.target.value === "all" ? null : e.target.value,
-                  })
-                }
-                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
-                <option value="all">Any semester</option>
-                {semesterOptions.map((s) => (
-                  <option key={s} value={s}>
-                    Semester {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Academic year
-              </span>
-              <select
-                value={academicYear ?? "all"}
-                onChange={(e) =>
-                  setParam({
-                    year: e.target.value === "all" ? null : e.target.value,
-                  })
-                }
-                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
-                <option value="all">Any year</option>
-                {academicYearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col justify-end gap-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Archive
-              </span>
-              <button
-                type="button"
-                aria-pressed={includeExpired}
-                onClick={() =>
-                  setParam({ archived: includeExpired ? null : "1" })
-                }
-                className={`h-9 rounded-xl border px-3 text-sm transition-colors ${
-                  includeExpired
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                {includeExpired ? "Showing expired notices" : "Hide expired notices"}
-              </button>
-            </label>
-          </div>
-
-          {activeFilters > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2"
-              onClick={clearAll}
-            >
-              Clear all filters
-            </Button>
-          )}
-        </SectionCard>
-      )}
-
-      <SegmentedTabs
-        aria-label="Notice scope"
-        value={scope}
-        onChange={(v) => setParam({ scope: v })}
-        layoutId="notice-scope-tabs"
-        tabs={[
-          { value: "for_me", label: "For you" },
-          { value: "all", label: "All notices" },
-        ]}
-      />
 
       <SectionCard
         title={
