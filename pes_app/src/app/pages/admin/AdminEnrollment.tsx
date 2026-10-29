@@ -2,6 +2,7 @@ import { formatDateTime } from "../../../lib/format";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
+  CalendarPlus,
   GraduationCap,
   Plus,
   Lock,
@@ -25,6 +26,14 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { Badge } from "../../components/ui/badge";
 import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -80,6 +89,13 @@ interface CourseOption {
   department: string;
 }
 
+/** An ISO time as a datetime-local input's value, in the browser's time. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 const ALL_TABS = [
   { value: "current", label: "Current" },
   /* Windows not yet open. Only the Super Admin has anything to do with one
@@ -101,6 +117,8 @@ export default function AdminEnrollment() {
     null,
   );
   const [message, setMessage] = useState<string | null>(null);
+  // The open period being given a later closing time.
+  const [extending, setExtending] = useState<EnrollmentPeriod | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("current");
   const TABS = ALL_TABS.filter((t) => t.value !== "upcoming" || isSuperAdmin);
   // One period open at a time. What is inside it — the courses, and each
@@ -329,6 +347,11 @@ export default function AdminEnrollment() {
                     <p className="text-xs text-muted-foreground">
                       {formatDateTime(p.opens_at)} →{" "}
                       {formatDateTime(p.closes_at)}
+                      {/* Still open, but past its closing time: students can
+                          no longer enrol until it is extended. */}
+                      {p.status === "open" && new Date(p.closes_at).getTime() < Date.now() && (
+                        <span className="text-warning-fg"> · ended for students</span>
+                      )}
                     </p>
                     {p.instructions && (
                       <p className="text-xs text-foreground mt-1 max-w-md">
@@ -388,6 +411,12 @@ export default function AdminEnrollment() {
                           </Button>
                         )}
                         {p.status === "open" && (
+                          <Button size="sm" variant="outline" onClick={() => setExtending(p)}>
+                            <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                            Extend
+                          </Button>
+                        )}
+                        {p.status === "open" && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -439,7 +468,120 @@ export default function AdminEnrollment() {
           ))}
         </div>
       )}
+
+      {extending && (
+        <ExtendDialog
+          period={extending}
+          onClose={() => setExtending(null)}
+          onExtended={(msg) => {
+            setExtending(null);
+            setMessage(msg);
+            fetchPeriods();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A later closing time for an open period, before it is closed. Its students
+ * are told the new deadline (the database does that, on the change). Only
+ * later: a window is never cut short under students who are using it.
+ */
+function ExtendDialog({
+  period,
+  onClose,
+  onExtended,
+}: {
+  period: EnrollmentPeriod;
+  onClose: () => void;
+  onExtended: (message: string) => void;
+}) {
+  const closes = new Date(period.closes_at).getTime();
+  const ended = closes < Date.now();
+  // Counted from the current closing time, or from now if that has passed.
+  const base = Math.max(closes, Date.now());
+  const [value, setValue] = useState(() => toLocalInput(new Date(base + 7 * DAY_MS).toISOString()));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const next = new Date(value).getTime();
+    if (!value || Number.isNaN(next)) return setError("Pick a new closing date and time.");
+    if (next <= closes) return setError("The new closing time must be later than the current one.");
+    if (next <= Date.now()) return setError("The new closing time must be in the future.");
+    setSaving(true);
+    setError(null);
+    const iso = new Date(next).toISOString();
+    const { error: updateError } = await supabase
+      .from("enrollment_periods")
+      .update({ closes_at: iso })
+      .eq("id", period.id);
+    setSaving(false);
+    if (updateError) return setError(`Could not extend the period: ${updateError.message}`);
+    onExtended(`${period.title} now closes ${formatDateTime(iso)}. Its students have been told.`);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Extend {period.title}</DialogTitle>
+          <DialogDescription>
+            {ended
+              ? `It ended for students on ${formatDateTime(period.closes_at)}. A later closing time lets them enrol again.`
+              : `It closes on ${formatDateTime(period.closes_at)}.`}{" "}
+            Its students are told the new closing time.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-foreground">New closing time</span>
+            <Input
+              type="datetime-local"
+              value={value}
+              min={toLocalInput(new Date(base).toISOString())}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "+1 day", days: 1 },
+              { label: "+3 days", days: 3 },
+              { label: "+1 week", days: 7 },
+            ].map((q) => (
+              <Button
+                key={q.days}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setValue(toLocalInput(new Date(base + q.days * DAY_MS).toISOString()))}
+              >
+                {q.label}
+              </Button>
+            ))}
+          </div>
+          {error && <p className="text-sm text-danger-fg">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Extending…" : "Extend"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -456,12 +598,6 @@ function PeriodForm({
   onSaved: (message: string) => void;
   onCancel: () => void;
 }) {
-  const toLocalInput = (iso: string) => {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
   const [title, setTitle] = useState(editing?.title ?? "");
   const [academicYear, setAcademicYear] = useState(
     editing?.academic_year ??
