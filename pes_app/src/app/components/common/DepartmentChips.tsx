@@ -17,18 +17,25 @@ export function DepartmentChips({
   onChange,
   total,
   ariaLabel = "Show one department",
+  wrap = false,
 }: {
   items: { name: string; count: number }[];
   value: string | null;
   onChange: (value: string | null) => void;
   total: number;
   ariaLabel?: string;
+  /** Wrap on every screen, e.g. inside a Filters popover with room to. */
+  wrap?: boolean;
 }) {
   const chip =
     "inline-flex h-8 flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors";
   return (
     <div
-      className="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+      className={
+        wrap
+          ? "flex flex-wrap items-center gap-2"
+          : "no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+      }
       role="group"
       aria-label={ariaLabel}
     >
