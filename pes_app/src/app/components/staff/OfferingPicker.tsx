@@ -142,47 +142,58 @@ export function OfferingPicker({
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
-      <label className="flex flex-col gap-1 sm:w-64">
-        <span className="text-xs font-medium text-muted-foreground">Batch</span>
-        <select
-          value={batch ?? ""}
-          onChange={(e) => selectBatch(Number(e.target.value))}
-          className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-        >
-          {batches.map((b) => (
-            <option key={b} value={b}>
-              {describeBatch(b)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* The shared select, as the course picker beside it, rather than the
+          browser's own: the three read as one control. */}
+      <div className="flex flex-col gap-1 sm:w-64">
+        <span id="offering-picker-batch" className="text-xs font-medium text-muted-foreground">
+          Batch
+        </span>
+        <Select value={batch !== null ? String(batch) : undefined} onValueChange={(v) => selectBatch(Number(v))}>
+          <SelectTrigger
+            aria-labelledby="offering-picker-batch"
+            className="h-10 w-full rounded-control border-border bg-card text-foreground dark:bg-card dark:hover:bg-muted/50"
+          >
+            <SelectValue placeholder="Choose a batch" />
+          </SelectTrigger>
+          <SelectContent className="rounded-control">
+            {batches.map((b) => (
+              <SelectItem key={b} value={String(b)}>
+                {describeBatch(b)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Only worth showing when the batch actually spans more than one
           semester — a lecturer with three courses in one semester does not
           need a control that can only ever do nothing. */}
       {semestersInBatch.length > 1 && (
-        <label className="flex flex-col gap-1 sm:w-52">
-          <span className="text-xs font-medium text-muted-foreground">
+        <div className="flex flex-col gap-1 sm:w-52">
+          <span id="offering-picker-semester" className="text-xs font-medium text-muted-foreground">
             Semester
           </span>
-          <select
-            value={semesterFilter}
-            onChange={(e) =>
-              setSemesterFilter(
-                e.target.value === "all" ? "all" : Number(e.target.value),
-              )
-            }
-            className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+          <Select
+            value={String(semesterFilter)}
+            onValueChange={(v) => setSemesterFilter(v === "all" ? "all" : Number(v))}
           >
-            <option value="all">All semesters</option>
-            {semestersInBatch.map((s) => (
-              <option key={s} value={s}>
-                Semester {s}
-                {s === currentSemester ? " (Current)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger
+              aria-labelledby="offering-picker-semester"
+              className="h-10 w-full rounded-control border-border bg-card text-foreground dark:bg-card dark:hover:bg-muted/50"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-control">
+              <SelectItem value="all">All semesters</SelectItem>
+              {semestersInBatch.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  Semester {s}
+                  {s === currentSemester ? " (Current)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -195,11 +206,11 @@ export function OfferingPicker({
         <Select value={value || undefined} onValueChange={onChange}>
           <SelectTrigger
             aria-label={courseLabel}
-            className="h-10 w-full rounded-xl border-border bg-card text-foreground dark:bg-card dark:hover:bg-muted/50"
+            className="h-10 w-full rounded-control border-border bg-card text-foreground dark:bg-card dark:hover:bg-muted/50"
           >
             <SelectValue placeholder="Choose a course" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl">
+          <SelectContent className="rounded-control">
             {coursesInBatch.map((o) => {
               const dept = departmentByCourseCode(o.course_code);
               return (
