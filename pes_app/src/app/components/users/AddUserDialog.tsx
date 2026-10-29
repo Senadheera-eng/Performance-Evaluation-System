@@ -162,12 +162,12 @@ export function AddUserDialog({
               {kind === "lecturer" && (
                 <div>
                   <Label htmlFor="u-title">Title</Label>
-                  <Input id="u-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Dr." className="mt-1" />
+                  <Input id="u-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Dr." className="mt-1 h-10" />
                 </div>
               )}
               <div className={kind === "lecturer" ? "" : "sm:col-span-2"}>
                 <Label htmlFor="u-name">Full name</Label>
-                <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1" />
+                <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} required className="mt-1 h-10" />
               </div>
             </div>
 
@@ -175,11 +175,11 @@ export function AddUserDialog({
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="u-reg">Registration No</Label>
-                  <Input id="u-reg" value={reg} onChange={(e) => setReg(e.target.value)} required className="mt-1" />
+                  <Input id="u-reg" value={reg} onChange={(e) => setReg(e.target.value)} required className="mt-1 h-10" />
                 </div>
                 <div>
                   <Label htmlFor="u-index">Index No</Label>
-                  <Input id="u-index" value={index} onChange={(e) => setIndex(e.target.value)} placeholder="25/ENG/001" className="mt-1" />
+                  <Input id="u-index" value={index} onChange={(e) => setIndex(e.target.value)} placeholder="25/ENG/001" className="mt-1 h-10" />
                 </div>
                 <div>
                   <Label htmlFor="u-year">Intake year</Label>
@@ -189,7 +189,7 @@ export function AddUserDialog({
                     value={batchYear}
                     onChange={(e) => setBatchYear(e.target.value)}
                     required
-                    className="mt-1 tabular-nums"
+                    className="mt-1 h-10 tabular-nums"
                   />
                 </div>
                 <p className="-mt-1 text-xs text-muted-foreground sm:col-span-3">
@@ -201,7 +201,7 @@ export function AddUserDialog({
             {kind === "lecturer" && (
               <div>
                 <Label htmlFor="u-staff">Staff number (optional)</Label>
-                <Input id="u-staff" value={staffNo} onChange={(e) => setStaffNo(e.target.value)} className="mt-1" />
+                <Input id="u-staff" value={staffNo} onChange={(e) => setStaffNo(e.target.value)} className="mt-1 h-10" />
               </div>
             )}
 
@@ -216,7 +216,7 @@ export function AddUserDialog({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={defaultEmail || "name@sjp.ac.lk"}
                   required={kind !== "student"}
-                  className="pl-9"
+                  className="h-10 pl-9"
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
