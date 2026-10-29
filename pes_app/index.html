@@ -5,11 +5,65 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Performance Evaluation System</title>
+      <!-- The University of Sri Jayewardenepura crest. -->
+      <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+      <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      <link rel="preload" as="image" href="/logo-128.png" />
+      <script>
+        /* The saved theme, applied before anything paints, so a dark-mode
+           user does not see a white flash. ThemeContext keeps it after. */
+        try {
+          var t = localStorage.getItem("theme");
+          if (t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)) {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      </script>
+      <style>
+        /* The loading screen until the app's code arrives. It matches the
+           React loader (BrandLoader) exactly, so one hands over to the other
+           without a jump. */
+        .boot {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          margin: 0;
+          background: #f9fafb;
+          font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+        }
+        .boot-mark { position: relative; width: 64px; height: 64px; }
+        .boot-mark img { display: block; width: 64px; height: 64px; }
+        .boot-ring {
+          position: absolute;
+          inset: -6px;
+          border-radius: 9999px;
+          border: 2px solid rgba(196, 30, 58, 0.15);
+          border-top-color: #c41e3a;
+          animation: boot-spin 0.9s linear infinite;
+        }
+        .boot-text { margin: 0; font-size: 14px; line-height: 20px; color: #5b6472; }
+        html.dark .boot { background: #0f1419; }
+        html.dark .boot-ring { border-color: rgba(232, 69, 95, 0.2); border-top-color: #e8455f; }
+        html.dark .boot-text { color: #9ca8b8; }
+        @keyframes boot-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .boot-ring { animation: none; } }
+      </style>
     </head>
 
-    <body>
-      <div id="root"></div>
+    <body style="margin: 0">
+      <div id="root">
+        <div class="boot" role="status" aria-live="polite">
+          <div class="boot-mark">
+            <img src="/logo-128.png" alt="" width="64" height="64" />
+            <span class="boot-ring" aria-hidden="true"></span>
+          </div>
+          <p class="boot-text">Loading…</p>
+        </div>
+      </div>
       <script type="module" src="/src/main.tsx"></script>
     </body>
   </html>
-  
