@@ -3,67 +3,12 @@ import { AlertTriangle, CheckCircle2, GraduationCap } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusBadge } from "../common";
 import { cn } from "../ui/utils";
-import type { BasketState } from "./MinorPlanTable";
 import {
   describeShortfall,
   minorTitle,
-  planSemesters,
   setMyMinor,
-  type MinorPlan,
-  type MinorPlanBasket,
   type MinorShortfall,
 } from "../../../lib/minorPlan";
-
-/**
- * Semester by semester through a minor's plan: what is met, what is now,
- * what comes later. The same row on the Enrollment page and on My Courses.
- */
-export function MinorSemesterChips({
-  minor,
-  semester,
-  stateOf,
-}: {
-  minor: MinorPlan;
-  /** The student's current semester. */
-  semester: number;
-  stateOf: (b: MinorPlanBasket) => BasketState;
-}) {
-  return (
-    <ol className="flex flex-wrap gap-2" aria-label="Progress through the minor">
-      {planSemesters(minor).map((s) => {
-        const baskets = minor.baskets.filter((b) => b.semester === s);
-        const have = baskets.reduce((n, b) => n + Math.min(stateOf(b).have, b.min_credits), 0);
-        const need = baskets.reduce((n, b) => n + b.min_credits, 0);
-        const met = baskets.every((b) => stateOf(b).met);
-        const now = s === semester;
-        const later = s > semester;
-        return (
-          <li
-            key={s}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-              met
-                ? "border-success-border bg-success-bg text-success-fg"
-                : later
-                  ? "border-border bg-muted/40 text-muted-foreground"
-                  : now
-                    ? "border-primary/40 bg-primary/5 text-foreground"
-                    : "border-danger-border bg-danger-bg text-danger-fg",
-              now && "ring-2 ring-primary/30",
-            )}
-          >
-            {met && <CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
-            <span className="font-medium">Semester {s}</span>
-            <span className="tabular-nums">
-              {have}/{need}
-            </span>
-            {now && <span className="font-medium">· now</span>}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
 /**
  * Whether the student is taking this minor, and the button to say so. Saying

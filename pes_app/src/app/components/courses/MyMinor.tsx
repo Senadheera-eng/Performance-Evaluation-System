@@ -6,7 +6,6 @@ import { SectionCard, SegmentedTabs, StatusBadge } from "../common";
 import { MinorPlanTable } from "../minors/MinorPlanTable";
 import {
   MinorDeclaration,
-  MinorSemesterChips,
   MinorShortfallAlert,
 } from "../minors/MinorProgress";
 import {
@@ -147,8 +146,6 @@ export function MyMinor({
             />
           </div>
         )}
-
-        <MinorSemesterChips minor={minor} semester={semester} stateOf={stateOf} />
       </div>
 
       <div className="border-t border-border">
