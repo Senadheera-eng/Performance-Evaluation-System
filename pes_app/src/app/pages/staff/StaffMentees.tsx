@@ -14,15 +14,24 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
   CourseCode,
   DepartmentName,
   EmptyState,
   ErrorState,
+  GpaTrendChart,
   PageHeader,
   PersonAvatar,
+  PillTabs,
   SectionCard,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
@@ -163,39 +172,42 @@ export default function StaffMentees() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          index={0}
-          label="Students Assigned"
-          value={mentees.length}
-          icon={Users}
-          tone="brand"
+      {/* The group at a glance; each chip shows just those students. */}
+      {!loading && (
+        <StatStrip
+          items={[
+            {
+              label: `student${mentees.length === 1 ? "" : "s"} assigned`,
+              value: mentees.length,
+              icon: Users,
+              tone: "brand",
+              onClick: () => setBand("all"),
+            },
+            {
+              label: "at risk · CGPA below Pass",
+              value: counts.at_risk,
+              icon: TrendingDown,
+              tone: counts.at_risk > 0 ? "danger" : "neutral",
+              onClick: counts.at_risk > 0 ? () => setBand("at_risk") : undefined,
+            },
+            {
+              label: "need attention · failed, repeat or medical",
+              value: counts.needs_attention,
+              icon: AlertTriangle,
+              tone: counts.needs_attention > 0 ? "warning" : "neutral",
+              onClick: counts.needs_attention > 0 ? () => setBand("needs_attention") : undefined,
+            },
+            {
+              label: "below the attendance requirement",
+              value: counts.attendance_concern,
+              icon: CalendarX,
+              tone: counts.attendance_concern > 0 ? "info" : "neutral",
+              onClick:
+                counts.attendance_concern > 0 ? () => setBand("attendance_concern") : undefined,
+            },
+          ]}
         />
-        <StatCard
-          index={1}
-          label="At Risk"
-          value={counts.at_risk}
-          icon={TrendingDown}
-          tone={counts.at_risk > 0 ? "danger" : "neutral"}
-          hint="CGPA below Pass"
-        />
-        <StatCard
-          index={2}
-          label="Needs Attention"
-          value={counts.needs_attention}
-          icon={AlertTriangle}
-          tone={counts.needs_attention > 0 ? "warning" : "neutral"}
-          hint="Failed, repeat or medical"
-        />
-        <StatCard
-          index={3}
-          label="Attendance Concern"
-          value={counts.attendance_concern}
-          hint="Below the attendance requirement"
-          icon={CalendarX}
-          tone={counts.attendance_concern > 0 ? "info" : "neutral"}
-        />
-      </div>
+      )}
 
       {/* Batch first, because a mentor usually works through one year group
           at a time; then the bands, so "show me only the ones in trouble" is
@@ -205,45 +217,38 @@ export default function StaffMentees() {
           {/* A dropdown rather than a row of buttons: a mentor can hold
               students from every year in the faculty, and eight batch
               buttons pushed the bands off the line. */}
-          <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            Batch
-            <select
-              value={batch === "all" ? "all" : String(batch)}
-              onChange={(e) =>
-                setBatch(e.target.value === "all" ? "all" : Number(e.target.value))
-              }
-              className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              <option value="all">All batches ({mentees.length})</option>
-              {batches.map((b) => (
-                <option key={b} value={String(b)}>
-                  {describeBatch(b)} (
-                  {mentees.filter((m) => m.batch_year === b).length})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-
-          <Button
-            size="sm"
-            variant={band === "all" ? "default" : "outline"}
-            onClick={() => setBand("all")}
+          <Select
+            value={batch === "all" ? "all" : String(batch)}
+            onValueChange={(v) => setBatch(v === "all" ? "all" : Number(v))}
           >
-            Everyone
-          </Button>
-          {RISK_ORDER.filter((b) => counts[b] > 0).map((b) => (
-            <Button
-              key={b}
-              size="sm"
-              variant={band === b ? "default" : "outline"}
-              onClick={() => setBand(band === b ? "all" : b)}
-            >
-              {RISK_LABEL[b]}
-              <span className="ml-1.5 text-xs opacity-70">{counts[b]}</span>
-            </Button>
-          ))}
+            <SelectTrigger aria-label="Batch" className="h-9 w-56 rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All batches ({mentees.length})</SelectItem>
+              {batches.map((b) => (
+                <SelectItem key={b} value={String(b)}>
+                  {describeBatch(b)} ({mentees.filter((m) => m.batch_year === b).length})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <PillTabs
+            aria-label="Show students"
+            layoutId="mentees-band"
+            value={band}
+            onChange={(v) => setBand(v as RiskBand | "all")}
+            scrollable
+            tabs={[
+              { value: "all", label: "Everyone" },
+              ...RISK_ORDER.filter((b) => counts[b] > 0).map((b) => ({
+                value: b,
+                label: RISK_LABEL[b],
+                count: counts[b],
+              })),
+            ]}
+          />
         </div>
       )}
 
@@ -414,102 +419,78 @@ function MenteeDetail({
         <SkeletonRows count={5} height="h-16" />
       ) : !overview ? null : (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard
-              index={0}
-              label="CGPA"
-              value={overview.cgpa !== null ? overview.cgpa.toFixed(2) : "—"}
-              icon={GraduationCap}
-              tone={RISK_TONE[mentee.risk_band]}
-              hint={RISK_REASON[mentee.risk_band]}
+          <div className="space-y-2">
+            <StatStrip
+              items={[
+                {
+                  label: "CGPA",
+                  value: overview.cgpa !== null ? overview.cgpa.toFixed(2) : "—",
+                  icon: GraduationCap,
+                  tone: RISK_TONE[mentee.risk_band],
+                },
+                {
+                  label: "credits earned",
+                  value: overview.credits_earned,
+                  icon: Users,
+                  tone: "info",
+                },
+                {
+                  label: `outstanding · ${overview.modules.repeat} R · ${overview.modules.medical} L · ${overview.modules.failed} F`,
+                  value:
+                    overview.modules.repeat + overview.modules.medical + overview.modules.failed,
+                  icon: AlertTriangle,
+                  tone:
+                    overview.modules.repeat + overview.modules.medical + overview.modules.failed > 0
+                      ? "warning"
+                      : "neutral",
+                },
+                {
+                  label:
+                    overview.attendance.total > 0
+                      ? `attendance · ${overview.attendance.present} of ${overview.attendance.total} recorded`
+                      : "attendance · nothing recorded yet",
+                  value: overview.attendance.pct !== null ? `${overview.attendance.pct}%` : "—",
+                  icon: CalendarX,
+                },
+              ]}
             />
-            <StatCard
-              index={1}
-              label="Credits Earned"
-              value={overview.credits_earned}
-              icon={Users}
-              tone="info"
-            />
-            <StatCard
-              index={2}
-              label="Outstanding Modules"
-              value={
-                overview.modules.repeat +
-                overview.modules.medical +
-                overview.modules.failed
-              }
-              icon={AlertTriangle}
-              tone={
-                overview.modules.repeat +
-                  overview.modules.medical +
-                  overview.modules.failed >
-                0
-                  ? "warning"
-                  : "neutral"
-              }
-              hint={`${overview.modules.repeat} R · ${overview.modules.medical} L · ${overview.modules.failed} F`}
-            />
-            <StatCard
-              index={3}
-              label="Attendance"
-              value={
-                overview.attendance.pct !== null
-                  ? `${overview.attendance.pct}%`
-                  : "—"
-              }
-              icon={CalendarX}
-              tone="neutral"
-              hint={
-                overview.attendance.total > 0
-                  ? `${overview.attendance.present} of ${overview.attendance.total} recorded`
-                  : "nothing recorded yet"
-              }
-            />
+            <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <StatusBadge tone={RISK_TONE[mentee.risk_band]} dot>
+                {RISK_LABEL[mentee.risk_band]}
+              </StatusBadge>
+              {RISK_REASON[mentee.risk_band]}
+            </p>
           </div>
 
           <MenteePlanCard studentId={mentee.student_id} />
 
-          <SectionCard
-            title="Semester performance"
-            description="SGPA for each semester with published results."
-          >
-            {overview.semesters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No published results yet.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <div className="flex min-w-max items-end gap-2">
-                  {overview.semesters.map((s) => (
-                    <div
-                      key={s.semester}
-                      className="flex w-20 flex-col items-center gap-1"
-                    >
-                      <span className="text-xs font-semibold tabular-nums text-foreground">
-                        {s.sgpa !== null ? s.sgpa.toFixed(2) : "—"}
-                      </span>
-                      <span
-                        className="w-full rounded-t bg-primary/80"
-                        style={{
-                          height: `${Math.max(4, ((s.sgpa ?? 0) / 4) * 90)}px`,
-                        }}
-                        aria-hidden="true"
-                      />
-                      <span className="text-[11px] text-muted-foreground">
-                        Sem {s.semester}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </SectionCard>
+          {/* The same SGPA chart the student sees on their own Results page,
+              against their CGPA. */}
+          {overview.semesters.some((s) => s.sgpa !== null) && overview.cgpa !== null ? (
+            <GpaTrendChart
+              title="Semester performance"
+              description="SGPA for each semester with published results, against their CGPA."
+              data={overview.semesters
+                .filter((s) => s.sgpa !== null)
+                .map((s) => ({ semester: `Sem ${s.semester}`, gpa: s.sgpa as number }))}
+              cgpa={overview.cgpa}
+            />
+          ) : (
+            <SectionCard title="Semester performance">
+              <p className="text-sm text-muted-foreground">No published results yet.</p>
+            </SectionCard>
+          )}
 
-          {overview.semesters.map((s) => (
+          {/* Each semester's courses, the latest open and the rest a click
+              away, so six semesters do not make one long scroll. */}
+          {overview.semesters.map((s, i) => (
             <SectionCard
               key={s.semester}
               title={`Semester ${s.semester}`}
               description={s.academic_year ?? undefined}
+              collapsible
+              defaultOpen={i === overview.semesters.length - 1}
+              summary={`${s.courses.length} course${s.courses.length === 1 ? "" : "s"}`}
               actions={
                 s.sgpa !== null ? (
                   <StatusBadge tone={s.sgpa >= 3 ? "success" : s.sgpa >= 2 ? "info" : "danger"}>
