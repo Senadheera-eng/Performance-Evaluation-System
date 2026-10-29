@@ -13,7 +13,6 @@ import { cn } from "../ui/utils";
 import { MinorPlanTable, type BasketState } from "../minors/MinorPlanTable";
 import {
   MinorDeclaration,
-  MinorSemesterChips,
   MinorShortfallAlert,
 } from "../minors/MinorProgress";
 import {
@@ -228,8 +227,6 @@ export function MinorSelection({
             shortfalls={shortfalls}
           />
         )}
-
-        <MinorSemesterChips minor={minor} semester={semester} stateOf={stateOf} />
       </div>
 
       <div className="border-t border-border">
