@@ -134,7 +134,7 @@ export function AttendanceCalendar({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium text-foreground w-28 text-center tabular-nums">
+          <span className="min-w-[8.5rem] whitespace-nowrap text-center text-sm font-medium tabular-nums text-foreground">
             {format(month, "MMMM yyyy")}
           </span>
           <Button

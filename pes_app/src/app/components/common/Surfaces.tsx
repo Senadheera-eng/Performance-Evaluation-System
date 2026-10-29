@@ -321,7 +321,7 @@ export function SectionCard({
   }, [open, collapsible, storageKey]);
 
   const heading = (
-    <div className="min-w-0">
+    <div className="min-w-0 flex-1">
       {title && (
         <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
           {title}
@@ -349,7 +349,9 @@ export function SectionCard({
       {(title || actions) && (
         <header
           className={cn(
-            "flex items-start justify-between gap-3 px-4 sm:px-5 py-3.5",
+            // Wraps rather than squeezing: on a phone, wide actions (a set
+            // of filter tabs) drop under the title instead of crushing it.
+            "flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5 px-4 sm:px-5 py-3.5",
             (!collapsible || open) && "border-b border-border/70",
           )}
         >
@@ -359,7 +361,7 @@ export function SectionCard({
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
               aria-controls={bodyId}
-              className="group -m-1 flex min-w-0 flex-1 items-start gap-2 rounded-control p-1 text-left"
+              className="group -m-1 flex min-w-0 flex-1 basis-[12rem] items-start gap-2 rounded-control p-1 text-left"
             >
               <ChevronDown
                 className={cn(
@@ -371,10 +373,10 @@ export function SectionCard({
               {heading}
             </button>
           ) : (
-            heading
+            <div className="min-w-0 flex-1 basis-[12rem]">{heading}</div>
           )}
           {actions && (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex max-w-full items-center gap-2">
               {actions}
             </div>
           )}

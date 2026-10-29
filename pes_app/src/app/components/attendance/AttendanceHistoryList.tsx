@@ -71,6 +71,7 @@ export function AttendanceHistoryList({ records }: AttendanceHistoryListProps) {
           value={filter}
           onChange={(v) => setFilter(v as Filter)}
           layoutId="attendance-history-filter"
+          scrollable
           tabs={[
             { value: "all", label: "All", count: counts.all },
             { value: "present", label: "Present", count: counts.present },
