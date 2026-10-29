@@ -470,6 +470,7 @@ function FeedbackHeader({
         onChange={setTab}
         layoutId="staff-feedback-tabs"
         aria-label="Feedback view"
+        scrollable
       />
     </>
   );
