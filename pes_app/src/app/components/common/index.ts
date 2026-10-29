@@ -37,6 +37,7 @@ export {
   type StripItem,
 } from "./Surfaces";
 export { AnimatedNumber, AnimatedBar } from "./Animated";
+export { Sparkline } from "./Sparkline";
 export {
   Toolbar,
   SearchField,
