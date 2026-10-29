@@ -8,6 +8,7 @@ import {
   ClipboardList,
   GraduationCap,
   HeartHandshake,
+  Library,
   Users,
   UserRoundCog,
   UserSquare,
@@ -39,27 +40,29 @@ export default function StaffLayout() {
 
   const navigation: ShellNavItem[] = [
     { name: "Dashboard", href: "/staff", icon: LayoutDashboard },
-    { name: "My Courses", href: "/staff/courses", icon: BookOpen },
-    { name: "Attendance", href: "/staff/attendance", icon: Calendar },
-    { name: "Results", href: "/staff/results", icon: TrendingUp },
-    { name: "Feedback", href: "/staff/feedback", icon: MessageSquareText },
+    { name: "My Courses", href: "/staff/courses", icon: BookOpen, group: "Teaching" },
+    { name: "Attendance", href: "/staff/attendance", icon: Calendar, group: "Teaching" },
+    { name: "Results", href: "/staff/results", icon: TrendingUp, group: "Teaching" },
+    { name: "Feedback", href: "/staff/feedback", icon: MessageSquareText, group: "Teaching" },
     // Every lecturer publishes for the courses they teach; the wider
     // scopes are refused by the database, not hidden here.
-    { name: "Notices", href: "/staff/notices", icon: Megaphone },
+    { name: "Notices", href: "/staff/notices", icon: Megaphone, group: "Teaching" },
     // Mentoring belongs to every lecturer, not only the head — a lecturer
     // with no mentees sees an empty page rather than a missing one.
-    { name: "My Mentees", href: "/staff/mentees", icon: HeartHandshake },
+    { name: "My Mentees", href: "/staff/mentees", icon: HeartHandshake, group: "Mentoring" },
     ...(caps.isHod
       ? [
           {
             name: "Mentor Allocation",
             href: "/staff/mentors",
             icon: UserRoundCog,
+            group: "Mentoring",
           },
           {
             name: "Course Assignments",
             href: "/staff/assignments",
             icon: GraduationCap,
+            group: "Department",
           },
           /* The catalogue itself — creating a course, editing one, and the
              department's minor streams. The same screen the department
@@ -67,14 +70,16 @@ export default function StaffLayout() {
           {
             name: "Course Catalogue",
             href: "/staff/catalogue",
-            icon: BookOpen,
+            // Not My Courses' book: the two sat in the same menu.
+            icon: Library,
+            group: "Department",
           },
           // View-only: a head reviews who enrolled, the Super Admin opens the
           // windows. A lecturer without the appointment never sees this, and
           // would be refused by the page and the database if they typed the URL.
-          { name: "Enrolment", href: "/staff/enrollment", icon: ClipboardList },
-          { name: "Students", href: "/staff/students", icon: UserSquare },
-          { name: "Department Staff", href: "/staff/lecturers", icon: Users },
+          { name: "Enrolment", href: "/staff/enrollment", icon: ClipboardList, group: "Department" },
+          { name: "Students", href: "/staff/students", icon: UserSquare, group: "Department" },
+          { name: "Department Staff", href: "/staff/lecturers", icon: Users, group: "Department" },
         ]
       : []),
   ];

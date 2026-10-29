@@ -10,6 +10,14 @@
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       <link rel="preload" as="image" href="/logo-160.png" />
+      <!-- Inter, the typeface the styles have always asked for: until now it
+           was never loaded, so everyone saw their system font. -->
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      />
       <script>
         /* The saved theme, applied before anything paints, so a dark-mode
            user does not see a white flash. ThemeContext keeps it after. */

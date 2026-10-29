@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "../ui/utils";
 import { useTheme } from "../../context/ThemeContext";
 import { NotificationBell } from "./NotificationBell";
+import { SPRING } from "../common/motion";
 
 const universityLogo = new URL("../../../assets/logo.jpg", import.meta.url).href;
 
@@ -36,6 +37,12 @@ export interface ShellNavItem {
    * rail, where the label itself has nowhere to render.
    */
   badgeTone?: "muted" | "attention";
+  /**
+   * The section of the menu the item belongs to, shown as a small heading
+   * above the first item of each section. Items of a section are listed
+   * together.
+   */
+  group?: string;
 }
 
 interface AppShellProps {
@@ -153,10 +160,13 @@ export function AppShell({
   const NavButton = ({
     item,
     iconOnly,
+    scope,
     onNavigate,
   }: {
     item: ShellNavItem;
     iconOnly: boolean;
+    /** Which copy of the menu: the desktop rail or the phone drawer. */
+    scope: string;
     onNavigate?: () => void;
   }) => {
     const active = isActive(item.href);
@@ -179,14 +189,24 @@ export function AppShell({
         }
         className={cn(
           "relative w-full flex items-center gap-2.5 rounded-xl",
-          "min-h-[44px] px-3 text-sm font-medium transition-colors",
+          "min-h-[44px] lg:min-h-[38px] px-3 text-sm font-medium transition-colors",
           iconOnly && "justify-center px-0",
           active
-            ? "bg-primary text-primary-foreground shadow-elevation-sm"
+            ? "text-primary-foreground"
             : "text-muted-foreground hover:text-foreground hover:bg-muted",
         )}
       >
-        <span className="relative flex-shrink-0">
+        {/* The active item's pill slides from item to item, on the same
+            spring as the tab indicators, so the menu says where you went. */}
+        {active && (
+          <motion.span
+            layoutId={`nav-active-${scope}`}
+            aria-hidden="true"
+            className="absolute inset-0 rounded-xl bg-primary shadow-elevation-sm"
+            transition={SPRING}
+          />
+        )}
+        <span className="relative z-10 flex-shrink-0">
           <item.icon className="h-4 w-4" aria-hidden="true" />
           {/* Collapsed to the icon rail there is no room for the count, but
               something still has to say the item needs attention. */}
@@ -204,12 +224,12 @@ export function AppShell({
         </span>
         {!iconOnly && (
           <>
-            <span className="flex-1 text-left truncate">{item.name}</span>
+            <span className="relative z-10 flex-1 text-left truncate">{item.name}</span>
             {item.badge && (
               <Badge
                 variant="secondary"
                 className={cn(
-                  "text-[10px] px-1.5 flex-shrink-0",
+                  "relative z-10 text-[10px] px-1.5 flex-shrink-0",
                   item.badgeTone === "attention"
                     ? active
                       ? "bg-primary-foreground text-primary"
@@ -238,7 +258,7 @@ export function AppShell({
     );
   };
 
-  const SidebarBody = ({ iconOnly }: { iconOnly: boolean }) => (
+  const SidebarBody = ({ iconOnly, scope }: { iconOnly: boolean; scope: string }) => (
     <div className="flex flex-col h-full min-h-0">
       <div
         className={cn(
@@ -279,14 +299,27 @@ export function AppShell({
         aria-label="Main"
         className="flex-1 min-h-0 overflow-y-auto px-2.5 py-3 space-y-1"
       >
-        {navigation.map((item) => (
-          <NavButton key={item.href} item={item} iconOnly={iconOnly} />
-        ))}
+        {navigation.map((item, i) => {
+          const startsGroup = item.group && item.group !== navigation[i - 1]?.group;
+          return (
+            <div key={item.href}>
+              {startsGroup &&
+                (iconOnly ? (
+                  <div aria-hidden="true" className="mx-3 my-2 h-px bg-sidebar-border" />
+                ) : (
+                  <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/80">
+                    {item.group}
+                  </p>
+                ))}
+              <NavButton item={item} iconOnly={iconOnly} scope={scope} />
+            </div>
+          );
+        })}
       </nav>
 
       <div className="px-2.5 py-2.5 border-t border-sidebar-border space-y-1">
         {bottomNavigation.map((item) => (
-          <NavButton key={item.href} item={item} iconOnly={iconOnly} />
+          <NavButton key={item.href} item={item} iconOnly={iconOnly} scope={scope} />
         ))}
         {iconOnly ? (
           <Tooltip>
@@ -294,7 +327,7 @@ export function AppShell({
               <button
                 type="button"
                 onClick={onLogout}
-                className="w-full min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="w-full min-h-[44px] lg:min-h-[38px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -307,7 +340,7 @@ export function AppShell({
           <button
             type="button"
             onClick={onLogout}
-            className="w-full min-h-[44px] flex items-center gap-2.5 px-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="w-full min-h-[44px] lg:min-h-[38px] flex items-center gap-2.5 px-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span className="flex-1 text-left">Logout</span>
@@ -367,7 +400,7 @@ export function AppShell({
         transition={{ duration: reduce ? 0 : 0.22, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex lg:fixed lg:inset-y-0 lg:flex-col bg-sidebar border-r border-sidebar-border z-40"
       >
-        <SidebarBody iconOnly={collapsed} />
+        <SidebarBody iconOnly={collapsed} scope="rail" />
       </motion.aside>
 
       {/* Mobile drawer */}
@@ -403,7 +436,7 @@ export function AppShell({
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
-              <SidebarBody iconOnly={false} />
+              <SidebarBody iconOnly={false} scope="drawer" />
             </motion.aside>
           </>
         )}
