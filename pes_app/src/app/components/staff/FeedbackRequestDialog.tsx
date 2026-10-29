@@ -4,6 +4,13 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -11,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { CourseCode, ErrorState, StatusBadge } from "../common";
+import { CourseCode, ErrorState, PillTabs, StatusBadge } from "../common";
 import { describeBatch } from "../../../lib/batch";
 import type { FeedbackQuestion } from "../../../lib/feedbackService";
 import type {
@@ -277,45 +284,41 @@ export function FeedbackRequestDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">When</label>
-                <div className="flex gap-1.5">
-                  {(
-                    [
-                      ["mid_semester", "Mid semester"],
-                      ["end_semester", "End semester"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      size="sm"
-                      variant={feedbackType === value ? "default" : "outline"}
-                      onClick={() => setFeedbackType(value)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
+                <label className="block text-sm font-medium text-foreground">When</label>
+                <PillTabs
+                  aria-label="When"
+                  layoutId="feedback-request-when"
+                  value={feedbackType}
+                  onChange={(v) => setFeedbackType(v as typeof feedbackType)}
+                  tabs={[
+                    { value: "mid_semester", label: "Mid semester" },
+                    { value: "end_semester", label: "End semester" },
+                  ]}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">Cohort</label>
-                <select
-                  value={cohort}
-                  onChange={(e) => {
-                    setCohort(e.target.value);
+                <Select
+                  value={cohort || undefined}
+                  onValueChange={(v) => {
+                    setCohort(v);
                     setCourseIds([]);
                   }}
-                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                 >
-                  {cohorts.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {describeBatch(c.batch_year)} · Semester {c.semester} ·{" "}
-                      {c.academic_year}
-                      {c.offerings.some((o) => o.is_current) ? " (Current)" : ""}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger aria-label="Cohort" className="h-10 w-full rounded-control border-border bg-card">
+                    <SelectValue placeholder="Choose a cohort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cohorts.map((c) => (
+                      <SelectItem key={c.key} value={c.key}>
+                        {describeBatch(c.batch_year)} · Semester {c.semester} ·{" "}
+                        {c.academic_year}
+                        {c.offerings.some((o) => o.is_current) ? " (Current)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -326,6 +329,7 @@ export function FeedbackRequestDialog({
                   type="datetime-local"
                   value={opensAt}
                   onChange={(e) => setOpensAt(e.target.value)}
+                  className="h-10"
                 />
               </div>
               <div className="space-y-1.5">
@@ -334,6 +338,7 @@ export function FeedbackRequestDialog({
                   type="datetime-local"
                   value={closesAt}
                   onChange={(e) => setClosesAt(e.target.value)}
+                  className="h-10"
                 />
               </div>
             </div>
