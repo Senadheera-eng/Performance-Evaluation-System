@@ -1,5 +1,5 @@
 import { Lock, MessageSquareQuote, Star } from "lucide-react";
-import { CourseCode, SectionCard, StatusBadge, type StatusTone } from "../common";
+import { AnimatedBar, CourseCode, SectionCard, StatusBadge, type StatusTone } from "../common";
 import { describeBatch } from "../../../lib/batch";
 import type {
   CourseFeedbackReport,
@@ -67,12 +67,11 @@ function Distribution({ choice }: { choice: ReportChoice }) {
             <span className="w-48 flex-shrink-0 truncate text-xs text-muted-foreground">
               {t.label}
             </span>
-            <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <span
-                className="block h-full rounded-full bg-primary"
-                style={{ width: `${t.pct}%` }}
-              />
-            </span>
+            <AnimatedBar
+              value={t.pct}
+              label={`${t.label}: ${t.pct}%`}
+              className="flex-1"
+            />
             <span className="w-20 flex-shrink-0 text-right text-xs tabular-nums text-muted-foreground">
               {t.count} ({t.pct}%)
             </span>
@@ -104,7 +103,7 @@ function RatingTable({
             </th>
             <th
               scope="col"
-              className="w-28 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              className="w-48 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
             >
               Rating Avg
             </th>
@@ -121,17 +120,28 @@ function RatingTable({
                 )}
                 {r.question}
               </td>
-              <td className="px-3 py-2 text-right">
-                <span
-                  className={`tabular-nums font-semibold ${
-                    r.average >= 4
-                      ? "text-success-fg"
-                      : r.average >= 3
-                        ? "text-foreground"
-                        : "text-warning-fg"
-                  }`}
-                >
-                  {r.average.toFixed(2)}
+              <td className="px-3 py-2">
+                {/* The average out of five as a bar too, so a weak
+                    attribute stands out down the column. */}
+                <span className="flex items-center justify-end gap-3">
+                  <AnimatedBar
+                    value={r.average}
+                    max={5}
+                    tone={ratingTone(r.average)}
+                    label={`${r.question}: ${r.average.toFixed(2)} out of 5`}
+                    className="w-24"
+                  />
+                  <span
+                    className={`w-9 text-right tabular-nums font-semibold ${
+                      r.average >= 4
+                        ? "text-success-fg"
+                        : r.average >= 3
+                          ? "text-foreground"
+                          : "text-warning-fg"
+                    }`}
+                  >
+                    {r.average.toFixed(2)}
+                  </span>
                 </span>
               </td>
             </tr>
@@ -279,6 +289,15 @@ export function FeedbackReport({ report }: { report: CourseFeedbackReport }) {
                   </>
                 )}
               </p>
+              {score !== null && (
+                <AnimatedBar
+                  value={score as number}
+                  max={5}
+                  tone={ratingTone(score as number)}
+                  label={`${label as string}: ${(score as number).toFixed(2)} out of 5`}
+                  className="mt-2"
+                />
+              )}
             </div>
           ))}
         </div>
