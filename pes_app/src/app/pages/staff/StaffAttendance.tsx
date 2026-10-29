@@ -3,11 +3,12 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  RotateCcw,
   Save,
-  Search,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -15,11 +16,14 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  SearchField,
   SectionCard,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  StickyActionBar,
 } from "../../components/common";
+import { cn } from "../../components/ui/utils";
 import { departmentByCourseCode } from "../../../lib/departments";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { LectureRegister } from "../../components/attendance/LectureRegister";
@@ -81,7 +85,6 @@ export default function StaffAttendance() {
   const [sheetLoading, setSheetLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   /* Kept for the unsaved-changes hint below the roster; it no longer gates
      the Save button. */
@@ -132,7 +135,6 @@ export default function StaffAttendance() {
   const loadSheet = async (offeringId: string, lectureDate: string) => {
     setSheetLoading(true);
     setError(null);
-    setNotice(null);
     setDirty(false);
 
     const [roster, attendance] = await Promise.all([
@@ -220,7 +222,6 @@ export default function StaffAttendance() {
     ownWriteAt.current = Date.now();
     setSaving(true);
     setError(null);
-    setNotice(null);
 
     const result = await saveOfferingAttendance(
       selected.offering_id,
@@ -233,14 +234,15 @@ export default function StaffAttendance() {
     ownWriteAt.current = Date.now();
     setSaving(false);
     if (!result.ok) {
-      setError(result.error);
+      toast.error("Attendance was not saved", { description: result.error });
       return;
     }
-    // Reload first. loadSheet clears the notice as it starts, so setting the
-    // message before it meant the save confirmation was wiped a moment after
-    // it appeared — the button looked like it had done nothing at all.
+    // Reload first, then confirm, so the toast describes the sheet as it
+    // now stands.
     await loadSheet(selected.offering_id, date);
-    setNotice(`Attendance saved for ${result.data} student(s) on ${date}.`);
+    toast.success("Attendance saved", {
+      description: `${result.data} student${result.data === 1 ? "" : "s"} on ${date}.`,
+    });
   };
 
   const present = rows.filter((r) => r.status === "present").length;
@@ -274,7 +276,8 @@ export default function StaffAttendance() {
   }
 
   return (
-    <div className="space-y-5">
+    // Room under the roster while the save bar floats over it.
+    <div className={cn("space-y-5", dirty && "pb-36 sm:pb-24")}>
       <PageHeader
         title="Attendance"
         description={`Mark a lecture for a course you teach. Students need ${threshold}% to sit the end-of-semester examination.`}
@@ -300,13 +303,8 @@ export default function StaffAttendance() {
           </Button>
         </div>
       )}
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
-
-      <SectionCard title="Batch, course & lecture date">
+      {/* What is being marked: one compact bar. */}
+      <SectionCard>
         {loading ? (
           <SkeletonRows count={1} height="h-10" />
         ) : (
@@ -401,18 +399,19 @@ export default function StaffAttendance() {
 
       {selected && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard index={0} label="Present" value={present} icon={CheckCircle2} tone="success" />
-            <StatCard index={1} label="Absent" value={absent} icon={XCircle} tone="danger" />
-            <StatCard index={2} label="Excused" value={excused} icon={ShieldCheck} tone="info" />
-            <StatCard
-              index={3}
-              label="Unmarked"
-              value={unmarked}
-              icon={AlertTriangle}
-              tone={unmarked > 0 ? "warning" : "success"}
-            />
-          </div>
+          <StatStrip
+            items={[
+              { label: "present", value: present, icon: CheckCircle2, tone: "success" },
+              { label: "absent", value: absent, icon: XCircle, tone: "danger" },
+              { label: "excused", value: excused, icon: ShieldCheck, tone: "info" },
+              {
+                label: "unmarked",
+                value: unmarked,
+                icon: AlertTriangle,
+                tone: unmarked > 0 ? "warning" : "success",
+              },
+            ]}
+          />
 
           <SectionCard
             title={
@@ -436,15 +435,12 @@ export default function StaffAttendance() {
             flush
           >
             <div className="border-b border-border/70 p-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search students..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="h-9 bg-card pl-9"
-                />
-              </div>
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by name, index or registration number"
+                label="Search students"
+              />
             </div>
 
             {sheetLoading ? (
@@ -508,7 +504,7 @@ export default function StaffAttendance() {
                                 type="button"
                                 aria-pressed={active}
                                 onClick={() => setStatus(r.studentId, value)}
-                                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors active:scale-95 ${
                                   active
                                     ? value === "present"
                                       ? "bg-success-fg text-white"
@@ -531,15 +527,15 @@ export default function StaffAttendance() {
               </ul>
             )}
 
-            {rows.length > 0 && (
-              <div className="border-t border-border/70 p-3">
+            {rows.length > 0 && !dirty && (
+              <div className="flex flex-col items-end gap-1 border-t border-border/70 p-3">
                 {/* Enabled whenever there is something to save, changed or
                     not. Gating on "has anything changed" was an optimisation,
                     not a rule, and it made the button look broken every time a
                     register filled the sheet: forty names marked and Save
                     dead. Saving the same values again is a harmless upsert. */}
                 <Button
-                  className="w-full"
+                  className="w-full sm:w-auto"
                   disabled={saving || rows.every((r) => r.status === null)}
                   onClick={handleSave}
                 >
@@ -548,13 +544,8 @@ export default function StaffAttendance() {
                     ? "Saving..."
                     : `Save attendance (${rows.length - unmarked} marked)`}
                 </Button>
-                {dirty && (
-                  <p className="mt-2 text-center text-xs text-warning-fg">
-                    You have unsaved changes on this sheet.
-                  </p>
-                )}
                 {unmarked > 0 && (
-                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {unmarked} student{unmarked === 1 ? "" : "s"} left unmarked —
                     they will have no record for this date.
                   </p>
@@ -562,6 +553,39 @@ export default function StaffAttendance() {
               </div>
             )}
           </SectionCard>
+
+          {/* While there are unsaved marks the save rises from the bottom,
+              so a long roster never hides it. */}
+          <StickyActionBar
+            open={dirty}
+            summary={
+              <>
+                <p className="font-medium">You have unsaved changes on this sheet</p>
+                <p className="text-xs text-muted-foreground">
+                  <CourseCode code={selected.course_code} /> · {date} ·{" "}
+                  {unmarked > 0
+                    ? `${unmarked} left unmarked will have no record for this date`
+                    : "every student marked"}
+                </p>
+              </>
+            }
+          >
+            <Button
+              variant="outline"
+              disabled={saving}
+              onClick={() => loadSheet(selected.offering_id, date)}
+            >
+              <RotateCcw className="mr-1.5 h-4 w-4" />
+              Discard
+            </Button>
+            <Button
+              disabled={saving || rows.every((r) => r.status === null)}
+              onClick={handleSave}
+            >
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? "Saving..." : `Save attendance (${rows.length - unmarked} marked)`}
+            </Button>
+          </StickyActionBar>
         </>
       )}
     </div>
