@@ -2,15 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
+  CalendarClock,
   CheckCircle2,
-  GraduationCap,
+  ChevronRight,
+  ClipboardList,
   Lock,
   MessageSquareText,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
@@ -19,8 +25,12 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
+  SectionCard,
   SkeletonRows,
+  StatStrip,
   StatusBadge,
+  StickyActionBar,
 } from "../components/common";
 import { LikertMatrix } from "../components/feedback/LikertMatrix";
 import { QuestionField } from "../components/feedback/QuestionField";
@@ -142,11 +152,19 @@ export default function Feedback() {
     );
   }
 
+  const owedTotal = rows.filter((r) => r.submission_status !== "submitted").length;
+  const doneTotal = rows.length - owedTotal;
+  /* The soonest deadline among the forms still owed. */
+  const nextClose = rows
+    .filter((r) => r.submission_status !== "submitted")
+    .map((r) => r.closes_at)
+    .sort()[0];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Course Feedback"
-        description="Your feedback helps us improve course delivery and learning outcomes. Select your semester and course below to begin — all responses are treated with strict confidentiality."
+        description="Tell your department how a course went. Pick a semester, then a course: responses are recorded without your name and treated with strict confidentiality."
       />
 
       {error && <ErrorState message={error} onRetry={load} />}
@@ -161,9 +179,25 @@ export default function Feedback() {
         />
       ) : (
         <>
-          <section>
-            <StepHeading number={1} title="Select Your Semester" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatStrip
+            items={[
+              {
+                icon: ClipboardList,
+                value: owedTotal,
+                label: owedTotal === 1 ? "form to fill in" : "forms to fill in",
+                tone: owedTotal > 0 ? "brand" : "neutral",
+              },
+              { icon: CheckCircle2, value: doneTotal, label: "submitted", tone: "success" },
+              ...(nextClose
+                ? [{ icon: CalendarClock, value: shortDate(nextClose), label: "next deadline", tone: "warning" as const }]
+                : []),
+            ]}
+          />
+
+          <SectionCard title={<StepTitle number={1} title="Select your semester" />}>
+            {/* One row of eight on a wide screen, two of four on a phone: the
+                semester with forms waiting is the one that stands out. */}
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
               {SEMESTERS.map((s) => {
                 const available = bySemester.has(s);
                 const outstanding = openInSemester.get(s) ?? 0;
@@ -174,96 +208,105 @@ export default function Feedback() {
                     type="button"
                     disabled={!available}
                     aria-pressed={selected}
+                    aria-label={`${ORDINAL[s]} Semester, ${
+                      !available ? "not available" : outstanding > 0 ? `${outstanding} open` : "all done"
+                    }`}
                     onClick={() => {
                       setSemester(s);
                       setChosenCourse(null);
                     }}
                     className={cn(
-                      "relative rounded-xl border p-4 text-center transition-all",
+                      "relative flex flex-col items-center rounded-control border px-1 py-2.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       selected
                         ? "border-primary bg-primary text-primary-foreground shadow-elevation-sm"
                         : outstanding > 0
                           ? // A semester with forms still to fill in is the whole
-                            // reason the student came. It carries the brand
-                            // colour and says how many, rather than being one
-                            // white card among seven grey ones.
-                            "border-primary bg-primary/10 text-primary shadow-elevation-sm hover:bg-primary/15"
+                            // reason the student came, so it carries the brand.
+                            "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
                           : available
-                            ? "border-border bg-card hover:border-primary/50"
-                            : "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground",
+                            ? "border-border bg-card text-foreground hover:border-primary/40"
+                            : "cursor-not-allowed border-dashed border-border bg-transparent text-muted-foreground/60",
                     )}
                   >
                     {outstanding > 0 && !selected && (
                       <span
                         aria-hidden="true"
-                        className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground ring-2 ring-card"
                       >
                         {outstanding}
                       </span>
                     )}
-                    <span className="block text-2xl font-semibold">{s}</span>
-                    <span className="block text-xs">{ORDINAL[s]} Semester</span>
-                    {!available ? (
-                      <span className="mt-0.5 block text-[11px]">
-                        Not available
-                      </span>
-                    ) : outstanding > 0 ? (
-                      <span className="mt-0.5 block text-[11px] font-medium">
-                        {outstanding} form{outstanding === 1 ? "" : "s"} open
-                      </span>
-                    ) : (
-                      <span className="mt-0.5 block text-[11px]">All done</span>
-                    )}
+                    <span className="text-[11px] font-medium uppercase tracking-wide opacity-80">Sem</span>
+                    <span className="text-xl font-bold leading-tight tabular-nums">{s}</span>
+                    <span className="mt-0.5 text-[11px] leading-tight">
+                      {!available ? "—" : outstanding > 0 ? `${outstanding} open` : "Done"}
+                    </span>
                   </button>
                 );
               })}
             </div>
-          </section>
+          </SectionCard>
 
           {semester !== null && (
-            <section>
-              <StepHeading number={2} title="Select Your Course" />
-                <ul className="grid gap-3 md:grid-cols-2">
-                  {coursesInSemester.map((c) => {
-                    const rounds = rows.filter((r) => r.course_id === c.course_id);
-                    const owed = rounds.filter(
-                      (r) => r.submission_status !== "submitted",
-                    ).length;
-                    return (
-                      <li key={c.course_id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setChosenCourse(c.course_id);
-                            setChosenType(null);
-                          }}
-                          className={cn(
-                            "flex w-full items-center gap-3 rounded-xl border border-l-4 border-border bg-card px-4 py-3 text-left transition-colors",
-                            departmentByCourseCode(c.course_code)?.stripeClass,
-                            departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50",
-                          )}
-                        >
-                          <CourseCode code={c.course_code} className="text-sm" />
-                          <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                            {c.course_title}
+            <SectionCard
+              title={<StepTitle number={2} title={`Select a course in Semester ${semester}`} />}
+              flush
+            >
+              <ul className="divide-y divide-border/70">
+                {coursesInSemester.map((c) => {
+                  const rounds = rows.filter((r) => r.course_id === c.course_id);
+                  const owedRounds = rounds.filter((r) => r.submission_status !== "submitted");
+                  const owed = owedRounds.length;
+                  const closes = owedRounds.map((r) => r.closes_at).sort()[0];
+                  const dept = departmentByCourseCode(c.course_code);
+                  return (
+                    <li key={c.course_id} className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChosenCourse(c.course_id);
+                          setChosenType(null);
+                        }}
+                        className={cn(
+                          "group flex w-full min-w-0 items-center gap-3 border-l-4 px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                          dept?.stripeClass ?? "border-l-border",
+                          dept?.hoverClass ?? "hover:bg-muted/50",
+                        )}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-baseline gap-x-2">
+                            <CourseCode code={c.course_code} className="text-sm" />
+                            <span className="min-w-0 text-sm font-medium text-foreground">
+                              {c.course_title}
+                            </span>
                           </span>
-                          {/* Says which courses still want an answer, not
-                              only which are finished. */}
-                          {owed === 0 ? (
-                            <StatusBadge tone="success" icon={CheckCircle2}>
-                              Done
-                            </StatusBadge>
-                          ) : (
-                            <StatusBadge tone="info" dot>
-                              {owed === 1 ? "1 form open" : `${owed} forms open`}
-                            </StatusBadge>
+                          {closes && (
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                              Closes {shortDate(closes)}
+                            </span>
                           )}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-            </section>
+                        </span>
+                        {/* Says which courses still want an answer, not
+                            only which are finished. */}
+                        {owed === 0 ? (
+                          <StatusBadge tone="success" icon={CheckCircle2}>
+                            Done
+                          </StatusBadge>
+                        ) : (
+                          <StatusBadge tone="info" dot>
+                            {owed === 1 ? "1 form open" : `${owed} forms open`}
+                          </StatusBadge>
+                        )}
+                        <ChevronRight
+                          className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </SectionCard>
           )}
         </>
       )}
@@ -274,99 +317,124 @@ export default function Feedback() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Select Feedback Type</DialogTitle>
+            <DialogTitle>Which round?</DialogTitle>
+            {roundsForCourse[0] && (
+              <DialogDescription>
+                <CourseCode code={roundsForCourse[0].course_code} className="text-sm" />{" "}
+                {roundsForCourse[0].course_title}
+              </DialogDescription>
+            )}
           </DialogHeader>
-          {roundsForCourse[0] && (
-            <p className="-mt-2 text-sm text-muted-foreground">
-              <CourseCode code={roundsForCourse[0].course_code} className="text-sm" />{" "}
-              — {roundsForCourse[0].course_title}
-            </p>
-          )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div role="radiogroup" aria-label="Feedback round" className="grid gap-2 sm:grid-cols-2">
             {(["mid_semester", "end_semester"] as const).map((type) => {
               const round = roundsForCourse.find((r) => r.feedback_type === type);
               const submitted = round?.submission_status === "submitted";
+              const draft = round?.submission_status === "draft";
               const selected = chosenType === type;
               return (
                 <button
                   key={type}
                   type="button"
+                  role="radio"
                   disabled={!round}
-                  aria-pressed={selected}
+                  aria-checked={selected}
                   onClick={() => setChosenType(type)}
                   className={cn(
-                    "rounded-xl border p-4 text-center transition-all",
+                    "relative flex flex-col items-start gap-1 rounded-control border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     selected
-                      ? "border-primary bg-primary/10"
+                      ? "border-primary bg-primary/5 ring-1 ring-inset ring-primary/30"
                       : round
-                        ? "border-border hover:border-primary/50"
-                        : "cursor-not-allowed border-border/60 bg-muted/40",
+                        ? "border-border bg-card hover:border-primary/40"
+                        : "cursor-not-allowed border-dashed border-border bg-transparent",
                   )}
                 >
-                  <GraduationCap
-                    className={cn(
-                      "mx-auto mb-1.5 h-6 w-6",
-                      round ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span
-                    className={cn(
-                      "block text-sm font-semibold",
-                      round ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {TYPE_LABEL[type]}
+                  <span className="flex w-full items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2",
+                        selected ? "border-primary" : "border-muted-foreground/40",
+                      )}
+                    >
+                      {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm font-semibold",
+                        round ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {TYPE_LABEL[type]}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="pl-6 text-xs text-muted-foreground">
                     {round ? TYPE_WINDOW[type] : "Not available yet"}
                   </span>
-                  {submitted && (
-                    <StatusBadge tone="success" className="mt-1.5">
-                      Already submitted
-                    </StatusBadge>
+                  {round && (
+                    <span className="flex flex-wrap items-center gap-1.5 pl-6 pt-0.5">
+                      {submitted ? (
+                        <StatusBadge tone="success" icon={CheckCircle2}>
+                          Already submitted
+                        </StatusBadge>
+                      ) : draft ? (
+                        <StatusBadge tone="warning" dot>
+                          Started
+                        </StatusBadge>
+                      ) : null}
+                      {!submitted && (
+                        <span className="text-xs text-muted-foreground">
+                          Closes {shortDate(round.closes_at)}
+                        </span>
+                      )}
+                    </span>
                   )}
                 </button>
               );
             })}
           </div>
 
-          <Button
-            disabled={!chosenType}
-            onClick={() => {
-              const round = roundsForCourse.find(
-                (r) => r.feedback_type === chosenType,
-              );
-              if (!round) return;
-              setChosenCourse(null);
-              setActive(round);
-            }}
-          >
-            Continue to Feedback Form →
-          </Button>
-          <button
-            type="button"
-            onClick={() => setChosenCourse(null)}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            ← Cancel, go back to course list
-          </button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChosenCourse(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!chosenType}
+              onClick={() => {
+                const round = roundsForCourse.find(
+                  (r) => r.feedback_type === chosenType,
+                );
+                if (!round) return;
+                setChosenCourse(null);
+                setActive(round);
+              }}
+            >
+              Continue to the form
+              <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
+/** "15 Nov", for a deadline. */
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
-function StepHeading({ number, title }: { number: number; title: string }) {
+/** A step's number and name, as a card's title. */
+function StepTitle({ number, title }: { number: number; title: string }) {
   return (
-    <div className="mb-3 flex items-center gap-2.5">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+    <span className="inline-flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+      >
         {number}
       </span>
-      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-    </div>
+      {title}
+    </span>
   );
 }
 
@@ -521,28 +589,37 @@ function FeedbackFormView({
   }
 
   const sections = form.sections ?? [];
+  const dept = departmentByCourseCode(row.course_code);
 
   return (
-    <div className="space-y-5">
+    /* Room at the bottom for the submit bar, so it never covers the last
+       question. */
+    <div className="space-y-5 pb-28">
       <BackButton onBack={onBack} />
 
-      {/* Course header — auto-filled, exactly as the faculty's form shows it */}
-      <div
+      {/* Course header — auto-filled, with what the faculty's form shows. */}
+      <section
         className={cn(
-          "rounded-xl border border-l-4 border-border bg-card p-4",
-          departmentByCourseCode(row.course_code)?.stripeClass,
+          "rounded-card border border-l-4 border-border bg-card p-4 shadow-elevation-sm sm:p-5",
+          dept?.stripeClass,
         )}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <CourseCode code={row.course_code} className="text-sm" />
-          <span className="text-base font-semibold text-foreground">
-            {row.course_title}
-          </span>
+          <StatusBadge tone="brand">{TYPE_LABEL[row.feedback_type]} Feedback</StatusBadge>
+          {form.closes_at && form.can_edit && (
+            <span className="text-xs text-muted-foreground">
+              Closes {shortDate(form.closes_at)}
+            </span>
+          )}
         </div>
-        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Feedback Type" value={`${TYPE_LABEL[row.feedback_type]} Feedback`} />
-          <Field label="Course Coordinator" value={form.coordinator_name ?? "Not assigned"} />
-          <Field label="Academic Year" value={form.academic_year ?? "—"} />
+        <h2 className="mt-2 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold text-foreground">
+          <CourseCode code={row.course_code} className="text-base" />
+          <span>{row.course_title}</span>
+        </h2>
+        {/* The feedback type is the badge above, so it is not repeated. */}
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-border/70 pt-4 text-sm sm:grid-cols-3">
+          <Field label="Course coordinator" value={form.coordinator_name ?? "Not assigned"} />
+          <Field label="Academic year" value={form.academic_year ?? "—"} />
           <Field
             label="Date"
             value={new Date().toLocaleDateString("en-GB", {
@@ -552,17 +629,20 @@ function FeedbackFormView({
             })}
           />
         </dl>
-      </div>
+      </section>
 
-      <p className="rounded-xl border-l-4 border-primary bg-primary/5 px-4 py-3 text-sm text-foreground">
-        We appreciate your feedback on the{" "}
-        <strong>overall content and delivery methods</strong> of the course. The
-        information provided is treated with <strong>high confidentiality</strong>{" "}
-        for the improvement of future course delivery.
+      <p className="flex items-start gap-2.5 rounded-control border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+        <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
+        <span>
+          We appreciate your feedback on the{" "}
+          <strong>overall content and delivery methods</strong> of the course. The
+          information provided is treated with <strong>high confidentiality</strong>{" "}
+          for the improvement of future course delivery.
+        </span>
       </p>
 
       {!form.can_edit && (
-        <p className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-control border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
           <Lock className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
           You have already submitted this form and it can no longer be changed.
         </p>
@@ -570,9 +650,10 @@ function FeedbackFormView({
 
       {error && <ErrorState message={error} size="inline" />}
 
-      {sections.map((section) => (
+      {sections.map((section, i) => (
         <SectionCardView
           key={section.key}
+          number={i + 1}
           section={section}
           form={form}
           answers={answers}
@@ -586,14 +667,39 @@ function FeedbackFormView({
         <MissingSummary count={missingKeys.length} onShow={goToFirstMissing} />
       )}
 
-      <Button
-        size="lg"
-        className="w-full"
-        disabled={disabled}
-        onClick={submit}
+      {/* The submit button stays in reach on a long form, with how many
+          required answers are left — in plain words until a submit has been
+          tried, after which the questions themselves are marked. */}
+      <StickyActionBar
+        open={form.can_edit}
+        summary={
+          missingKeys.length === 0 ? (
+            <span className="flex items-center gap-2 text-success-fg">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+              Every required question is answered.
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              <strong className="tabular-nums text-foreground">{missingKeys.length}</strong>{" "}
+              required question{missingKeys.length === 1 ? "" : "s"} left
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMissing(true);
+                  goToFirstMissing();
+                }}
+                className="ml-2 text-sm font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Show the next one
+              </button>
+            </span>
+          )
+        }
       >
-        {saving ? "Submitting…" : "Submit Feedback"}
-      </Button>
+        <Button disabled={disabled} onClick={submit}>
+          {saving ? "Submitting…" : "Submit Feedback"}
+        </Button>
+      </StickyActionBar>
     </div>
   );
 }
@@ -613,7 +719,7 @@ function MissingSummary({
     return (
       <p
         role="status"
-        className="flex items-center gap-2 rounded-xl border border-success-border bg-success-bg px-4 py-3 text-sm text-success-fg"
+        className="flex items-center gap-2 rounded-control border border-success-border bg-success-bg px-4 py-3 text-sm text-success-fg"
       >
         <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
         All required questions are answered. You can submit now.
@@ -623,7 +729,7 @@ function MissingSummary({
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-3 rounded-xl border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-fg"
+      className="flex flex-wrap items-center gap-3 rounded-control border border-danger-border bg-danger-bg px-4 py-3 text-sm text-danger-fg"
     >
       <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
       <span className="flex-1">
@@ -640,20 +746,18 @@ function MissingSummary({
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1.5 text-sm text-foreground">
-        {value}
-      </dd>
+      <dd className="mt-0.5 break-words font-medium text-foreground">{value}</dd>
     </div>
   );
 }
 
 function BackButton({ onBack }: { onBack: () => void }) {
   return (
-    <Button variant="outline" size="sm" onClick={onBack}>
-      <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-      Back to Course Selection
+    <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
+      <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden="true" />
+      Back to courses
     </Button>
   );
 }
@@ -664,6 +768,7 @@ function BackButton({ onBack }: { onBack: () => void }) {
  * name, which is how the same person ends up counted three ways.
  */
 function SectionCardView({
+  number,
   section,
   form,
   answers,
@@ -671,6 +776,7 @@ function SectionCardView({
   onPatch,
   missingKeys,
 }: {
+  number: number;
   section: FeedbackSection;
   form: FeedbackFormData;
   answers: Record<string, FeedbackAnswerInput>;
@@ -691,50 +797,55 @@ function SectionCardView({
     : 0;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
-      <header className="mb-4 border-b border-border/70 pb-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+    <SectionCard
+      title={
+        <span className="inline-flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
+          >
+            {number}
+          </span>
           {section.icon && <span aria-hidden="true">{section.icon}</span>}
           {section.title}
-          {missingHere > 0 && (
-            <StatusBadge tone="danger" className="ml-auto">
-              {missingHere} to answer
-            </StatusBadge>
-          )}
-        </h2>
-        {section.description && (
-          // Stored as written on the faculty's form. Composing the "all fields
-          // are required" half here got it wrong for the two sections whose
-          // follow-ups are optional.
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {section.description}
-          </p>
-        )}
-      </header>
-
+        </span>
+      }
+      // Stored as written on the faculty's form. Composing the "all fields
+      // are required" half here got it wrong for the two sections whose
+      // follow-ups are optional.
+      description={section.description ?? undefined}
+      actions={
+        missingHere > 0 ? (
+          <StatusBadge tone="danger">{missingHere} to answer</StatusBadge>
+        ) : undefined
+      }
+    >
       {perLecturer ? (
         form.lecturers.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No lecturer is recorded for this course, so there is nobody to rate.
           </p>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {form.lecturers.map((lecturer, i) => (
               <div
                 key={lecturer.lecturer_id}
-                className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4"
+                className="rounded-control border border-border/70 bg-muted/20 p-3 sm:p-4"
               >
-                <p className="text-sm font-semibold text-foreground">
-                  Lecturer {i + 1}
-                </p>
-                <p className="mb-3 text-sm font-medium text-foreground">
-                  {lecturer.name}
-                  {lecturer.assignment_role === "coordinator" && (
-                    <StatusBadge tone="brand" className="ml-1.5">
-                      Coordinator
-                    </StatusBadge>
-                  )}
-                </p>
+                <div className="mb-3 flex items-center gap-3">
+                  <PersonAvatar name={lecturer.name} department={form.course?.department} size="sm" />
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-foreground">
+                      {lecturer.name}
+                      {lecturer.assignment_role === "coordinator" && (
+                        <StatusBadge tone="brand">Coordinator</StatusBadge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Lecturer {i + 1} of {form.lecturers.length}
+                    </p>
+                  </div>
+                </div>
                 <QuestionGroup
                   questions={section.questions}
                   lecturerId={lecturer.lecturer_id}
@@ -757,7 +868,7 @@ function SectionCardView({
           missingKeys={missingKeys}
         />
       )}
-    </section>
+    </SectionCard>
   );
 }
 

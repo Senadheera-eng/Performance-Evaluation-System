@@ -87,13 +87,13 @@ export function LikertMatrix({
                   key={answerKeyFor(q)}
                   data-missing-answer={missing || undefined}
                   className={cn(
-                    "border-b border-border/60 scroll-mt-24",
+                    "border-b border-border/60 scroll-mt-24 transition-colors hover:bg-muted/60",
                     row % 2 === 1 && "bg-muted/40",
                     missing &&
                       "bg-danger-bg outline outline-2 -outline-offset-2 outline-danger-fg/60",
                   )}
                 >
-                  <td className="px-3 py-2.5 text-foreground">
+                  <td className="px-3 py-2 text-foreground">
                     {q.question_text}
                     {q.is_required && (
                       <span className="ml-1 text-destructive">*</span>
@@ -101,7 +101,9 @@ export function LikertMatrix({
                     {missing && <MissingHint />}
                   </td>
                   {LIKERT_COLUMNS.map((col) => (
-                    <td key={col.value} className="px-2 py-2.5 text-center">
+                    <td key={col.value} className="px-1 py-1 text-center">
+                      {/* The circle is small; the button around it is the
+                          size of a fingertip. */}
                       <button
                         type="button"
                         role="radio"
@@ -110,13 +112,25 @@ export function LikertMatrix({
                         disabled={disabled}
                         onClick={() => onChange(q, col.value)}
                         className={cn(
-                          "h-5 w-5 rounded-full border-2 align-middle transition-all",
-                          "disabled:cursor-not-allowed disabled:opacity-60",
-                          current === col.value
-                            ? "border-primary bg-primary ring-2 ring-primary/25"
-                            : "border-muted-foreground/40 hover:border-primary/60",
+                          "group/dot inline-flex h-9 w-9 items-center justify-center rounded-full align-middle transition-colors",
+                          "hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent",
                         )}
-                      />
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors",
+                            current === col.value
+                              ? "border-primary bg-primary ring-2 ring-primary/25"
+                              : "border-muted-foreground/40 group-hover/dot:border-primary/60",
+                          )}
+                        >
+                          {current === col.value && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+                          )}
+                        </span>
+                      </button>
                     </td>
                   ))}
                 </tr>
@@ -136,7 +150,7 @@ export function LikertMatrix({
               key={answerKeyFor(q)}
               data-missing-answer={missing || undefined}
               className={cn(
-                "scroll-mt-24 rounded-xl border p-3",
+                "scroll-mt-24 rounded-control border p-3",
                 missing
                   ? "border-2 border-danger-fg/60 bg-danger-bg"
                   : "border-border/70",
@@ -162,7 +176,7 @@ export function LikertMatrix({
                     disabled={disabled}
                     onClick={() => onChange(q, col.value)}
                     className={cn(
-                      "flex flex-1 flex-col items-center gap-1 rounded-lg border px-1 py-1.5 transition-all",
+                      "flex min-h-14 flex-1 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-1.5 transition-colors",
                       "disabled:cursor-not-allowed disabled:opacity-60",
                       current === col.value
                         ? "border-primary bg-primary/10"
