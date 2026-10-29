@@ -352,7 +352,7 @@ export function MentorChat({
 
   return (
     <div className={className}>
-      <div className="max-h-[26rem] space-y-2 overflow-y-auto rounded-xl border border-border bg-muted/20 p-3">
+      <div className="max-h-[min(30rem,60vh)] space-y-2 overflow-y-auto rounded-control border border-border bg-muted/30 p-3">
         {thread.messages.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             No messages yet. Say hello.
@@ -394,11 +394,13 @@ export function MentorChat({
                 ) : (
                   <span className="w-7 flex-shrink-0" aria-hidden="true" />
                 ))}
+              {/* The corner nearest the sender is squared off on the last
+                  bubble of a run, so a run reads as one voice. */}
               <div
-                className={`max-w-[85%] rounded-2xl px-3 py-2 ${
+                className={`max-w-[85%] rounded-2xl px-3 py-2 shadow-elevation-sm ${
                   m.mine
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-card text-foreground"
+                    ? `bg-primary text-primary-foreground ${lastOfRun(i) ? "rounded-br-md" : ""}`
+                    : `border border-border bg-card text-foreground ${lastOfRun(i) ? "rounded-bl-md" : ""}`
                 }`}
               >
                 {m.body && (
@@ -434,7 +436,7 @@ export function MentorChat({
               size="xs"
               className="mb-0.5 h-7 w-7"
             />
-            <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-card px-3 py-2">
+            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-card px-3 py-2">
               <span className="flex gap-1" aria-hidden="true">
                 {[0, 150, 300].map((delay) => (
                   <span
@@ -462,7 +464,7 @@ export function MentorChat({
       {thread.is_current ? (
         <div className="mt-2 space-y-2">
           {file && (
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-2">
+            <div className="flex items-center gap-2 rounded-control border border-border bg-muted/40 px-2.5 py-2">
               <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                 {file.name}
@@ -484,7 +486,8 @@ export function MentorChat({
             </div>
           )}
 
-          <div className="flex items-end gap-2">
+          {/* One box, as a messaging app's: attach, write, send. */}
+          <div className="flex items-end gap-1.5 rounded-control border border-border bg-card p-1.5 shadow-elevation-sm transition-shadow focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
             <input
               ref={fileInput}
               type="file"
@@ -492,15 +495,18 @@ export function MentorChat({
               onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
             />
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               disabled={sending}
               onClick={() => fileInput.current?.click()}
               aria-label="Attach a file"
+              className="flex-shrink-0 text-muted-foreground hover:text-foreground"
             >
               <Paperclip className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Textarea
+              aria-label="Message"
+              className="max-h-40 min-h-9 resize-none overflow-y-auto border-0 bg-transparent px-1.5 py-2 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
@@ -523,9 +529,11 @@ export function MentorChat({
               }}
             />
             <Button
+              size="icon"
               onClick={send}
               disabled={sending || (!draft.trim() && !file)}
               aria-label="Send"
+              className="flex-shrink-0"
             >
               {sending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
