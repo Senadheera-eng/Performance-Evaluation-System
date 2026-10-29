@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import type { Role } from "../../lib/types";
+import { BrandLoader } from "./layout/BrandLoader";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -18,32 +19,14 @@ export default function ProtectedRoute({
       : [allowedRole]
     : null;
 
-  // Still checking auth — show spinner
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Still checking auth: the same loading screen index.html shows first.
+  if (loading) return <BrandLoader fullScreen />;
 
   // Not logged in → go to login
   if (!user) return <Navigate to="/" replace />;
 
   // Logged in but student profile not loaded yet — wait
-  if (allowedRole && !student) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-muted-foreground text-sm">Loading profile...</p>
-        </div>
-      </div>
-    );
-  }
+  if (allowedRole && !student) return <BrandLoader fullScreen label="Loading your profile…" />;
 
   // Wrong role → send them to the portal their own role owns, rather than
   // bouncing everyone to /app where a lecturer or admin has nothing.
