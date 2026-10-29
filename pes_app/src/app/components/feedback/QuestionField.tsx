@@ -40,7 +40,7 @@ export function QuestionField({
   return (
     <div
       data-missing-answer
-      className="scroll-mt-24 rounded-xl border-2 border-danger-fg/60 bg-danger-bg p-3"
+      className="scroll-mt-24 rounded-control border-2 border-danger-fg/60 bg-danger-bg p-3"
     >
       {control}
       <MissingHint />
@@ -139,11 +139,11 @@ function QuestionControl({
                 disabled={disabled}
                 onClick={() => onChange({ choice_value: opt.value })}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all",
+                  "flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   "disabled:cursor-not-allowed disabled:opacity-60",
                   active
                     ? "border-primary bg-primary/10 font-medium text-primary"
-                    : "border-border text-foreground hover:border-primary/40",
+                    : "border-border bg-card text-foreground hover:border-primary/40",
                 )}
               >
                 <span
@@ -187,11 +187,11 @@ function QuestionControl({
                 disabled={disabled}
                 onClick={() => toggle(opt.value)}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all",
+                  "flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   "disabled:cursor-not-allowed disabled:opacity-60",
                   active
                     ? "border-primary bg-primary/10 font-medium text-primary"
-                    : "border-border text-foreground hover:border-primary/40",
+                    : "border-border bg-card text-foreground hover:border-primary/40",
                 )}
               >
                 <span
