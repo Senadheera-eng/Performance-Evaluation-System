@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BookOpen, ChevronRight, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   CourseCode,
   DepartmentBadge,
@@ -10,6 +18,7 @@ import {
   SegmentedTabs,
   SkeletonRows,
   StatusBadge,
+  useExpandMotion,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
@@ -52,6 +61,7 @@ export default function StaffCourses() {
   const [rosters, setRosters] = useState<Record<string, RosterStudent[]>>({});
   const [rosterLoading, setRosterLoading] = useState<string | null>(null);
   const [rosterError, setRosterError] = useState<Record<string, string>>({});
+  const expand = useExpandMotion();
 
   useEffect(() => {
     if (staff) load();
@@ -157,26 +167,23 @@ export default function StaffCourses() {
             }))}
           />
           {semesters.length > 1 && (
-            <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              Semester
-              <select
-                value={semester === "all" ? "all" : String(semester)}
-                onChange={(e) =>
-                  setSemester(
-                    e.target.value === "all" ? "all" : Number(e.target.value),
-                  )
-                }
-                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
+            <Select
+              value={semester === "all" ? "all" : String(semester)}
+              onValueChange={(v) => setSemester(v === "all" ? "all" : Number(v))}
+            >
+              <SelectTrigger aria-label="Semester" className="h-9 w-52 rounded-control bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
                 {semesters.map((s) => (
-                  <option key={s} value={String(s)}>
+                  <SelectItem key={s} value={String(s)}>
                     Semester {s}
                     {s === batchNow ? " (Current)" : ""}
-                  </option>
+                  </SelectItem>
                 ))}
-                <option value="all">All semesters</option>
-              </select>
-            </label>
+                <SelectItem value="all">All semesters</SelectItem>
+              </SelectContent>
+            </Select>
           )}
         </div>
       )}
@@ -247,26 +254,28 @@ export default function StaffCourses() {
                     )}
                   >
                     <div className="flex min-w-0 items-start gap-2">
-                      {open ? (
-                        <ChevronDown className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      )}
+                      <ChevronRight
+                        className={cn(
+                          "mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
+                          open && "rotate-90",
+                        )}
+                        aria-hidden="true"
+                      />
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <CourseCode code={o.course_code} className="text-sm" />
-                          <span className="truncate text-sm text-foreground">
-                            {o.course_title}
-                          </span>
+                        {/* One line of text, so on a phone the title wraps
+                            after its code instead of each part stacking. */}
+                        <p className="text-sm text-foreground">
+                          <CourseCode code={o.course_code} className="mr-2" />
+                          {o.course_title}
                           {o.my_role === "coordinator" && (
-                            <StatusBadge tone="brand">Coordinator</StatusBadge>
+                            <StatusBadge tone="brand" className="ml-2 align-middle">Coordinator</StatusBadge>
                           )}
                           {o.is_current ? (
-                            <StatusBadge tone="success">Current</StatusBadge>
+                            <StatusBadge tone="success" className="ml-1.5 align-middle">Current</StatusBadge>
                           ) : (
-                            <StatusBadge tone="neutral">Finished</StatusBadge>
+                            <StatusBadge tone="neutral" className="ml-1.5 align-middle">Finished</StatusBadge>
                           )}
-                        </div>
+                        </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {describeBatch(o.batch_year)} · Semester {o.semester} ·{" "}
                           {o.academic_year} · {o.credits} credits
@@ -290,63 +299,74 @@ export default function StaffCourses() {
                     </div>
                   </button>
 
-                  {open && (
-                    <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
-                      {rosterLoading === o.offering_id ? (
-                        <SkeletonRows count={3} height="h-8" />
-                      ) : rosterError[o.offering_id] ? (
-                        <ErrorState
-                          message={rosterError[o.offering_id]}
-                          onRetry={() => toggle(o)}
-                          size="inline"
-                        />
-                      ) : (roster?.length ?? 0) === 0 ? (
-                        <p className="py-1 text-xs text-muted-foreground">
-                          No students on this offering yet.
-                        </p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="border-b border-border/70 text-left text-muted-foreground">
-                                <th className="pb-1.5 pr-3 font-medium">Index No.</th>
-                                <th className="pb-1.5 pr-3 font-medium">Name</th>
-                                <th className="pb-1.5 pr-3 font-medium">Reg. No.</th>
-                                <th className="pb-1.5 pr-3 font-medium">Department</th>
-                                <th className="pb-1.5 font-medium">Batch</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border/50">
-                              {roster.map((s) => (
-                                <tr key={s.student_id}>
-                                  <td className="whitespace-nowrap py-1.5 pr-3 text-foreground">
-                                    {s.index_number ?? "—"}
-                                  </td>
-                                  <td className="py-1.5 pr-3 text-foreground">
-                                    <span className="flex items-center gap-1.5">
-                                      {s.name}
-                                      {s.is_repeat && (
-                                        <StatusBadge tone="info">Repeat</StatusBadge>
-                                      )}
-                                    </span>
-                                  </td>
-                                  <td className="whitespace-nowrap py-1.5 pr-3 text-muted-foreground">
-                                    {formatRegNumber(s.reg_number)}
-                                  </td>
-                                  <td className="py-1.5 pr-3 text-muted-foreground">
-                                    <DepartmentBadge department={s.department} label="code" />
-                                  </td>
-                                  <td className="whitespace-nowrap py-1.5 text-muted-foreground">
-                                    {describeBatch(s.batch_year)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                  <AnimatePresence initial={false}>
+                    {open && (
+                      <motion.div
+                        key="roster"
+                        variants={expand}
+                        initial="collapsed"
+                        animate="open"
+                        exit="collapsed"
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
+                          {rosterLoading === o.offering_id ? (
+                            <SkeletonRows count={3} height="h-8" />
+                          ) : rosterError[o.offering_id] ? (
+                            <ErrorState
+                              message={rosterError[o.offering_id]}
+                              onRetry={() => toggle(o)}
+                              size="inline"
+                            />
+                          ) : (roster?.length ?? 0) === 0 ? (
+                            <p className="py-1 text-xs text-muted-foreground">
+                              No students on this offering yet.
+                            </p>
+                          ) : (
+                            <div className="max-h-[22rem] overflow-auto">
+                              <table className="w-full text-xs">
+                                <thead className="sticky top-0 z-[1] bg-muted">
+                                  <tr className="border-b border-border/70 text-left text-muted-foreground">
+                                    <th className="py-1.5 pr-3 font-medium">Index No.</th>
+                                    <th className="py-1.5 pr-3 font-medium">Name</th>
+                                    <th className="py-1.5 pr-3 font-medium">Reg. No.</th>
+                                    <th className="py-1.5 pr-3 font-medium">Department</th>
+                                    <th className="py-1.5 font-medium">Batch</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/50">
+                                  {roster.map((s) => (
+                                    <tr key={s.student_id}>
+                                      <td className="whitespace-nowrap py-1.5 pr-3 text-foreground">
+                                        {s.index_number ?? "—"}
+                                      </td>
+                                      <td className="py-1.5 pr-3 text-foreground">
+                                        <span className="flex items-center gap-1.5">
+                                          {s.name}
+                                          {s.is_repeat && (
+                                            <StatusBadge tone="info">Repeat</StatusBadge>
+                                          )}
+                                        </span>
+                                      </td>
+                                      <td className="whitespace-nowrap py-1.5 pr-3 text-muted-foreground">
+                                        {formatRegNumber(s.reg_number)}
+                                      </td>
+                                      <td className="py-1.5 pr-3 text-muted-foreground">
+                                        <DepartmentBadge department={s.department} label="code" />
+                                      </td>
+                                      <td className="whitespace-nowrap py-1.5 text-muted-foreground">
+                                        {describeBatch(s.batch_year)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </li>
               );
             })}
