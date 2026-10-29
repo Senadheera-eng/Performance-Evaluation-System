@@ -551,7 +551,7 @@ function NoticeForm({
 
           <Field label="Category">
             <Select value={category || undefined} onValueChange={setCategory}>
-              <SelectTrigger aria-label="Category" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Category" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue placeholder="Choose a category" />
               </SelectTrigger>
               <SelectContent>
@@ -655,7 +655,7 @@ function NoticeForm({
               value={batchYear === "" ? ANY : batchYear}
               onValueChange={(v) => setBatchYear(v === ANY ? "" : v)}
             >
-              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -674,7 +674,7 @@ function NoticeForm({
               value={semester === "" ? ANY : semester}
               onValueChange={(v) => setSemester(v === ANY ? "" : v)}
             >
-              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

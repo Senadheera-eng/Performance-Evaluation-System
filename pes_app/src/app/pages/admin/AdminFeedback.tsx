@@ -446,7 +446,7 @@ function CreatePeriodForm({
                 setSemester(Number(v));
               }}
             >
-              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -494,7 +494,7 @@ function CreatePeriodForm({
               value={batchYear === "" ? undefined : String(batchYear)}
               onValueChange={(v) => setBatchYear(Number(v))}
             >
-              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control bg-card">
+              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control border-border bg-card">
                 <SelectValue placeholder="Choose a batch" />
               </SelectTrigger>
               <SelectContent>

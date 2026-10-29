@@ -540,7 +540,7 @@ export default function StaffResults() {
                             >
                               <SelectTrigger
                                 aria-label={`Grade for ${r.name}`}
-                                className="h-8 w-full rounded-control bg-card text-sm"
+                                className="h-8 w-full rounded-control border-border bg-card text-sm"
                               >
                                 <SelectValue />
                               </SelectTrigger>
