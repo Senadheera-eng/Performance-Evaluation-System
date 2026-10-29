@@ -507,7 +507,7 @@ export default function Results() {
             latest?.sgpa != null ? (
               <>
                 Semester {latest.semesterNum} GPA{" "}
-                <span className="font-semibold text-white">{latest.sgpa.toFixed(2)}</span>
+                <span className="font-semibold text-foreground">{latest.sgpa.toFixed(2)}</span>
                 {sgpaDelta !== null && previous
                   ? ` · ${sgpaDelta > 0 ? "▲ +" : sgpaDelta < 0 ? "▼ " : ""}${sgpaDelta.toFixed(2)} vs Semester ${previous.semesterNum}`
                   : " · no earlier semester to compare"}
@@ -561,6 +561,99 @@ export default function Results() {
         />
       )}
 
+      {/* The two charts straight under the CGPA, side by side and always
+          open, so a student sees them without scrolling or expanding
+          anything. Each says in a line what it shows. */}
+      <SectionCard
+        title="Insights"
+        description="Your GPA by semester and how your grades break down."
+      >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">GPA trend</h3>
+            <GpaTrendChart bare data={gpaChart} cgpa={cgpa} loading={loading} takeaway={gpaTrendTakeaway(gpaChart)} />
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">Grade distribution</h3>
+            <ChartContainer
+              bare
+              title="Grade distribution"
+              height={250}
+              loading={loading}
+              hasData={orderedGradeSpread.length > 0}
+              emptyTitle="No grades recorded yet"
+              summary={`Grade counts: ${orderedGradeSpread
+                .map((g) => `${g.grade}: ${g.count}`)
+                .join(", ")}.`}
+              takeaway={gradeSpreadTakeaway(orderedGradeSpread)}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={orderedGradeSpread}
+                  layout="vertical"
+                  margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="grade"
+                    width={40}
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                    content={
+                      <ChartTooltip labelFormatter={(l) => `Grade ${l}`} />
+                    }
+                  />
+                  <Bar
+                    dataKey="count"
+                    name="Courses"
+                    radius={[0, 6, 6, 0]}
+                    animationDuration={chartDuration}
+                    isAnimationActive={chartDuration > 0}
+                    shape={(props: any) => {
+                      const { x, y, width, height, payload } = props;
+                      return (
+                        <rect
+                          x={x}
+                          y={y}
+                          width={width}
+                          height={height}
+                          rx={4}
+                          fill={TONE_VAR[gradeTone(payload.grade)]}
+                        />
+                      );
+                    }}
+                  >
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      fill="var(--muted-foreground)"
+                      fontSize={11}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+        </div>
+      </SectionCard>
       {/* Semester detail */}
       {/* The semester tabs sit in the body on their own row, where eight of
           them can scroll on a phone. In the header they sat beside the title
@@ -760,102 +853,6 @@ export default function Results() {
         ) : null}
       </SectionCard>
 
-      {/* The two charts, one click away rather than between the CGPA and the
-          grades. Each says in a line what it shows. */}
-      <SectionCard
-        title="Insights"
-        description="Your GPA by semester and how your grades break down."
-        collapsible
-        defaultOpen={false}
-        storageKey="results-insights"
-        summary="GPA trend · grade distribution"
-      >
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-foreground">GPA trend</h3>
-            <GpaTrendChart bare data={gpaChart} cgpa={cgpa} loading={loading} takeaway={gpaTrendTakeaway(gpaChart)} />
-          </div>
-          <div>
-            <h3 className="mb-2 text-sm font-semibold text-foreground">Grade distribution</h3>
-            <ChartContainer
-              bare
-              title="Grade distribution"
-              height={250}
-              loading={loading}
-              hasData={orderedGradeSpread.length > 0}
-              emptyTitle="No grades recorded yet"
-              summary={`Grade counts: ${orderedGradeSpread
-                .map((g) => `${g.grade}: ${g.count}`)
-                .join(", ")}.`}
-              takeaway={gradeSpreadTakeaway(orderedGradeSpread)}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={orderedGradeSpread}
-                  layout="vertical"
-                  margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    horizontal={false}
-                  />
-                  <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    stroke="var(--muted-foreground)"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="grade"
-                    width={40}
-                    stroke="var(--muted-foreground)"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-                    content={
-                      <ChartTooltip labelFormatter={(l) => `Grade ${l}`} />
-                    }
-                  />
-                  <Bar
-                    dataKey="count"
-                    name="Courses"
-                    radius={[0, 6, 6, 0]}
-                    animationDuration={chartDuration}
-                    isAnimationActive={chartDuration > 0}
-                    shape={(props: any) => {
-                      const { x, y, width, height, payload } = props;
-                      return (
-                        <rect
-                          x={x}
-                          y={y}
-                          width={width}
-                          height={height}
-                          rx={4}
-                          fill={TONE_VAR[gradeTone(payload.grade)]}
-                        />
-                      );
-                    }}
-                  >
-                    <LabelList
-                      dataKey="count"
-                      position="right"
-                      fill="var(--muted-foreground)"
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </div>
-        </div>
-      </SectionCard>
     </div>
   );
 }
