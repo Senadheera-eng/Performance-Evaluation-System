@@ -9,10 +9,11 @@ import { useChartMotion } from "./motion";
  */
 export function Sparkline({
   data,
-  onHero = false,
   className,
 }: {
   data: { label: string; value: number }[];
+  /** Kept for callers on a hero card. The hero is a light surface now, so
+   *  the line is the brand colour wherever it sits. */
   onHero?: boolean;
   className?: string;
 }) {
@@ -25,9 +26,9 @@ export function Sparkline({
           <Line
             type="monotone"
             dataKey="value"
-            stroke={onHero ? "#FFFFFF" : "var(--primary)"}
+            stroke="var(--primary)"
             strokeWidth={2.25}
-            dot={{ r: 2.5, fill: onHero ? "#FFFFFF" : "var(--primary)", strokeWidth: 0 }}
+            dot={{ r: 2.5, fill: "var(--primary)", strokeWidth: 0 }}
             isAnimationActive={duration > 0}
             animationDuration={duration * 1.6}
           />

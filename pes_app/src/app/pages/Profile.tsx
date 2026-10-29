@@ -283,7 +283,7 @@ export default function Profile() {
         animate="show"
         className="overflow-hidden rounded-card border border-border bg-card shadow-elevation-sm"
       >
-        <div className="surface-hero h-20 sm:h-24" aria-hidden="true" />
+        <div className="surface-band h-20 sm:h-24" aria-hidden="true" />
         <div className="px-4 pb-5 sm:px-6">
           {/* The photo across the band's edge, the name under it: a long
               name wraps in the card, never over the band. */}

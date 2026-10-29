@@ -165,7 +165,7 @@ export default function StaffProfile() {
             animate="show"
             className="overflow-hidden rounded-card border border-border bg-card shadow-elevation-sm"
           >
-            <div className="surface-hero h-20 sm:h-24" aria-hidden="true" />
+            <div className="surface-band h-20 sm:h-24" aria-hidden="true" />
             <div className="px-4 pb-5 sm:px-6">
               <div className="-mt-12 flex flex-col items-start gap-3">
                 {/* The photo itself opens the file picker too, with the

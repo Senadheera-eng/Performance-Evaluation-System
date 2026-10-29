@@ -193,14 +193,17 @@
   --motion-slow: 400ms;
   --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Hero surfaces: the one card per page that carries the number that
-     matters (CGPA, overall attendance). Crimson into the crest's deep red;
-     white text on either end clears WCAG AA (5.8:1 and 10.7:1). */
+  /* The brand band: crimson into the crest's deep red, for the strip across
+     the top of a profile. White on either end clears WCAG AA. */
   --hero-from: #C41E3A;
   --hero-to: #7A1230;
-  --hero-fg: #FFFFFF;
-  --hero-muted: rgb(255 255 255 / 0.8);
-  --hero-track: rgb(255 255 255 / 0.22);
+  /* Hero cards: the one card per page that carries the number that matters
+     (CGPA, overall attendance). A soft wash of the brand on the card rather
+     than a block of crimson, which was hard to sit in front of for long; the
+     text is the page's own, and the number itself takes the brand colour. */
+  --hero-fg: var(--foreground);
+  --hero-muted: var(--muted-foreground);
+  --hero-track: var(--muted);
   /* A whisper of the brand for secondary emphasis (attention lists, tinted
      heroes), and the sweep across a loading skeleton. */
   --surface-tint: color-mix(in oklab, var(--primary) 5%, var(--card));
@@ -289,12 +292,9 @@
   --elevation-md: 0 2px 8px -2px rgb(0 0 0 / 0.45), 0 1px 3px -1px rgb(0 0 0 / 0.30);
   --elevation-lg: 0 12px 28px -8px rgb(0 0 0 / 0.55), 0 4px 10px -4px rgb(0 0 0 / 0.35);
 
-  /* A deeper hero on a dark page, so it glows rather than shouts. */
+  /* A deeper band on a dark page, so it glows rather than shouts. */
   --hero-from: #8E1630;
   --hero-to: #3A0B18;
-  --hero-fg: #FFFFFF;
-  --hero-muted: rgb(255 255 255 / 0.78);
-  --hero-track: rgb(255 255 255 / 0.18);
   --surface-tint: color-mix(in oklab, var(--primary) 9%, var(--card));
   --shimmer: rgb(255 255 255 / 0.06);
 }
@@ -639,13 +639,22 @@
 /* Surfaces and loading                                                */
 /* ------------------------------------------------------------------ */
 
-/* The hero card: the brand gradient with a soft highlight in the corner. */
+/* The hero card: the card itself, washed with the brand from one corner. */
 @utility surface-hero {
+  background-color: var(--card);
+  background-image:
+    radial-gradient(90% 130% at 100% 0%, color-mix(in oklab, var(--primary) 11%, transparent), transparent 60%),
+    linear-gradient(135deg, color-mix(in oklab, var(--primary) 5%, var(--card)) 0%, var(--card) 70%);
+  color: var(--hero-fg);
+}
+
+/* The brand band across the top of a profile: the gradient with a soft
+   highlight in the corner. */
+@utility surface-band {
   background-color: var(--hero-to);
   background-image:
     radial-gradient(120% 140% at 100% 0%, rgb(255 255 255 / 0.16), transparent 55%),
     linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
-  color: var(--hero-fg);
 }
 
 @utility surface-tint {
