@@ -1,6 +1,6 @@
 # Database migrations
 
-The 274 migrations in this folder, numbered in the order they were applied.
+The 275 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -286,3 +286,4 @@ New migrations are added to the end of this list.
 | 272 | 2026-10-28 | The planner reaches mentors and results | [`20261028204728_the_planner_reaches_mentors_and_results.sql`](20261028204728_the_planner_reaches_mentors_and_results.sql) |
 | 273 | 2026-10-28 | A semester is complete when its gpa courses are | [`20261028205121_a_semester_is_complete_when_its_gpa_courses_are.sql`](20261028205121_a_semester_is_complete_when_its_gpa_courses_are.sql) |
 | 274 | 2026-10-28 | The semester notice works its sgpa in numeric | [`20261028205242_the_semester_notice_works_its_sgpa_in_numeric.sql`](20261028205242_the_semester_notice_works_its_sgpa_in_numeric.sql) |
+| 275 | 2026-10-29 | An open enrolment window can be extended | [`20261029033624_an_open_enrolment_window_can_be_extended.sql`](20261029033624_an_open_enrolment_window_can_be_extended.sql) |

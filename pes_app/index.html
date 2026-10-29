@@ -9,7 +9,7 @@
       <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      <link rel="preload" as="image" href="/logo-128.png" />
+      <link rel="preload" as="image" href="/logo-160.png" />
       <script>
         /* The saved theme, applied before anything paints, so a dark-mode
            user does not see a white flash. ThemeContext keeps it after. */
@@ -30,16 +30,16 @@
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 16px;
+          gap: 20px;
           margin: 0;
           background: #f9fafb;
           font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
         }
-        .boot-mark { position: relative; width: 64px; height: 64px; }
-        .boot-mark img { display: block; width: 64px; height: 64px; }
+        .boot-mark { position: relative; width: 80px; height: 80px; }
+        .boot-mark img { display: block; width: 80px; height: 80px; }
         .boot-ring {
           position: absolute;
-          inset: -6px;
+          inset: -8px;
           border-radius: 9999px;
           border: 2px solid rgba(196, 30, 58, 0.15);
           border-top-color: #c41e3a;
@@ -58,7 +58,7 @@
       <div id="root">
         <div class="boot" role="status" aria-live="polite">
           <div class="boot-mark">
-            <img src="/logo-128.png" alt="" width="64" height="64" />
+            <img src="/logo-160.png" alt="" width="80" height="80" />
             <span class="boot-ring" aria-hidden="true"></span>
           </div>
           <p class="boot-text">Loading…</p>
