@@ -65,12 +65,12 @@ export function PageHeader({
 /* HeroCard                                                            */
 /* ------------------------------------------------------------------ */
 
-/** A button on the brand gradient: white, with the hero's own red as text. */
+/** The hero's main button: the brand, filled. */
 export const heroButtonClass =
-  "bg-white text-[var(--hero-to)] hover:bg-white/90 shadow-elevation-sm";
-/** A quieter button on the brand gradient. */
+  "bg-primary text-primary-foreground hover:bg-primary/90 shadow-elevation-sm";
+/** A quieter button on the hero: outlined on the card. */
 export const heroGhostButtonClass =
-  "bg-white/12 text-white hover:bg-white/20 border border-white/25";
+  "bg-card text-foreground hover:bg-muted border border-border";
 
 interface HeroCardProps {
   /** What the number is, above it: "Current CGPA". */
@@ -87,7 +87,8 @@ interface HeroCardProps {
   aside?: React.ReactNode;
   /** A strip of small facts along the bottom. */
   footer?: React.ReactNode;
-  /** brand: the crimson gradient, white text. tint: a soft brand wash. */
+  /** brand: the card washed with the brand, the number in the brand colour.
+   *  tint: a flat brand tint. */
   variant?: "brand" | "tint";
   className?: string;
 }
@@ -121,7 +122,7 @@ export function HeroCard({
         // footer at the bottom instead of a gap under it.
         "relative flex flex-col overflow-hidden rounded-card p-5 sm:p-6",
         brand
-          ? "surface-hero shadow-elevation-md"
+          ? "surface-hero border border-primary/15 shadow-elevation-sm"
           : "surface-tint border border-primary/15 shadow-elevation-sm",
         className,
       )}
@@ -140,13 +141,13 @@ export function HeroCard({
             <span
               className={cn(
                 "text-5xl font-bold tracking-tight tabular-nums leading-none",
-                brand ? "text-white" : "text-foreground",
+                brand ? "text-primary" : "text-foreground",
               )}
             >
               {value}
             </span>
             {label && (
-              <span className={cn("text-base font-semibold", brand ? "text-white" : "text-foreground")}>
+              <span className="text-base font-semibold text-foreground">
                 {label}
               </span>
             )}
@@ -178,7 +179,7 @@ export function HeroCard({
       </div>
       {footer && (
         <div className="mt-auto pt-5">
-          <div className={cn("border-t pt-4", brand ? "border-white/20" : "border-border")}>{footer}</div>
+          <div className="border-t border-border/70 pt-4">{footer}</div>
         </div>
       )}
     </motion.section>
@@ -227,20 +228,20 @@ export function StatStrip({
           // A pill on one line; a long label that wraps on a phone keeps
           // soft corners instead of a lozenge.
           "inline-flex items-center gap-1.5 rounded-[0.9rem] px-3 py-1 text-left text-xs transition-colors",
-          onHero
-            ? "bg-white/12 text-[var(--hero-muted)] ring-1 ring-inset ring-white/20"
-            : "bg-card text-muted-foreground ring-1 ring-inset ring-border",
-          it.onClick && (onHero ? "hover:bg-white/20" : "hover:bg-muted"),
+          // On the hero, a touch translucent so the wash shows through.
+          onHero ? "bg-card/80" : "bg-card",
+          "text-muted-foreground ring-1 ring-inset ring-border",
+          it.onClick && "hover:bg-muted",
         );
         const content = (
           <>
             {it.icon && (
               <it.icon
-                className={cn("h-3.5 w-3.5", onHero ? "text-white" : STRIP_TONE[it.tone ?? "neutral"])}
+                className={cn("h-3.5 w-3.5", STRIP_TONE[it.tone ?? (onHero ? "brand" : "neutral")])}
                 aria-hidden="true"
               />
             )}
-            <span className={cn("font-semibold tabular-nums", onHero ? "text-white" : "text-foreground")}>
+            <span className="font-semibold tabular-nums text-foreground">
               {it.value}
             </span>
             <span>{it.label}</span>

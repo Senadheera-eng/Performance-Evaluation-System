@@ -301,7 +301,7 @@ export default function AdminDashboard() {
                     label="Average attendance"
                   />
                 ) : (
-                  <span className="flex h-[112px] w-[112px] items-center justify-center rounded-full border-[10px] border-[var(--hero-track)] text-2xl font-bold text-white">
+                  <span className="flex h-[112px] w-[112px] items-center justify-center rounded-full border-[10px] border-[var(--hero-track)] text-2xl font-bold text-foreground">
                     —
                   </span>
                 )}

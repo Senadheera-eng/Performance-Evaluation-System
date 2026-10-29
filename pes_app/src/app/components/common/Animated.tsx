@@ -66,7 +66,7 @@ const BAR_TONE: Record<StatusTone | "hero", string> = {
   info: "bg-[var(--status-info-fg)]",
   neutral: "bg-[var(--status-neutral-fg)]",
   brand: "bg-primary",
-  hero: "bg-white",
+  hero: "bg-primary",
 };
 
 /**

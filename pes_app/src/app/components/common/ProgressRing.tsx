@@ -77,7 +77,7 @@ export function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={onHero ? "#FFFFFF" : TONE_STROKE[tone]}
+          stroke={TONE_STROKE[tone]}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -91,7 +91,7 @@ export function ProgressRing({
             y1={size / 2 + (radius - strokeWidth / 2) * Math.sin((thresholdAngle * Math.PI) / 180)}
             x2={size / 2 + (radius + strokeWidth / 2) * Math.cos((thresholdAngle * Math.PI) / 180)}
             y2={size / 2 + (radius + strokeWidth / 2) * Math.sin((thresholdAngle * Math.PI) / 180)}
-            stroke={onHero ? "#FFFFFF" : "var(--foreground)"}
+            stroke="var(--foreground)"
             strokeWidth={2}
             opacity={onHero ? 0.7 : 0.45}
           />
@@ -102,7 +102,7 @@ export function ProgressRing({
           className={cn(
             "font-bold tabular-nums leading-none",
             size >= 120 ? "text-3xl" : "text-xl",
-            onHero ? "text-white" : "text-foreground",
+            "text-foreground",
           )}
         >
           <AnimatedNumber value={pct} decimals={Number.isInteger(pct) ? 0 : 1} />
