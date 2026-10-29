@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Info, ListPlus, Lock, Plus, Trash2, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -46,7 +47,6 @@ export function CoordinatorQuestions() {
   const [rounds, setRounds] = useState<CoordinatedRound[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [composing, setComposing] = useState<string | null>(null);
 
@@ -72,16 +72,14 @@ export function CoordinatorQuestions() {
     run: () => Promise<{ ok: boolean; data?: { message: string }; error?: string }>,
   ) => {
     setBusy(key);
-    setError(null);
-    setNotice(null);
     const result = await run();
     setBusy(null);
     if (!result.ok) {
-      setError(result.error ?? "That did not work.");
+      toast.error(result.error ?? "That did not work.");
       return false;
     }
     await load();
-    setNotice(result.data?.message ?? "Done.");
+    toast.success(result.data?.message ?? "Done.");
     return true;
   };
 
@@ -98,11 +96,6 @@ export function CoordinatorQuestions() {
 
   return (
     <div className="space-y-4">
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
       {error && <ErrorState message={error} onRetry={load} size="inline" />}
 
       <SectionCard
