@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Archive,
   Megaphone,
@@ -15,6 +17,14 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import { Checkbox } from "../components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +46,7 @@ import {
   SegmentedTabs,
   SkeletonRows,
   StatusBadge,
+  useExpandMotion,
 } from "../components/common";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -95,7 +106,10 @@ export default function ManageNotices() {
   const [tab, setTab] = useState<"published" | "draft" | "archived">("published");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | "new" | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const expand = useExpandMotion();
+  /* Every outcome here is a sentence, said once, where it is not in the
+     way of the list it changed. */
+  const setNotice = (message: string) => toast.success(message);
   const [confirmDelete, setConfirmDelete] = useState<ManageableNotice | null>(null);
 
   const load = useCallback(async () => {
@@ -195,13 +209,16 @@ export default function ManageNotices() {
         }
       />
 
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2.5 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
-
+      <AnimatePresence initial={false}>
       {editing !== null && (
+        <motion.div
+          key={editing}
+          variants={expand}
+          initial="collapsed"
+          animate="open"
+          exit="collapsed"
+          className="overflow-hidden"
+        >
         <NoticeForm
           scope={scope}
           offerings={offerings}
@@ -219,7 +236,9 @@ export default function ManageNotices() {
           }}
           onCancel={() => setEditing(null)}
         />
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <SegmentedTabs
         aria-label="Notice status"
@@ -531,17 +550,18 @@ function NoticeForm({
           </Field>
 
           <Field label="Category">
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+            <Select value={category || undefined} onValueChange={setCategory}>
+              <SelectTrigger aria-label="Category" className="h-9 w-full rounded-control bg-card">
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.slug} value={c.slug}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </div>
 
@@ -609,7 +629,7 @@ function NoticeForm({
                     allLabel="All departments (faculty-wide)"
                   />
                 ) : (
-                  <div className="flex h-9 items-center rounded-xl border border-border bg-muted/40 px-3 text-sm">
+                  <div className="flex h-9 items-center rounded-control border border-border bg-muted/40 px-3 text-sm">
                     <DepartmentName department={scope.department} />
                   </div>
                 )}
@@ -631,35 +651,41 @@ function NoticeForm({
           )}
 
           <Field label="Batch (optional)">
-            <select
-              value={batchYear}
-              onChange={(e) => setBatchYear(e.target.value)}
-              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            <Select
+              value={batchYear === "" ? ANY : batchYear}
+              onValueChange={(v) => setBatchYear(v === ANY ? "" : v)}
             >
-              <option value="">All batches</option>
-              {batchOptions.map((b) => (
-                <option key={b} value={b}>
-                  {describeBatch(b)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>All batches</SelectItem>
+                {batchOptions.map((b) => (
+                  <SelectItem key={b} value={String(b)}>
+                    {describeBatch(b)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field label="Semester (optional)">
-            <select
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            <Select
+              value={semester === "" ? ANY : semester}
+              onValueChange={(v) => setSemester(v === ANY ? "" : v)}
             >
-              <option value="">Any semester</option>
-              {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(
-                (s) => (
-                  <option key={s} value={s}>
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Any semester</SelectItem>
+                {Array.from({ length: totalSemesters }, (_, i) => i + 1).map((s) => (
+                  <SelectItem key={s} value={String(s)}>
                     Semester {s}
-                  </option>
-                ),
-              )}
-            </select>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field label="Academic year (optional)">
@@ -680,18 +706,13 @@ function NoticeForm({
         </div>
 
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={isPinned}
-            onChange={(e) => setIsPinned(e.target.checked)}
-            className="h-4 w-4 rounded border-border"
-          />
+          <Checkbox checked={isPinned} onCheckedChange={(v) => setIsPinned(v === true)} />
           <Pin className="h-3.5 w-3.5 text-muted-foreground" />
           Mark as important — pins it to the top of the board
         </label>
 
         {/* Documents */}
-        <div className="rounded-xl border border-border p-3">
+        <div className="rounded-control border border-dashed border-border p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">
               Documents
@@ -781,20 +802,15 @@ function NoticeForm({
 
         {error && <ErrorState message={error} size="inline" />}
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="flex-1" onClick={onCancel} disabled={saving}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            variant="outline"
-            className="flex-1"
-            disabled={saving}
-            onClick={() => submit(false)}
-          >
+          <Button variant="outline" disabled={saving} onClick={() => submit(false)}>
             <Save className="mr-1.5 h-4 w-4" />
             Save draft
           </Button>
-          <Button className="flex-1" disabled={saving} onClick={() => submit(true)}>
+          <Button disabled={saving} onClick={() => submit(true)}>
             <Send className="mr-1.5 h-4 w-4" />
             {saving ? "Publishing..." : "Publish"}
           </Button>
@@ -803,6 +819,9 @@ function NoticeForm({
     </SectionCard>
   );
 }
+
+/** The shared Select cannot hold an empty value: "all"/"any" goes by this. */
+const ANY = "__any__";
 
 function Field({
   label,
