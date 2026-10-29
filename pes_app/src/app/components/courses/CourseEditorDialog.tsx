@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -36,6 +43,10 @@ export interface EditableCourse {
   ca_weight: number;
   ese_weight: number;
 }
+
+/* The shared select cannot hold an empty value, so "no minor" has a
+   stand-in that never reaches the course. */
+const NO_MINOR = "__none__";
 
 const CATEGORIES = ["Compulsory", "Elective", "Optional"];
 
@@ -284,33 +295,37 @@ export function CourseEditorDialog({
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Semester
             </label>
-            <select
-              value={semester}
-              onChange={(e) => setSemester(Number(e.target.value))}
-              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                <option key={s} value={s}>
-                  Semester {s} (Year {Math.ceil(s / 2)})
-                </option>
-              ))}
-            </select>
+            <Select value={String(semester)} onValueChange={(v) => setSemester(Number(v))}>
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    Semester {s} (Year {Math.ceil(s / 2)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Category
             </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger aria-label="Category" className="h-9 w-full rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {/* A stored category outside the usual three stays
+                    selectable, so editing another field cannot drop it. */}
+                {(category && !CATEGORIES.includes(category) ? [category, ...CATEGORIES] : CATEGORIES).map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="sm:col-span-2">
@@ -322,18 +337,22 @@ export function CourseEditorDialog({
                 and counted towards nothing. A value already on the course
                 that is no longer offered stays selectable, so editing an
                 unrelated field cannot silently drop it. */}
-            <select
-              value={minor}
-              onChange={(e) => setMinor(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            <Select
+              value={minor === "" ? NO_MINOR : minor}
+              onValueChange={(v) => setMinor(v === NO_MINOR ? "" : v)}
             >
-              <option value="">No minor</option>
-              {minorOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Minor stream" className="h-10 w-full rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_MINOR}>No minor</SelectItem>
+                {minorOptions.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="mt-1 text-xs text-muted-foreground">
               Streams are managed under Minor Specifications.
             </p>

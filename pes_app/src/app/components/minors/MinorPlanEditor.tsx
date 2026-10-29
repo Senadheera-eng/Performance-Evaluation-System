@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import { CourseCode, CourseSelect, StatusBadge } from "../common";
@@ -162,19 +169,18 @@ export function MinorPlanEditor({
 
       {unused.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={newSemester}
-            onChange={(e) => setNewSemester(e.target.value)}
-            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            aria-label="Semester to add"
-          >
-            <option value="">Add a semester…</option>
-            {unused.map((s) => (
-              <option key={s} value={s}>
-                Semester {s}
-              </option>
-            ))}
-          </select>
+          <Select value={newSemester || undefined} onValueChange={setNewSemester}>
+            <SelectTrigger aria-label="Semester to add" className="h-9 w-48 rounded-control border-border bg-card">
+              <SelectValue placeholder="Add a semester…" />
+            </SelectTrigger>
+            <SelectContent>
+              {unused.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  Semester {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             size="sm"
             variant="outline"
