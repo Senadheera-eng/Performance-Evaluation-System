@@ -1,15 +1,21 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
   Award,
   CheckCircle2,
+  Circle,
   ClipboardPen,
   FlaskConical,
   GraduationCap,
   Hourglass,
+  Medal,
+  MoreHorizontal,
+  Plus,
   RotateCcw,
   Target,
   TrendingUp,
+  Users,
   XCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -21,6 +27,32 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent } from "../components/ui/tabs";
+import { Input } from "../components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import { CgpaPathChart } from "../components/planner/CgpaPathChart";
 import {
   EmptyState,
   ErrorState,
@@ -40,11 +72,18 @@ import { useSettings, getSettings } from "../../lib/settings";
 import {
   bestPossibleCgpa,
   capGrades,
+  cgpaPath,
+  gradeMix,
   classTargets,
   computeStanding,
   expectableGrades,
   gradeCap,
   isGradedNow,
+  DEANS_LIST_SGPA,
+  GOLD_MEDAL_OGPA,
+  gradeImpact,
+  targetWorking,
+  OUTSTANDING_LABEL,
   openSemesters,
   orderedGrades,
   parsePlan,
@@ -54,6 +93,18 @@ import {
   type PlanResult,
   type SittingCourse,
 } from "../../lib/graduationPlan";
+import {
+  createScenario,
+  deleteScenario,
+  getAim,
+  listScenarios,
+  saveAim,
+  shareScenario,
+  updateScenario,
+  type PlannerScenario,
+  type ScenarioContent,
+} from "../../lib/plannerScenarios";
+import { getMyMentor } from "../../lib/mentorService";
 
 /** The "—" choice: no guess, so the course is not counted. */
 const NO_GUESS = "__none__";
@@ -77,27 +128,31 @@ const SHORT_CLASS: Record<string, string> = {
   pass: "Pass",
 };
 
-/* Guesses and plans stay in this browser. They are the student's own
-   what-ifs, never sent anywhere, and kept only so they survive a reload. */
-const storeKey = (kind: "guesses" | "plans", studentId: string) =>
+/* What-ifs are saved with the student's account, as scenarios. This browser
+   only remembers which scenario was open last, and once hands over the
+   what-ifs it kept before scenarios existed. Storage can be blocked (a
+   private window), so every read and write is allowed to fail quietly. */
+const legacyKey = (kind: "guesses" | "plans", studentId: string) =>
   `pes.planner.${kind}.${studentId}`;
-function load<T extends object>(kind: "guesses" | "plans", studentId: string): T | Record<string, never> {
+const activeKey = (studentId: string) => `pes.planner.scenario.${studentId}`;
+function readStore<T>(key: string, fallback: T): T {
   try {
-    const raw = window.localStorage.getItem(storeKey(kind, studentId));
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? parsed : {};
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
-    return {};
+    return fallback;
   }
 }
-function save(kind: "guesses" | "plans", studentId: string, value: object) {
+function writeStore(key: string, value: unknown | null) {
   try {
-    if (Object.keys(value).length === 0) window.localStorage.removeItem(storeKey(kind, studentId));
-    else window.localStorage.setItem(storeKey(kind, studentId), JSON.stringify(value));
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* Private window or blocked storage: the what-ifs just don't persist. */
+    /* Blocked storage: the open scenario is just not remembered. */
   }
 }
+const isEmptyContent = (c: ScenarioContent) =>
+  Object.keys(c.guesses).length + Object.keys(c.plans).length + Object.keys(c.past).length === 0;
 
 const andList = (items: string[]) =>
   items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
@@ -122,10 +177,30 @@ export default function GraduationPlanner() {
   const [plannedSgpa, setPlannedSgpa] = useState<Record<number, number>>({});
   const [activeTab, setActiveTab] = useState("standing");
   const [targetClass, setTargetClass] = useState<string | null>(null);
+  // A long list of modules to clear opens folded.
+  const [showAllToClear, setShowAllToClear] = useState(false);
+  // Saved scenarios, the one open, and how its saving is going.
+  const [scenarios, setScenarios] = useState<PlannerScenario[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [scenarioError, setScenarioError] = useState<string | null>(null);
+  const [nameDialog, setNameDialog] = useState<null | { mode: "new" | "rename"; value: string }>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  // The mentor a scenario can be shared with; null when there is none.
+  const [mentorName, setMentorName] = useState<string | null>(null);
+  const pendingAim = useRef<{ timer: number; run: () => void } | null>(null);
+  // A scenario being opened is not a change to save; and nothing is saved
+  // before the page has loaded what it would be saving over.
+  const applying = useRef(false);
+  const ready = useRef(false);
+  // A change waiting to be saved: its timer, and the save itself, so leaving
+  // the page can send it at once rather than drop it.
+  const pending = useRef<{ timer: number; target: string | null; run: () => Promise<void> } | null>(null);
 
   useEffect(() => {
     if (!student?.id) return;
     fetchData();
+    getMyMentor().then((r) => setMentorName(r.ok ? (r.data?.name ?? null) : null));
   }, [student?.id]);
 
   const fetchData = async () => {
@@ -155,46 +230,91 @@ export default function GraduationPlanner() {
 
     const parsed = parsePlan(rawPlan);
     setPlan(parsed);
-    setResults(
-      (rows ?? []).map((r: any) => ({
-        resultRowId: r.id,
-        courseId: r.course_id,
-        code: r.course_code,
-        title: r.course_title,
-        semester: r.semester,
-        credits: r.credits,
-        contributesToGpa: r.contributes_to_gpa,
-        grade: r.grade,
-        gpv: r.gpv,
-      })),
-    );
 
-    // Saved what-ifs, as long as they still fit what is being sat.
-    const saved = load<Record<string, string>>("guesses", student!.id);
-    setGuessedGrades(
-      Object.fromEntries(
-        Object.entries(saved).filter(([id, g]) => {
-          const c = parsed.courses.find((x) => x.courseId === id);
-          return (
-            c && isGradedNow(c) &&
-            capGrades(EXPECTABLE, gradeCap(c, parsed.resitMaxGrade), GPV).includes(g as string)
-          );
-        }),
-      ) as Record<string, string>,
-    );
-    const savedPlans = load<Record<string, number>>("plans", student!.id);
-    setPlannedSgpa(
-      Object.fromEntries(
-        Object.entries(savedPlans)
-          .map(([s, v]) => [Number(s), Number(v)] as const)
-          .filter(([s, v]) => parsed.semesters.some((x) => x.semester === s) && v >= 0 && v <= 4),
-      ),
-    );
+    const parsedRows: PlanResult[] = (rows ?? []).map((r: any) => ({
+      resultRowId: r.id,
+      courseId: r.course_id,
+      code: r.course_code,
+      title: r.course_title,
+      semester: r.semester,
+      credits: r.credits,
+      contributesToGpa: r.contributes_to_gpa,
+      grade: r.grade,
+      gpv: r.gpv,
+    }));
 
+    /* Saved scenarios. The one opened last on this device, else the newest.
+       What-ifs this browser kept before scenarios existed become the first
+       one, "My plan", and are then cleared from the browser. */
+    const [{ data: saved }, aim] = await Promise.all([listScenarios(), getAim()]);
+    if (aim && CLASSIFICATIONS.some((c) => c.key === aim)) setTargetClass(aim);
+    let list = saved;
+    if (list.length === 0) {
+      const legacy: ScenarioContent = {
+        guesses: readStore(legacyKey("guesses", student!.id), {}),
+        plans: readStore(legacyKey("plans", student!.id), {}),
+        past: {},
+      };
+      const clean = sanitize(legacy, parsed, parsedRows);
+      if (!isEmptyContent(clean)) {
+        const { data: created } = await createScenario("My plan", clean);
+        if (created) list = [created];
+      }
+      writeStore(legacyKey("guesses", student!.id), null);
+      writeStore(legacyKey("plans", student!.id), null);
+    }
+    setScenarios(list);
+    const remembered = readStore<string | null>(activeKey(student!.id), null);
+    const open =
+      list.find((x) => x.id === remembered) ??
+      [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    applyContent(open ? sanitize(open, parsed, parsedRows) : { guesses: {}, plans: {}, past: {} });
+    setActiveId(open?.id ?? null);
+
+    setResults(parsedRows);
     setLoading(false);
+    ready.current = true;
   };
 
-  const sitting = plan?.courses ?? [];
+  /** A scenario's what-ifs, keeping only those that still fit the record:
+   *  a course still being sat or to clear, a grade it can still get, a
+   *  semester still ahead, a result still on the record. */
+  const sanitize = (
+    c: ScenarioContent,
+    p: GraduationPlan,
+    rows: PlanResult[],
+  ): ScenarioContent => ({
+    guesses: Object.fromEntries(
+      Object.entries(c.guesses ?? {}).filter(([id, g]) => {
+        const course = [...p.courses, ...p.outstanding].find((x) => x.courseId === id);
+        return (
+          course && isGradedNow(course) &&
+          capGrades(EXPECTABLE, gradeCap(course, p.resitMaxGrade), GPV).includes(g)
+        );
+      }),
+    ),
+    plans: Object.fromEntries(
+      Object.entries(c.plans ?? {}).filter(
+        ([sem, v]) => p.semesters.some((x) => x.semester === Number(sem)) && Number(v) >= 0 && Number(v) <= 4,
+      ),
+    ),
+    past: Object.fromEntries(
+      Object.entries(c.past ?? {}).filter(([id, g]) => rows.some((r) => r.resultRowId === id) && g in GPV),
+    ),
+  });
+
+  /** Open a set of what-ifs without that counting as a change to save. */
+  const applyContent = (c: ScenarioContent) => {
+    applying.current = true;
+    setGuessedGrades(c.guesses);
+    setPlannedSgpa(Object.fromEntries(Object.entries(c.plans).map(([k, v]) => [Number(k), Number(v)])));
+    setSimulatedGrades(c.past);
+  };
+
+  const sitting = useMemo(
+    () => [...(plan?.courses ?? []), ...(plan?.outstanding ?? [])],
+    [plan],
+  );
 
   const actualStanding = useMemo(() => computeStanding(results, GPV), [results, GPV]);
   const simulatedStanding = useMemo(
@@ -223,9 +343,9 @@ export default function GraduationPlanner() {
   }, [targets]);
   const selectedClass = targets.find((t) => t.key === (targetClass ?? defaultClass)) ?? targets[0];
 
-  // Courses being sat now, by semester, with repeats of earlier courses in a
-  // group of their own. A course that does not count towards the GPA cannot
-  // move it, so it is left out.
+  // Courses being sat now, by semester, then everything still to clear
+  // (repeats and earlier F, R or L grades) in a group of its own. A course
+  // that does not count towards the GPA cannot move it, so it is left out.
   const sittingGroups = useMemo(() => {
     const bySem: Record<number, SittingCourse[]> = {};
     const repeats: SittingCourse[] = [];
@@ -241,6 +361,8 @@ export default function GraduationPlanner() {
     if (repeats.length > 0) groups.push({ key: "repeats", semester: null, courses: repeats });
     return groups;
   }, [sitting]);
+  const toClear = plan?.outstanding ?? [];
+  const gpaToClear = toClear.filter((c) => c.contributesToGpa);
   // The semester being sat, as the plan has it (a repeat is not one).
   const sittingSemesters = (plan?.semesters ?? [])
     .filter((s) => s.source === "enrolled")
@@ -256,7 +378,6 @@ export default function GraduationPlanner() {
       const next = { ...prev };
       if (grade) next[courseId] = grade;
       else delete next[courseId];
-      if (student?.id) save("guesses", student.id, next);
       return next;
     });
   };
@@ -266,7 +387,6 @@ export default function GraduationPlanner() {
       const next = { ...prev };
       if (sgpa === null) delete next[semester];
       else next[semester] = sgpa;
-      if (student?.id) save("plans", student.id, next);
       return next;
     });
   };
@@ -275,10 +395,153 @@ export default function GraduationPlanner() {
     setSimulatedGrades({});
     setGuessedGrades({});
     setPlannedSgpa({});
-    if (student?.id) {
-      save("guesses", student.id, {});
-      save("plans", student.id, {});
+  };
+
+  const currentContent = (): ScenarioContent => ({
+    guesses: guessedGrades,
+    plans: Object.fromEntries(Object.entries(plannedSgpa).map(([k, v]) => [String(k), v])),
+    past: simulatedGrades,
+  });
+
+  /* Every change is saved to the open scenario a moment after it is made.
+     The first change, with no scenario yet, starts one called "My plan".
+     A save waiting when another scenario is opened still goes to the one it
+     was made in. */
+  useEffect(() => {
+    if (!ready.current) return;
+    if (applying.current) {
+      applying.current = false;
+      return;
     }
+    const content = currentContent();
+    const target = activeId;
+    const run = async () => {
+      pending.current = null;
+      setSaveState("saving");
+      setScenarioError(null);
+      if (target) {
+        const { data, error } = await updateScenario(target, content);
+        if (error || !data) {
+          setSaveState("error");
+          setScenarioError(error);
+          return;
+        }
+        setScenarios((list) => list.map((x) => (x.id === data.id ? data : x)));
+      } else if (!isEmptyContent(content)) {
+        const { data, error } = await createScenario("My plan", content);
+        if (error || !data) {
+          setSaveState("error");
+          setScenarioError(error);
+          return;
+        }
+        setScenarios((list) => [...list, data]);
+        setActiveId(data.id);
+        if (student?.id) writeStore(activeKey(student.id), data.id);
+      } else {
+        setSaveState("idle");
+        return;
+      }
+      setSaveState("saved");
+    };
+    if (pending.current) {
+      window.clearTimeout(pending.current.timer);
+      // A newer change to the same scenario replaces it; one for another
+      // scenario is sent now.
+      if (pending.current.target !== target) void pending.current.run();
+    }
+    pending.current = { timer: window.setTimeout(run, 700), target, run };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guessedGrades, plannedSgpa, simulatedGrades]);
+
+  // Leaving the page sends a waiting save straight away.
+  useEffect(
+    () => () => {
+      if (pending.current) {
+        window.clearTimeout(pending.current.timer);
+        void pending.current.run();
+      }
+      if (pendingAim.current) {
+        window.clearTimeout(pendingAim.current.timer);
+        pendingAim.current.run();
+      }
+    },
+    [],
+  );
+
+  const openScenario = (id: string) => {
+    const sc = scenarios.find((x) => x.id === id);
+    if (!sc || !plan) return;
+    applyContent(sanitize(sc, plan, results));
+    setActiveId(id);
+    setSaveState("idle");
+    if (student?.id) writeStore(activeKey(student.id), id);
+  };
+
+  /* New: a copy of the what-ifs on screen, under a new name. Rename: the
+     open one. Both through the same small dialog. */
+  const submitName = async () => {
+    if (!nameDialog) return;
+    const name = nameDialog.value.trim();
+    if (!name) return;
+    setScenarioError(null);
+    if (nameDialog.mode === "new") {
+      const { data, error } = await createScenario(name, currentContent());
+      if (error || !data) return setScenarioError(error);
+      setScenarios((list) => [...list, data]);
+      setActiveId(data.id);
+      if (student?.id) writeStore(activeKey(student.id), data.id);
+    } else if (activeId) {
+      const { data, error } = await updateScenario(activeId, { name });
+      if (error || !data) return setScenarioError(error);
+      setScenarios((list) => list.map((x) => (x.id === data.id ? data : x)));
+    }
+    setNameDialog(null);
+  };
+
+  /* The class picked in Semester targets is the one the student is aiming
+     for: kept with their account (a moment after the last pick), so the
+     planner opens on it and the notice after a semester's results speaks
+     to it. */
+  const pickClass = (key: string) => {
+    setTargetClass(key);
+    if (!student?.id) return;
+    if (pendingAim.current) window.clearTimeout(pendingAim.current.timer);
+    const id = student.id;
+    const run = () => {
+      pendingAim.current = null;
+      void saveAim(id, key);
+    };
+    pendingAim.current = { timer: window.setTimeout(run, 800), run };
+  };
+
+  /* One scenario at a time is shared with the mentor, who sees it read-only
+     with the class aimed for. */
+  const toggleShare = async (sc: PlannerScenario) => {
+    setScenarioError(null);
+    const next = sc.sharedWithMentor ? null : sc.id;
+    const { error } = await shareScenario(next);
+    if (error) return setScenarioError(error);
+    setScenarios((list) => list.map((x) => ({ ...x, sharedWithMentor: x.id === next })));
+  };
+
+  const removeScenario = async () => {
+    if (!activeId) return;
+    const { error } = await deleteScenario(activeId);
+    setConfirmDelete(false);
+    if (error) return setScenarioError(error);
+    const rest = scenarios.filter((x) => x.id !== activeId);
+    setScenarios(rest);
+    const next = rest[rest.length - 1];
+    if (next && plan) {
+      applyContent(sanitize(next, plan, results));
+      setActiveId(next.id);
+      if (student?.id) writeStore(activeKey(student.id), next.id);
+    } else {
+      applyContent({ guesses: {}, plans: {}, past: {} });
+      setActiveId(null);
+      if (student?.id) writeStore(activeKey(student.id), null);
+    }
+    setSaveState("idle");
   };
 
   const pastBySemester = useMemo(() => {
@@ -380,6 +643,9 @@ export default function GraduationPlanner() {
             ? `The average your remaining GPA credits must reach: ${remainingText}.`
             : "The average your remaining GPA credits must reach.",
           plannedText ? `With ${plannedText} as planned.` : "",
+          gpaToClear.some((c) => !(simulator && guessedGrades[c.courseId]))
+            ? "A module still to clear counts as 0 until you pass it."
+            : "",
         ].join(" ")
       }
       bodyClassName="space-y-2.5"
@@ -447,7 +713,7 @@ export default function GraduationPlanner() {
         <SegmentedTabs
           tabs={CLASSIFICATIONS.map((c) => ({ value: c.key, label: SHORT_CLASS[c.key] ?? c.label }))}
           value={t.key}
-          onChange={setTargetClass}
+          onChange={pickClass}
           layoutId={`planner-class-${activeTab}`}
           aria-label="Class to plan for"
           equal
@@ -457,7 +723,8 @@ export default function GraduationPlanner() {
         />
         <p className="text-sm text-muted-foreground">
           {t.label} needs a final CGPA of {t.threshold.toFixed(2)} over your{" "}
-          {t.finalCredits} GPA credits.
+          {t.finalCredits} GPA credits. The Dean's List needs an SGPA of{" "}
+          {DEANS_LIST_SGPA.toFixed(2)} in a semester, with every course passed.
         </p>
 
         <ul className="space-y-2">
@@ -490,9 +757,19 @@ export default function GraduationPlanner() {
                       ` · ${s.guessedCredits} guessed${sem ? ` (SGPA ${sem.sgpa.toFixed(2)})` : ""}, ${s.openCredits} open`}
                     {!allGuessed && totalOpen > 0 && ` · ${weight}% of what is left`}
                   </p>
+                  {(() => {
+                    // The target in grades: what an SGPA looks like on a results sheet.
+                    const sgpa = s.planned ?? (t.feasible && !t.alreadySecured ? t.required : null);
+                    const mix = !allGuessed && sgpa !== null ? gradeMix(Math.max(0, sgpa), s.openCredits, GPV) : null;
+                    return mix ? <p className="mt-0.5 text-xs font-medium text-foreground">{mix}</p> : null;
+                  })()}
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {!allGuessed &&
+                    (s.planned ?? (t.feasible && !t.alreadySecured ? t.required : 0)) >= DEANS_LIST_SGPA && (
+                      <StatusBadge tone="success">Also Dean's List</StatusBadge>
+                    )}
                   {allGuessed ? (
                     <span className="text-sm text-muted-foreground">All guessed</span>
                   ) : s.planned !== null ? (
@@ -546,6 +823,8 @@ export default function GraduationPlanner() {
           </p>
         )}
 
+        {renderWorking(t)}
+
         {!simulator && sittingSemesters.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <p className="text-xs text-muted-foreground">
@@ -562,6 +841,219 @@ export default function GraduationPlanner() {
     );
   };
 
+  /* The CGPA after each semester, on the record and then projected for the
+     class picked in Semester targets. Toward it when it is within reach; at
+     the student's current average when it is already secured; at the best
+     possible (4.00) when it is out of reach. A planned semester takes its
+     plan. */
+  const renderPath = () => {
+    const t = selectedClass;
+    if (!t || !plan) return null;
+    const anyPlanned = open.some((s) => s.planned !== null && s.openCredits > 0);
+    const sgpaFor = (s: OpenSemester) =>
+      s.planned ??
+      (t.alreadySecured ? standing.cgpa : !t.feasible ? 4 : Math.max(0, t.required));
+    const assumption = t.alreadySecured
+      ? `holding your current average of ${standing.cgpa.toFixed(2)}`
+      : !t.feasible
+        ? "an A+ in every remaining course, the best still possible"
+        : `the SGPA ${t.label} needs`;
+    return (
+      <CgpaPathChart
+        data={cgpaPath(standing, open, sgpaFor, plan.totalSemesters)}
+        target={{ label: SHORT_CLASS[t.key] ?? t.label, threshold: t.threshold }}
+        assumption={anyPlanned ? `${assumption}, and your plans` : assumption}
+      />
+    );
+  };
+
+  /* Which scenario is open, and the few things to do with it. Saving is
+     automatic, so the bar only says that it happened. */
+  const renderScenarioBar = () => {
+    const active = scenarios.find((x) => x.id === activeId) ?? null;
+    return (
+      <div className="flex flex-wrap items-center gap-2 border-t border-primary/15 pt-3">
+        <span className="text-xs font-medium text-muted-foreground">Scenario</span>
+        {scenarios.length > 0 ? (
+          <Select value={activeId ?? undefined} onValueChange={openScenario}>
+            <SelectTrigger className="h-8 w-44" aria-label="Open a scenario">
+              {/* The name alone: the note beside it says when it is shared. */}
+              <SelectValue placeholder="Pick a scenario">{active?.name}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {scenarios.map((x) => (
+                <SelectItem key={x.id} value={x.id}>
+                  {x.name}
+                  {x.sharedWithMentor && <span className="text-muted-foreground"> · shared</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-xs text-muted-foreground">Saved to your account as you go</span>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setNameDialog({ mode: "new", value: scenarios.length === 0 ? "My plan" : "" })}
+          disabled={scenarios.length >= 10}
+          title={scenarios.length >= 10 ? "You can keep up to 10 scenarios" : "Save what is on screen as a new scenario"}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+          New
+        </Button>
+        {active && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" aria-label="More for this scenario">
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onSelect={() => setNameDialog({ mode: "rename", value: active.name })}>
+                Rename
+              </DropdownMenuItem>
+              {mentorName && (
+                <DropdownMenuItem onSelect={() => void toggleShare(active)}>
+                  {active.sharedWithMentor ? "Stop sharing with your mentor" : "Share with your mentor"}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="text-danger-fg" onSelect={() => setConfirmDelete(true)}>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {mentorName && active?.sharedWithMentor && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Shared with {mentorName}
+          </span>
+        )}
+        <span className="text-xs text-muted-foreground" aria-live="polite">
+          {saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : ""}
+        </span>
+        {scenarioError && <span className="text-xs text-danger-fg">{scenarioError}</span>}
+        {hasSimulation && (
+          <Button variant="outline" size="sm" className="ml-auto" onClick={resetSimulation}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+            Reset to actual results
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  /* Two or more scenarios side by side: this semester's SGPA, the CGPA with
+     the scenario's grades, and where it finishes when every semester ahead
+     has a plan. One line each; picking one opens it. */
+  const renderCompare = () => {
+    if (scenarios.length < 2 || !plan || !selectedClass) return null;
+    const now = sittingSemesters[0] ?? null;
+    const rows = scenarios.map((sc) => {
+      const c = sanitize(sc, plan, results);
+      const st = computeStanding(results, GPV, c.past, sitting, c.guesses);
+      const op = openSemesters(
+        plan,
+        st,
+        Object.fromEntries(Object.entries(c.plans).map(([k, v]) => [Number(k), Number(v)])),
+      );
+      const fin = classTargets(st, op, [selectedClass])[0]?.plannedFinalCgpa ?? null;
+      const semGpa = now !== null ? st.semesterGpas.find((g) => g.semester === now)?.sgpa ?? null : null;
+      return { sc, cgpa: st.cgpa, semGpa, fin };
+    });
+    return (
+      <SectionCard
+        title="Compare scenarios"
+        description="A final CGPA shows once every semester ahead has a planned SGPA."
+        bodyClassName="space-y-2"
+      >
+        {rows.map(({ sc, cgpa, semGpa, fin }) => (
+          <button
+            key={sc.id}
+            type="button"
+            onClick={() => openScenario(sc.id)}
+            className={cn(
+              "flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border p-3 text-left transition-colors",
+              sc.id === activeId ? "border-primary/40 bg-primary/5" : "border-border hover:bg-muted/40",
+            )}
+            aria-current={sc.id === activeId ? "true" : undefined}
+          >
+            <span className="font-medium text-foreground">{sc.name}</span>
+            <span className="flex flex-wrap gap-x-4 text-sm text-muted-foreground tabular-nums">
+              {now !== null && (
+                <span>
+                  Sem {now} SGPA <strong className="text-foreground">{semGpa !== null ? semGpa.toFixed(2) : "—"}</strong>
+                </span>
+              )}
+              <span>
+                CGPA <strong className="text-foreground">{cgpa.toFixed(2)}</strong>
+              </span>
+              <span>
+                Final <strong className="text-foreground">{fin !== null ? fin.toFixed(2) : "—"}</strong>
+              </span>
+            </span>
+          </button>
+        ))}
+      </SectionCard>
+    );
+  };
+
+  /* The sum behind a class target, in the student's own numbers, folded
+     away until asked for. */
+  const renderWorking = (t: ClassTarget) => {
+    const w = targetWorking(standing, open, t.threshold);
+    const f2 = (n: number) => n.toFixed(2);
+    const f1 = (n: number) => (Math.round(n * 10) / 10).toString();
+    const heaviest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => b.credits - a.credits)[0];
+    const lightest = [...w.semesters].filter((x) => !x.planned).sort((a, b) => a.credits - b.credits)[0];
+    return (
+      <details className="group rounded-xl border border-border px-3 py-2 text-sm">
+        <summary className="cursor-pointer select-none font-medium text-primary marker:text-muted-foreground">
+          How is this worked out?
+        </summary>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground">
+          <li>
+            Your CGPA is the sum of credits × grade point, divided by your credits.{" "}
+            {t.label} needs {f2(t.threshold)} × {w.finalCredits} credits ={" "}
+            <strong className="text-foreground tabular-nums">{f1(w.pointsNeeded)}</strong> grade points.
+          </li>
+          <li>
+            You have {f1(w.pointsSoFar)} from {w.creditsSoFar} credits
+            {w.plannedPoints > 0 && <>, and your plans add {f1(w.plannedPoints)}</>}, so{" "}
+            <strong className="text-foreground tabular-nums">{f1(Math.max(0, w.pointsLeft))}</strong> are
+            still needed
+            {w.freeCredits > 0 ? (
+              <>
+                {" "}over {w.freeCredits} credits: {f1(Math.max(0, w.pointsLeft))} ÷ {w.freeCredits} ={" "}
+                <strong className="text-foreground tabular-nums">{f2(Math.max(0, w.required))}</strong>.
+              </>
+            ) : (
+              "."
+            )}
+            {w.pointsLeft <= 0 && " That is nothing more, so the class is already secured."}
+            {w.freeCredits > 0 && w.required > 4 && " That is more than 4.00, so it cannot be reached."}
+          </li>
+          {w.freeCredits > 0 && w.pointsLeft > 0 && w.required <= 4 && (
+            <li>
+              The same SGPA in each semester supplies exactly that:{" "}
+              {w.semesters
+                .map((x) => `Semester ${x.semester}, ${x.credits} × ${f2(x.sgpa)} ≈ ${Math.round(x.points)} points`)
+                .join("; ")}
+              .
+              {heaviest && lightest && heaviest.credits !== lightest.credits && (
+                <>
+                  {" "}Semester {heaviest.semester} has more credits, so doing better there lowers what Semester{" "}
+                  {lightest.semester} needs more than the other way round.
+                </>
+              )}
+            </li>
+          )}
+        </ol>
+      </details>
+    );
+  };
+
   /* A course being sat now, as its row explains it: a part graded later, a
      final part worth both, or a repeat that replaces an earlier grade. */
   const sittingNote = (c: SittingCourse) => {
@@ -573,7 +1065,8 @@ export default function GraduationPlanner() {
     }
     if (c.previous) {
       const cap = gradeCap(c, plan?.resitMaxGrade ?? "C");
-      return `Semester ${c.semester} course: replaces your ${c.previous.grade ?? "earlier grade"}${cap ? `, up to ${cap}` : ""}`;
+      const what = OUTSTANDING_LABEL[c.previous.grade ?? ""] ?? `Your ${c.previous.grade}`;
+      return `Semester ${c.semester} · ${what}${cap ? ` · best grade ${cap}` : ""}`;
     }
     return null;
   };
@@ -581,8 +1074,8 @@ export default function GraduationPlanner() {
   const renderSittingCard = () =>
     sittingGroups.length > 0 && (
       <SectionCard
-        title="This semester's courses"
-        description="No results yet. Pick the grade you expect in each; a course left at “—” is not counted. Your guesses stay on this device."
+        title="Expected grades"
+        description="Pick the grade you expect in each; a course left at “—” is not counted. The ± figure is how far one full grade (A to B) in a course moves your CGPA. Your guesses are saved to your account, in the open scenario."
         bodyClassName="space-y-4"
       >
         {sittingGroups.map((group) => {
@@ -598,7 +1091,7 @@ export default function GraduationPlanner() {
                 <h4 className="font-semibold text-foreground">
                   {group.semester !== null
                     ? `Semester ${group.semester} — in progress`
-                    : "Repeating"}
+                    : "Modules to clear"}
                 </h4>
                 {group.semester !== null && (
                   <StatusBadge tone={guessed.length > 0 ? "brand" : "neutral"}>
@@ -607,12 +1100,23 @@ export default function GraduationPlanner() {
                       : "Pick grades to see your SGPA"}
                   </StatusBadge>
                 )}
+                {group.semester !== null &&
+                  sem &&
+                  guessed.length === gradable.length &&
+                  gradable.length > 0 &&
+                  sem.sgpa >= DEANS_LIST_SGPA &&
+                  !guessed.some((c) => guessedGrades[c.courseId] === "F") && (
+                    <StatusBadge tone="success">Dean's List</StatusBadge>
+                  )}
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {guessed.length} of {gradable.length} guessed
                 </span>
               </div>
               <div className="space-y-2">
-                {group.courses.map((c) => {
+                {(group.semester === null && !showAllToClear
+                  ? group.courses.slice(0, 5)
+                  : group.courses
+                ).map((c) => {
                   const guess = guessedGrades[c.courseId];
                   const dept = departmentByCourseCode(c.code);
                   const note = sittingNote(c);
@@ -652,6 +1156,13 @@ export default function GraduationPlanner() {
                         {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
                       </div>
                       {isGradedNow(c) ? (
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                        <span
+                          className="text-xs tabular-nums text-muted-foreground"
+                          title={`One full grade in ${c.code} (for example A to B) moves your CGPA by this much`}
+                        >
+                          ±{gradeImpact(c, actualStanding, sitting).toFixed(2)}
+                        </span>
                         <Select
                           value={guess ?? NO_GUESS}
                           onValueChange={(val) => setGuess(c.courseId, val === NO_GUESS ? null : val)}
@@ -668,6 +1179,7 @@ export default function GraduationPlanner() {
                             ))}
                           </SelectContent>
                         </Select>
+                        </div>
                       ) : (
                         <span className="flex-shrink-0 text-xs text-muted-foreground">No grade yet</span>
                       )}
@@ -675,13 +1187,157 @@ export default function GraduationPlanner() {
                   );
                 })}
               </div>
+              {group.semester === null && group.courses.length > 5 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => setShowAllToClear((v) => !v)}
+                >
+                  {showAllToClear ? "Show fewer" : `Show all ${group.courses.length}`}
+                </Button>
+              )}
             </div>
           );
         })}
       </SectionCard>
     );
 
-  const finished = !loading && plan !== null && openCredits === 0 && sitting.length === 0;
+  /* What the degree asks for besides a GPA (Handbook p. 25): pass grades for
+     144 credits, Industrial Training, and every failed, referred or deferred
+     module cleared. One line each, so it reads as a checklist. The gold
+     medal joins it only for a student whose best possible CGPA reaches it. */
+  const renderRequirements = () => {
+    if (!plan) return null;
+    const r = plan.requirements;
+    const gold = classTargets(standing, open, [
+      { key: "gold", label: "Gold medal", threshold: GOLD_MEDAL_OGPA },
+    ])[0];
+    const passedPct = Math.min(100, Math.round((r.creditsPassed / r.creditsRequired) * 100));
+    const firstFew = toClear
+      .slice(0, 3)
+      .map((c) => `${c.code} (${c.previous?.grade})`)
+      .join(", ");
+    const items: {
+      key: string;
+      state: "done" | "todo" | "attention";
+      label: string;
+      value: string;
+      detail?: string;
+      bar?: number;
+      action?: React.ReactNode;
+      icon?: typeof Medal;
+    }[] = [
+      {
+        key: "credits",
+        state: r.creditsPassed >= r.creditsRequired ? "done" : "todo",
+        label: "Credits passed",
+        value: `${r.creditsPassed} of ${r.creditsRequired}`,
+        bar: passedPct,
+      },
+      {
+        key: "clear",
+        state: toClear.length === 0 ? "done" : "attention",
+        label: "Modules to clear",
+        value: toClear.length === 0 ? "None" : `${toClear.length} module${toClear.length === 1 ? "" : "s"}`,
+        detail:
+          toClear.length > 0
+            ? `${firstFew}${toClear.length > 3 ? ` +${toClear.length - 3} more` : ""}`
+            : undefined,
+        action:
+          gpaToClear.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={() => setActiveTab("simulator")}>
+              Plan
+            </Button>
+          ) : undefined,
+      },
+      {
+        key: "training",
+        state: r.trainingDone ? "done" : "todo",
+        label: "Industrial Training",
+        value: r.trainingDone ? "Completed" : "Not recorded yet",
+      },
+      ...(r.minor
+        ? [
+            {
+              key: "minor",
+              state: (r.minor.complete ? "done" : "todo") as "done" | "todo",
+              label: `Minor: ${r.minor.name}`,
+              value: `${r.minor.earned} of ${r.minor.required} credits`,
+              detail: r.minor.planned > 0 ? `${r.minor.planned} in progress` : undefined,
+            },
+          ]
+        : []),
+      ...(best >= GOLD_MEDAL_OGPA
+        ? [
+            {
+              key: "gold",
+              icon: Medal,
+              // Secured is the OGPA alone: four years and no disciplinary
+              // action are not PES's to know.
+              state: (r.repeated.length === 0 && gold.alreadySecured ? "done" : "todo") as "done" | "todo",
+              label: "Gold medal",
+              value:
+                r.repeated.length > 0
+                  ? "Not eligible"
+                  : gold.alreadySecured
+                    ? `OGPA ${GOLD_MEDAL_OGPA.toFixed(2)} secured`
+                    : `Average ${Math.max(0, gold.required).toFixed(2)} needed`,
+              detail:
+                r.repeated.length > 2
+                  ? `${r.repeated.slice(0, 2).join(", ")} and ${r.repeated.length - 2} more repeated`
+                  : r.repeated.length > 0
+                    ? `${andList(r.repeated)} repeated`
+                    : `OGPA ${GOLD_MEDAL_OGPA.toFixed(2)} in four years, no repeats`,
+            },
+          ]
+        : []),
+    ];
+
+    return (
+      <SectionCard
+        title="Graduation requirements"
+        bodyClassName={cn(
+          "grid gap-2 sm:grid-cols-2",
+          items.length % 3 === 0 || items.length === 5 ? "lg:grid-cols-3" : "lg:grid-cols-4",
+        )}
+      >
+        {items.map((it) => {
+          const Icon =
+            it.icon ?? (it.state === "done" ? CheckCircle2 : it.state === "attention" ? AlertTriangle : Circle);
+          return (
+            <div key={it.key} className="flex items-start gap-2.5 rounded-xl border border-border p-3">
+              <Icon
+                aria-hidden="true"
+                className={cn(
+                  "mt-0.5 h-4 w-4 flex-shrink-0",
+                  it.state === "done"
+                    ? "text-success-fg"
+                    : it.state === "attention"
+                      ? "text-warning-fg"
+                      : "text-muted-foreground",
+                )}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">{it.label}</p>
+                <p className="text-sm font-semibold text-foreground tabular-nums">{it.value}</p>
+                {it.bar !== undefined && (
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${it.bar}%` }} />
+                  </div>
+                )}
+                {it.detail && <p className="mt-0.5 truncate text-xs text-muted-foreground">{it.detail}</p>}
+              </div>
+              {it.action}
+            </div>
+          );
+        })}
+      </SectionCard>
+    );
+  };
+
+  const finished =
+    !loading && plan !== null && openCredits === 0 && sitting.length === 0 && toClear.length === 0;
 
   return (
     <div className="space-y-5">
@@ -722,7 +1378,9 @@ export default function GraduationPlanner() {
 
           <TabsContent value="standing" className="mt-5 space-y-5">
             {renderStandingCards()}
+            {renderRequirements()}
             {renderSemesterTargets()}
+            {renderPath()}
             {renderProjectionsCard()}
           </TabsContent>
 
@@ -730,7 +1388,7 @@ export default function GraduationPlanner() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start justify-between gap-3 flex-wrap"
+              className="p-3 rounded-xl bg-primary/5 border border-primary/20 space-y-3"
             >
               <div className="flex gap-2.5">
                 <FlaskConical className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
@@ -742,17 +1400,14 @@ export default function GraduationPlanner() {
                   <strong>nothing here changes your real academic record.</strong>
                 </p>
               </div>
-              {hasSimulation && (
-                <Button variant="outline" size="sm" onClick={resetSimulation}>
-                  <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Reset to actual results
-                </Button>
-              )}
+              {renderScenarioBar()}
             </motion.div>
+            {renderCompare()}
 
             {renderStandingCards()}
             {renderSittingCard()}
             {renderSemesterTargets()}
+            {renderPath()}
             {renderProjectionsCard()}
 
             <SectionCard
@@ -850,6 +1505,60 @@ export default function GraduationPlanner() {
           </TabsContent>
         </Tabs>
       )}
+
+      <Dialog open={nameDialog !== null} onOpenChange={(o) => !o && setNameDialog(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{nameDialog?.mode === "rename" ? "Rename scenario" : "New scenario"}</DialogTitle>
+            <DialogDescription>
+              {nameDialog?.mode === "rename"
+                ? "Give this scenario a new name."
+                : "Saves the grades and plans on screen under a name, such as Realistic or Best case."}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submitName();
+            }}
+          >
+            <Input
+              autoFocus
+              maxLength={40}
+              value={nameDialog?.value ?? ""}
+              onChange={(e) => setNameDialog((d) => (d ? { ...d, value: e.target.value } : d))}
+              aria-label="Scenario name"
+              placeholder="Realistic"
+            />
+            {scenarioError && <p className="mt-2 text-sm text-danger-fg">{scenarioError}</p>}
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" onClick={() => setNameDialog(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!nameDialog?.value.trim()}>
+                {nameDialog?.mode === "rename" ? "Rename" : "Save"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {scenarios.find((x) => x.id === activeId)?.name ?? "this scenario"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Its guesses and plans are removed from your account. Your academic record is not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void removeScenario()}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
