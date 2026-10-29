@@ -1,25 +1,33 @@
 import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  ChevronDown,
   ChevronRight,
   GraduationCap,
-  Search,
   TrendingUp,
   Users,
 } from "lucide-react";
-import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { cn } from "../../components/ui/utils";
 import {
   PersonAvatar,
   CourseCode,
   EmptyState,
   ErrorState,
   PageHeader,
+  PillTabs,
+  SearchField,
   SectionCard,
-  SegmentedTabs,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  useExpandMotion,
   type StatusTone,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
@@ -70,6 +78,7 @@ export default function StaffStudents() {
   const [records, setRecords] = useState<Record<string, StudentRecordRow[]>>({});
   const [recordLoading, setRecordLoading] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<Record<string, string>>({});
+  const expand = useExpandMotion();
 
   useEffect(() => {
     if (staff) load();
@@ -169,68 +178,61 @@ export default function StaffStudents() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard index={0} label="Students" value={visible.length} icon={Users} tone="brand" />
-        <StatCard index={1} label="Average CGPA" value={avgCgpa} icon={TrendingUp} tone="info" />
-        <StatCard
-          index={2}
-          label="Below Pass (2.00)"
-          value={atRisk}
-          icon={GraduationCap}
-          tone={atRisk > 0 ? "danger" : "success"}
-          hint="May need to repeat a year"
-        />
-        <StatCard
-          index={3}
-          label="No Results Yet"
-          value={visible.length - withCgpa.length}
-          icon={GraduationCap}
-          tone="neutral"
-        />
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, index no., reg no. or email..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="h-9 bg-card pl-9"
-          />
-        </div>
-        <SegmentedTabs
-          aria-label="Sort students"
-          value={sortBy}
-          onChange={(v) => setSortBy(v as "index" | "cgpa")}
-          layoutId="staff-students-sort"
-          tabs={[
-            { value: "index", label: "Index No." },
-            { value: "cgpa", label: "CGPA" },
-          ]}
-        />
-      </div>
-
-      {/* Shown from the first batch, not the second. Results and Attendance
-          carry a Batch control whatever is on record, and a department that
-          finds one here and not there reads it as the filter being missing. */}
-      {batches.length > 0 && (
-        <SegmentedTabs
-          aria-label="Filter by batch"
-          value={batchFilter}
-          onChange={setBatchFilter}
-          layoutId="staff-students-batch"
-          scrollable
-          tabs={[
-            { value: "all", label: "All", count: students.length },
-            ...batches.map((b) => ({
-              value: String(b),
-              label: describeBatch(b).replace(/ \(.*\)$/, ""),
-              count: students.filter((s) => s.batch_year === b).length,
-            })),
+      {!loading && (
+        <StatStrip
+          items={[
+            { label: `student${visible.length === 1 ? "" : "s"}`, value: visible.length, icon: Users, tone: "brand" },
+            { label: "average CGPA", value: avgCgpa, icon: TrendingUp, tone: "info" },
+            {
+              label: "below Pass (2.00) · may need to repeat a year",
+              value: atRisk,
+              icon: GraduationCap,
+              tone: atRisk > 0 ? "danger" : "success",
+            },
+            { label: "no results yet", value: visible.length - withCgpa.length, icon: GraduationCap },
           ]}
         />
       )}
+
+      {/* One row of controls: search, batch, sort. The batch control is
+          shown from the first batch, not the second. Results and Attendance
+          carry a Batch control whatever is on record, and a department that
+          finds one here and not there reads it as the filter being missing. */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search by name, index no., reg no. or email"
+          label="Search students"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          {batches.length > 0 && (
+            <Select value={batchFilter} onValueChange={setBatchFilter}>
+              <SelectTrigger aria-label="Filter by batch" className="h-9 w-56 rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All batches ({students.length})</SelectItem>
+                {batches.map((b) => (
+                  <SelectItem key={b} value={String(b)}>
+                    {describeBatch(b)} ({students.filter((s) => s.batch_year === b).length})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <PillTabs
+            aria-label="Sort students"
+            value={sortBy}
+            onChange={(v) => setSortBy(v as "index" | "cgpa")}
+            layoutId="staff-students-sort"
+            tabs={[
+              { value: "index", label: "Index No." },
+              { value: "cgpa", label: "CGPA" },
+            ]}
+          />
+        </div>
+      </div>
 
       <SectionCard title="Students" description={`${visible.length} shown`} flush>
         {loading ? (
@@ -251,11 +253,13 @@ export default function StaffStudents() {
                   className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                 >
                   <div className="flex min-w-0 items-center gap-2">
-                    {expanded === s.student_id ? (
-                      <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                    )}
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
+                        expanded === s.student_id && "rotate-90",
+                      )}
+                      aria-hidden="true"
+                    />
                     <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm text-foreground">{s.name}</p>
@@ -289,25 +293,36 @@ export default function StaffStudents() {
                   </div>
                 </button>
 
-                {expanded === s.student_id && (
-                  <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
-                    {recordLoading === s.student_id ? (
-                      <SkeletonRows count={3} height="h-8" />
-                    ) : recordError[s.student_id] ? (
-                      <ErrorState
-                        message={recordError[s.student_id]}
-                        onRetry={() => toggle(s.student_id)}
-                        size="inline"
-                      />
-                    ) : (
-                      <SemesterRecord
-                        rows={records[s.student_id] ?? []}
-                        gpvScaleMax={4}
-                        totalCredits={settings.graduationTotalCredits}
-                      />
-                    )}
-                  </div>
-                )}
+                <AnimatePresence initial={false}>
+                  {expanded === s.student_id && (
+                    <motion.div
+                      key="record"
+                      variants={expand}
+                      initial="collapsed"
+                      animate="open"
+                      exit="collapsed"
+                      className="overflow-hidden"
+                    >
+                      <div className="border-t border-border/70 bg-muted/20 px-4 py-3">
+                        {recordLoading === s.student_id ? (
+                          <SkeletonRows count={3} height="h-8" />
+                        ) : recordError[s.student_id] ? (
+                          <ErrorState
+                            message={recordError[s.student_id]}
+                            onRetry={() => toggle(s.student_id)}
+                            size="inline"
+                          />
+                        ) : (
+                          <SemesterRecord
+                            rows={records[s.student_id] ?? []}
+                            gpvScaleMax={4}
+                            totalCredits={settings.graduationTotalCredits}
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </li>
             ))}
           </ul>
