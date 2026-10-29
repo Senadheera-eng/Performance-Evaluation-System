@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle2, GraduationCap } from "lucide-react";
 import { Button } from "../ui/button";
-import { SectionCard, SegmentedTabs, StatusBadge } from "../common";
+import { AnimatedBar, SectionCard, SegmentedTabs, StatusBadge } from "../common";
 import { MinorPlanTable } from "../minors/MinorPlanTable";
 import {
   MinorDeclaration,
@@ -101,22 +101,35 @@ export function MyMinor({
           />
         )}
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
-              <GraduationCap className="h-4 w-4 text-primary" aria-hidden="true" />
-              {minorTitle(minor.minor)}
-              {minor.complete && (
-                <StatusBadge tone="success" icon={CheckCircle2}>
-                  Complete
-                </StatusBadge>
-              )}
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {totalHave} of {minor.required_credits} credits counted
-              {minor.earned_credits ? ` · ${minor.earned_credits} passed` : ""}
-              {minor.planned_credits ? ` · ${minor.planned_credits} enrolled` : ""}
-            </p>
+        {/* The minor and how far along it the student is: the credits that
+            count against what it needs, as a bar that fills on arrival. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 rounded-control border border-primary/15 surface-tint px-4 py-3.5">
+          <div className="flex min-w-0 flex-1 basis-[16rem] items-center gap-3">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <GraduationCap className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
+                {minorTitle(minor.minor)}
+                {minor.complete && (
+                  <StatusBadge tone="success" icon={CheckCircle2}>
+                    Complete
+                  </StatusBadge>
+                )}
+              </h3>
+              <AnimatedBar
+                value={Math.min(totalHave, minor.required_credits)}
+                max={minor.required_credits}
+                tone={minor.complete || totalHave >= minor.required_credits ? "success" : "brand"}
+                label={`${totalHave} of ${minor.required_credits} credits counted`}
+                className="mt-2 max-w-sm"
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {totalHave} of {minor.required_credits} credits counted
+                {minor.earned_credits ? ` · ${minor.earned_credits} passed` : ""}
+                {minor.planned_credits ? ` · ${minor.planned_credits} enrolled` : ""}
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {plan.chosen_minor && plan.minors.length > 1 && (
