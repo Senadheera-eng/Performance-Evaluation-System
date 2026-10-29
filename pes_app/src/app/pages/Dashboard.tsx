@@ -32,6 +32,7 @@ import { getMyAttendance } from "../../lib/studentAttendance";
 import { departmentByCourseCode } from "../../lib/departments";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../../lib/settings";
+import { gpaTrendTakeaway } from "../../lib/takeaways";
 
 interface CurrentCourse {
   id: string;
@@ -189,19 +190,7 @@ export default function Dashboard() {
 
   /* One sentence under each chart saying what it means. Worked out from the
      same numbers the chart draws, so the two can never disagree. */
-  const gpaTakeaway = (() => {
-    if (semesterData.length === 0) return undefined;
-    const last = semesterData[semesterData.length - 1];
-    if (semesterData.length === 1) return `Your first SGPA is ${last.gpa.toFixed(2)}.`;
-    const prev = semesterData[semesterData.length - 2];
-    const diff = last.gpa - prev.gpa;
-    const best = semesterData.reduce((a, b) => (b.gpa > a.gpa ? b : a));
-    const move =
-      Math.abs(diff) < 0.05
-        ? `Your SGPA held steady at ${last.gpa.toFixed(2)} in ${last.semester}`
-        : `Your SGPA ${diff > 0 ? "rose" : "fell"} from ${prev.gpa.toFixed(2)} to ${last.gpa.toFixed(2)} in ${last.semester}`;
-    return `${move}. Your best so far is ${best.gpa.toFixed(2)} (${best.semester}).`;
-  })();
+  const gpaTakeaway = gpaTrendTakeaway(semesterData);
 
   const awaiting = courses.length - scoredCourses.length;
   const attendanceTakeaway = (() => {
