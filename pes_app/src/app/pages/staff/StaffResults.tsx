@@ -5,14 +5,21 @@ import {
   Download,
   Lock,
   Save,
-  Search,
   Send,
   TrendingUp,
   Undo2,
   Upload,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,10 +36,12 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  SearchField,
   SectionCard,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  StickyActionBar,
   type StatusTone,
 } from "../../components/common";
 import { departmentByCourseCode } from "../../../lib/departments";
@@ -101,6 +110,10 @@ const RANGES = {
 
 type Field = keyof typeof RANGES;
 
+/* The shared select cannot hold an empty value, so "no grade" has a stand-in
+   that never reaches the row. */
+const NO_GRADE = "__none__";
+
 /** Empty is valid — a mark simply not entered yet. Anything else must be a
  *  number inside its range, or it is refused rather than saved. */
 function validate(field: Field, value: string): string | undefined {
@@ -149,7 +162,6 @@ export default function StaffResults() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -238,7 +250,6 @@ export default function StaffResults() {
   const loadSheet = async (offeringId: string) => {
     setSheetLoading(true);
     setError(null);
-    setNotice(null);
 
     const [roster, existing] = await Promise.all([
       getOfferingRoster(offeringId),
@@ -334,13 +345,14 @@ export default function StaffResults() {
     (r) => r.dirty && rowEditable(r) && !r.errors.midSem && !r.errors.ca,
   );
   const graded = rows.filter((r) => r.grade !== "").length;
+  const dirtyCount = rows.filter((r) => r.dirty && rowEditable(r)).length;
+  const editing = dirtyCount > 0;
   const ungraded = rows.length - graded;
 
   const handleSave = async () => {
     if (!selected) return;
     setSaving(true);
     setError(null);
-    setNotice(null);
 
     const result = await saveOfferingResults(
       dirtyValid.map((r) => ({
@@ -360,10 +372,10 @@ export default function StaffResults() {
 
     setSaving(false);
     if (!result.ok) {
-      setError(result.error);
+      toast.error("The sheet was not saved", { description: result.error });
       return;
     }
-    setNotice(`Saved ${result.data} row${result.data === 1 ? "" : "s"} as draft.`);
+    toast.success(`Saved ${result.data} row${result.data === 1 ? "" : "s"} as draft.`);
     await loadSheet(selected.offering_id);
   };
 
@@ -372,7 +384,6 @@ export default function StaffResults() {
     setConfirmSubmit(false);
     setSubmitting(true);
     setError(null);
-    setNotice(null);
 
     // Save first: submitting is a whole-sheet transition, and unsaved edits
     // would otherwise be left behind in draft while the rest moved on.
@@ -381,10 +392,10 @@ export default function StaffResults() {
     const result = await submitOfferingResults(selected.offering_id);
     setSubmitting(false);
     if (!result.ok) {
-      setError(result.error);
+      toast.error("The sheet was not submitted", { description: result.error });
       return;
     }
-    setNotice(result.data.message);
+    toast.success(result.data.message);
     await loadSheet(selected.offering_id);
   };
 
@@ -420,10 +431,10 @@ export default function StaffResults() {
     try {
       const blob = await buildResultsTemplate(meta, asSheetStudents(), validGrades);
       saveBlob(blob, templateFileName(meta));
-      setNotice(`Downloaded ${templateFileName(meta)}.`);
+      toast.success(`Downloaded ${templateFileName(meta)}.`);
     } catch (e) {
       console.error("[StaffResults] template build failed", e);
-      setError("We could not build the spreadsheet. Please try again.");
+      toast.error("We could not build the spreadsheet. Please try again.");
     }
   };
 
@@ -431,14 +442,13 @@ export default function StaffResults() {
     const meta = sheetMeta();
     if (!file || !meta) return;
     setError(null);
-    setNotice(null);
     try {
       setImportReport(
         await parseResultsWorkbook(file, meta, asSheetStudents(), validGrades),
       );
     } catch (e) {
       console.error("[StaffResults] workbook parse failed", e);
-      setError("We could not read that file. It needs to be an .xlsx workbook.");
+      toast.error("We could not read that file. It needs to be an .xlsx workbook.");
     }
   };
 
@@ -464,8 +474,9 @@ export default function StaffResults() {
         };
       }),
     );
-    setNotice(
-      `Filled in ${importReport.ready.length} row${importReport.ready.length === 1 ? "" : "s"} from ${importReport.fileName}. Nothing is saved until you save the sheet.`,
+    toast.success(
+      `Filled in ${importReport.ready.length} row${importReport.ready.length === 1 ? "" : "s"} from ${importReport.fileName}.`,
+      { description: "Nothing is saved until you save the sheet." },
     );
     setImportReport(null);
   };
@@ -523,19 +534,25 @@ export default function StaffResults() {
   const gradeCell = (r: Row) => (
     <>
                           {rowEditable(r) ? (
-                            <select
-                              value={r.grade}
-                              aria-label={`Grade for ${r.name}`}
-                              onChange={(e) => setGrade(r.studentId, e.target.value)}
-                              className="h-8 w-full rounded-lg border border-border bg-card px-2 text-center text-sm text-foreground"
+                            <Select
+                              value={r.grade === "" ? NO_GRADE : r.grade}
+                              onValueChange={(v) => setGrade(r.studentId, v === NO_GRADE ? "" : v)}
                             >
-                              <option value="">—</option>
-                              {validGrades.map((g) => (
-                                <option key={g} value={g}>
-                                  {g}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger
+                                aria-label={`Grade for ${r.name}`}
+                                className="h-8 w-full rounded-control bg-card text-sm"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_GRADE}>— no grade —</SelectItem>
+                                {validGrades.map((g) => (
+                                  <SelectItem key={g} value={g}>
+                                    {g}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ) : r.grade ? (
                             <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
                           ) : (
@@ -545,20 +562,17 @@ export default function StaffResults() {
   );
 
   return (
-    <div className="space-y-5">
+    // Room under the sheet while the action bar floats over it.
+    <div className={`space-y-5 ${editing && anyEditable ? "pb-36 sm:pb-24" : ""}`}>
       <PageHeader
         title="Results"
         description="Enter marks for a course you teach, then submit the sheet to your department for review and publication."
       />
 
       {error && <ErrorState message={error} size="inline" />}
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
 
-      <SectionCard title="Batch & course">
+      {/* What is being entered: one compact bar. */}
+      <SectionCard>
         {loading ? (
           <SkeletonRows count={1} height="h-9" />
         ) : (
@@ -580,24 +594,24 @@ export default function StaffResults() {
 
       {selected && (
         <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard index={0} label="Students" value={rows.length} icon={TrendingUp} tone="brand" />
-            <StatCard index={1} label="Graded" value={graded} icon={CheckCircle2} tone="success" />
-            <StatCard
-              index={2}
-              label="Not Graded"
-              value={ungraded}
-              icon={AlertCircle}
-              tone={ungraded > 0 ? "warning" : "neutral"}
-            />
-            <StatCard
-              index={3}
-              label="Sheet Status"
-              value={locked ? "Published" : inReview ? "In review" : "Draft"}
-              icon={locked ? Lock : inReview ? Send : Save}
-              tone={locked ? "success" : inReview ? "warning" : "info"}
-            />
-          </div>
+          <StatStrip
+            items={[
+              { label: "students", value: rows.length, icon: TrendingUp, tone: "brand" },
+              { label: "graded", value: graded, icon: CheckCircle2, tone: "success" },
+              {
+                label: "not graded",
+                value: ungraded,
+                icon: AlertCircle,
+                tone: ungraded > 0 ? "warning" : "neutral",
+              },
+              {
+                label: "sheet",
+                value: locked ? "Published" : inReview ? "In review" : "Draft",
+                icon: locked ? Lock : inReview ? Send : Save,
+                tone: locked ? "success" : inReview ? "warning" : "info",
+              },
+            ]}
+          />
 
           {returnNotes && (
             <div className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
@@ -651,20 +665,17 @@ export default function StaffResults() {
                 {describeBatch(selected.batch_year)}
               </>
             }
-            className={`border-l-4 ${departmentByCourseCode(selected.course_code)?.stripeClass ?? ""}`}
+            className={`overflow-visible border-l-4 ${departmentByCourseCode(selected.course_code)?.stripeClass ?? ""}`}
             description="Record the Mid-Sem and CA marks, then award the grade. The grade is your decision, not a calculation from the marks — the grade point follows from whichever grade you choose."
             flush
           >
-            <div className="space-y-3 border-b border-border/70 p-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, index no. or reg no..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="h-9 bg-card pl-9"
-                />
-              </div>
+            <div className="flex flex-col gap-2 border-b border-border/70 p-3 lg:flex-row lg:items-center">
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by name, index no. or reg no."
+                label="Search students"
+              />
 
               {/* Forty students are not typed in one box at a time. The
                   spreadsheet leaves with the class list already in it and is
@@ -673,7 +684,6 @@ export default function StaffResults() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
                   onClick={handleDownloadTemplate}
                   disabled={rows.length === 0}
                 >
@@ -683,7 +693,6 @@ export default function StaffResults() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1"
                   onClick={() => fileInput.current?.click()}
                   disabled={!anyEditable}
                   title={
@@ -773,9 +782,11 @@ export default function StaffResults() {
                   </li>
                 ))}
               </ul>
-              <div className="hidden overflow-x-auto sm:block">
+              <div className="hidden sm:block">
                 <table className="w-full text-sm">
-                  <thead>
+                  {/* Pinned under the top bar, so a long sheet keeps its
+                      column names in view. */}
+                  <thead className="sticky top-14 z-10 [&_th]:bg-card">
                     <tr className="border-b border-border/70 text-left text-xs text-muted-foreground">
                       <th className="px-4 py-2 font-medium">Student</th>
                       <th className="w-24 px-2 py-2 text-center font-medium">
@@ -825,7 +836,7 @@ export default function StaffResults() {
               </>
             )}
 
-            {rows.length > 0 && anyEditable && (
+            {rows.length > 0 && anyEditable && !editing && (
               <div className="space-y-3 border-t border-border/70 p-3">
                 {invalidCount > 0 && (
                   <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -835,10 +846,9 @@ export default function StaffResults() {
                     before saving.
                   </div>
                 )}
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                   <Button
                     variant="outline"
-                    className="flex-1"
                     disabled={saving || dirtyValid.length === 0}
                     onClick={handleSave}
                   >
@@ -846,7 +856,6 @@ export default function StaffResults() {
                     {saving ? "Saving..." : `Save Draft (${dirtyValid.length})`}
                   </Button>
                   <Button
-                    className="flex-1"
                     disabled={submitting || ungraded > 0 || invalidCount > 0}
                     onClick={() => setConfirmSubmit(true)}
                     title={
@@ -860,7 +869,7 @@ export default function StaffResults() {
                   </Button>
                 </div>
                 {ungraded > 0 && (
-                  <p className="text-center text-xs text-muted-foreground">
+                  <p className="text-right text-xs text-muted-foreground">
                     {ungraded} student{ungraded === 1 ? "" : "s"} still need a
                     grade before this sheet can be submitted.
                   </p>
@@ -870,6 +879,43 @@ export default function StaffResults() {
           </SectionCard>
         </>
       )}
+
+      {/* While there are edits on screen, Save Draft and Submit ride along at
+          the bottom of the window rather than waiting at the foot of a sheet
+          of forty rows. */}
+      <StickyActionBar
+        open={Boolean(selected) && editing && anyEditable}
+        summary={
+          <>
+            <p className="font-medium">
+              {dirtyCount} row{dirtyCount === 1 ? "" : "s"} changed, not saved
+            </p>
+            <p className={`text-xs ${invalidCount > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+              {invalidCount > 0
+                ? `${invalidCount} row${invalidCount === 1 ? "" : "s"} with a mark out of range will not be saved.`
+                : ungraded > 0
+                  ? `${ungraded} student${ungraded === 1 ? "" : "s"} still need a grade before the sheet can be submitted.`
+                  : "Save a draft, or submit the sheet to your department."}
+            </p>
+          </>
+        }
+      >
+        <Button
+          variant="outline"
+          disabled={saving || dirtyValid.length === 0}
+          onClick={handleSave}
+        >
+          <Save className="mr-1.5 h-4 w-4" />
+          {saving ? "Saving..." : `Save Draft (${dirtyValid.length})`}
+        </Button>
+        <Button
+          disabled={submitting || ungraded > 0 || invalidCount > 0}
+          onClick={() => setConfirmSubmit(true)}
+        >
+          <Send className="mr-1.5 h-4 w-4" />
+          {submitting ? "Submitting..." : "Submit for Review"}
+        </Button>
+      </StickyActionBar>
 
       <ResultsImportDialog
         report={importReport}
