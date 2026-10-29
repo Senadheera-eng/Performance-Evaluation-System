@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, GraduationCap, Plus, Users, X } from "lucide-react";
+import { AlertTriangle, Award, GraduationCap, Plus, Users, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -19,8 +27,10 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  PersonAvatar,
   SectionCard,
   SkeletonRows,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
@@ -54,7 +64,6 @@ export default function HodAssignments() {
   const [lecturers, setLecturers] = useState<AssignableLecturer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const [batchFilter, setBatchFilter] = useState<string>("all");
@@ -91,18 +100,16 @@ export default function HodAssignments() {
     fn: () => Promise<{ ok: boolean; error?: string }>,
   ) => {
     setBusy(key);
-    setError(null);
-    setNotice(null);
     const result = await fn();
     setBusy(null);
     if (!result.ok) {
-      setError(result.error ?? "That change could not be saved.");
+      toast.error(result.error ?? "That change could not be saved.");
       return;
     }
     // Reload before showing the message, so the chip the HOD is being told
     // about is already on screen when they read it.
     await load();
-    setNotice(successMessage);
+    toast.success(successMessage);
   };
 
   const batches = useMemo(
@@ -166,51 +173,58 @@ export default function HodAssignments() {
       />
 
       {error && <ErrorState message={error} onRetry={load} size="inline" />}
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Batch</span>
-          <select
-            value={batchFilter}
-            onChange={(e) => setBatchFilter(e.target.value)}
-            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-          >
-            <option value="all">All</option>
-            {batches.map((b) => (
-              <option key={b} value={b}>
-                {describeBatch(b)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Semester</span>
-          <select
+      {/* Which offerings, then how many of them have somebody. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={batchFilter} onValueChange={setBatchFilter}>
+            <SelectTrigger aria-label="Batch" className="h-9 w-56 rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All batches</SelectItem>
+              {batches.map((b) => (
+                <SelectItem key={b} value={String(b)}>
+                  {describeBatch(b)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
             value={semesterFilter}
-            onChange={(e) => {
+            onValueChange={(v) => {
               setSemesterTouched(true);
-              setSemesterFilter(e.target.value);
+              setSemesterFilter(v);
             }}
-            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
           >
-            <option value="all">All</option>
-            {semesters.map((s) => (
-              <option key={s} value={s}>
-                Semester {s}
-                {s === currentSemester ? " (Current)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        {unassigned > 0 && (
-          <StatusBadge tone="warning">
-            {unassigned} offering{unassigned === 1 ? "" : "s"} with no lecturer
-          </StatusBadge>
+            <SelectTrigger aria-label="Semester" className="h-9 w-52 rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All semesters</SelectItem>
+              {semesters.map((s) => (
+                <SelectItem key={s} value={String(s)}>
+                  Semester {s}
+                  {s === currentSemester ? " (Current)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {!loading && visible.length > 0 && (
+          <StatStrip
+            items={[
+              {
+                label: "offerings with a lecturer",
+                value: `${visible.length - unassigned} of ${visible.length}`,
+                icon: Users,
+                tone: unassigned > 0 ? "warning" : "success",
+              },
+              ...(unassigned > 0
+                ? [{ label: "with nobody assigned", value: unassigned, icon: GraduationCap, tone: "warning" as const }]
+                : []),
+            ]}
+          />
         )}
       </div>
 
@@ -242,12 +256,10 @@ export default function HodAssignments() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CourseCode code={o.course_code} className="text-sm" />
-                      <span className="truncate text-sm text-foreground">
-                        {o.course_title}
-                      </span>
-                    </div>
+                    <p className="text-sm text-foreground">
+                      <CourseCode code={o.course_code} className="mr-2" />
+                      {o.course_title}
+                    </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {describeBatch(o.batch_year)} · Semester {o.semester} ·{" "}
                       {o.academic_year} · {o.credits} credits · {o.category}
@@ -281,15 +293,21 @@ export default function HodAssignments() {
 
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {o.lecturers.length === 0 ? (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-warning-fg">
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                       No lecturer assigned yet.
                     </span>
                   ) : (
                     o.lecturers.map((l) => (
                       <span
                         key={l.assignment_id}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 py-0.5 pl-2.5 pr-1 text-xs"
+                        className={`inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-1 text-xs ${
+                          l.assignment_role === "coordinator"
+                            ? "border-primary/30 bg-primary/5"
+                            : "border-border bg-muted/40"
+                        }`}
                       >
+                        <PersonAvatar name={l.name} department={o.department} size="sm" className="h-5 w-5 text-[9px]" />
                         {l.assignment_role === "coordinator" && (
                           <Award
                             className="h-3 w-3 text-primary"
