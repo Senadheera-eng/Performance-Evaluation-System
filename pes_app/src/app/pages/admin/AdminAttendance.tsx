@@ -7,26 +7,29 @@ import {
   QrCode,
   RotateCcw,
   Save,
-  Search,
   ShieldCheck,
   TrendingDown,
   Users,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Calendar } from "../../components/ui/calendar";
 import {
+  AnimatedBar,
   CourseCode,
   DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
+  PillTabs,
+  SearchField,
   SectionCard,
   SegmentedTabs,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  StickyActionBar,
 } from "../../components/common";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { TIER_TONE } from "../../components/attendance/AttendanceOverview";
@@ -143,7 +146,9 @@ export default function AdminAttendance() {
         <ErrorState message={error} onRetry={() => loadOfferings()} size="inline" />
       )}
 
-      <SectionCard title={view === "overall" ? "Batch & course" : "Course"}>
+      {/* The batch and course, as one compact bar over the page rather than
+          a titled card of its own. */}
+      <div className="rounded-card border border-border bg-card px-4 py-3 shadow-elevation-sm">
         {loading ? (
           <SkeletonRows count={1} height="h-10" />
         ) : offerings.length === 0 ? (
@@ -186,7 +191,7 @@ export default function AdminAttendance() {
               : `${selected.lectures_held} lecture${selected.lectures_held === 1 ? "" : "s"} recorded, most recently ${selected.last_lecture}`}
           </p>
         )}
-      </SectionCard>
+      </div>
 
       {selected &&
         (view === "overall" ? (
@@ -302,30 +307,24 @@ function OverallView({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard index={0} label="Students" value={rows.length} icon={Users} />
-        <StatCard
-          index={1}
-          label="Lectures recorded"
-          value={held}
-          icon={CalendarIcon}
-          tone="info"
-        />
-        <StatCard
-          index={2}
-          label="Class average"
-          value={average === null ? "—" : `${average}%`}
-          icon={CheckCircle2}
-          tone={average === null ? "neutral" : average < threshold ? "danger" : "success"}
-        />
-        <StatCard
-          index={3}
-          label={`Below ${threshold}%`}
-          value={below}
-          icon={TrendingDown}
-          tone={below > 0 ? "danger" : "success"}
-        />
-      </div>
+      <StatStrip
+        items={[
+          { label: `student${rows.length === 1 ? "" : "s"}`, value: rows.length, icon: Users },
+          { label: `lecture${held === 1 ? "" : "s"} recorded`, value: held, icon: CalendarIcon, tone: "info" },
+          {
+            label: "class average",
+            value: average === null ? "—" : `${average}%`,
+            icon: CheckCircle2,
+            tone: average === null ? "neutral" : average < threshold ? "danger" : "success",
+          },
+          {
+            label: `below ${threshold}%`,
+            value: below,
+            icon: TrendingDown,
+            tone: below > 0 ? "danger" : "success",
+          },
+        ]}
+      />
 
       <SectionCard
         title={
@@ -343,25 +342,23 @@ function OverallView({
         }
         flush
       >
-        <div className="flex flex-col gap-2 border-b border-border/70 p-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, index or registration number..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-9 bg-card pl-9"
-            />
-          </div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
+        <div className="flex flex-col gap-2 border-b border-border/70 p-3 sm:flex-row sm:items-center">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by name, index or registration number"
+            label="Search students"
+          />
+          <PillTabs
             aria-label="Sort students"
-            className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-          >
-            <option value="index">By index number</option>
-            <option value="lowest">Lowest attendance first</option>
-          </select>
+            layoutId="admin-attendance-sort"
+            value={sort}
+            onChange={(v) => setSort(v as typeof sort)}
+            tabs={[
+              { value: "index", label: "By index" },
+              { value: "lowest", label: "Lowest first" },
+            ]}
+          />
         </div>
 
         {rows.length === 0 ? (
@@ -377,7 +374,7 @@ function OverallView({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="bg-muted/40">
                 <tr className="border-b border-border/70 text-left text-xs text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Student</th>
                   <th className="hidden px-2 py-2 text-center font-medium sm:table-cell">Present</th>
@@ -410,18 +407,14 @@ function OverallView({
                         <span className="text-xs text-muted-foreground">No marks yet</span>
                       ) : (
                         <div className="flex min-w-[10rem] items-center gap-3">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className={
-                                r.pct < threshold
-                                  ? "h-full bg-danger-fg"
-                                  : r.tier === "at_risk"
-                                    ? "h-full bg-warning-fg"
-                                    : "h-full bg-success-fg"
-                              }
-                              style={{ width: `${r.pct}%` }}
-                            />
-                          </div>
+                          <AnimatedBar
+                            value={r.pct}
+                            max={100}
+                            marker={threshold}
+                            tone={r.pct < threshold ? "danger" : r.tier === "at_risk" ? "warning" : "success"}
+                            label={`${r.name}: ${r.pct}% attendance`}
+                            className="flex-1"
+                          />
                           <span
                             className={`w-10 text-right font-semibold tabular-nums ${
                               r.pct < threshold ? "text-danger-fg" : "text-foreground"
@@ -493,7 +486,6 @@ function SessionView({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   /* Someone else changed this register while the office had edits open. */
   const [stale, setStale] = useState(false);
   const [query, setQuery] = useState("");
@@ -547,7 +539,6 @@ function SessionView({
 
   useEffect(() => {
     setLoading(true);
-    setNotice(null);
     loadRegister();
   }, [loadRegister]);
 
@@ -613,6 +604,7 @@ function SessionView({
     setSaving(false);
     if (!result.ok) {
       setError("The register could not be saved. Nothing was changed — please try again.");
+      toast.error("The register was not saved", { description: "Nothing was changed. Please try again." });
       return;
     }
     await Promise.all([loadRegister(), loadDates()]);
@@ -621,7 +613,7 @@ function SessionView({
       result.data.saved > 0 && `${result.data.saved} mark${result.data.saved === 1 ? "" : "s"} saved`,
       result.data.cleared > 0 && `${result.data.cleared} removed`,
     ].filter(Boolean);
-    setNotice(`${parts.join(", ")} for ${date}.`);
+    toast.success("Register saved", { description: `${parts.join(", ")} for ${date}.` });
   };
 
   const present = rows.filter((r) => r.status === "present").length;
@@ -645,8 +637,12 @@ function SessionView({
   const recordedDays = useMemo(() => dates.map(parseDate), [dates]);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[auto_1fr]">
+    // Room under the register while the action bar floats over it.
+    <div className={`grid gap-5 lg:grid-cols-[auto_1fr] lg:items-start ${dirty ? "pb-36 sm:pb-24" : ""}`}>
+      {/* Pinned on a wide screen, so another date is one click away from
+          anywhere down a long register. */}
       <SectionCard
+        className="lg:sticky lg:top-16"
         title="Lecture date"
         description={
           dates.length === 0
@@ -672,13 +668,8 @@ function SessionView({
 
       <div className="min-w-0 space-y-4">
         {error && <ErrorState message={error} size="inline" />}
-        {notice && (
-          <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-            {notice}
-          </div>
-        )}
         {stale && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
+          <div className="flex flex-wrap items-center gap-3 rounded-card border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span className="flex-1">
               This register was just changed by someone else. Reload to see it —
@@ -718,15 +709,12 @@ function SessionView({
           flush
         >
           <div className="border-b border-border/70 p-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search students..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="h-9 bg-card pl-9"
-              />
-            </div>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Search students"
+              label="Search students"
+            />
           </div>
 
           {loading ? (
@@ -780,7 +768,7 @@ function SessionView({
                             type="button"
                             aria-pressed={active}
                             onClick={() => setStatus(r.studentId, value)}
-                            className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1 rounded-control px-2.5 py-1.5 text-xs font-medium transition-colors active:scale-95 ${
                               active
                                 ? value === "present"
                                   ? "bg-success-fg text-white"
@@ -802,30 +790,38 @@ function SessionView({
             </ul>
           )}
 
-          {rows.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-border/70 p-3 sm:flex-row">
-              <Button className="flex-1" disabled={saving || !dirty} onClick={save}>
-                <Save className="mr-1.5 h-4 w-4" />
-                {saving
-                  ? "Saving..."
-                  : dirty
-                    ? `Save ${changedCount} change${changedCount === 1 ? "" : "s"}`
-                    : "No changes to save"}
-              </Button>
-              {dirty && (
-                <Button variant="outline" disabled={saving} onClick={undo}>
-                  <RotateCcw className="mr-1.5 h-4 w-4" />
-                  Undo changes
-                </Button>
-              )}
-            </div>
-          )}
         </SectionCard>
         <p className="px-1 text-xs text-muted-foreground">
           Tap a selected mark again to remove it. Changes appear on the
           lecturer's register as soon as they are saved.
         </p>
       </div>
+
+      {/* Rises only while there are marks to save; idle, nothing sits over
+          the register saying there is nothing to do. */}
+      <StickyActionBar
+        open={dirty}
+        summary={
+          <>
+            <p className="font-medium">
+              {changedCount} unsaved change{changedCount === 1 ? "" : "s"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <CourseCode code={offering.course_code} /> ·{" "}
+              {parseDate(date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+            </p>
+          </>
+        }
+      >
+        <Button variant="outline" disabled={saving} onClick={undo}>
+          <RotateCcw className="mr-1.5 h-4 w-4" />
+          Undo changes
+        </Button>
+        <Button disabled={saving} onClick={save}>
+          <Save className="mr-1.5 h-4 w-4" />
+          {saving ? "Saving..." : `Save ${changedCount} change${changedCount === 1 ? "" : "s"}`}
+        </Button>
+      </StickyActionBar>
     </div>
   );
 }

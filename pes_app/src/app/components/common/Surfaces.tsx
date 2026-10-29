@@ -329,8 +329,10 @@ export function SectionCard({
   const heading = (
     <div className="min-w-0 flex-1">
       {title && (
-        <h2 className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
-          {title}
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-base font-semibold text-foreground">
+          {/* One piece, so a title built of parts ("CO4204 — Title") stays
+              a line of text rather than separate flex items. */}
+          <span className="min-w-0">{title}</span>
           {collapsible && !open && summary && (
             <span className="text-xs font-normal text-muted-foreground">{summary}</span>
           )}
