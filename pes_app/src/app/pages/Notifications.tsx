@@ -2,13 +2,16 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Bell, CheckCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Switch } from "../components/ui/switch";
 import {
   CodedText,
   DepartmentDot,
   EmptyState,
   PageHeader,
+  PillTabs,
   SectionCard,
   SkeletonRows,
+  TabPanel,
 } from "../components/common";
 import { SOURCE_ICON } from "../components/layout/NotificationBell";
 import { cn } from "../components/ui/utils";
@@ -94,28 +97,28 @@ export default function Notifications() {
         />
       ) : (
         <>
-          {/* One row that scrolls on a phone: wrapped, the divider before
-              "Unread only" ended up alone at the start of a line. */}
-          <div className="no-scrollbar -mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-            <Chip
-              active={source === "all"}
-              onClick={() => setSource("all")}
-              label={`All (${items.length})`}
+          {/* Where it came from as tabs, which scroll on a phone, and
+              "Unread only" as the on/off switch it is. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <PillTabs
+              aria-label="Show notifications from"
+              layoutId="notifications-source"
+              value={source}
+              onChange={(v) => setSource(v as NotificationSource | "all")}
+              scrollable
+              tabs={[
+                { value: "all", label: "All", count: items.length },
+                ...sources.map((s) => ({
+                  value: s,
+                  label: SOURCE_LABEL[s] ?? s,
+                  count: items.filter((n) => n.source === s).length,
+                })),
+              ]}
             />
-            {sources.map((s) => (
-              <Chip
-                key={s}
-                active={source === s}
-                onClick={() => setSource(s)}
-                label={`${SOURCE_LABEL[s] ?? s} (${items.filter((n) => n.source === s).length})`}
-              />
-            ))}
-            <span className="mx-1 h-4 w-px flex-shrink-0 bg-border" aria-hidden="true" />
-            <Chip
-              active={unreadOnly}
-              onClick={() => setUnreadOnly((v) => !v)}
-              label={`Unread only${unread > 0 ? ` (${unread})` : ""}`}
-            />
+            <label className="flex flex-shrink-0 cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Switch checked={unreadOnly} onCheckedChange={setUnreadOnly} />
+              Unread only{unread > 0 ? ` (${unread})` : ""}
+            </label>
           </div>
 
           <SectionCard
@@ -127,102 +130,104 @@ export default function Notifications() {
             description={`${visible.length} notification${visible.length === 1 ? "" : "s"}`}
             flush
           >
-            {visible.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                Nothing here with those filters.
-              </p>
-            ) : (
-              <div>
-                {groupByAge(visible).map(({ label, items: group }) => (
-                  <section key={label} aria-label={label}>
-                    <h3 className="border-b border-border/60 bg-muted/40 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {label}
-                    </h3>
-                    <ul className="divide-y divide-border/60">
-                      {group.map((n) => {
-                        const Icon = SOURCE_ICON[n.source] ?? Bell;
-                        const isUnread = !n.read_at;
-                        // The department it comes from — a course's, a
-                        // round's, a mentor's — in that department's colour;
-                        // anything faculty-wide stays neutral.
-                        const dept = departmentOfNotification(n);
-                        return (
-                          <li key={n.id}>
-                            {/* Unread is a dot and a heavier title. The whole
-                                row used to be tinted brand pink, which read
-                                as an alert rather than "not seen yet". */}
-                            <button
-                              type="button"
-                              onClick={() => open(n)}
-                              className={cn(
-                                "flex w-full items-start gap-3 border-l-4 px-4 py-3 text-left transition-colors",
-                                dept?.stripeClass ?? "border-l-transparent",
-                                dept?.hoverClass ?? "hover:bg-muted/60",
-                              )}
-                            >
-                              <span
+            <TabPanel value={`${source}:${unreadOnly}`}>
+              {visible.length === 0 ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Nothing here with those filters.
+                </p>
+              ) : (
+                <div>
+                  {groupByAge(visible).map(({ label, items: group }) => (
+                    <section key={label} aria-label={label}>
+                      <h3 className="border-b border-border/60 bg-muted/40 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {label}
+                      </h3>
+                      <ul className="divide-y divide-border/60">
+                        {group.map((n) => {
+                          const Icon = SOURCE_ICON[n.source] ?? Bell;
+                          const isUnread = !n.read_at;
+                          // The department it comes from — a course's, a
+                          // round's, a mentor's — in that department's colour;
+                          // anything faculty-wide stays neutral.
+                          const dept = departmentOfNotification(n);
+                          return (
+                            <li key={n.id}>
+                              {/* Unread is a dot and a heavier title. The whole
+                                  row used to be tinted brand pink, which read
+                                  as an alert rather than "not seen yet". */}
+                              <button
+                                type="button"
+                                onClick={() => open(n)}
                                 className={cn(
-                                  "relative mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
-                                  dept?.chipClass ?? "bg-muted text-muted-foreground",
+                                  "flex w-full items-start gap-3 border-l-4 px-4 py-3 text-left transition-colors",
+                                  dept?.stripeClass ?? "border-l-transparent",
+                                  dept?.hoverClass ?? "hover:bg-muted/60",
                                 )}
                               >
-                                <Icon className="h-4 w-4" aria-hidden="true" />
-                                {isUnread && (
+                                <span
+                                  className={cn(
+                                    "relative mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
+                                    dept?.chipClass ?? "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  <Icon className="h-4 w-4" aria-hidden="true" />
+                                  {isUnread && (
+                                    <span
+                                      className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary"
+                                      aria-hidden="true"
+                                    />
+                                  )}
+                                </span>
+
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                      {SOURCE_LABEL[n.source] ?? n.source}
+                                    </span>
+                                    {dept && (
+                                      <span
+                                        className={cn("inline-flex items-center gap-1 text-[10px] font-semibold", dept.textClass)}
+                                        title={dept.name}
+                                      >
+                                        <DepartmentDot dept={dept} className="h-1.5 w-1.5" />
+                                        {dept.code}
+                                      </span>
+                                    )}
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {relativeTime(n.created_at)}
+                                    </span>
+                                    {isUnread && <span className="sr-only">Unread.</span>}
+                                  </span>
                                   <span
-                                    className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-primary"
+                                    className={`block text-sm text-foreground ${
+                                      isUnread ? "font-semibold" : "font-normal"
+                                    }`}
+                                  >
+                                    <CodedText text={n.title} />
+                                  </span>
+                                  {n.body && (
+                                    <span className="block text-xs text-muted-foreground">
+                                      <CodedText text={n.body} />
+                                    </span>
+                                  )}
+                                </span>
+
+                                {n.href && (
+                                  <ArrowRight
+                                    className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground"
                                     aria-hidden="true"
                                   />
                                 )}
-                              </span>
-
-                              <span className="min-w-0 flex-1">
-                                <span className="flex flex-wrap items-center gap-2">
-                                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                    {SOURCE_LABEL[n.source] ?? n.source}
-                                  </span>
-                                  {dept && (
-                                    <span
-                                      className={cn("inline-flex items-center gap-1 text-[10px] font-semibold", dept.textClass)}
-                                      title={dept.name}
-                                    >
-                                      <DepartmentDot dept={dept} className="h-1.5 w-1.5" />
-                                      {dept.code}
-                                    </span>
-                                  )}
-                                  <span className="text-[11px] text-muted-foreground">
-                                    {relativeTime(n.created_at)}
-                                  </span>
-                                  {isUnread && <span className="sr-only">Unread.</span>}
-                                </span>
-                                <span
-                                  className={`block text-sm text-foreground ${
-                                    isUnread ? "font-semibold" : "font-normal"
-                                  }`}
-                                >
-                                  <CodedText text={n.title} />
-                                </span>
-                                {n.body && (
-                                  <span className="block text-xs text-muted-foreground">
-                                    <CodedText text={n.body} />
-                                  </span>
-                                )}
-                              </span>
-
-                              {n.href && (
-                                <ArrowRight
-                                  className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground"
-                                  aria-hidden="true"
-                                />
-                              )}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </TabPanel>
           </SectionCard>
         </>
       )}
@@ -253,29 +258,4 @@ function groupByAge(list: AppNotification[]) {
     else groups.push({ label, items: [n] });
   }
   return groups;
-}
-
-function Chip({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:bg-muted"
-      }`}
-    >
-      {label}
-    </button>
-  );
 }
