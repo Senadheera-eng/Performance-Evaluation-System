@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
   BookOpen,
   CalendarOff,
+  CheckCircle2,
   GraduationCap,
   Lock,
   Minus,
   Plus,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -19,7 +22,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { EmptyState, ErrorState, SectionCard, StatusBadge } from "../common";
+import {
+  EmptyState,
+  ErrorState,
+  SPRING,
+  SectionCard,
+  StatusBadge,
+  StickyActionBar,
+} from "../common";
 import { cn } from "../ui/utils";
 import { supabase } from "../../../lib/supabase";
 import { departmentByCourseCode } from "../../../lib/departments";
@@ -81,34 +91,15 @@ interface Row extends PlanCourse {
 }
 
 /**
- * Runs of equal values, as the rowSpan each run's first cell should carry.
+ * The semester as the Faculty Handbook sets it out.
  *
- * The handbook writes a category once against the block of courses in it
- * rather than repeating it on every line, and the same for whether they count
- * towards the GPA. Reproducing that means merging vertically down each run;
- * every row after a run's first gets null and prints no cell at all.
- */
-function runs<T>(values: T[]): (number | null)[] {
-  const out: (number | null)[] = new Array(values.length).fill(null);
-  let i = 0;
-  while (i < values.length) {
-    let j = i;
-    while (j + 1 < values.length && values[j + 1] === values[i]) j++;
-    out[i] = j - i + 1;
-    i = j + 1;
-  }
-  return out;
-}
-
-/**
- * The semester as the Faculty Handbook prints it.
- *
- * This is the same sheet a student already has in front of them on paper —
- * course code, title, credit value, category, whether it counts towards the
- * GPA — with the category written once against the block of courses it covers.
- * Matching the handbook's layout is the point: a student checking their
- * enrolment against the printed curriculum should be reading the same table
- * twice, not translating between two shapes of the same information.
+ * The same content as the printed sheet — course code, title, credit value,
+ * category, whether it counts towards the GPA — grouped the way the handbook
+ * groups it: each category heads its block of courses with what it asks for
+ * and, live, how much of that the ticks so far supply. The handbook's merged
+ * "Category" and "Contributing to GPA" columns were mostly empty space on a
+ * wide screen; a category's header now carries both, and a course that is
+ * the exception in its block says so on its own row.
  *
  * Nothing here refuses anything. A category's requirement is what it asks for,
  * not a ceiling, so a student who wants a third elective may take it; a
@@ -134,11 +125,11 @@ export function SemesterBaskets({
   const [draft, setDraft] = useState<Map<string, boolean>>(new Map());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   /** Mandatory minor courses the student is about to save without. */
   const [guard, setGuard] = useState<Row[] | null>(null);
 
   const open = plan.window?.is_open ?? false;
+  const reduce = useReducedMotion();
 
   // A fresh plan is the truth; anything in flight has either landed or been
   // superseded.
@@ -177,17 +168,6 @@ export function SemesterBaskets({
         })),
       ),
     [plan],
-  );
-
-  const categorySpans = useMemo(
-    () => runs(rows.map((r) => r.basket)),
-    [rows],
-  );
-  const gpaSpans = useMemo(
-    // Keyed by category as well, so a merged GPA cell never runs past the
-    // block of courses its category cell covers.
-    () => runs(rows.map((r) => `${r.basket}|${r.contributes_to_gpa}`)),
-    [rows],
   );
 
   /* What Save would do, in the two directions the function takes. */
@@ -303,7 +283,6 @@ export function SemesterBaskets({
     if (toAdd.length + removes.length === 0) return;
     setSaving(true);
     setError(null);
-    setNotice(null);
 
     const { error: rpcError } = await supabase.rpc("update_my_enrolment", {
       p_add: toAdd.map((c) => c.course_id),
@@ -313,6 +292,7 @@ export function SemesterBaskets({
 
     if (rpcError) {
       setError(rpcError.message);
+      toast.error("Your enrolment was not saved", { description: rpcError.message });
       return;
     }
 
@@ -325,7 +305,7 @@ export function SemesterBaskets({
     // Only after the reload: it replaces the plan, and setting this first
     // would leave the message describing a state that no longer exists.
     await onChanged();
-    setNotice(`Enrolment saved — ${parts.join(" and ")}.`);
+    toast.success("Enrolment saved", { description: `You ${parts.join(" and ")}.` });
   };
 
   /* What a course's row says about it beyond code, title and credits. The
@@ -371,7 +351,8 @@ export function SemesterBaskets({
   const codeClass = (code: string) =>
     cn("font-semibold tabular-nums", departmentByCourseCode(code)?.textClass ?? "text-foreground");
 
-  /** "2 of 3 credits", coloured by whether the basket is met. */
+  /** "2 of 3 credits", coloured by whether the basket is met, with a tick
+      that springs in the moment it is. */
   const basketProgress = (basket: string, required: number | null) => {
     if (!required) {
       return (
@@ -381,8 +362,28 @@ export function SemesterBaskets({
       );
     }
     const have = totals.get(basket) ?? 0;
+    const met = have >= required;
     return (
-      <span className={cn("text-xs", have >= required ? "text-success-fg" : "text-warning-fg")}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-xs font-medium tabular-nums",
+          met ? "text-success-fg" : "text-warning-fg",
+        )}
+      >
+        <AnimatePresence initial={false} mode="popLayout">
+          {met && (
+            <motion.span
+              key="met"
+              initial={reduce ? false : { scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={reduce ? { opacity: 0 } : { scale: 0, opacity: 0 }}
+              transition={reduce ? { duration: 0 } : SPRING}
+              className="inline-flex"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            </motion.span>
+          )}
+        </AnimatePresence>
         {have} of {required} credits
       </span>
     );
@@ -404,13 +405,9 @@ export function SemesterBaskets({
   );
 
   return (
-    <div className="space-y-4">
+    // Room under the last block while the action bar floats over it.
+    <div className={cn("space-y-4", open && dirty && "pb-36 sm:pb-24")}>
       {error && <ErrorState message={error} size="inline" />}
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
 
       {plan.minor_plan && plan.minor_plan.minors.length > 0 && (
         <MinorSelection
@@ -429,7 +426,7 @@ export function SemesterBaskets({
 
       <SectionCard
         title={`Semester ${plan.semester}`}
-        description="The curriculum as set out in the Faculty Handbook. A category is written once against the block of courses it covers."
+        description="The curriculum as set out in the Faculty Handbook: compulsory courses, then each elective basket and the credits it asks for."
         actions={
           <StatusBadge tone="brand">
             {selectedCredits} credit{selectedCredits === 1 ? "" : "s"} selected
@@ -437,200 +434,95 @@ export function SemesterBaskets({
         }
         flush
       >
-        {/* Six columns do not fit a phone. Scrolled sideways, the category
-            and its credit count (the thing a student is trying to satisfy)
-            sat off screen, so a phone gets the same sheet as a list, one
-            basket at a time, each headed by what it asks for. The handbook's
-            table is kept from the small breakpoint up. */}
-        <div className="sm:hidden">
-          {plan.baskets.map((b) => {
-            const basketRows = rows.filter((r) => r.basket === b.basket);
-            if (basketRows.length === 0) return null;
-            return (
-              <div key={b.basket} className="border-b border-border last:border-b-0">
-                <div className="flex items-center justify-between gap-3 bg-muted/60 px-4 py-2">
+        <p className="sr-only">
+          Semester {plan.semester} curriculum. Tick a course to enrol in it.
+        </p>
+        {plan.baskets.map((b) => {
+          const basketRows = rows.filter((r) => r.basket === b.basket);
+          if (basketRows.length === 0) return null;
+          const allInGpa = basketRows.every((r) => r.contributes_to_gpa);
+          const noneInGpa = basketRows.every((r) => !r.contributes_to_gpa);
+          return (
+            <div key={b.basket} className="border-b border-border last:border-b-0">
+              {/* The category once, with what it asks for and how much of
+                  that the ticks so far supply. */}
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-muted/50 px-4 py-2 sm:px-5">
+                <span className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">{b.basket}</span>
-                  <span className="flex flex-col items-end">
-                    {basketProgress(b.basket, b.required_credits)}
-                    <span className="text-[11px] text-muted-foreground">
-                      {basketRows.every((r) => r.contributes_to_gpa)
-                        ? "Counts toward GPA"
-                        : basketRows.some((r) => r.contributes_to_gpa)
-                          ? "Partly counts toward GPA"
-                          : "Not in GPA"}
-                    </span>
-                  </span>
-                </div>
-                <ul className="divide-y divide-border/50">
-                  {basketRows.map((c) => {
-                    const want = chosen(c);
-                    const id = `enrol-${c.course_id}`;
-                    return (
-                      <li
-                        key={c.course_id}
-                        className={cn(
-                          "flex items-start gap-3 border-l-4 px-4 py-2.5 transition-colors",
-                          departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent",
-                          // An unsaved change keeps its own tint; otherwise
-                          // the department's shows on hover.
-                          draft.has(c.course_id)
-                            ? "bg-primary/5"
-                            : departmentByCourseCode(c.course_code)?.hoverClass,
-                        )}
-                      >
-                        <Checkbox
-                          id={id}
-                          className="mt-1"
-                          checked={want}
-                          disabled={!editable(c)}
-                          onCheckedChange={() => toggle(c)}
-                          aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
-                        />
-                        <label htmlFor={id} className="min-w-0 flex-1">
-                          <span className="flex items-center gap-2 text-xs">
-                            <span className={codeClass(c.course_code)}>{c.course_code}</span>
-                            <span className="text-muted-foreground">
-                              {c.credits} credit{c.credits === 1 ? "" : "s"}
-                            </span>
-                          </span>
-                          <span className="block text-sm text-foreground">{c.title}</span>
-                          <span className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
-                            {courseBadges(c)}
-                          </span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
+                  {!allInGpa && (
+                    <StatusBadge tone="neutral">
+                      {noneInGpa ? "Not in GPA" : "Partly in GPA"}
+                    </StatusBadge>
+                  )}
+                </span>
+                {basketProgress(b.basket, b.required_credits)}
               </div>
-            );
-          })}
-        </div>
-
-        <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[46rem] border-collapse text-sm">
-            <caption className="sr-only">
-              Semester {plan.semester} curriculum. Tick a course to enrol in it.
-            </caption>
-            <thead>
-              <tr className="border-y border-border bg-muted/60 text-left">
-                <th scope="col" className="w-10 px-3 py-2">
-                  <span className="sr-only">Enrol</span>
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Course Code
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Title
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Credit Value
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Category
-                </th>
-                <th
-                  scope="col"
-                  className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  Contributing to GPA
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c, i) => {
-                const want = chosen(c);
-                const changed = draft.has(c.course_id);
-                const catSpan = categorySpans[i];
-                const gpaSpan = gpaSpans[i];
-                // A run's last row draws the line under the whole block, the
-                // way a ruled sheet separates one category from the next.
-                const endsBlock =
-                  i === rows.length - 1 || rows[i + 1].basket !== c.basket;
-                return (
-                  <tr
-                    key={c.course_id}
-                    className={`transition-colors ${
-                      changed
-                        ? "bg-primary/5"
-                        : (departmentByCourseCode(c.course_code)?.hoverClass ?? "")
-                    } ${
-                      endsBlock ? "border-b border-border" : "border-b border-border/40"
-                    }`}
-                  >
-                    <td className="px-3 py-2 align-top">
+              <ul className="divide-y divide-border/50">
+                {basketRows.map((c) => {
+                  const want = chosen(c);
+                  const id = `enrol-${c.course_id}`;
+                  const dept = departmentByCourseCode(c.course_code);
+                  return (
+                    <li
+                      key={c.course_id}
+                      className={cn(
+                        "flex items-start gap-3 border-l-4 px-4 py-2.5 transition-colors sm:items-center sm:px-5",
+                        dept?.stripeClass ?? "border-l-transparent",
+                        // An unsaved change keeps its own tint; otherwise
+                        // the department's shows on hover.
+                        draft.has(c.course_id) ? "bg-primary/5" : dept?.hoverClass,
+                      )}
+                    >
                       <Checkbox
-                        className="mt-0.5"
+                        id={id}
+                        className="mt-1 transition-transform active:scale-90 sm:mt-0"
                         checked={want}
                         disabled={!editable(c)}
                         onCheckedChange={() => toggle(c)}
                         aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
                       />
-                    </td>
-                    <td
-                      className={cn(
-                        "whitespace-nowrap border-l-4 px-3 py-2 align-top",
-                        departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent",
-                        codeClass(c.course_code),
-                      )}
-                    >
-                      {c.course_code}
-                    </td>
-                    <td className="px-3 py-2 align-top">
-                      <span className="text-foreground">{c.title}</span>
-                      <span className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
-                        {courseBadges(c)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center align-top tabular-nums text-foreground">
-                      {c.credits}
-                    </td>
-                    {/* Merged cells take their own background: they belong to
-                        the block's first row, and a tint on that row for an
-                        unsaved change would otherwise fill the whole block. */}
-                    {catSpan !== null && (
-                      <td
-                        rowSpan={catSpan}
-                        className="border-l border-border bg-card px-3 py-2 align-middle"
+                      <label
+                        htmlFor={id}
+                        className={cn(
+                          "flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3",
+                          editable(c) && "cursor-pointer",
+                        )}
                       >
-                        <span className="block font-medium text-foreground">
-                          {c.basket}
+                        <span className="flex items-center gap-2 text-xs sm:w-[4.75rem] sm:flex-shrink-0 sm:text-sm">
+                          <span className={codeClass(c.course_code)}>{c.course_code}</span>
+                          <span className="text-muted-foreground sm:hidden">
+                            {c.credits} credit{c.credits === 1 ? "" : "s"}
+                          </span>
                         </span>
-                        <span className="mt-1 block">
-                          {basketProgress(c.basket, c.required_credits)}
+                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="text-sm text-foreground">{c.title}</span>
+                          {courseBadges(c)}
+                          {/* The exception in a block that otherwise counts. */}
+                          {!c.contributes_to_gpa && !noneInGpa && (
+                            <StatusBadge tone="neutral">Not in GPA</StatusBadge>
+                          )}
                         </span>
-                      </td>
-                    )}
-                    {gpaSpan !== null && (
-                      <td
-                        rowSpan={gpaSpan}
-                        className="border-l border-border bg-card px-3 py-2 text-center align-middle text-foreground"
-                      >
-                        {c.contributes_to_gpa ? "Yes" : "No"}
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        <span className="hidden w-14 flex-shrink-0 text-right text-sm tabular-nums text-muted-foreground sm:block">
+                          {c.credits} cr
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
+        {open && !dirty && (
+          <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
+            Your enrolment is saved. Tick or untick a course to change it — you
+            can do this as often as you like until the window closes.
+          </p>
+        )}
       </SectionCard>
 
       {open && notOffered.length > 0 && (
-        <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+        <div className="rounded-card border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           <p className="flex items-center gap-1.5 font-medium text-foreground">
             <CalendarOff className="h-4 w-4" aria-hidden="true" />
             Not part of this enrolment round
@@ -658,7 +550,7 @@ export function SemesterBaskets({
       )}
 
       {open && warnings.length > 0 && (
-        <div className="rounded-xl border border-warning-border bg-warning-bg px-3 py-2.5 text-sm text-warning-fg">
+        <div className="rounded-card border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning-fg">
           <p className="flex items-center gap-1.5 font-medium">
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             Before you confirm
@@ -674,46 +566,35 @@ export function SemesterBaskets({
         </div>
       )}
 
-      {open && (
-        /* Pinned to the bottom of the screen only while there is something
-           to save. Idle, it read "No changes" over the sheet the whole time
-           the student was reading it. */
-        <div
-          className={cn(
-            "space-y-2 rounded-xl border border-border bg-card/95 p-3",
-            dirty && "sticky bottom-3 z-10 shadow-elevation-md backdrop-blur",
-          )}
-        >
-          <p className="text-xs text-muted-foreground">
-            {dirty
-              ? [
-                  adds.length > 0 &&
-                    `Adding ${adds.map((c) => c.course_code).join(", ")}`,
-                  removes.length > 0 &&
-                    `Removing ${removes.map((c) => c.course_code).join(", ")}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : "Your enrolment is saved. Tick or untick a course to change it — you can do this as often as you like until the window closes."}
-          </p>
-          {/* The buttons come with something to save. A disabled "No
-              changes" bar beside the line saying so only repeated it. */}
-          {dirty && (
-            <div className="flex gap-2">
-              <Button className="flex-1" disabled={saving} onClick={requestSave}>
-                {saving ? "Saving…" : "Save changes"}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={saving}
-                onClick={() => setDraft(new Map())}
-              >
-                Discard
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Rises from the bottom only while there is something to save, over
+          the page's column and never the sidebar. Idle, the line at the foot
+          of the semester card says the enrolment is saved. */}
+      <StickyActionBar
+        open={open && dirty}
+        summary={
+          <>
+            <p className="font-medium">
+              {[
+                adds.length > 0 && `Adding ${adds.map((c) => c.course_code).join(", ")}`,
+                removes.length > 0 &&
+                  `Removing ${removes.map((c) => c.course_code).join(", ")}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {selectedCredits} credit{selectedCredits === 1 ? "" : "s"} selected once saved
+            </p>
+          </>
+        }
+      >
+        <Button variant="outline" disabled={saving} onClick={() => setDraft(new Map())}>
+          Discard
+        </Button>
+        <Button disabled={saving} onClick={requestSave}>
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+      </StickyActionBar>
 
       <AlertDialog open={guard !== null} onOpenChange={(o) => !o && setGuard(null)}>
         <AlertDialogContent>

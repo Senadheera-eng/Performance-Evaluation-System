@@ -1,5 +1,7 @@
-import { CalendarClock, Lock, LockOpen } from "lucide-react";
-import { StatusBadge } from "../common";
+import { motion, useReducedMotion } from "framer-motion";
+import { CalendarClock, Lock, LockOpen, type LucideIcon } from "lucide-react";
+import { AnimatedNumber, StatusBadge, cardReveal } from "../common";
+import { cn } from "../ui/utils";
 
 export interface EnrolmentWindowState {
   period_id: string;
@@ -43,15 +45,38 @@ export function EnrolmentWindow({
   window: EnrolmentWindowState | null;
   semester: number;
 }) {
+  const reduce = useReducedMotion();
+  const strip = (tone: string, children: React.ReactNode) => (
+    <motion.section
+      variants={cardReveal}
+      initial={reduce ? false : "hidden"}
+      animate="show"
+      className={cn(
+        "flex flex-wrap items-center gap-x-4 gap-y-3 rounded-card border px-4 py-4 shadow-elevation-sm sm:px-5",
+        tone,
+      )}
+    >
+      {children}
+    </motion.section>
+  );
+  const iconChip = (Icon: LucideIcon, color: string) => (
+    <span
+      className={cn(
+        "flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-card/70 ring-1 ring-inset ring-current/15",
+        color,
+      )}
+    >
+      <Icon className="h-5 w-5" aria-hidden="true" />
+    </span>
+  );
+
   if (!window) {
-    return (
-      <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3">
-        <CalendarClock
-          className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+    return strip(
+      "border-border bg-muted/40",
+      <>
+        {iconChip(CalendarClock, "text-muted-foreground")}
+        <div className="min-w-0 flex-1 basis-[16rem]">
+          <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
             Enrolment has not opened for Semester {semester}
             <StatusBadge tone="neutral" dot>
               Not open
@@ -62,19 +87,17 @@ export function EnrolmentWindow({
             when it does.
           </p>
         </div>
-      </div>
+      </>,
     );
   }
 
   if (!window.is_open) {
-    return (
-      <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3">
-        <Lock
-          className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+    return strip(
+      "border-border bg-muted/40",
+      <>
+        {iconChip(Lock, "text-muted-foreground")}
+        <div className="min-w-0 flex-1 basis-[16rem]">
+          <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
             Enrolment is closed
             <StatusBadge tone="neutral" dot>
               Closed
@@ -85,36 +108,48 @@ export function EnrolmentWindow({
             speak to your department if one of them is wrong.
           </p>
         </div>
-      </div>
+      </>,
     );
   }
 
   const left = daysLeft(window.closes_at);
-  return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-success-border bg-success-bg px-4 py-3">
-      <LockOpen
-        className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-fg"
-        aria-hidden="true"
-      />
-      <div className="min-w-0">
-        <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-success-fg">
+  // The last three days are a warning, not good news.
+  const urgent = left <= 3;
+  return strip(
+    "border-success-border bg-success-bg",
+    <>
+      {iconChip(LockOpen, "text-success-fg")}
+      <div className="min-w-0 flex-1 basis-[16rem]">
+        <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-success-fg">
           Enrolment is open
           <StatusBadge tone="success" dot>
             Open
           </StatusBadge>
-          {left <= 3 && (
-            <StatusBadge tone="warning">
-              {left <= 0
-                ? "Closes today"
-                : `${left} day${left === 1 ? "" : "s"} left`}
-            </StatusBadge>
-          )}
         </p>
         <p className="mt-0.5 text-sm text-success-fg/90">
           You can add or remove courses until {when(window.closes_at)}. After
           that your selections become read-only.
         </p>
       </div>
-    </div>
+      {/* The countdown, large: the one number on this strip that changes
+          what the student should do today. */}
+      <div
+        className={cn(
+          "flex items-baseline gap-1.5 rounded-control bg-card/70 px-3.5 py-2 ring-1 ring-inset",
+          urgent ? "text-warning-fg ring-warning-border" : "text-success-fg ring-success-border",
+        )}
+      >
+        {left <= 0 ? (
+          <span className="text-xl font-bold">Closes today</span>
+        ) : (
+          <>
+            <span className="text-3xl font-bold leading-none tabular-nums">
+              <AnimatedNumber value={left} />
+            </span>
+            <span className="text-sm font-medium">day{left === 1 ? "" : "s"} left</span>
+          </>
+        )}
+      </div>
+    </>,
   );
 }
