@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Layers, Shield, Split, Trash2, UserPlus, Users } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { cn } from "../../components/ui/utils";
 import {
   DepartmentDot,
   EmptyState,
@@ -8,6 +10,7 @@ import {
   PageHeader,
   SectionCard,
   SkeletonRows,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
 import { IntakeDialog } from "../../components/batches/IntakeDialog";
@@ -40,6 +43,7 @@ export default function AdminBatches() {
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [removing, setRemoving] = useState<number | null>(null);
   const [dividing, setDividing] = useState<number | null>(null);
+  const reduce = useReducedMotion();
 
   const load = useCallback(async () => {
     setError(null);
@@ -53,6 +57,12 @@ export default function AdminBatches() {
     if (isSuperAdmin) load();
     else setLoading(false);
   }, [isSuperAdmin, load]);
+
+  const totalStudents = batches.reduce((n, b) => n + b.students, 0);
+  const undividedTotal = batches.reduce(
+    (n, b) => n + (b.departments.find((d) => d.department === null)?.students ?? 0),
+    0,
+  );
 
   if (!isSuperAdmin) {
     return (
@@ -97,71 +107,109 @@ export default function AdminBatches() {
           }
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {batches.map((b) => {
-            const undivided = b.departments.find((d) => d.department === null)?.students ?? 0;
-            return (
-              <SectionCard
-                key={b.batch_year}
-                title={
-                  <span className="flex flex-wrap items-center gap-2">
-                    {describeBatch(b.batch_year)}
-                    <StatusBadge tone={b.semester > 8 ? "neutral" : "brand"}>{describeStage(b.semester)}</StatusBadge>
-                  </span>
-                }
-                description={
-                  <>
-                    {b.students} student{b.students === 1 ? "" : "s"}
-                    {b.active !== b.students ? ` · ${b.active} active` : ""}
-                  </>
-                }
-              >
-                <div className="space-y-4">
-                  <ul className="flex flex-wrap gap-2" aria-label="Students by department">
-                    {b.departments.map((d) => {
-                      const dept = d.department ? departmentByName(d.department) : null;
-                      return (
-                        <li
-                          key={d.department ?? "none"}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs"
-                          title={d.department ?? "No department yet"}
-                        >
-                          {dept ? (
-                            <DepartmentDot dept={dept} className="h-2.5 w-2.5" />
-                          ) : (
-                            <Users className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
-                          )}
-                          <span className="text-foreground">{dept?.code ?? d.department ?? "No department yet"}</span>
-                          <span className="tabular-nums text-muted-foreground">{d.students}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
+        <>
+          <StatStrip
+            items={[
+              { label: `batch${batches.length === 1 ? "" : "es"} in PES`, value: batches.length, icon: Layers, tone: "brand" },
+              { label: "students", value: totalStudents, icon: Users },
+              ...(undividedTotal > 0
+                ? [{ label: "not in a department yet", value: undividedTotal, icon: Split, tone: "warning" as const }]
+                : []),
+            ]}
+          />
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            {batches.map((b) => {
+              const undivided = b.departments.find((d) => d.department === null)?.students ?? 0;
+              return (
+                <SectionCard
+                  key={b.batch_year}
+                  title={
+                    <span className="flex flex-wrap items-center gap-2">
+                      {describeBatch(b.batch_year)}
+                      <StatusBadge tone={b.semester > 8 ? "neutral" : "brand"}>{describeStage(b.semester)}</StatusBadge>
+                    </span>
+                  }
+                  description={
+                    <>
+                      {b.students} student{b.students === 1 ? "" : "s"}
+                      {b.active !== b.students ? ` · ${b.active} active` : ""}
+                    </>
+                  }
+                >
+                  <div className="space-y-4">
+                    {/* The division at a glance: a segment per department in
+                        its colour, the students not yet divided in grey. */}
+                    <motion.div
+                      role="img"
+                      aria-label={b.departments
+                        .map((d) => `${d.department ?? "No department yet"}: ${d.students}`)
+                        .join(", ")}
+                      initial={reduce ? false : { scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ transformOrigin: "left" }}
+                      className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full"
+                    >
+                      {b.departments
+                        .filter((d) => d.students > 0)
+                        .map((d) => (
+                          <span
+                            key={d.department ?? "none"}
+                            className={cn(
+                              "h-full basis-0",
+                              (d.department && departmentByName(d.department)?.swatchClass) || "bg-muted-foreground/30",
+                            )}
+                            style={{ flexGrow: d.students }}
+                          />
+                        ))}
+                    </motion.div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Button
-                      size="sm"
-                      variant={undivided > 0 ? "default" : "outline"}
-                      onClick={() => setDividing(b.batch_year)}
-                    >
-                      <Split className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                      {undivided > 0 ? "Assign departments" : "Change departments"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-danger-fg hover:bg-danger-bg hover:text-danger-fg"
-                      onClick={() => setRemoving(b.batch_year)}
-                    >
-                      <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                      Remove batch
-                    </Button>
+                    <ul className="flex flex-wrap gap-2" aria-label="Students by department">
+                      {b.departments.map((d) => {
+                        const dept = d.department ? departmentByName(d.department) : null;
+                        return (
+                          <li
+                            key={d.department ?? "none"}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs"
+                            title={d.department ?? "No department yet"}
+                          >
+                            {dept ? (
+                              <DepartmentDot dept={dept} className="h-2.5 w-2.5" />
+                            ) : (
+                              <Users className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                            )}
+                            <span className="text-foreground">{dept?.code ?? d.department ?? "No department yet"}</span>
+                            <span className="tabular-nums text-muted-foreground">{d.students}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Button
+                        size="sm"
+                        variant={undivided > 0 ? "default" : "outline"}
+                        onClick={() => setDividing(b.batch_year)}
+                      >
+                        <Split className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                        {undivided > 0 ? "Assign departments" : "Change departments"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-danger-fg hover:bg-danger-bg hover:text-danger-fg"
+                        onClick={() => setRemoving(b.batch_year)}
+                      >
+                        <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                        Remove batch
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </SectionCard>
-            );
-          })}
-        </div>
+                </SectionCard>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <IntakeDialog open={intakeOpen} onOpenChange={setIntakeOpen} batches={batches} onAdded={load} />
