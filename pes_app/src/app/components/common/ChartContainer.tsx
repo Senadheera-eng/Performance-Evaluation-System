@@ -145,12 +145,15 @@ export function ChartTooltip({
   labelFormatter,
 }: {
   active?: boolean;
-  payload?: Array<{ name?: string; value?: number | string; color?: string }>;
+  payload?: Array<{ name?: string; value?: number | string; color?: string; type?: string }>;
   label?: string | number;
   valueSuffix?: string;
   labelFormatter?: (label: string | number) => string;
 }) {
-  if (!active || !payload?.length) return null;
+  // A series marked tooltipType="none" (a fill under a line) still arrives
+  // here; the default tooltip drops it, so this one does too.
+  const entries = payload?.filter((entry) => entry.type !== "none") ?? [];
+  if (!active || entries.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-border bg-popover px-3 py-2 shadow-elevation-lg">
@@ -160,7 +163,7 @@ export function ChartTooltip({
         </p>
       )}
       <div className="space-y-0.5">
-        {payload.map((entry, i) => (
+        {entries.map((entry, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
             {entry.color && (
               <span

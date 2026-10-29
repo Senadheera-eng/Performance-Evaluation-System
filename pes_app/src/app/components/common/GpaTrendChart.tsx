@@ -129,6 +129,8 @@ export function GpaTrendChart({
             name="Semester GPA"
             stroke="none"
             fill={`url(#${gradientId})`}
+            // The fill under the line is decoration: the line reports the value.
+            tooltipType="none"
             animationDuration={chartDuration}
           />
           <Line
