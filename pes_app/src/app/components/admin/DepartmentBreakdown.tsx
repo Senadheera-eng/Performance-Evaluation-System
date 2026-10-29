@@ -18,7 +18,7 @@ interface Row {
  * first-year) get a neutral row of their own, so the rows add up to the
  * total above.
  */
-export function DepartmentBreakdown() {
+export function DepartmentBreakdown({ bare = false }: { bare?: boolean } = {}) {
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
@@ -62,12 +62,8 @@ export function DepartmentBreakdown() {
 
   const maxStudents = Math.max(1, ...(rows ?? []).map((r) => r.students));
 
-  return (
-    <SectionCard
-      title="By department"
-      description="Active students and catalogue courses in each department."
-      flush
-    >
+  const body = (
+    <>
       {rows === null ? (
         <div className="p-4">
           <SkeletonRows count={5} height="h-10" />
@@ -120,6 +116,18 @@ export function DepartmentBreakdown() {
           })}
         </ul>
       )}
+    </>
+  );
+
+  /* Bare, inside another card's tab; otherwise a card of its own. */
+  if (bare) return body;
+  return (
+    <SectionCard
+      title="By department"
+      description="Active students and catalogue courses in each department."
+      flush
+    >
+      {body}
     </SectionCard>
   );
 }

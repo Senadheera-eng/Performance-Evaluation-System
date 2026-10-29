@@ -117,7 +117,9 @@ export function HeroCard({
       initial={reduce ? false : "hidden"}
       animate="show"
       className={cn(
-        "relative overflow-hidden rounded-card p-5 sm:p-6",
+        // A column, so a hero stretched beside a taller card keeps its
+        // footer at the bottom instead of a gap under it.
+        "relative flex flex-col overflow-hidden rounded-card p-5 sm:p-6",
         brand
           ? "surface-hero shadow-elevation-md"
           : "surface-tint border border-primary/15 shadow-elevation-sm",
@@ -175,7 +177,9 @@ export function HeroCard({
         {aside && <div className="min-w-0">{aside}</div>}
       </div>
       {footer && (
-        <div className={cn("mt-5 border-t pt-4", brand ? "border-white/20" : "border-border")}>{footer}</div>
+        <div className="mt-auto pt-5">
+          <div className={cn("border-t pt-4", brand ? "border-white/20" : "border-border")}>{footer}</div>
+        </div>
       )}
     </motion.section>
   );
