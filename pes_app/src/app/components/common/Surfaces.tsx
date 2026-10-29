@@ -190,6 +190,8 @@ export interface StripItem {
   value: React.ReactNode;
   icon?: LucideIcon;
   tone?: StatusTone;
+  /** Makes the chip a link to the page that explains the number. */
+  onClick?: () => void;
 }
 
 const STRIP_TONE: Record<StatusTone, string> = {
@@ -216,28 +218,40 @@ export function StatStrip({
 }) {
   return (
     <ul className={cn("flex flex-wrap gap-2", className)}>
-      {items.map((it) => (
-        <li
-          key={it.label}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs",
-            onHero
-              ? "bg-white/12 text-[var(--hero-muted)] ring-1 ring-inset ring-white/20"
-              : "bg-card text-muted-foreground ring-1 ring-inset ring-border",
-          )}
-        >
-          {it.icon && (
-            <it.icon
-              className={cn("h-3.5 w-3.5", onHero ? "text-white" : STRIP_TONE[it.tone ?? "neutral"])}
-              aria-hidden="true"
-            />
-          )}
-          <span className={cn("font-semibold tabular-nums", onHero ? "text-white" : "text-foreground")}>
-            {it.value}
-          </span>
-          <span>{it.label}</span>
-        </li>
-      ))}
+      {items.map((it) => {
+        const chip = cn(
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors",
+          onHero
+            ? "bg-white/12 text-[var(--hero-muted)] ring-1 ring-inset ring-white/20"
+            : "bg-card text-muted-foreground ring-1 ring-inset ring-border",
+          it.onClick && (onHero ? "hover:bg-white/20" : "hover:bg-muted"),
+        );
+        const content = (
+          <>
+            {it.icon && (
+              <it.icon
+                className={cn("h-3.5 w-3.5", onHero ? "text-white" : STRIP_TONE[it.tone ?? "neutral"])}
+                aria-hidden="true"
+              />
+            )}
+            <span className={cn("font-semibold tabular-nums", onHero ? "text-white" : "text-foreground")}>
+              {it.value}
+            </span>
+            <span>{it.label}</span>
+          </>
+        );
+        return (
+          <li key={it.label}>
+            {it.onClick ? (
+              <button type="button" onClick={it.onClick} className={chip}>
+                {content}
+              </button>
+            ) : (
+              <span className={chip}>{content}</span>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }

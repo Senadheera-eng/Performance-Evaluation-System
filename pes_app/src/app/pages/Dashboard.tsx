@@ -1,27 +1,29 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  GraduationCap,
-  Calendar,
-  TrendingUp,
-  Award,
-  ArrowRight,
-  BookOpen,
-} from "lucide-react";
+import { GraduationCap, Calendar, ArrowRight, BookOpen } from "lucide-react";
 import { InsightsPanel } from "../components/dashboard/InsightsPanel";
 import { LatestNotices } from "../components/dashboard/LatestNotices";
 import { Button } from "../components/ui/button";
 import {
+  AnimatedNumber,
   DepartmentBadge,
   EmptyState,
   GpaTrendChart,
   CourseAttendanceChart,
+  HeroCard,
+  PillTabs,
+  Reveal,
   SectionCard,
+  SkeletonHero,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
+  Sparkline,
+  StatStrip,
   StatusBadge,
+  TabPanel,
+  heroButtonClass,
+  heroGhostButtonClass,
+  usePageMotion,
   type StatusTone,
 } from "../components/common";
 import { cn } from "../components/ui/utils";
@@ -49,6 +51,7 @@ export default function Dashboard() {
   const { student } = useAuth();
   const navigate = useNavigate();
   const settings = useSettings();
+  const pageMotion = usePageMotion();
   const threshold = settings.attendanceThreshold;
   const prewarning = settings.attendancePrewarningThreshold;
 
@@ -176,16 +179,50 @@ export default function Dashboard() {
     pct === null ? "neutral" : pct < threshold ? "danger" : pct < prewarning ? "warning" : "success";
 
   const scoredCourses = courses.filter((c) => c.attendance !== null);
+  const [trend, setTrend] = useState<"gpa" | "attendance">("gpa");
+
+  // The class the CGPA puts the student in, from the faculty's thresholds.
+  const classLabel =
+    cgpa === null
+      ? null
+      : settings.honoursClassifications.find((c) => cgpa >= c.threshold)?.label ?? "Below Pass";
+
+  /* One sentence under each chart saying what it means. Worked out from the
+     same numbers the chart draws, so the two can never disagree. */
+  const gpaTakeaway = (() => {
+    if (semesterData.length === 0) return undefined;
+    const last = semesterData[semesterData.length - 1];
+    if (semesterData.length === 1) return `Your first SGPA is ${last.gpa.toFixed(2)}.`;
+    const prev = semesterData[semesterData.length - 2];
+    const diff = last.gpa - prev.gpa;
+    const best = semesterData.reduce((a, b) => (b.gpa > a.gpa ? b : a));
+    const move =
+      Math.abs(diff) < 0.05
+        ? `Your SGPA held steady at ${last.gpa.toFixed(2)} in ${last.semester}`
+        : `Your SGPA ${diff > 0 ? "rose" : "fell"} from ${prev.gpa.toFixed(2)} to ${last.gpa.toFixed(2)} in ${last.semester}`;
+    return `${move}. Your best so far is ${best.gpa.toFixed(2)} (${best.semester}).`;
+  })();
+
+  const awaiting = courses.length - scoredCourses.length;
+  const attendanceTakeaway = (() => {
+    if (scoredCourses.length === 0) return undefined;
+    const below = scoredCourses.filter((c) => (c.attendance ?? 0) < threshold);
+    const more = awaiting > 0 ? ` ${awaiting} more ${awaiting === 1 ? "is" : "are"} waiting for a first lecture.` : "";
+    if (below.length > 0) {
+      return `${below.length} course${below.length === 1 ? " is" : "s are"} below the ${threshold}% requirement: ${below
+        .map((c) => c.code)
+        .join(", ")}.${more}`;
+    }
+    return `${scoredCourses.length === 1 ? "Your one course" : `All ${scoredCourses.length} courses`} with lectures recorded ${
+      scoredCourses.length === 1 ? "is" : "are"
+    } at or above ${threshold}%.${more}`;
+  })();
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+      <motion.div {...pageMotion}>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Welcome back, {surname}
         </h1>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -196,78 +233,86 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Headline numbers — each opens the page that explains it. */}
-      {loading ? (
-        <SkeletonStatGrid count={4} />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            label="Current CGPA"
-            value={cgpa?.toFixed(2) ?? "—"}
-            hint={cgpa === null ? "No published results yet" : "Cumulative GPA"}
-            icon={TrendingUp}
-            tone="brand"
-            onClick={() => navigate("/app/results")}
-            index={0}
-          />
-          <StatCard
-            label="Enrolled now"
-            value={courses.length}
-            hint={courses.length === 1 ? "course" : "courses"}
-            icon={GraduationCap}
-            tone="info"
-            onClick={() => navigate("/app/enrollment")}
-            index={1}
-          />
-          <StatCard
-            label="Avg. attendance"
-            value={avgAttendance === null ? "—" : `${avgAttendance}%`}
-            /* Saying "below the required 80%" to a student whose lectures
-               have simply not been marked yet is a warning about nothing. */
-            hint={
-              avgAttendance === null
-                ? "No lectures recorded yet"
-                : avgAttendance >= threshold
-                  ? `Required: ${threshold}%`
-                  : `Below the required ${threshold}%`
+      {/* The number a student comes for, and what needs them now, side by
+          side. The other headline numbers ride along the hero's foot, each
+          still opening the page that explains it. */}
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        {loading ? (
+          <SkeletonHero className="lg:col-span-2" />
+        ) : (
+          <HeroCard
+            className="lg:col-span-2"
+            eyebrow="Current CGPA"
+            value={cgpa === null ? "—" : <AnimatedNumber value={cgpa} decimals={2} />}
+            label={classLabel}
+            meta={
+              cgpa === null
+                ? "Your CGPA appears once your first results are published."
+                : "Cumulative GPA over every published result."
             }
-            icon={Calendar}
-            tone={attendanceTone(avgAttendance)}
-            onClick={() => navigate("/app/attendance")}
-            index={2}
+            progress={{
+              value: totalCredits,
+              max: settings.graduationTotalCredits,
+              label: "Credits completed towards graduation",
+              caption: `${totalCredits} of ${settings.graduationTotalCredits} credits completed`,
+            }}
+            actions={
+              <>
+                <Button size="sm" className={heroButtonClass} onClick={() => navigate("/app/results")}>
+                  View results
+                </Button>
+                <Button size="sm" variant="ghost" className={heroGhostButtonClass} onClick={() => navigate("/app/planner")}>
+                  Graduation Planner
+                </Button>
+              </>
+            }
+            aside={
+              semesterData.length > 1 ? (
+                <div className="hidden flex-col items-start gap-1 sm:flex lg:items-end">
+                  <Sparkline
+                    onHero
+                    data={semesterData.map((p) => ({ label: p.semester, value: p.gpa }))}
+                  />
+                  <p className="text-[11px] text-[var(--hero-muted)]">SGPA by semester</p>
+                </div>
+              ) : undefined
+            }
+            footer={
+              <StatStrip
+                onHero
+                items={[
+                  {
+                    label: courses.length === 1 ? "course this semester" : "courses this semester",
+                    value: courses.length,
+                    icon: GraduationCap,
+                    onClick: () => navigate("/app/enrollment"),
+                  },
+                  {
+                    /* Saying "below the required 80%" to a student whose lectures
+                       have simply not been marked yet is a warning about nothing. */
+                    label:
+                      avgAttendance === null
+                        ? "attendance: no lectures recorded yet"
+                        : avgAttendance >= threshold
+                          ? `average attendance · ${threshold}% required`
+                          : `average attendance · below the required ${threshold}%`,
+                    value: avgAttendance === null ? "—" : `${avgAttendance}%`,
+                    icon: Calendar,
+                    onClick: () => navigate("/app/attendance"),
+                  },
+                ]}
+              />
+            }
           />
-          <StatCard
-            label="Credits completed"
-            value={totalCredits}
-            hint={`of ${settings.graduationTotalCredits} to graduate`}
-            icon={Award}
-            tone="neutral"
-            onClick={() => navigate("/app/planner")}
-            index={3}
-          />
-        </div>
-      )}
+        )}
 
-      {/* What the system noticed without being asked. Renders nothing when
-          there is nothing to say. */}
-      <InsightsPanel />
-
-      {/* Trends, above the semester's course list: how the degree is going
-          is the first thing a student comes to the dashboard to see. */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <GpaTrendChart data={semesterData} cgpa={cgpa ?? 0} loading={loading} height={240} />
-        <CourseAttendanceChart
-          title="Attendance by course"
-          data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
-          threshold={threshold}
-          prewarning={prewarning}
-          awaitingCount={courses.length - scoredCourses.length}
-          loading={loading}
-        />
+        {/* What the system noticed without being asked. */}
+        <InsightsPanel />
       </div>
+
       {/* This semester, with the notice board beside it. The notices column
           hides itself when there are none, and the courses take the width. */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <Reveal index={1} className="flex flex-col gap-4 lg:flex-row lg:items-start">
         <SectionCard
           title="This semester"
           description="The courses you are enrolled on, with attendance for this sitting."
@@ -346,8 +391,51 @@ export default function Dashboard() {
         <div className="w-full empty:hidden lg:w-[380px] lg:flex-shrink-0">
           <LatestNotices />
         </div>
-      </div>
+      </Reveal>
 
+      {/* Trends, both charts in one card: the GPA by semester, or this
+          semester's attendance by course. Each says in a line what it means. */}
+      <Reveal index={2}>
+        <SectionCard
+          title="Trends"
+          description="How your degree is going, semester by semester, and this semester's attendance."
+          bodyClassName="space-y-4"
+        >
+          <PillTabs
+            tabs={[
+              { value: "gpa", label: "GPA trend" },
+              { value: "attendance", label: "Attendance by course" },
+            ]}
+            value={trend}
+            onChange={(v) => setTrend(v as "gpa" | "attendance")}
+            layoutId="dashboard-trends"
+            aria-label="Trend to show"
+          />
+          <TabPanel value={trend}>
+            {trend === "gpa" ? (
+              <GpaTrendChart
+                bare
+                data={semesterData}
+                cgpa={cgpa ?? 0}
+                loading={loading}
+                height={240}
+                takeaway={gpaTakeaway}
+              />
+            ) : (
+              <CourseAttendanceChart
+                bare
+                title="Attendance by course"
+                data={scoredCourses.map((c) => ({ code: c.code, percentage: c.attendance ?? 0 }))}
+                threshold={threshold}
+                prewarning={prewarning}
+                awaitingCount={awaiting}
+                loading={loading}
+                takeaway={attendanceTakeaway}
+              />
+            )}
+          </TabPanel>
+        </SectionCard>
+      </Reveal>
     </div>
   );
 }
