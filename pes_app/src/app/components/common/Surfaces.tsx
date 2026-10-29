@@ -220,7 +220,9 @@ export function StatStrip({
     <ul className={cn("flex flex-wrap gap-2", className)}>
       {items.map((it) => {
         const chip = cn(
-          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors",
+          // A pill on one line; a long label that wraps on a phone keeps
+          // soft corners instead of a lozenge.
+          "inline-flex items-center gap-1.5 rounded-[0.9rem] px-3 py-1 text-left text-xs transition-colors",
           onHero
             ? "bg-white/12 text-[var(--hero-muted)] ring-1 ring-inset ring-white/20"
             : "bg-card text-muted-foreground ring-1 ring-inset ring-border",
