@@ -9,15 +9,23 @@ import {
   Users,
 } from "lucide-react";
 import {
+  AnimatedBar,
   CourseCode,
   EmptyState,
   ErrorState,
   SectionCard,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
   type StatusTone,
 } from "../common";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
 import {
@@ -30,6 +38,10 @@ import {
   type DepartmentQuestionResult,
 } from "../../../lib/staffService";
 import { departmentByCourseCode } from "../../../lib/departments";
+
+/* The shared select cannot hold an empty value, so "all periods" has a
+   stand-in that never reaches the query. */
+const ALL_PERIODS = "__all__";
 
 const RATING_LABELS: Record<string, string> = {
   "1": "Strongly Disagree",
@@ -144,56 +156,44 @@ export function DepartmentFeedback() {
     <div className="space-y-5">
       {error && <ErrorState message={error} onRetry={load} />}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm text-muted-foreground" htmlFor="period-filter">
-          Feedback period
-        </label>
-        <select
-          id="period-filter"
-          value={periodId}
-          onChange={(e) => setPeriodId(e.target.value)}
-          className="h-10 rounded-xl border border-border bg-card px-3 text-sm text-foreground sm:min-w-72"
+      {/* Which round, then the department's figures for it. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <Select
+          value={periodId === "" ? ALL_PERIODS : periodId}
+          onValueChange={(v) => setPeriodId(v === ALL_PERIODS ? "" : v)}
         >
-          <option value="">All periods</option>
-          {periods.map(([id, title]) => (
-            <option key={id} value={id}>
-              {title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          index={0}
-          label="Courses With Feedback"
-          value={rows.length}
-          icon={MessageSquareText}
-          tone="brand"
-        />
-        <StatCard
-          index={1}
-          label="Responses"
-          value={totals.responses}
-          icon={Users}
-          tone="info"
-        />
-        <StatCard
-          index={2}
-          label="Response Rate"
-          value={`${totals.rate}%`}
-          icon={Users}
-          tone={totals.rate >= 50 ? "success" : "warning"}
-          hint="Across the department"
-        />
-        <StatCard
-          index={3}
-          label="Department Average"
-          value={totals.average !== null ? totals.average.toFixed(2) : "—"}
-          icon={Star}
-          tone={ratingTone(totals.average)}
-          hint="Closed periods only"
-        />
+          <SelectTrigger aria-label="Feedback period" className="h-10 w-full rounded-control border-border bg-card sm:w-80">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_PERIODS}>All periods</SelectItem>
+            {periods.map(([id, title]) => (
+              <SelectItem key={id} value={id}>
+                {title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!loading && (
+          <StatStrip
+            items={[
+              { label: "courses with feedback", value: rows.length, icon: MessageSquareText, tone: "brand" },
+              { label: "responses", value: totals.responses, icon: Users, tone: "info" },
+              {
+                label: "response rate across the department",
+                value: `${totals.rate}%`,
+                icon: Users,
+                tone: totals.rate >= 50 ? "success" : "warning",
+              },
+              {
+                label: "department average · closed periods",
+                value: totals.average !== null ? totals.average.toFixed(2) : "—",
+                icon: Star,
+                tone: ratingTone(totals.average),
+              },
+            ]}
+          />
+        )}
       </div>
 
       <SectionCard
@@ -253,9 +253,20 @@ export function DepartmentFeedback() {
                     </td>
                     <td className="px-4 py-2">
                       {l.avg_rating !== null ? (
-                        <StatusBadge tone={ratingTone(l.avg_rating)}>
-                          {l.avg_rating.toFixed(2)}
-                        </StatusBadge>
+                        /* Out of five as a bar too, so the lecturers compare
+                           down the column. */
+                        <span className="flex items-center gap-2">
+                          <AnimatedBar
+                            value={l.avg_rating}
+                            max={5}
+                            tone={ratingTone(l.avg_rating)}
+                            label={`${l.lecturer_name}: ${l.avg_rating.toFixed(2)} out of 5`}
+                            className="hidden h-1.5 w-20 sm:block"
+                          />
+                          <StatusBadge tone={ratingTone(l.avg_rating)}>
+                            {l.avg_rating.toFixed(2)}
+                          </StatusBadge>
+                        </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">
                           Not enough responses

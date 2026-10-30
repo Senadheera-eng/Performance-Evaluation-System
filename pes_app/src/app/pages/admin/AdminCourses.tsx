@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, BookOpen, Pencil, Plus } from "lucide-react";
+import { BookOpen, GraduationCap, ListChecks, Pencil, Plus, Shapes } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
   CourseEditorDialog,
   type EditableCourse,
 } from "../../components/courses/CourseEditorDialog";
 import { MinorSpecifications } from "../../components/courses/MinorSpecifications";
-import { Input } from "../../components/ui/input";
 import {
   DepartmentName,
   DepartmentSelect,
   EmptyState,
   PageHeader,
+  SearchField,
   SectionCard,
   SegmentedTabs,
   SkeletonRows,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
 import { cn } from "../../components/ui/utils";
@@ -244,22 +245,22 @@ export function CourseManagement({
         )
       ) : (
         <>
-      {/* The counts, as a line rather than four cards: they describe the
+      {/* The counts, as chips rather than four cards: they describe the
           list below, and the category badges on each row already carry
           them. The cards were four literal colours (blue, purple, green)
           that meant nothing elsewhere in the system. */}
-      <p className="text-sm text-muted-foreground">
-        {loading ? (
-          "Loading the catalogue…"
-        ) : (
-          <>
-            <strong className="font-semibold text-foreground">{courses.length}</strong> courses ·{" "}
-            {courses.filter((c) => c.category === "Compulsory").length} compulsory ·{" "}
-            {courses.filter((c) => c.category === "Elective").length} elective ·{" "}
-            {courses.filter((c) => c.minorCategory !== null).length} counting toward a minor
-          </>
-        )}
-      </p>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading the catalogue…</p>
+      ) : (
+        <StatStrip
+          items={[
+            { label: "courses", value: courses.length, icon: BookOpen, tone: "brand" },
+            { label: "compulsory", value: courses.filter((c) => c.category === "Compulsory").length, icon: ListChecks, tone: "info" },
+            { label: "elective", value: courses.filter((c) => c.category === "Elective").length, icon: Shapes },
+            { label: "counting toward a minor", value: courses.filter((c) => c.minorCategory !== null).length, icon: GraduationCap },
+          ]}
+        />
+      )}
 
       {/* Search, department (super admin) and semester filters */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -274,19 +275,12 @@ export function CourseManagement({
             className="lg:w-72"
           />
         )}
-        <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            placeholder="Search by course code or name..."
-            aria-label="Search courses"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 border-border bg-card pl-9"
-          />
-        </div>
+        <SearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by course code or name"
+          label="Search courses"
+        />
         <SegmentedTabs
           aria-label="Filter by semester"
           layoutId="catalogue-semester-filter"
@@ -344,8 +338,11 @@ export function CourseManagement({
                         <StatusBadge tone="neutral">Non-GPA</StatusBadge>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Sem {course.semester} · {course.credits} credits ·{" "}
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-muted px-1.5 py-px font-medium text-foreground/80">
+                        Sem {course.semester}
+                      </span>
+                      <span className="tabular-nums">{course.credits} credits</span> ·{" "}
                       <DepartmentName department={course.department} />
                       {/* How the course is marked, on the row that manages it
                           — the split is a property of the course now, so it

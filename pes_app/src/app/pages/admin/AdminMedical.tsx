@@ -1,27 +1,37 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   FileHeart,
-  Search,
   Clock,
   CheckCircle2,
   XCircle,
   Paperclip,
   Calendar,
-  AlertCircle,
   Users,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
-import { Badge } from "../../components/ui/badge";
-import { CourseCode, SegmentedTabs } from "../../components/common";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import {
+  CourseCode,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  PillTabs,
+  SearchField,
+  SectionCard,
+  SkeletonRows,
+  StatusBadge,
+  useExpandMotion,
+  type StatusTone,
+} from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeAdminReach } from "../../../lib/adminScope";
@@ -78,13 +88,21 @@ const OVERALL_STATUS_LABELS: Record<string, string> = {
   mixed: "Mixed Decision",
 };
 
+const OVERALL_STATUS_TONE: Record<string, StatusTone> = {
+  approved: "success",
+  rejected: "danger",
+  pending: "warning",
+  partially_approved: "info",
+  mixed: "warning",
+};
+
 export default function AdminMedical() {
   const { student: admin } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const reduce = useReducedMotion();
+  const expand = useExpandMotion();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "pending" | "approved" | "rejected" | "all"
@@ -162,7 +180,6 @@ export default function AdminMedical() {
   };
 
   const handleViewFile = async (fileKey: string, fileUrl: string) => {
-    setActionError(null);
     if (signedUrls[fileKey]) {
       window.open(signedUrls[fileKey], "_blank");
       return;
@@ -172,7 +189,7 @@ export default function AdminMedical() {
       .createSignedUrl(fileUrl, 60 * 10);
 
     if (error || !data?.signedUrl) {
-      setActionError("Could not open this file. Please try again.");
+      toast.error("Could not open this file. Please try again.");
       return;
     }
     setSignedUrls((prev) => ({ ...prev, [fileKey]: data.signedUrl }));
@@ -184,8 +201,6 @@ export default function AdminMedical() {
     decision: "approved" | "rejected",
   ) => {
     setSavingItem(mscId);
-    setActionError(null);
-    setActionNotice(null);
 
     const { data, error } = await supabase.rpc(
       "review_medical_submission_course",
@@ -197,55 +212,32 @@ export default function AdminMedical() {
     );
 
     if (error) {
-      setActionError(error.message || "This course item could not be reviewed.");
+      toast.error(error.message || "This course item could not be reviewed.");
       setSavingItem(null);
       return;
     }
 
-    setActionNotice(data?.message ?? "Review saved.");
+    toast.success(data?.message ?? "Review saved.");
     setReviewingItem(null);
     setReviewNotes("");
     setSavingItem(null);
     await fetchSubmissions();
   };
 
-  const itemBadge = (status: string) => {
-    if (status === "approved")
-      return (
-        <Badge className="bg-success-bg text-success-fg">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Approved
-        </Badge>
-      );
-    if (status === "rejected")
-      return (
-        <Badge className="bg-danger-bg text-danger-fg">
-          <XCircle className="h-3 w-3 mr-1" />
-          Rejected
-        </Badge>
-      );
-    return (
-      <Badge className="bg-warning-bg text-warning-fg">
-        <Clock className="h-3 w-3 mr-1" />
-        Pending
-      </Badge>
+  const itemBadge = (status: string) =>
+    status === "approved" ? (
+      <StatusBadge tone="success" icon={CheckCircle2}>Approved</StatusBadge>
+    ) : status === "rejected" ? (
+      <StatusBadge tone="danger" icon={XCircle}>Rejected</StatusBadge>
+    ) : (
+      <StatusBadge tone="warning" icon={Clock}>Pending</StatusBadge>
     );
-  };
 
-  const overallBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      approved: "bg-success-bg text-success-fg",
-      rejected: "bg-danger-bg text-danger-fg",
-      pending: "bg-warning-bg text-warning-fg",
-      partially_approved: "bg-info-bg text-info-fg",
-      mixed: "bg-warning-bg text-warning-fg",
-    };
-    return (
-      <Badge className={styles[status] ?? "bg-muted text-muted-foreground"}>
-        {OVERALL_STATUS_LABELS[status] ?? status}
-      </Badge>
-    );
-  };
+  const overallBadge = (status: string) => (
+    <StatusBadge tone={OVERALL_STATUS_TONE[status] ?? "neutral"}>
+      {OVERALL_STATUS_LABELS[status] ?? status}
+    </StatusBadge>
+  );
 
   // A submission's relevance to the "my status" filter is judged by this
   // admin's own course items only — not the submission's overall status,
@@ -290,293 +282,243 @@ export default function AdminMedical() {
 
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Medical Submissions
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Submissions covering courses {admin?.role === "super_admin" ? "across" : "in"}{" "}
-          {describeAdminReach(admin)}.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Medical Submissions"
+        description={`Submissions covering courses ${admin?.role === "super_admin" ? "across" : "in"} ${describeAdminReach(admin)}.`}
+      />
 
-      {actionError && (
-        <div className="p-3 rounded-xl bg-danger-bg border border-danger-border flex items-center gap-2 text-sm text-danger-fg">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          {actionError}
-        </div>
-      )}
-      {actionNotice && (
-        <div className="p-3 rounded-xl bg-success-bg border border-success-border flex items-center gap-2 text-sm text-success-fg">
-          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-          {actionNotice}
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by student name, reg number, or course code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 bg-card border-border"
-          />
-        </div>
-        <SegmentedTabs
-          aria-label="Filter by review status"
-          layoutId="admin-medical-status"
-          scrollable
-          value={statusFilter}
-          onChange={(v) => setStatusFilter(v as typeof statusFilter)}
-          tabs={[
-            { value: "pending", label: "Pending", count: pendingCount },
-            { value: "approved", label: "Approved" },
-            { value: "rejected", label: "Rejected" },
-            { value: "all", label: "All" },
-          ]}
+      {/* One row of controls: search, the review status, the batch */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <SearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by student name, reg number, or course code"
+          label="Search submissions"
         />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-          Batch:
-        </label>
-        <select
-          value={batchFilter}
-          onChange={(e) =>
-            setBatchFilter(
-              e.target.value === "all" ? "all" : Number(e.target.value),
-            )
-          }
-          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          <option value="all">All Batches</option>
-          {batches.map((b) => (
-            <option key={b} value={b}>
-              {describeBatch(b)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle>
-            Submissions{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({filtered.length})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+        <div className="flex flex-wrap items-center gap-2">
+          <PillTabs
+            aria-label="Filter by review status"
+            layoutId="admin-medical-status"
+            scrollable
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+            tabs={[
+              { value: "pending", label: "Pending", count: pendingCount },
+              { value: "approved", label: "Approved" },
+              { value: "rejected", label: "Rejected" },
+              { value: "all", label: "All" },
+            ]}
+          />
+          <Select
+            value={String(batchFilter)}
+            onValueChange={(v) => setBatchFilter(v === "all" ? "all" : Number(v))}
+          >
+            <SelectTrigger aria-label="Batch" className="h-9 w-48 rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map((b) => (
+                <SelectItem key={b} value={String(b)}>
+                  {describeBatch(b)}
+                </SelectItem>
               ))}
-            </div>
-          ) : loadError ? (
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-danger-fg mx-auto mb-3" />
-              <p className="text-danger-fg font-medium mb-3">{loadError}</p>
-              <Button size="sm" variant="outline" onClick={fetchSubmissions}>
-                Try again
-              </Button>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <FileHeart className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-muted-foreground">No submissions found.</p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {Object.entries(groupedByBatch).map(([batchKey, batchSubs]) => (
-                <div key={batchKey}>
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    {batchKey === "unknown"
-                      ? "Unknown Batch"
-                      : describeBatch(Number(batchKey))}{" "}
-                    <span className="font-normal normal-case">
-                      ({batchSubs.length})
-                    </span>
-                  </h4>
-                  <div className="space-y-3">
-                    {batchSubs.map((sub, index) => (
-                      <motion.div
-                        key={sub.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: index * 0.03 }}
-                        className="p-3 rounded-xl border border-border bg-card"
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-foreground">
-                                {sub.studentName}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {sub.studentReg}
-                              </span>
-                              {sub.studentIndexNumber && (
-                                <span className="text-xs text-muted-foreground">
-                                  {sub.studentIndexNumber}
-                                </span>
-                              )}
-                              <Badge variant="outline" className="text-xs">
-                                {REASON_LABELS[sub.reasonType] ?? "Other"}
-                              </Badge>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <SectionCard
+        title={
+          <>
+            Submissions{" "}
+            <span className="text-sm font-normal text-muted-foreground">({filtered.length})</span>
+          </>
+        }
+        bodyClassName="space-y-6"
+      >
+        {loading ? (
+          <SkeletonRows count={3} height="h-28" />
+        ) : loadError ? (
+          <ErrorState message={loadError} onRetry={fetchSubmissions} size="inline" />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={FileHeart}
+            title="No submissions found."
+            description={statusFilter === "pending" ? "Nothing is waiting for a decision." : undefined}
+            size="inline"
+          />
+        ) : (
+          Object.entries(groupedByBatch).map(([batchKey, batchSubs]) => (
+            <section key={batchKey}>
+              <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {batchKey === "unknown" ? "Unknown Batch" : describeBatch(Number(batchKey))}
+                <span className="rounded-full bg-muted px-2 py-0.5 font-medium normal-case tracking-normal">
+                  {batchSubs.length}
+                </span>
+              </h3>
+              <div className="grid gap-3 xl:grid-cols-2">
+                {batchSubs.map((sub, index) => (
+                  <motion.article
+                    key={sub.id}
+                    initial={reduce ? false : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: reduce ? 0 : Math.min(index * 0.03, 0.2) }}
+                    className="flex flex-col rounded-card border border-border bg-card p-4"
+                  >
+                    <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-foreground">{sub.studentName}</span>
+                          <StatusBadge tone="neutral">{REASON_LABELS[sub.reasonType] ?? "Other"}</StatusBadge>
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {sub.studentReg}
+                          {sub.studentIndexNumber ? ` · ${sub.studentIndexNumber}` : ""} ·{" "}
+                          {sub.studentDepartment ?? "—"}
+                          {sub.studentBatchYear ? ` · ${describeBatch(sub.studentBatchYear)}` : ""}
+                        </p>
+                      </div>
+                      {overallBadge(sub.overallStatus)}
+                    </div>
+
+                    <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" aria-hidden="true" />
+                      {sub.missedDate}
+                      {sub.endDate ? ` → ${sub.endDate}` : ""} · Submitted{" "}
+                      {new Date(sub.submittedAt).toLocaleDateString()}
+                    </p>
+
+                    {sub.description && (
+                      <p className="mb-2 text-sm text-foreground/80">{sub.description}</p>
+                    )}
+
+                    <div className="mb-2 space-y-2">
+                      {sub.myItems.map((item) => (
+                        <div
+                          key={item.mscId}
+                          className={`rounded-control border border-border/70 bg-muted/30 p-2.5 transition-colors ${courseRowClass(item.courseCode)}`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <CourseCode code={item.courseCode} className="flex-shrink-0 text-xs" />
+                              <span className="text-sm text-foreground">{item.courseTitle}</span>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {sub.studentDepartment ?? "—"}
-                              {sub.studentBatchYear
-                                ? ` · ${describeBatch(sub.studentBatchYear)}`
-                                : ""}
-                            </p>
-                          </div>
-                          {overallBadge(sub.overallStatus)}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-                          <Calendar className="h-3 w-3" />
-                          {sub.missedDate}
-                          {sub.endDate ? ` → ${sub.endDate}` : ""} · Submitted{" "}
-                          {new Date(sub.submittedAt).toLocaleDateString()}
-                        </div>
-
-                        {sub.description && (
-                          <p className="text-sm text-foreground/80 mb-2">
-                            {sub.description}
-                          </p>
-                        )}
-
-                        <div className="space-y-2 mb-2">
-                          {sub.myItems.map((item) => (
-                            <div
-                              key={item.mscId}
-                              className={`p-2.5 rounded-lg border border-border/70 bg-muted/30 transition-colors ${courseRowClass(item.courseCode)}`}
-                            >
-                              <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <CourseCode code={item.courseCode} className="text-xs flex-shrink-0" />
-                                  <span className="text-sm text-foreground">
-                                    {item.courseTitle}
-                                  </span>
-                                </div>
-                                {itemBadge(item.reviewStatus)}
-                              </div>
-
-                              {item.reviewNotes && item.reviewStatus !== "pending" && (
-                                <p className="text-xs text-muted-foreground bg-background rounded-lg p-2 mt-1">
-                                  <strong>Notes:</strong> {item.reviewNotes}
-                                </p>
+                            <div className="flex items-center gap-2">
+                              {itemBadge(item.reviewStatus)}
+                              {item.reviewStatus === "pending" && reviewingItem !== item.mscId && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7"
+                                  onClick={() => {
+                                    setReviewingItem(item.mscId);
+                                    setReviewNotes("");
+                                  }}
+                                >
+                                  Review
+                                </Button>
                               )}
+                            </div>
+                          </div>
 
-                              {item.reviewStatus === "pending" && (
-                                <div className="pt-1.5">
-                                  {reviewingItem === item.mscId ? (
-                                    <div className="space-y-2">
-                                      <Textarea
-                                        placeholder="Optional review notes (shown to the student, especially for rejections)..."
-                                        value={reviewNotes}
-                                        onChange={(e) => setReviewNotes(e.target.value)}
-                                        rows={2}
-                                      />
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          size="sm"
-                                          className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
-                                          disabled={savingItem === item.mscId}
-                                          onClick={() => handleReview(item.mscId, "approved")}
-                                        >
-                                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                                          Approve
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="border-danger-border text-danger-fg hover:bg-danger-bg"
-                                          disabled={savingItem === item.mscId}
-                                          onClick={() => handleReview(item.mscId, "rejected")}
-                                        >
-                                          <XCircle className="h-3.5 w-3.5 mr-1.5" />
-                                          Reject
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          disabled={savingItem === item.mscId}
-                                          onClick={() => {
-                                            setReviewingItem(null);
-                                            setReviewNotes("");
-                                          }}
-                                        >
-                                          Cancel
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
+                          {item.reviewNotes && item.reviewStatus !== "pending" && (
+                            <p className="mt-1.5 rounded-control bg-background p-2 text-xs text-muted-foreground">
+                              <strong>Notes:</strong> {item.reviewNotes}
+                            </p>
+                          )}
+
+                          {/* The decision, opened in place */}
+                          <AnimatePresence initial={false}>
+                            {item.reviewStatus === "pending" && reviewingItem === item.mscId && (
+                              <motion.div
+                                key="review"
+                                variants={expand}
+                                initial="collapsed"
+                                animate="open"
+                                exit="collapsed"
+                                className="overflow-hidden"
+                              >
+                                <div className="space-y-2 pt-2">
+                                  <Textarea
+                                    placeholder="Optional review notes (shown to the student, especially for rejections)..."
+                                    value={reviewNotes}
+                                    onChange={(e) => setReviewNotes(e.target.value)}
+                                    rows={2}
+                                    className="bg-card"
+                                  />
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
+                                      disabled={savingItem === item.mscId}
+                                      onClick={() => handleReview(item.mscId, "approved")}
+                                    >
+                                      <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                      Approve
+                                    </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
+                                      className="border-danger-border text-danger-fg hover:bg-danger-bg"
+                                      disabled={savingItem === item.mscId}
+                                      onClick={() => handleReview(item.mscId, "rejected")}
+                                    >
+                                      <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                                      Reject
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      disabled={savingItem === item.mscId}
                                       onClick={() => {
-                                        setReviewingItem(item.mscId);
+                                        setReviewingItem(null);
                                         setReviewNotes("");
-                                        setActionError(null);
-                                        setActionNotice(null);
                                       }}
                                     >
-                                      Review
+                                      Cancel
                                     </Button>
-                                  )}
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
+                      ))}
+                    </div>
 
-                        {sub.otherDeptPendingCount > 0 && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5 mb-2">
-                            <Users className="h-3 w-3 flex-shrink-0" />
-                            {sub.otherDeptPendingCount} course item
-                            {sub.otherDeptPendingCount > 1 ? "s" : ""} from another
-                            department {sub.otherDeptPendingCount > 1 ? "are" : "is"}{" "}
-                            still awaiting review.
-                          </div>
-                        )}
+                    {sub.otherDeptPendingCount > 0 && (
+                      <p className="mb-2 flex items-center gap-1.5 rounded-control bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                        {sub.otherDeptPendingCount} course item
+                        {sub.otherDeptPendingCount > 1 ? "s" : ""} from another department{" "}
+                        {sub.otherDeptPendingCount > 1 ? "are" : "is"} still awaiting review.
+                      </p>
+                    )}
 
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {sub.files.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">
-                              No files attached
-                            </span>
-                          ) : (
-                            sub.files.map((f) => (
-                              <button
-                                key={f.id}
-                                onClick={() => handleViewFile(f.id, f.file_url)}
-                                className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                              >
-                                <Paperclip className="h-3 w-3" />
-                                {f.file_name}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-border/60 pt-2">
+                      {sub.files.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">No files attached</span>
+                      ) : (
+                        sub.files.map((f) => (
+                          <button
+                            key={f.id}
+                            onClick={() => handleViewFile(f.id, f.file_url)}
+                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                          >
+                            <Paperclip className="h-3 w-3" aria-hidden="true" />
+                            {f.file_name}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+      </SectionCard>
     </div>
   );
 }

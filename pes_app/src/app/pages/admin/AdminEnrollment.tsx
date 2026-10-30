@@ -1,6 +1,6 @@
 import { formatDateTime } from "../../../lib/format";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarPlus,
   GraduationCap,
@@ -12,20 +12,20 @@ import {
   Pencil,
   Archive,
   ChevronDown,
-  ChevronUp,
   Trash2,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
-import { Badge } from "../../components/ui/badge";
 import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +47,20 @@ import {
   CommandItem,
   CommandList,
 } from "../../components/ui/command";
-import { CourseCode, DepartmentSelect, SegmentedTabs } from "../../components/common";
+import {
+  AnimatedBar,
+  CourseCode,
+  DepartmentSelect,
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  SegmentedTabs,
+  SkeletonRows,
+  StatusBadge,
+  useExpandMotion,
+  type StatusTone,
+} from "../../components/common";
+import { cn } from "../../components/ui/utils";
 import { PeriodCourseBreakdown } from "../../components/enrollment/PeriodCourseBreakdown";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -57,12 +70,20 @@ import { departmentByCourseCode, departmentStripeClass } from "../../../lib/depa
 
 type PeriodStatus = "draft" | "scheduled" | "open" | "closed" | "archived";
 
-const STATUS_COLOR: Record<PeriodStatus, string> = {
-  draft: "bg-neutral-bg text-neutral-fg",
-  scheduled: "bg-info-bg text-info-fg",
-  open: "bg-success-bg text-success-fg",
-  closed: "bg-warning-bg text-warning-fg",
-  archived: "bg-neutral-bg text-neutral-fg",
+const STATUS_TONE: Record<PeriodStatus, StatusTone> = {
+  draft: "neutral",
+  scheduled: "info",
+  open: "success",
+  closed: "warning",
+  archived: "neutral",
+};
+
+const STATUS_LABEL: Record<PeriodStatus, string> = {
+  draft: "Draft",
+  scheduled: "Scheduled",
+  open: "Open",
+  closed: "Closed",
+  archived: "Archived",
 };
 
 interface EnrollmentPeriod {
@@ -116,7 +137,7 @@ export default function AdminEnrollment() {
   const [editingPeriod, setEditingPeriod] = useState<EnrollmentPeriod | null>(
     null,
   );
-  const [message, setMessage] = useState<string | null>(null);
+  const expand = useExpandMotion();
   // The open period being given a later closing time.
   const [extending, setExtending] = useState<EnrollmentPeriod | null>(null);
   const [activeTab, setActiveTab] = useState<TabValue>("current");
@@ -139,7 +160,7 @@ export default function AdminEnrollment() {
 
     if (error) {
       console.error("[AdminEnrollment] failed to load periods", error);
-      setMessage("Unable to load enrolment periods.");
+      toast.error("Unable to load enrolment periods.");
       setLoading(false);
       return;
     }
@@ -183,7 +204,7 @@ export default function AdminEnrollment() {
       .update({ status })
       .eq("id", id);
     if (error) {
-      setMessage(`Could not update the period: ${error.message}`);
+      toast.error(`Could not update the period: ${error.message}`);
       return;
     }
     const VERBS: Record<PeriodStatus, string> = {
@@ -193,7 +214,7 @@ export default function AdminEnrollment() {
       closed: "closed",
       archived: "archived",
     };
-    setMessage(`Enrolment period ${VERBS[status]}.`);
+    toast.success(`Enrolment period ${VERBS[status]}.`);
     fetchPeriods();
   };
 
@@ -211,10 +232,10 @@ export default function AdminEnrollment() {
       p_period_id: p.id,
     });
     if (error) {
-      setMessage(error.message);
+      toast.error(error.message);
       return;
     }
-    setMessage((data as { message?: string })?.message ?? "Period removed.");
+    toast.success((data as { message?: string })?.message ?? "Period removed.");
     fetchPeriods();
   };
 
@@ -245,227 +266,232 @@ export default function AdminEnrollment() {
 
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Enrolment Periods
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {isSuperAdmin
+      <PageHeader
+        title="Enrolment Periods"
+        description={
+          isSuperAdmin
             ? "Open and close course enrolment windows for each batch."
-            : "Enrolment windows are managed by the Super Admin. Shown read-only."}
-        </p>
-      </motion.div>
+            : "Enrolment windows are managed by the Super Admin. Shown read-only."
+        }
+        actions={
+          isSuperAdmin && !creating && !editingPeriod ? (
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              New Enrolment Period
+            </Button>
+          ) : undefined
+        }
+      />
 
-      {message && (
-        <div className="p-3 rounded-xl bg-success-bg border border-success-border text-sm text-success-fg">
-          {message}
-        </div>
-      )}
+      <SegmentedTabs
+        aria-label="Filter enrolment periods"
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as TabValue)}
+        layoutId="enrollment-period-tabs"
+        scrollable
+        tabs={TABS.map((t) => ({
+          value: t.value,
+          label: t.label,
+          count: counts[t.value],
+        }))}
+      />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <SegmentedTabs
-          aria-label="Filter enrolment periods"
-          value={activeTab}
-          onChange={(v) => setActiveTab(v as TabValue)}
-          layoutId="enrollment-period-tabs"
-          scrollable
-          tabs={TABS.map((t) => ({
-            value: t.value,
-            label: t.label,
-            count: counts[t.value],
-          }))}
-        />
-        {isSuperAdmin && !creating && !editingPeriod && (
-          <Button
-            onClick={() => setCreating(true)}
-            className="bg-primary hover:bg-primary/90"
+      <AnimatePresence initial={false}>
+        {(creating || editingPeriod) && (
+          <motion.div
+            key={editingPeriod?.id ?? "new"}
+            variants={expand}
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            className="overflow-hidden"
           >
-            <Plus className="h-4 w-4 mr-1.5" />
-            New Enrolment Period
-          </Button>
+            <PeriodForm
+              adminId={admin?.id ?? ""}
+              editing={editingPeriod}
+              existingPeriods={periods}
+              onSaved={(msg) => {
+                setCreating(false);
+                setEditingPeriod(null);
+                toast.success(msg);
+                fetchPeriods();
+              }}
+              onCancel={() => {
+                setCreating(false);
+                setEditingPeriod(null);
+              }}
+            />
+          </motion.div>
         )}
-      </div>
-
-      {(creating || editingPeriod) && (
-        <PeriodForm
-          adminId={admin?.id ?? ""}
-          editing={editingPeriod}
-          existingPeriods={periods}
-          onSaved={(msg) => {
-            setCreating(false);
-            setEditingPeriod(null);
-            setMessage(msg);
-            fetchPeriods();
-          }}
-          onCancel={() => {
-            setCreating(false);
-            setEditingPeriod(null);
-          }}
-        />
-      )}
+      </AnimatePresence>
 
       {loading ? (
-        <div className="h-40 rounded-xl bg-muted animate-pulse" />
+        <SkeletonRows count={3} height="h-24" />
       ) : filteredPeriods.length === 0 ? (
-        <div className="text-center py-16">
-          <GraduationCap className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            No {activeTab} enrolment periods
-          </h3>
-          <p className="text-muted-foreground text-sm">
-            {activeTab === "current"
+        <EmptyState
+          icon={GraduationCap}
+          title={`No ${activeTab} enrolment periods`}
+          description={
+            activeTab === "current"
               ? "Students cannot enrol until a period is opened."
-              : "Nothing to show in this view yet."}
-          </p>
-        </div>
+              : "Nothing to show in this view yet."
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {filteredPeriods.map((p) => (
-            <Card key={p.id} className={`border-border ${departmentStripeClass(p.department)}`}>
-              <CardContent className="p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-foreground">
-                        {p.title}
-                      </span>
-                      <Badge className={STATUS_COLOR[p.status]}>
-                        {p.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {p.department ?? "All Departments"} ·{" "}
-                      {p.batch_year !== null
-                        ? describeBatch(p.batch_year)
-                        : "Repeat students only"}{" "}
-                      · Sem {p.semester} · {p.academic_year}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateTime(p.opens_at)} →{" "}
-                      {formatDateTime(p.closes_at)}
-                      {/* Still open, but past its closing time: students can
-                          no longer enrol until it is extended. */}
-                      {p.status === "open" && new Date(p.closes_at).getTime() < Date.now() && (
-                        <span className="text-warning-fg"> · ended for students</span>
-                      )}
-                    </p>
-                    {p.instructions && (
-                      <p className="text-xs text-foreground mt-1 max-w-md">
-                        {p.instructions}
-                      </p>
-                    )}
+          {filteredPeriods.map((p) => {
+            const open = expandedId === p.id;
+            const eligible = p.eligibleCount ?? 0;
+            const enrolled = p.enrolledCount ?? 0;
+            return (
+            <section
+              key={p.id}
+              className={cn(
+                "rounded-card border border-border bg-card shadow-elevation-sm",
+                departmentStripeClass(p.department),
+              )}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+                <div className="min-w-0 flex-1 basis-[18rem]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-foreground">{p.title}</span>
+                    <StatusBadge tone={STATUS_TONE[p.status]} dot>
+                      {STATUS_LABEL[p.status]}
+                    </StatusBadge>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      {p.enrolledCount ?? 0} / {p.eligibleCount ?? 0} enrolled
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => toggleExpand(p.id)}
-                    >
-                      {expandedId === p.id ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {isSuperAdmin && (
-                      <div className="flex items-center gap-1.5">
-                        {(p.status === "draft" || p.status === "scheduled") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setCreating(false);
-                              setEditingPeriod(p);
-                            }}
-                          >
-                            <Pencil className="h-3.5 w-3.5 mr-1" />
-                            Edit
-                          </Button>
-                        )}
-                        {p.status === "draft" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setStatus(p.id, "scheduled")}
-                          >
-                            <Calendar className="h-3.5 w-3.5 mr-1" />
-                            Schedule
-                          </Button>
-                        )}
-                        {p.status !== "open" && p.status !== "archived" && (
-                          <Button
-                            size="sm"
-                            className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
-                            onClick={() => setStatus(p.id, "open")}
-                          >
-                            <PlayCircle className="h-3.5 w-3.5 mr-1" />
-                            Open
-                          </Button>
-                        )}
-                        {p.status === "open" && (
-                          <Button size="sm" variant="outline" onClick={() => setExtending(p)}>
-                            <CalendarPlus className="h-3.5 w-3.5 mr-1" />
-                            Extend
-                          </Button>
-                        )}
-                        {p.status === "open" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setStatus(p.id, "closed")}
-                          >
-                            <Lock className="h-3.5 w-3.5 mr-1" />
-                            Close
-                          </Button>
-                        )}
-                        {p.status === "closed" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setStatus(p.id, "archived")}
-                          >
-                            <Archive className="h-3.5 w-3.5 mr-1" />
-                            Archive
-                          </Button>
-                        )}
-                        {/* A window that has opened is a record of what
-                            students were offered, so it is archived, never
-                            deleted. One that never opened is just a mistake. */}
-                        {(p.status === "draft" || p.status === "scheduled") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-danger-fg hover:text-danger-fg"
-                            onClick={() => remove(p)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            Delete
-                          </Button>
-                        )}
-                      </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {p.department ?? "All Departments"} ·{" "}
+                    {p.batch_year !== null ? describeBatch(p.batch_year) : "Repeat students only"}{" "}
+                    · Sem {p.semester} · {p.academic_year}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateTime(p.opens_at)} → {formatDateTime(p.closes_at)}
+                    {/* Still open, but past its closing time: students can
+                        no longer enrol until it is extended. */}
+                    {p.status === "open" && new Date(p.closes_at).getTime() < Date.now() && (
+                      <span className="text-warning-fg"> · ended for students</span>
                     )}
+                  </p>
+                  {p.instructions && (
+                    <p className="mt-1 max-w-md text-xs text-foreground">{p.instructions}</p>
+                  )}
+                  {/* How far through its students the window is */}
+                  <div className="mt-2.5 flex max-w-sm items-center gap-2.5">
+                    <AnimatedBar
+                      value={enrolled}
+                      max={Math.max(eligible, 1)}
+                      tone={eligible > 0 && enrolled >= eligible ? "success" : "brand"}
+                      label={`${enrolled} of ${eligible} enrolled`}
+                      className="h-1.5 flex-1"
+                    />
+                    <span className="flex flex-shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                      <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                      {enrolled} / {eligible} enrolled
+                    </span>
                   </div>
                 </div>
 
-                {expandedId === p.id && (
-                  <div className="pt-2 border-t border-border/70">
-                    <PeriodCourseBreakdown
-                      periodId={p.id}
-                      batchYear={p.batch_year}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {isSuperAdmin && (
+                    <>
+                      {(p.status === "draft" || p.status === "scheduled") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCreating(false);
+                            setEditingPeriod(p);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                      )}
+                      {p.status === "draft" && (
+                        <Button size="sm" variant="outline" onClick={() => setStatus(p.id, "scheduled")}>
+                          <Calendar className="h-3.5 w-3.5 mr-1" />
+                          Schedule
+                        </Button>
+                      )}
+                      {p.status !== "open" && p.status !== "archived" && (
+                        <Button
+                          size="sm"
+                          className="bg-[var(--success-600)] text-white hover:bg-[var(--success-700)]"
+                          onClick={() => setStatus(p.id, "open")}
+                        >
+                          <PlayCircle className="h-3.5 w-3.5 mr-1" />
+                          Open
+                        </Button>
+                      )}
+                      {p.status === "open" && (
+                        <Button size="sm" variant="outline" onClick={() => setExtending(p)}>
+                          <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                          Extend
+                        </Button>
+                      )}
+                      {p.status === "open" && (
+                        <Button size="sm" variant="outline" onClick={() => setStatus(p.id, "closed")}>
+                          <Lock className="h-3.5 w-3.5 mr-1" />
+                          Close
+                        </Button>
+                      )}
+                      {p.status === "closed" && (
+                        <Button size="sm" variant="outline" onClick={() => setStatus(p.id, "archived")}>
+                          <Archive className="h-3.5 w-3.5 mr-1" />
+                          Archive
+                        </Button>
+                      )}
+                      {/* A window that has opened is a record of what
+                          students were offered, so it is archived, never
+                          deleted. One that never opened is just a mistake. */}
+                      {(p.status === "draft" || p.status === "scheduled") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-danger-fg hover:text-danger-fg"
+                          onClick={() => remove(p)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Delete
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => toggleExpand(p.id)}
+                    aria-expanded={open}
+                    aria-label={open ? "Hide the courses" : "Show the courses"}
+                  >
+                    <span className="hidden sm:inline">Courses</span>
+                    <ChevronDown
+                      className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
+                      aria-hidden="true"
                     />
-                  </div>
+                  </Button>
+                </div>
+              </div>
+
+              <AnimatePresence initial={false}>
+                {open && (
+                  <motion.div
+                    key="breakdown"
+                    variants={expand}
+                    initial="collapsed"
+                    animate="open"
+                    exit="collapsed"
+                    className="overflow-hidden"
+                  >
+                    <div className="border-t border-border/70 px-4 py-3">
+                      <PeriodCourseBreakdown periodId={p.id} batchYear={p.batch_year} />
+                    </div>
+                  </motion.div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
+              </AnimatePresence>
+            </section>
+            );
+          })}
         </div>
       )}
 
@@ -475,7 +501,7 @@ export default function AdminEnrollment() {
           onClose={() => setExtending(null)}
           onExtended={(msg) => {
             setExtending(null);
-            setMessage(msg);
+            toast.success(msg);
             fetchPeriods();
           }}
         />
@@ -801,13 +827,10 @@ function PeriodForm({
   );
 
   return (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="text-base">
-          {editing ? "Edit Enrolment Period" : "New Enrolment Period"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SectionCard
+      title={editing ? "Edit Enrolment Period" : "New Enrolment Period"}
+      bodyClassName="space-y-3"
+    >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -832,23 +855,24 @@ function PeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Semester
             </label>
-            <select
-              value={semester}
-              onChange={(e) => setSemester(Number(e.target.value))}
-              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
-                </option>
-              ))}
-            </select>
+            <Select value={String(semester)} onValueChange={(v) => setSemester(Number(v))}>
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    Semester {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Batch
             </label>
-            <div className="w-full min-h-9 px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm text-foreground">
+            <div className="w-full min-h-9 px-3 py-2 rounded-control border border-border bg-muted/40 text-sm text-foreground">
               {!batchResolved
                 ? "Working it out…"
                 : batchYear !== null
@@ -917,7 +941,7 @@ function PeriodForm({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left text-sm"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-control border border-border bg-card hover:bg-muted transition-colors text-left text-sm"
               >
                 <span
                   className={
@@ -1000,20 +1024,11 @@ function PeriodForm({
 
         {error && <p className="text-sm text-danger-fg">{error}</p>}
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={onCancel}
-            disabled={saving}
-          >
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            className="flex-1 bg-primary hover:bg-primary/90"
-            onClick={handleSubmit}
-            disabled={saving}
-          >
+          <Button onClick={handleSubmit} disabled={saving}>
             {saving
               ? "Saving..."
               : conflictAcknowledged
@@ -1023,7 +1038,6 @@ function PeriodForm({
                   : "Create as Draft"}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }

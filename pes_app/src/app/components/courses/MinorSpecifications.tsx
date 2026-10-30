@@ -3,6 +3,7 @@ import { Check, ClipboardList, GraduationCap, Pencil, Plus, Trash2, X } from "lu
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import {
+  AnimatedBar,
   EmptyState,
   ErrorState,
   SectionCard,
@@ -202,10 +203,21 @@ export function MinorSpecifications({
                           /* Not an error: a plan can be short while it is
                              still being entered. Worth saying, because a
                              student cannot claim the minor either way. */
-                          <p className="mt-1 text-xs text-warning-fg">
-                            The baskets' minimums add up to {minimums} — fewer than the{" "}
-                            {m.required_credits} credits the minor requires.
-                          </p>
+                          <div className="mt-1">
+                            <p className="text-xs text-warning-fg">
+                              The baskets' minimums add up to {minimums} — fewer than the{" "}
+                              {m.required_credits} credits the minor requires.
+                            </p>
+                            {/* How far the plan has got towards the minor. */}
+                            <AnimatedBar
+                              value={minimums}
+                              max={Math.max(m.required_credits, 1)}
+                              tone="warning"
+                              marker={m.required_credits}
+                              label={`Baskets cover ${minimums} of ${m.required_credits} credits`}
+                              className="mt-1.5 h-1.5 max-w-sm"
+                            />
+                          </div>
                         )}
                       </div>
                     )}

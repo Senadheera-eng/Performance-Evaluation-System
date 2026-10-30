@@ -1,14 +1,24 @@
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Search, Filter, BookOpen } from "lucide-react";
-import { CourseListRow } from "../components/courses/CourseListRow";
+import { BookOpen, ChevronDown } from "lucide-react";
+import {
+  CourseListRow,
+  type CourseListItem,
+  type CourseStatus,
+} from "../components/courses/CourseListRow";
 import { CourseDetailDialog } from "../components/courses/CourseDetailDialog";
 import {
+  ActiveFilters,
   DepartmentChips,
   EmptyState,
+  FilterButton,
   PageHeader,
+  SearchField,
   SegmentedTabs,
+  useExpandMotion,
+  type ActiveFilter,
 } from "../components/common";
+import { cn } from "../components/ui/utils";
 import {
   DEPARTMENTS,
   departmentByCourseCode,
@@ -16,7 +26,6 @@ import {
   type DepartmentKey,
 } from "../../lib/departments";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import {
   Select,
   SelectContent,
@@ -65,6 +74,12 @@ export default function Courses() {
     (StudentMinorPlan & { current_semester: number }) | null
   >(null);
   const [view, setView] = useState<"courses" | "minor">("courses");
+  /* Semester groups the student has opened or closed by hand. Forgotten
+     whenever the list is narrowed, so a search always shows what it found. */
+  const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    setOpenGroups({});
+  }, [searchQuery, activeTab, semesterFilter, deptFilter]);
 
   const loadMinorPlan = async () => {
     const { data, error } = await supabase.rpc("get_my_minor_progress");
@@ -326,6 +341,31 @@ export default function Courses() {
     { value: "not_recorded", label: "Not Recorded", count: count(stats.notRecorded) },
   ];
 
+  const activeFilters: ActiveFilter[] = [
+    ...(deptFilter
+      ? [{ key: "dept", label: deptFilter, onRemove: () => setDeptFilter(null) }]
+      : []),
+    ...(semesterFilter !== "all"
+      ? [{ key: "sem", label: `Semester ${semesterFilter}`, onRemove: () => setSemesterFilter("all") }]
+      : []),
+  ];
+
+  /* The semester being taught now opens; the rest wait behind one line each.
+     Once the student narrows the list (a search, a filter, a status tab)
+     every group that is left opens, since those are what they asked for. */
+  const currentSemester = allCourses.some((c) => c.status === "ongoing")
+    ? Math.max(...allCourses.filter((c) => c.status === "ongoing").map((c) => c.semester))
+    : null;
+  const narrowed =
+    searchQuery !== "" || activeTab !== "all" || semesterFilter !== "all" || deptFilter !== null;
+  const defaultOpen = (semester: number) =>
+    narrowed ||
+    (currentSemester !== null
+      ? semester === currentSemester
+      : semester === coursesBySemester[0]?.semester);
+  const isOpen = (semester: number) => openGroups[semester] ?? defaultOpen(semester);
+  const allOpen = coursesBySemester.every((g) => isOpen(g.semester));
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -360,61 +400,76 @@ export default function Courses() {
         />
       ) : (
         <>
-      {/* Whose courses these are, and a way to see one department's at a
-          time. The list mixes the student's own department with the shared
-          Interdisciplinary modules, and each row carries its department's
-          colour; these chips are the key to it. */}
-      {!loading && curriculumDepts.length > 1 && (
-        <DepartmentChips
-          items={curriculumDepts.map(({ dept, n }) => ({ name: dept.name, count: n }))}
-          value={deptFilter}
-          onChange={setDeptFilter}
-          total={allCourses.length}
-          ariaLabel="Show courses from"
-        />
-      )}
-
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search courses by name or code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search courses"
-            className="pl-9 h-9 bg-card border-border"
-          />
-        </div>
-        <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-          <SelectTrigger className="h-9 px-4 border-border sm:w-52 w-full">
-            <Filter className="h-4 w-4 mr-2 shrink-0" />
-            <SelectValue placeholder="Filter by semester" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Semesters</SelectItem>
-            {semesterOptions.map((sem) => (
-              <SelectItem key={sem} value={String(sem)}>
-                Semester {sem}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tabs */}
-      <div className="w-full">
+      {/* One row of controls: the status tabs, the search, and the rest
+          behind Filters. The department chips, the key to the stripe on every
+          row, and the semester picker wait in there until wanted. */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <SegmentedTabs
           tabs={tabs}
           value={activeTab}
           onChange={setActiveTab}
           layoutId="courses-tab-indicator"
           scrollable
-          className="mb-4"
+          className="lg:flex-shrink-0"
           aria-label="Filter courses by status"
         />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search by name or code"
+            label="Search courses"
+          />
+          <FilterButton count={activeFilters.length}>
+            {!loading && curriculumDepts.length > 1 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Department
+                </p>
+                <DepartmentChips
+                  items={curriculumDepts.map(({ dept, n }) => ({ name: dept.name, count: n }))}
+                  value={deptFilter}
+                  onChange={setDeptFilter}
+                  total={allCourses.length}
+                  ariaLabel="Show courses from"
+                  wrap
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <label
+                htmlFor="courses-semester-filter"
+                className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Semester
+              </label>
+              <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+                <SelectTrigger id="courses-semester-filter" className="h-9 w-full">
+                  <SelectValue placeholder="Filter by semester" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Semesters</SelectItem>
+                  {semesterOptions.map((sem) => (
+                    <SelectItem key={sem} value={String(sem)}>
+                      Semester {sem}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </FilterButton>
+        </div>
+      </div>
 
+      <ActiveFilters
+        filters={activeFilters}
+        onClearAll={() => {
+          setSemesterFilter("all");
+          setDeptFilter(null);
+        }}
+      />
+
+      <div className="w-full">
         {/* Tab Content — keyed on the active tab so switching tabs plays a
             real transition (the panel slides out, the new one slides in and
             its rows stagger). Without the key, rows shared between two tabs
@@ -432,7 +487,7 @@ export default function Courses() {
                 {Array.from({ length: 12 }, (_, i) => (
                   <div
                     key={i}
-                    className="h-[38px] rounded-lg bg-muted animate-pulse"
+                    className="skeleton-shimmer h-[38px] rounded-control bg-muted"
                   />
                 ))}
               </div>
@@ -467,35 +522,38 @@ export default function Courses() {
                 }
               />
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <p>
+                    {filteredCourses.length} course{filteredCourses.length === 1 ? "" : "s"} in{" "}
+                    {coursesBySemester.length} semester{coursesBySemester.length === 1 ? "" : "s"}
+                  </p>
+                  {coursesBySemester.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !allOpen;
+                        setOpenGroups(
+                          Object.fromEntries(coursesBySemester.map((g) => [g.semester, next])),
+                        );
+                      }}
+                      className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      {allOpen ? "Collapse all" : "Expand all"}
+                    </button>
+                  )}
+                </div>
                 {coursesBySemester.map((group) => (
-                  <div key={group.semester}>
-                    {/* Sticky so the semester a row belongs to stays visible
-                        while scrolling a long list — the card grid conveyed
-                        that purely through spacing, which a dense list loses. */}
-                    <div className="sticky top-14 z-10 -mx-1 mb-2 flex items-center gap-2.5 bg-background/90 px-1 py-1.5 backdrop-blur-sm">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        Semester {group.semester}
-                      </h3>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                        {group.courses.length} course
-                        {group.courses.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    {/* Two across from xl, three only on genuinely wide
-                        screens. Three columns any earlier leaves each cell too
-                        narrow and every course title truncates. */}
-                    <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2 min-[1700px]:grid-cols-3">
-                      {group.courses.map((course, index) => (
-                        <CourseListRow
-                          key={course.id}
-                          course={course}
-                          index={index}
-                          onClick={() => setDetailId(course.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  <SemesterGroup
+                    key={group.semester}
+                    semester={group.semester}
+                    courses={group.courses}
+                    open={isOpen(group.semester)}
+                    onToggle={() =>
+                      setOpenGroups((prev) => ({ ...prev, [group.semester]: !isOpen(group.semester) }))
+                    }
+                    onOpenCourse={setDetailId}
+                  />
                 ))}
               </div>
             )}
@@ -510,5 +568,103 @@ export default function Courses() {
         onOpenChange={(open) => !open && setDetailId(null)}
       />
     </div>
+  );
+}
+
+const GROUP_STATUS_ORDER: { status: CourseStatus; label: string }[] = [
+  { status: "ongoing", label: "ongoing" },
+  { status: "completed", label: "completed" },
+  { status: "not_recorded", label: "not recorded" },
+  { status: "upcoming", label: "upcoming" },
+];
+
+/**
+ * One semester of the curriculum: a header that says what is in it, and the
+ * courses under it, opening and closing with an animation. The header stays
+ * pinned while its courses scroll past, so a row is never far from the
+ * semester it belongs to.
+ */
+function SemesterGroup({
+  semester,
+  courses,
+  open,
+  onToggle,
+  onOpenCourse,
+}: {
+  semester: number;
+  courses: CourseListItem[];
+  open: boolean;
+  onToggle: () => void;
+  onOpenCourse: (id: string) => void;
+}) {
+  const expand = useExpandMotion();
+  const bodyId = `courses-semester-${semester}`;
+  const credits = courses.reduce((n, c) => n + c.credits, 0);
+  const breakdown = GROUP_STATUS_ORDER.map(({ status, label }) => ({
+    label,
+    n: courses.filter((c) => c.status === status).length,
+  }))
+    .filter((b) => b.n > 0)
+    .map((b) => `${b.n} ${b.label}`)
+    .join(" · ");
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className={cn(
+          "sticky top-14 z-10 flex w-full items-center gap-2.5 rounded-control border border-border bg-card/95 px-3 py-2.5 text-left backdrop-blur-sm transition-colors hover:bg-muted/60",
+          open && "mb-2",
+        )}
+      >
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
+            !open && "-rotate-90",
+          )}
+          aria-hidden="true"
+        />
+        <h3 className="text-sm font-semibold text-foreground">Semester {semester}</h3>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          {courses.length} course{courses.length !== 1 ? "s" : ""}
+        </span>
+        <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:block">
+          {breakdown}
+        </span>
+        <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-muted-foreground">
+          {credits} cr
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={bodyId}
+            key="body"
+            variants={expand}
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            className="overflow-hidden"
+          >
+            {/* Two across from xl, three only on genuinely wide screens.
+                Three columns any earlier leaves each cell too narrow and
+                every course title truncates. */}
+            <div className="grid grid-cols-1 gap-1.5 pb-1 xl:grid-cols-2 min-[1700px]:grid-cols-3">
+              {courses.map((course, index) => (
+                <CourseListRow
+                  key={course.id}
+                  course={course}
+                  index={index}
+                  onClick={() => onOpenCourse(course.id)}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
   );
 }

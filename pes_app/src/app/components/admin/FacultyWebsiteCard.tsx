@@ -84,6 +84,14 @@ export function FacultyWebsiteCard() {
     <SectionCard
       title="Faculty website"
       description="What the AI assistant knows from eng.sjp.ac.lk: notices, news, the academic calendar and the faculty's pages. Read again every night."
+      collapsible
+      defaultOpen={false}
+      storageKey="admin-faculty-site"
+      summary={
+        status
+          ? `${status.pages_read} pages read${status.last_read_at ? ` · last read ${relativeTime(status.last_read_at)}` : ""}`
+          : undefined
+      }
       actions={
         <Button size="sm" variant="outline" onClick={readNow} disabled={reading}>
           {reading ? (

@@ -1,19 +1,29 @@
 import { useAvatarUrls } from "../../../lib/avatars";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, UserMinus, UserPlus, Users } from "lucide-react";
+import { UserMinus, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Switch } from "../../components/ui/switch";
+import {
+  AnimatedBar,
   PersonAvatar,
   EmptyState,
   ErrorState,
   PageHeader,
+  PillTabs,
+  SearchField,
   SectionCard,
-  SegmentedTabs,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  TabPanel,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
@@ -89,6 +99,7 @@ export default function HodMentors() {
   }, [roster, query, batch, onlyUnassigned]);
 
   const unassigned = roster.filter((r) => !r.mentor_id).length;
+  const maxLoad = Math.max(1, ...allocations.map((a) => a.total));
 
   const act = async (
     key: string,
@@ -124,42 +135,43 @@ export default function HodMentors() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard
-          index={0}
-          label="Students"
-          value={roster.length}
-          icon={Users}
-          tone="brand"
+      {!loading && (
+        <StatStrip
+          items={[
+            { label: "students", value: roster.length, icon: Users, tone: "brand" },
+            {
+              label: "without a mentor",
+              value: unassigned,
+              icon: UserMinus,
+              tone: unassigned > 0 ? "warning" : "success",
+              // Straight to the students who need one.
+              onClick:
+                unassigned > 0
+                  ? () => {
+                      setTab("students");
+                      setOnlyUnassigned(true);
+                    }
+                  : undefined,
+            },
+            {
+              label: "mentors active",
+              value: allocations.filter((a) => a.total > 0).length,
+              icon: UserPlus,
+              tone: "info",
+            },
+            {
+              label: "lecturers with no mentees yet",
+              value: allocations.filter((a) => a.total === 0).length,
+              icon: Users,
+            },
+          ]}
         />
-        <StatCard
-          index={1}
-          label="Without a Mentor"
-          value={unassigned}
-          icon={UserMinus}
-          tone={unassigned > 0 ? "warning" : "success"}
-        />
-        <StatCard
-          index={2}
-          label="Mentors Active"
-          value={allocations.filter((a) => a.total > 0).length}
-          icon={UserPlus}
-          tone="info"
-        />
-        <StatCard
-          index={3}
-          label="Lecturers Free"
-          value={allocations.filter((a) => a.total === 0).length}
-          icon={Users}
-          tone="neutral"
-          hint="No mentees yet"
-        />
-      </div>
+      )}
 
-      <SegmentedTabs
+      <PillTabs
         tabs={[
-          { value: "students", label: "Students" },
-          { value: "load", label: "Mentor load" },
+          { value: "students", label: "Students", count: roster.length },
+          { value: "load", label: "Mentor load", count: allocations.length },
         ]}
         value={tab}
         onChange={setTab}
@@ -167,216 +179,224 @@ export default function HodMentors() {
         aria-label="Mentor allocation view"
       />
 
-      {tab === "load" ? (
-        <SectionCard
-          title="Students per mentor"
-          description="How the department's mentoring is spread. A lecturer with none is free to take some."
-          flush
-        >
-          {loading ? (
-            <div className="p-4">
-              <SkeletonRows count={4} height="h-12" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[32rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Mentor
-                    </th>
-                    {batches.map((b) => (
-                      <th
-                        key={b}
-                        className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                      >
-                        {describeBatch(b)}
-                      </th>
-                    ))}
-                    <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocations.map((a) => (
-                    <tr key={a.mentor_id} className="border-b border-border/50">
-                      <td className="px-4 py-2">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-foreground">{a.mentor_name}</span>
-                          {a.is_hod && (
-                            <StatusBadge tone="brand">Head</StatusBadge>
-                          )}
-                        </span>
-                      </td>
-                      {batches.map((b) => (
-                        <td
-                          key={b}
-                          className="px-3 py-2 text-center tabular-nums text-muted-foreground"
-                        >
-                          {a.by_batch[String(b)] ?? "—"}
-                        </td>
-                      ))}
-                      <td className="px-4 py-2 text-right">
-                        <span
-                          className={`tabular-nums font-semibold ${
-                            a.total === 0
-                              ? "text-muted-foreground"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {a.total}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
-      ) : (
-        <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, index number or mentor…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant={batch === "all" ? "default" : "outline"}
-                onClick={() => setBatch("all")}
-              >
-                All batches
-              </Button>
-              {batches.map((b) => (
-                <Button
-                  key={b}
-                  size="sm"
-                  variant={batch === b ? "default" : "outline"}
-                  onClick={() => setBatch(b)}
-                >
-                  {describeBatch(b)}
-                </Button>
-              ))}
-              <Button
-                size="sm"
-                variant={onlyUnassigned ? "default" : "outline"}
-                onClick={() => setOnlyUnassigned(!onlyUnassigned)}
-              >
-                <UserMinus className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                Unassigned only
-              </Button>
-            </div>
-          </div>
-
+      <TabPanel value={tab}>
+        {tab === "load" ? (
           <SectionCard
-            title="Students"
-            description={`${filtered.length} shown${unassigned > 0 ? ` · ${unassigned} still without a mentor` : ""}`}
+            title="Students per mentor"
+            description="How the department's mentoring is spread. A lecturer with none is free to take some."
             flush
           >
             {loading ? (
               <div className="p-4">
-                <SkeletonRows count={6} height="h-14" />
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="p-4">
-                <EmptyState
-                  icon={Users}
-                  title="No students match"
-                  description="Try a different batch or clear the search."
-                  size="inline"
-                />
+                <SkeletonRows count={4} height="h-12" />
               </div>
             ) : (
-              <ul className="divide-y divide-border/70">
-                {filtered.map((s) => (
-                  <li
-                    key={s.student_id}
-                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors ${departmentRowClass(s.department)}`}
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                    <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">
-                          {s.name}
-                        </span>
-                        {s.mentor_id ? (
-                          <StatusBadge tone="success">
-                            {s.mentor_name}
-                          </StatusBadge>
-                        ) : (
-                          <StatusBadge tone="warning">No mentor</StatusBadge>
-                        )}
-                        {/* A student who moved into this department keeps the
-                            mentor they already had. Say so, rather than leaving
-                            the head to recognise an unfamiliar name. */}
-                        {s.mentor_id &&
-                          s.mentor_department &&
-                          s.department &&
-                          s.mentor_department !== s.department && (
-                            <StatusBadge tone="warning">
-                              mentor is in {s.mentor_department}
-                            </StatusBadge>
-                          )}
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {s.index_number ?? s.reg_number} ·{" "}
-                        {describeBatch(s.batch_year)}
-                        {s.cgpa !== null && ` · CGPA ${s.cgpa.toFixed(2)}`}
-                      </p>
-                    </div>
-                    </div>
-
-                    <div className="flex flex-shrink-0 items-center gap-2">
-                      <select
-                        className="h-9 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
-                        value={s.mentor_id ?? ""}
-                        disabled={busy !== null}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          if (!next) return;
-                          act(s.student_id, () =>
-                            assignMentor(s.student_id, next),
-                          );
-                        }}
-                        aria-label={`Mentor for ${s.name}`}
-                      >
-                        <option value="">Choose a mentor…</option>
-                        {allocations.map((a) => (
-                          <option key={a.mentor_id} value={a.mentor_id}>
-                            {a.mentor_name} ({a.total})
-                          </option>
-                        ))}
-                      </select>
-                      {s.mentor_id && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy !== null}
-                          onClick={() =>
-                            act(s.student_id, () => clearMentor(s.student_id))
-                          }
-                          aria-label={`Remove ${s.name}'s mentor`}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[32rem] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left">
+                      <th className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Mentor
+                      </th>
+                      {batches.map((b) => (
+                        <th
+                          key={b}
+                          className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                         >
-                          <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                          {describeBatch(b)}
+                        </th>
+                      ))}
+                      <th className="px-4 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allocations.map((a) => (
+                      <tr key={a.mentor_id} className="border-b border-border/50">
+                        <td className="px-4 py-2">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-foreground">{a.mentor_name}</span>
+                            {a.is_hod && (
+                              <StatusBadge tone="brand">Head</StatusBadge>
+                            )}
+                          </span>
+                        </td>
+                        {batches.map((b) => (
+                          <td
+                            key={b}
+                            className="px-3 py-2 text-center tabular-nums text-muted-foreground"
+                          >
+                            {a.by_batch[String(b)] ?? "—"}
+                          </td>
+                        ))}
+                        <td className="px-4 py-2">
+                          {/* The load against the busiest mentor, so an
+                              uneven spread reads down the column. */}
+                          <span className="flex items-center justify-end gap-3">
+                            <AnimatedBar
+                              value={a.total}
+                              max={maxLoad}
+                              tone="info"
+                              label={`${a.mentor_name}: ${a.total} mentees`}
+                              className="hidden h-1.5 w-24 sm:block"
+                            />
+                            <span
+                              className={`w-6 text-right tabular-nums font-semibold ${
+                                a.total === 0
+                                  ? "text-muted-foreground"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {a.total}
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </SectionCard>
-        </>
-      )}
+        ) : (
+          <>
+            {/* One row of controls: search, batch, and the students still
+                without anyone. */}
+            <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+              <SearchField
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by name, index number or mentor"
+                label="Search students"
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <Select
+                  value={batch === "all" ? "all" : String(batch)}
+                  onValueChange={(v) => setBatch(v === "all" ? "all" : Number(v))}
+                >
+                  <SelectTrigger aria-label="Batch" className="h-9 w-56 rounded-control border-border bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All batches</SelectItem>
+                    {batches.map((b) => (
+                      <SelectItem key={b} value={String(b)}>
+                        {describeBatch(b)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                  <Switch checked={onlyUnassigned} onCheckedChange={setOnlyUnassigned} />
+                  Unassigned only{unassigned > 0 ? ` (${unassigned})` : ""}
+                </label>
+              </div>
+            </div>
+
+            <SectionCard
+              title="Students"
+              description={`${filtered.length} shown${unassigned > 0 ? ` · ${unassigned} still without a mentor` : ""}`}
+              flush
+            >
+              {loading ? (
+                <div className="p-4">
+                  <SkeletonRows count={6} height="h-14" />
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="p-4">
+                  <EmptyState
+                    icon={Users}
+                    title="No students match"
+                    description="Try a different batch or clear the search."
+                    size="inline"
+                  />
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/70">
+                  {filtered.map((s) => (
+                    <li
+                      key={s.student_id}
+                      className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors ${departmentRowClass(s.department)}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                      <PersonAvatar name={s.name} url={avatars[s.student_id]} department={s.department} size="sm" />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-medium text-foreground">
+                            {s.name}
+                          </span>
+                          {s.mentor_id ? (
+                            <StatusBadge tone="success">
+                              {s.mentor_name}
+                            </StatusBadge>
+                          ) : (
+                            <StatusBadge tone="warning">No mentor</StatusBadge>
+                          )}
+                          {/* A student who moved into this department keeps the
+                              mentor they already had. Say so, rather than leaving
+                              the head to recognise an unfamiliar name. */}
+                          {s.mentor_id &&
+                            s.mentor_department &&
+                            s.department &&
+                            s.mentor_department !== s.department && (
+                              <StatusBadge tone="warning">
+                                mentor is in {s.mentor_department}
+                              </StatusBadge>
+                            )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {s.index_number ?? s.reg_number} ·{" "}
+                          {describeBatch(s.batch_year)}
+                          {s.cgpa !== null && ` · CGPA ${s.cgpa.toFixed(2)}`}
+                        </p>
+                      </div>
+                      </div>
+
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <Select
+                          value={s.mentor_id ?? undefined}
+                          disabled={busy !== null}
+                          onValueChange={(next) =>
+                            act(s.student_id, () => assignMentor(s.student_id, next))
+                          }
+                        >
+                          <SelectTrigger
+                            aria-label={`Mentor for ${s.name}`}
+                            className="h-9 w-60 rounded-control border-border bg-card"
+                          >
+                            <SelectValue placeholder="Choose a mentor…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allocations.map((a) => (
+                              <SelectItem key={a.mentor_id} value={a.mentor_id}>
+                                {a.mentor_name} ({a.total})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {s.mentor_id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy !== null}
+                            onClick={() =>
+                              act(s.student_id, () => clearMentor(s.student_id))
+                            }
+                            aria-label={`Remove ${s.name}'s mentor`}
+                          >
+                            <UserMinus className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionCard>
+          </>
+        )}
+      </TabPanel>
     </div>
   );
 }

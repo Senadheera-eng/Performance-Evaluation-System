@@ -1,15 +1,25 @@
 import { formatDateTime } from "../../../lib/format";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, GraduationCap, Users } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, GraduationCap, Users } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { cn } from "../../components/ui/utils";
+import {
+  AnimatedBar,
   EmptyState,
   ErrorState,
   PageHeader,
   SectionCard,
   SkeletonRows,
   StatusBadge,
+  useExpandMotion,
   type StatusTone,
 } from "../../components/common";
 import { PeriodCourseBreakdown } from "../../components/enrollment/PeriodCourseBreakdown";
@@ -77,6 +87,7 @@ export default function HodEnrollment() {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [batchFilter, setBatchFilter] = useState<string>("all");
+  const expand = useExpandMotion();
 
   useEffect(() => {
     if (caps.isHod) load();
@@ -190,23 +201,19 @@ export default function HodEnrollment() {
       ) : (
         <>
           {batches.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">
-                Batch
-              </span>
-              <select
-                value={batchFilter}
-                onChange={(e) => setBatchFilter(e.target.value)}
-                className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-              >
-                <option value="all">All batches</option>
+            <Select value={batchFilter} onValueChange={setBatchFilter}>
+              <SelectTrigger aria-label="Batch" className="h-9 w-56 rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All batches</SelectItem>
                 {batches.map((y) => (
-                  <option key={y} value={String(y)}>
+                  <SelectItem key={y} value={String(y)}>
                     {describeBatch(y)}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           )}
 
           <SectionCard
@@ -218,76 +225,107 @@ export default function HodEnrollment() {
             description={`${visible.length} window${visible.length === 1 ? "" : "s"}`}
           >
             <div className="space-y-3">
-                {visible.map((p) => (
-                  <Card key={p.id} className={`border-border ${departmentStripeClass(p.department)}`}>
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-foreground">
-                              {p.title}
-                            </span>
-                            <StatusBadge tone={STATUS_TONE[p.status] ?? "neutral"} dot>
-                              {STATUS_LABEL[p.status] ?? p.status}
-                            </StatusBadge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {p.department ?? "All Departments"} ·{" "}
-                            {p.batch_year === null
-                              ? "Any batch"
-                              : describeBatch(p.batch_year)}{" "}
-                            · Sem {p.semester} · {p.academic_year}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDateTime(p.opens_at)} →{" "}
-                            {formatDateTime(p.closes_at)}
-                          </p>
-                          {p.instructions && (
-                            <p className="text-xs text-foreground mt-1 max-w-md">
-                              {p.instructions}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            {p.enrolledCount ?? 0} / {p.eligibleCount ?? 0}{" "}
-                            enrolled
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            aria-label={
-                              openId === p.id
-                                ? `Hide courses in ${p.title}`
-                                : `Show courses in ${p.title}`
-                            }
-                            onClick={() =>
-                              setOpenId((prev) =>
-                                prev === p.id ? null : p.id,
-                              )
-                            }
+              {visible.map((p) => {
+                const open = openId === p.id;
+                const enrolled = p.enrolledCount ?? 0;
+                const eligible = p.eligibleCount ?? 0;
+                return (
+                  <section
+                    key={p.id}
+                    className={cn(
+                      "overflow-hidden rounded-card border border-border bg-card",
+                      departmentStripeClass(p.department),
+                    )}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">
+                          {p.title}
+                          <StatusBadge
+                            tone={STATUS_TONE[p.status] ?? "neutral"}
+                            dot
+                            className="ml-2 align-middle"
                           >
-                            {openId === p.id ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
+                            {STATUS_LABEL[p.status] ?? p.status}
+                          </StatusBadge>
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {p.department ?? "All Departments"} ·{" "}
+                          {p.batch_year === null
+                            ? "Any batch"
+                            : describeBatch(p.batch_year)}{" "}
+                          · Sem {p.semester} · {p.academic_year}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateTime(p.opens_at)} →{" "}
+                          {formatDateTime(p.closes_at)}
+                        </p>
+                        {p.instructions && (
+                          <p className="mt-1 max-w-md text-xs text-foreground">
+                            {p.instructions}
+                          </p>
+                        )}
                       </div>
-
-                      {openId === p.id && (
-                        <div className="pt-2 border-t border-border/70">
-                          <PeriodCourseBreakdown
-                            periodId={p.id}
-                            batchYear={p.batch_year}
+                      <div className="flex items-center gap-3">
+                        {/* How far the batch has got, as a bar beside the
+                            count. */}
+                        <div className="w-40">
+                          <p className="flex items-center justify-end gap-1.5 text-sm text-muted-foreground">
+                            <Users className="h-4 w-4" aria-hidden="true" />
+                            <span className="tabular-nums">
+                              <span className="font-semibold text-foreground">{enrolled}</span> / {eligible}
+                            </span>{" "}
+                            enrolled
+                          </p>
+                          <AnimatedBar
+                            value={enrolled}
+                            max={Math.max(eligible, 1)}
+                            tone={eligible > 0 && enrolled >= eligible ? "success" : "info"}
+                            label={`${enrolled} of ${eligible} enrolled`}
+                            className="mt-1.5 h-1.5"
                           />
                         </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-expanded={open}
+                          aria-label={
+                            open
+                              ? `Hide courses in ${p.title}`
+                              : `Show courses in ${p.title}`
+                          }
+                          onClick={() =>
+                            setOpenId((prev) => (prev === p.id ? null : p.id))
+                          }
+                        >
+                          <span className="hidden sm:inline">Courses</span>
+                          <ChevronDown
+                            className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {open && (
+                        <motion.div
+                          key="breakdown"
+                          variants={expand}
+                          initial="collapsed"
+                          animate="open"
+                          exit="collapsed"
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t border-border/70 px-4 py-3">
+                            <PeriodCourseBreakdown periodId={p.id} batchYear={p.batch_year} />
+                          </div>
+                        </motion.div>
                       )}
-                    </CardContent>
-                  </Card>
-                ))}
+                    </AnimatePresence>
+                  </section>
+                );
+              })}
             </div>
           </SectionCard>
         </>

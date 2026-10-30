@@ -1,16 +1,20 @@
 import { useState, useEffect } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
   FileHeart,
+  Files,
   Info,
   Loader2,
   Paperclip,
+  Plus,
   Upload,
   X,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -23,6 +27,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "../components/ui/sheet";
+import { useIsMobile } from "../components/ui/use-mobile";
 import { cn } from "../components/ui/utils";
 import {
   CourseCode,
@@ -32,8 +45,10 @@ import {
   PageHeader,
   SectionCard,
   SkeletonRows,
+  StatStrip,
   StatusBadge,
   type StatusTone,
+  type StripItem,
 } from "../components/common";
 import { supabase } from "../../lib/supabase";
 import { departmentByCourseCode } from "../../lib/departments";
@@ -142,8 +157,12 @@ export default function MedicalCertificates() {
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  /* The form lives in a sheet, opened from the header. Closing it keeps what
+     was typed, so a student who steps away to find a date loses nothing. */
+  const [formOpen, setFormOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const reduce = useReducedMotion();
 
   useEffect(() => {
     if (!student?.id) return;
@@ -285,7 +304,6 @@ export default function MedicalCertificates() {
 
   const handleSubmit = async () => {
     setFormError(null);
-    setFormSuccess(null);
 
     if (!startDate) {
       setFormError("Please select the date of the event/onset.");
@@ -371,10 +389,11 @@ export default function MedicalCertificates() {
         }
       }
 
-      setFormSuccess(
-        "Submitted successfully. The relevant department(s) will review it shortly.",
-      );
+      toast.success("Submitted for review", {
+        description: "The relevant department(s) will review it shortly.",
+      });
       resetForm();
+      setFormOpen(false);
       await fetchData();
     } catch {
       setFormError("Something went wrong. Please try again.");
@@ -408,14 +427,32 @@ export default function MedicalCertificates() {
   const willBeLate =
     startDate && daysBetween(new Date(startDate), new Date()) > 14;
 
+  /* The submissions at a glance, by where each one stands. */
+  const statusCount = (...statuses: string[]) =>
+    submissions.filter((x) => statuses.includes(x.status)).length;
+  const stripAll: StripItem[] = [
+    { label: `submission${submissions.length === 1 ? "" : "s"}`, value: submissions.length, icon: Files },
+    { label: "pending review", value: statusCount("pending"), icon: Clock, tone: "info" },
+    { label: "approved", value: statusCount("approved"), icon: CheckCircle2, tone: "success" },
+    { label: "partly approved", value: statusCount("partially_approved", "mixed"), icon: AlertTriangle, tone: "warning" },
+    { label: "rejected", value: statusCount("rejected"), icon: XCircle, tone: "danger" },
+  ];
+  const strip = stripAll.filter((it, i) => i === 0 || it.value !== 0);
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Medical Certificates"
         description="Submit evidence to be excused from lectures missed through illness or bereavement. Each course you name is reviewed by its own department."
+        actions={
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New submission
+          </Button>
+        }
       />
 
-      <div className="flex gap-2.5 rounded-xl border border-info-border bg-info-bg p-3">
+      <div className="flex gap-2.5 rounded-card border border-info-border bg-info-bg p-3">
         <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-info-fg" aria-hidden="true" />
         <p className="text-sm text-foreground">
           Per Faculty policy, evidence must be submitted within{" "}
@@ -425,18 +462,27 @@ export default function MedicalCertificates() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-5">
-        {/* Submission form */}
-        <SectionCard
-          title="New submission"
-          description={
-            term
-              ? `For your ${termLabel(term)} courses.`
-              : "For the courses you are taking this semester."
-          }
-          className="lg:col-span-2"
-          bodyClassName="space-y-4"
+      {/* The form, unchanged field for field, in a sheet: from the right on
+          a wide screen, from the bottom on a phone. */}
+      <Sheet open={formOpen} onOpenChange={setFormOpen}>
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className={cn(
+            // The card surface, as the form had on the page: its fields are
+            // drawn to sit on it.
+            "gap-0 bg-card p-0",
+            isMobile ? "max-h-[92dvh] rounded-t-card" : "w-full sm:max-w-lg",
+          )}
         >
+          <SheetHeader className="border-b border-border px-5 py-4">
+            <SheetTitle className="text-base">New submission</SheetTitle>
+            <SheetDescription>
+              {term
+                ? `For your ${termLabel(term)} courses. Submit within 14 days of the event.`
+                : "For the courses you are taking this semester. Submit within 14 days of the event."}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div>
             <Label htmlFor="medical-reason" className="mb-2 block">
               Reason
@@ -608,31 +654,32 @@ export default function MedicalCertificates() {
               {formError}
             </p>
           )}
-          {formSuccess && (
-            <p role="status" className="flex items-start gap-1.5 text-sm text-success-fg">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-              {formSuccess}
-            </p>
-          )}
-
-          <Button className="w-full" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              "Submit for review"
-            )}
-          </Button>
-        </SectionCard>
+          </div>
+          <SheetFooter className="flex-row justify-end border-t border-border px-5 py-3">
+            <Button variant="outline" onClick={() => setFormOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit for review"
+              )}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
         {/* Submission history */}
         <SectionCard
           title="Your submissions"
           description="Newest first. Each course shows its own department's decision."
-          className="lg:col-span-3"
+          bodyClassName="space-y-4"
         >
+          {!loading && !loadError && submissions.length > 0 && <StatStrip items={strip} />}
           {loading ? (
             <SkeletonRows count={3} height="h-24" />
           ) : loadError ? (
@@ -641,16 +688,32 @@ export default function MedicalCertificates() {
             <EmptyState
               icon={FileHeart}
               title="No submissions yet"
-              description="Use the form to submit evidence for lectures you missed."
+              description="Submit evidence for lectures you missed, and follow each department's decision here."
               size="inline"
+              action={
+                <Button onClick={() => setFormOpen(true)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  New submission
+                </Button>
+              }
             />
           ) : (
-            <ul className="space-y-3">
+            <ul className="grid gap-3 xl:grid-cols-2">
+              {/* A new submission slides in at the top; the ones already
+                  there stay put when the page first loads. */}
+              <AnimatePresence initial={false}>
               {submissions.map((sub) => {
                 const late = isPastDeadline(sub.missed_date, sub.submitted_at);
                 const tone = OVERALL_STATUS_TONE[sub.status] ?? "neutral";
                 return (
-                  <li key={sub.id} className="rounded-xl border border-border p-3">
+                  <motion.li
+                    key={sub.id}
+                    layout={!reduce}
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, y: -12, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: reduce ? 0 : 0.3 }}
+                    className="rounded-card border border-border p-4"
+                  >
                     <div className="mb-2 flex items-start justify-between gap-2">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -747,13 +810,13 @@ export default function MedicalCertificates() {
                         Submitted {formatDate(sub.submitted_at)}
                       </span>
                     </div>
-                  </li>
+                  </motion.li>
                 );
               })}
+              </AnimatePresence>
             </ul>
           )}
         </SectionCard>
-      </div>
     </div>
   );
 }

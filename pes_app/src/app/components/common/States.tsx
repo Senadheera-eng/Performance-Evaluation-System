@@ -38,13 +38,13 @@ export function EmptyState({
     >
       <div
         className={cn(
-          "rounded-2xl bg-muted/60 flex items-center justify-center mb-3",
+          "rounded-card bg-primary/8 ring-1 ring-inset ring-primary/15 flex items-center justify-center mb-3",
           size === "page" ? "h-14 w-14" : "h-11 w-11",
         )}
       >
         <Icon
           className={cn(
-            "text-muted-foreground",
+            "text-primary",
             size === "page" ? "h-7 w-7" : "h-5 w-5",
           )}
           aria-hidden="true"
@@ -93,7 +93,7 @@ export function ErrorState({
       {...motionProps}
       role="alert"
       className={cn(
-        "flex flex-col items-center justify-center text-center rounded-xl",
+        "flex flex-col items-center justify-center text-center rounded-card",
         "border border-danger-border bg-danger-bg/40",
         size === "page" ? "py-12 px-6" : "py-7 px-4",
         className,
@@ -123,8 +123,9 @@ export function ErrorState({
 /* ------------------------------------------------------------------ */
 
 /**
- * Neutral shimmer block. Width/height come from the caller via className, or
- * via `style` when the dimension is computed (chart heights, for instance).
+ * A loading block with a light sweeping across it. Width/height come from the
+ * caller via className, or via `style` when the dimension is computed (chart
+ * heights, for instance). Reduced motion leaves it still.
  */
 export function Skeleton({
   className,
@@ -135,7 +136,7 @@ export function Skeleton({
 }) {
   return (
     <div
-      className={cn("animate-pulse rounded-lg bg-muted", className)}
+      className={cn("skeleton-shimmer rounded-control bg-muted", className)}
       style={style}
       aria-hidden="true"
     />
@@ -147,7 +148,7 @@ export function SkeletonStatGrid({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-[88px]" />
+        <Skeleton key={i} className="h-[104px] rounded-card" />
       ))}
     </div>
   );
@@ -165,6 +166,18 @@ export function SkeletonRows({
       {Array.from({ length: count }).map((_, i) => (
         <Skeleton key={i} className={height} />
       ))}
+    </div>
+  );
+}
+
+/** The footprint of a HeroCard, so the page doesn't jump when it arrives. */
+export function SkeletonHero({ className }: { className?: string }) {
+  return (
+    <div className={cn("rounded-card border border-border bg-card p-5 sm:p-6", className)} aria-hidden="true">
+      <Skeleton className="h-3 w-28" />
+      <Skeleton className="mt-3 h-12 w-40" />
+      <Skeleton className="mt-3 h-3 w-64 max-w-full" />
+      <Skeleton className="mt-5 h-2 w-full max-w-md rounded-full" />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { Bot, Globe, Info, Loader2, RotateCcw, Send, Sparkles } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Bot, Globe, Info, Lightbulb, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { PageHeader, SectionCard } from "../components/common";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import { PageHeader, stagger, listItem } from "../components/common";
 import { ChatMarkdown } from "../components/chat/ChatMarkdown";
 import { cn } from "../components/ui/utils";
 import { getAssistantReply, type ChatHistoryItem } from "../../lib/chatbotEngine";
@@ -44,8 +45,6 @@ const suggestionGroups = [
   },
 ];
 
-const suggestedQuestions = suggestionGroups.flatMap((g) => g.questions);
-
 const GREETING: Message = {
   id: "greeting",
   role: "assistant",
@@ -66,8 +65,11 @@ const timeOf = (d: Date) =>
  * Available", with a capabilities card beside the chat saying the same
  * three things again. None of it was a figure or an action, so it is gone,
  * and the chat takes the height of the screen instead of a fixed 560px.
- * Suggested questions stay: beside the chat on a wide screen, and as a row
- * above the box on a phone until the first question is asked.
+ *
+ * The conversation has the page to itself, centred at a reading width.
+ * Suggested questions open it, as two groups of chips under the greeting;
+ * once a question is asked they move behind a Suggestions button beside the
+ * box, one click away, so they never compete with the answers.
  */
 export default function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([GREETING]);
@@ -75,15 +77,19 @@ export default function AIAssistant() {
   const [inputMessage, setInputMessage] = useState("");
   const [isThinking, setIsThinking] = useState(false);
 
+  const started = messages.some((m) => m.role === "user");
+
   /* Scrolls the conversation, not the page: scrollIntoView moved the whole
-     window to the bottom of the chat on every reply. */
+     window to the bottom of the chat on every reply. Only once a question
+     has been asked: before that the greeting and the suggestions under it
+     read from the top. */
   const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const log = logRef.current;
-    if (log) log.scrollTo({ top: log.scrollHeight, behavior: reduce ? "auto" : "smooth" });
-  }, [messages, isThinking, reduce]);
-
-  const started = messages.some((m) => m.role === "user");
+    if (!log || !started) return;
+    log.scrollTo({ top: log.scrollHeight, behavior: reduce ? "auto" : "smooth" });
+  }, [messages, isThinking, reduce, started]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || isThinking) return;
@@ -150,156 +156,208 @@ export default function AIAssistant() {
         }
       />
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-        {/* The conversation */}
-        <section
-          aria-label="Conversation with the assistant"
-          className="flex h-[calc(100dvh-15rem)] min-h-[26rem] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-elevation-sm lg:col-span-2"
+      {/* The conversation, at a reading width. */}
+      <section
+        aria-label="Conversation with the assistant"
+        className="mx-auto flex h-[calc(100dvh-15rem)] min-h-[26rem] w-full max-w-[860px] flex-col overflow-hidden rounded-card border border-border bg-card shadow-elevation-sm"
+      >
+        <div
+          ref={logRef}
+          role="log"
+          aria-live="polite"
+          className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5"
         >
-          <div
-            ref={logRef}
-            role="log"
-            aria-live="polite"
-            className="flex-1 space-y-3 overflow-y-auto p-4"
-          >
-            {messages.map((message) => {
-              const mine = message.role === "user";
-              return (
-                <motion.div
-                  key={message.id}
-                  initial={reduce ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={cn("flex gap-2", mine ? "justify-end" : "justify-start")}
-                >
-                  {!mine && (
-                    <span
-                      className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
-                      aria-hidden="true"
-                    >
-                      <Bot className="h-4 w-4" />
-                    </span>
+          {messages.map((message) => {
+            const mine = message.role === "user";
+            return (
+              <motion.div
+                key={message.id}
+                initial={reduce ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.22 }}
+                className={cn("flex gap-2", mine ? "justify-end" : "justify-start")}
+                style={{ transformOrigin: mine ? "bottom right" : "bottom left" }}
+              >
+                {!mine && (
+                  <span
+                    className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+                    aria-hidden="true"
+                  >
+                    <Bot className="h-4 w-4" />
+                  </span>
+                )}
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3.5 py-2.5",
+                    mine
+                      ? "rounded-br-md bg-primary text-primary-foreground"
+                      : "rounded-bl-md border border-border bg-muted/40 text-foreground",
                   )}
-                  <div
+                >
+                  <span className="sr-only">{mine ? "You:" : "Assistant:"}</span>
+                  {mine ? (
+                    <p className="whitespace-pre-line text-sm">{message.content}</p>
+                  ) : (
+                    <ChatMarkdown content={message.content} />
+                  )}
+                  <p
                     className={cn(
-                      "max-w-[85%] rounded-2xl px-3 py-2",
-                      mine
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-muted/40 text-foreground",
+                      "mt-1 text-[11px]",
+                      mine ? "text-right text-primary-foreground/70" : "text-muted-foreground",
                     )}
                   >
-                    <span className="sr-only">{mine ? "You:" : "Assistant:"}</span>
-                    {mine ? (
-                      <p className="whitespace-pre-line text-sm">{message.content}</p>
-                    ) : (
-                      <ChatMarkdown content={message.content} />
-                    )}
-                    <p
-                      className={cn(
-                        "mt-1 text-[11px]",
-                        mine ? "text-right text-primary-foreground/70" : "text-muted-foreground",
-                      )}
-                    >
-                      {timeOf(message.timestamp)}
-                    </p>
+                    {timeOf(message.timestamp)}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+
+          {/* Before the first question: what can be asked, in its two
+              groups, as chips to tap. */}
+          {!started && (
+            <motion.div
+              variants={stagger(0.03, 0.15)}
+              initial={reduce ? false : "hidden"}
+              animate="show"
+              className="space-y-4 pt-2 sm:pl-9"
+            >
+              {suggestionGroups.map((group) => (
+                <div key={group.label} className="space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <group.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {group.label}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {group.questions.map((q) => (
+                      <motion.button
+                        key={q}
+                        variants={listItem}
+                        type="button"
+                        disabled={isThinking}
+                        onClick={() => handleSendMessage(q)}
+                        className="flex items-center gap-2 rounded-control border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 active:scale-[0.99] disabled:opacity-60"
+                      >
+                        <group.icon className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
+                        {q}
+                      </motion.button>
+                    ))}
                   </div>
-                </motion.div>
-              );
-            })}
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          <AnimatePresence>
             {isThinking && (
-              <div className="flex justify-start gap-2">
+              <motion.div
+                key="thinking"
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="flex justify-start gap-2"
+              >
                 <span
                   className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
                   aria-hidden="true"
                 >
                   <Bot className="h-4 w-4" />
                 </span>
-                <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-3 py-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-border bg-muted/40 px-3.5 py-2.5 text-muted-foreground">
+                  {/* Three dots, one after another: a reply on its way. */}
+                  <span className="flex items-center gap-1" aria-hidden="true">
+                    {[0, 1, 2].map((i) => (
+                      <motion.span
+                        key={i}
+                        className="h-1.5 w-1.5 rounded-full bg-current"
+                        animate={reduce ? undefined : { opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+                        transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
+                      />
+                    ))}
+                  </span>
                   <span className="text-sm">Looking that up…</span>
                 </div>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
+        </div>
 
-          {/* On a phone the suggestions sit here, one scrolling row, until
-              the first question is asked. */}
-          {!started && (
-            <div className="no-scrollbar flex gap-2 overflow-x-auto border-t border-border/70 px-3 pt-3 lg:hidden">
-              {suggestedQuestions.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => handleSendMessage(q)}
-                  className="flex-shrink-0 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <form
-            className="flex gap-2 p-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage(inputMessage);
-            }}
-          >
-            <Input
-              placeholder="Ask about your results, attendance, a course…"
-              aria-label="Your question"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              disabled={isThinking}
-              maxLength={1000}
-              className="h-10 flex-1"
-            />
-            <Button
-              type="submit"
-              disabled={isThinking || !inputMessage.trim()}
-              aria-label="Send"
-              className="h-10 px-4"
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </form>
-          <p className="flex items-start gap-1.5 px-3 pb-3 text-[11px] text-muted-foreground">
-            <Info className="mt-px h-3 w-3 flex-shrink-0" aria-hidden="true" />
-            The assistant can be wrong. Check anything that matters (a grade,
-            a deadline, a rule) with your department.
-          </p>
-        </section>
-
-        {/* Suggestions beside the chat on a wide screen */}
-        <SectionCard
-          title="Try asking"
-          description="Tap a question to send it."
-          className="hidden lg:block"
-          bodyClassName="space-y-4"
+        <form
+          className="flex gap-2 border-t border-border/70 p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage(inputMessage);
+          }}
         >
-          {suggestionGroups.map((group) => (
-            <div key={group.label} className="space-y-2">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <group.icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {group.label}
-              </p>
-              {group.questions.map((question) => (
-                <button
-                  key={question}
+          {/* Once the chat has started, the suggestions wait here. */}
+          {started && (
+            <Popover open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+              <PopoverTrigger asChild>
+                <Button
                   type="button"
+                  variant="outline"
+                  className="h-10 px-3"
                   disabled={isThinking}
-                  onClick={() => handleSendMessage(question)}
-                  className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  aria-label="Suggested questions"
                 >
-                  <group.icon className="h-3.5 w-3.5 flex-shrink-0 text-primary" aria-hidden="true" />
-                  {question}
-                </button>
-              ))}
-            </div>
-          ))}
-        </SectionCard>
-      </div>
+                  <Lightbulb className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">Suggestions</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                side="top"
+                className="max-h-[60vh] w-[min(26rem,calc(100vw-2rem))] space-y-3 overflow-y-auto rounded-card p-3"
+              >
+                {suggestionGroups.map((group) => (
+                  <div key={group.label} className="space-y-1">
+                    <p className="flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <group.icon className="h-3.5 w-3.5" aria-hidden="true" />
+                      {group.label}
+                    </p>
+                    {group.questions.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => {
+                          setSuggestionsOpen(false);
+                          handleSendMessage(q);
+                        }}
+                        className="block w-full rounded-control px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-muted"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </PopoverContent>
+            </Popover>
+          )}
+          <Input
+            placeholder="Ask about your results, attendance, a course…"
+            aria-label="Your question"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            disabled={isThinking}
+            maxLength={1000}
+            className="h-10 flex-1"
+          />
+          <Button
+            type="submit"
+            disabled={isThinking || !inputMessage.trim()}
+            aria-label="Send"
+            className="h-10 px-4"
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </form>
+        <p className="flex items-start gap-1.5 px-3 pb-3 text-[11px] text-muted-foreground">
+          <Info className="mt-px h-3 w-3 flex-shrink-0" aria-hidden="true" />
+          The assistant can be wrong. Check anything that matters (a grade,
+          a deadline, a rule) with your department.
+        </p>
+      </section>
     </div>
   );
 }

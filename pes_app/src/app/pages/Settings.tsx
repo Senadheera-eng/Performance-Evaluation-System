@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Bell, CheckCircle2, KeyRound, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "../components/ui/button";
-import { PageHeader, SectionCard } from "../components/common";
+import { PageHeader, SPRING, SectionCard } from "../components/common";
 import { ChangePasswordDialog } from "../components/account/ChangePasswordDialog";
 import { cn } from "../components/ui/utils";
 import { useTheme } from "../context/ThemeContext";
@@ -99,20 +100,30 @@ export default function Settings() {
                   aria-checked={active}
                   onClick={() => setTheme(value)}
                   className={cn(
-                    "rounded-xl border-2 p-3 text-center transition-colors",
-                    active
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50",
+                    "relative rounded-control border-2 border-border p-3 text-center transition-colors",
+                    !active && "hover:border-primary/40 hover:bg-muted/40",
                   )}
                 >
-                  <Icon
-                    className={cn(
-                      "mx-auto mb-1.5 h-5 w-5",
-                      active ? "text-primary" : "text-muted-foreground",
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span className="block text-sm font-medium text-foreground">{label}</span>
+                  {/* The selection slides from one option to the next, with
+                      the tabs' spring. */}
+                  {active && (
+                    <motion.span
+                      layoutId="settings-theme-active"
+                      transition={SPRING}
+                      className="absolute -inset-0.5 rounded-control border-2 border-primary bg-primary/5"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="relative block">
+                    <Icon
+                      className={cn(
+                        "mx-auto mb-1.5 h-5 w-5 transition-colors",
+                        active ? "text-primary" : "text-muted-foreground",
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="block text-sm font-medium text-foreground">{label}</span>
+                  </span>
                 </button>
               );
             })}

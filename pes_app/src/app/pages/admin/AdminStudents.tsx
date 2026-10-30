@@ -1,29 +1,35 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  Search,
   Users,
   GraduationCap,
   TrendingUp,
   Calendar,
   ChevronDown,
-  ChevronUp,
   Mail,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   DepartmentChips,
   DepartmentName,
+  EmptyState,
+  PageHeader,
   PersonAvatar,
-  SegmentedTabs,
+  PillTabs,
+  SearchField,
+  SectionCard,
+  SkeletonRows,
+  StatStrip,
+  StatusBadge,
+  useExpandMotion,
 } from "../../components/common";
 import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
@@ -72,7 +78,8 @@ export default function AdminStudents() {
     name: string;
     batchYear: number;
   } | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const reduce = useReducedMotion();
+  const expand = useExpandMotion();
 
   useEffect(() => {
     fetchStudents();
@@ -179,52 +186,86 @@ export default function AdminStudents() {
       return a.name.localeCompare(b.name);
     });
 
+  const withCgpa = batchFiltered.filter((s) => s.cgpa !== null);
+  const withAttendance = batchFiltered.filter((s) => s.hasAttendanceData);
+  const avgCgpa =
+    withCgpa.length > 0
+      ? (withCgpa.reduce((sum, s) => sum + (s.cgpa ?? 0), 0) / withCgpa.length).toFixed(2)
+      : "—";
+  const avgAttendance =
+    withAttendance.length > 0
+      ? `${Math.round(withAttendance.reduce((sum, s) => sum + s.avgAttendance, 0) / withAttendance.length)}%`
+      : "—";
+
+  const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
+
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Student Management
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {scope.kind === "all"
+      <PageHeader
+        title="Student Management"
+        description={
+          scope.kind === "all"
             ? "View and manage all registered students and their academic records."
             : scope.department === "Interdisciplinary Studies"
               ? "Students with results or enrollments in an Interdisciplinary Studies course."
-              : `Students in ${describeAdminReach(currentAdmin)}.`}
-        </p>
-      </motion.div>
+              : `Students in ${describeAdminReach(currentAdmin)}.`
+        }
+      />
 
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
+      {/* The numbers for whatever the batch and department filters show */}
+      {loading ? (
+        <div className="flex gap-2" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton-shimmer h-7 w-36 rounded-full bg-muted" />
+          ))}
         </div>
+      ) : (
+        <StatStrip
+          items={[
+            { label: `student${batchFiltered.length === 1 ? "" : "s"}`, value: batchFiltered.length, icon: Users, tone: "brand" },
+            { label: "average CGPA", value: avgCgpa, icon: TrendingUp, tone: "success" },
+            { label: "average attendance", value: avgAttendance, icon: Calendar, tone: "info" },
+          ]}
+        />
       )}
 
-      {/* Batch filter */}
-      <div className="flex items-center gap-2">
-        <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-          Batch:
-        </label>
-        <select
-          value={batchFilter}
-          onChange={(e) =>
-            setBatchFilter(
-              e.target.value === "all" ? "all" : Number(e.target.value),
-            )
-          }
-          className="h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-        >
-          <option value="all">All Batches</option>
-          {batches.map((b) => (
-            <option key={b} value={b}>
-              {describeBatch(b)}
-            </option>
-          ))}
-        </select>
+      {/* One row of controls: search, batch, sort */}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <SearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by name, reg number or email"
+          label="Search students"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={String(batchFilter)}
+            onValueChange={(v) => setBatchFilter(v === "all" ? "all" : Number(v))}
+          >
+            <SelectTrigger aria-label="Batch" className="h-9 w-52 rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches.map((b) => (
+                <SelectItem key={b} value={String(b)}>
+                  {describeBatch(b)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <PillTabs
+            aria-label="Sort students by"
+            layoutId="admin-students-sort"
+            value={sortBy}
+            onChange={(v) => setSortBy(v as "name" | "cgpa" | "attendance")}
+            tabs={[
+              { value: "name", label: "Name" },
+              { value: "cgpa", label: "CGPA" },
+              { value: "attendance", label: "Attendance" },
+            ]}
+          />
+        </div>
       </div>
 
       {scope.kind === "all" && deptItems.length > 1 && (
@@ -237,306 +278,200 @@ export default function AdminStudents() {
         />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {[
-          {
-            label: "Total Students",
-            value: batchFiltered.length,
-            icon: Users,
-            color: "bg-primary/10 text-primary",
-          },
-          {
-            label: "Avg CGPA",
-            value:
-              batchFiltered.length > 0
-                ? (
-                    batchFiltered
-                      .filter((s) => s.cgpa !== null)
-                      .reduce((sum, s) => sum + (s.cgpa ?? 0), 0) /
-                    batchFiltered.filter((s) => s.cgpa !== null).length
-                  ).toFixed(2)
-                : "—",
-            icon: TrendingUp,
-            color: "bg-success-bg text-success-fg",
-          },
-          {
-            label: "Avg Attendance",
-            value:
-              batchFiltered.filter((s) => s.hasAttendanceData).length > 0
-                ? `${Math.round(
-                    batchFiltered
-                      .filter((s) => s.hasAttendanceData)
-                      .reduce((sum, s) => sum + s.avgAttendance, 0) /
-                      batchFiltered.filter((s) => s.hasAttendanceData).length,
-                  )}%`
-                : "—",
-            icon: Calendar,
-            color: "bg-info-bg text-info-fg",
-          },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: i * 0.1 }}
-            className="bg-card rounded-xl p-3 border border-border shadow-sm"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1.5 rounded-lg ${stat.color}`}>
-                <stat.icon className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">
-                  {loading ? "..." : stat.value}
-                </p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Search and Sort */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, reg number or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 bg-card border-border"
-          />
-        </div>
-        <SegmentedTabs
-          aria-label="Sort students by"
-          layoutId="admin-students-sort"
-          value={sortBy}
-          onChange={(v) => setSortBy(v as "name" | "cgpa" | "attendance")}
-          tabs={[
-            { value: "name", label: "Name" },
-            { value: "cgpa", label: "CGPA" },
-            { value: "attendance", label: "Attendance" },
-          ]}
-        />
-      </div>
-
       {/* Student List */}
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle>
+      <SectionCard
+        title={
+          <>
             Students{" "}
-            <span className="text-muted-foreground font-normal text-sm">
-              ({filtered.length})
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="h-20 rounded-xl bg-muted animate-pulse"
-                />
-              ))}
+            <span className="text-sm font-normal text-muted-foreground">({filtered.length})</span>
+          </>
+        }
+        // Visible overflow, so the column header can stay pinned.
+        className="overflow-visible"
+        flush
+      >
+        {loading ? (
+          <div className="p-4">
+            <SkeletonRows count={6} height="h-14" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-4">
+            <EmptyState icon={Users} title="No students found." size="inline" />
+          </div>
+        ) : (
+          <>
+            {/* Column header, pinned under the top bar on a wide screen */}
+            <div className="sticky top-14 z-10 hidden grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_5.5rem_7.5rem_1.5rem] items-center gap-3 border-b border-border/70 bg-card/95 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm md:grid">
+              <span>Student</span>
+              <span className="text-center">CGPA</span>
+              <span className="text-center">Attendance</span>
+              <span className="text-center">Enrolled</span>
+              <span />
+              <span />
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <p className="text-muted-foreground">No students found.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filtered.map((student, index) => (
-                <motion.div
-                  key={student.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.03 }}
-                >
-                  {/* Student Row */}
-                  {/* Opens with Enter or Space as well as a click: it was a
-                      bare div, which a keyboard could not reach. */}
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={expandedId === student.id}
-                    className={cn(
-                      "p-3 rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                      departmentRowClass(student.department),
-                    )}
-                    onClick={() =>
-                      setExpandedId(
-                        expandedId === student.id ? null : student.id,
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setExpandedId(expandedId === student.id ? null : student.id);
-                      }
-                    }}
+            <ul className="divide-y divide-border/60">
+              {filtered.map((student, index) => {
+                const open = expandedId === student.id;
+                const low = student.hasAttendanceData && student.avgAttendance < 80;
+                return (
+                  <motion.li
+                    key={student.id}
+                    initial={reduce ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: reduce ? 0 : Math.min(index * 0.02, 0.2) }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    {/* Opens with Enter or Space as well as a click: it was a
+                        bare div, which a keyboard could not reach. */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={open}
+                      className={cn(
+                        "grid cursor-pointer grid-cols-[minmax(0,1fr)_1.5rem] items-center gap-3 border-l-4 px-4 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 md:grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_5.5rem_7.5rem_1.5rem]",
+                        departmentRowClass(student.department),
+                        open && "bg-muted/40",
+                      )}
+                      onClick={() => toggle(student.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggle(student.id);
+                        }
+                      }}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
                         <PersonAvatar
                           name={student.name}
                           url={avatars[student.id]}
                           department={student.department}
                           className="h-9 w-9 text-sm"
                         />
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {student.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {student.regNumber} ·{" "}
-                            <DepartmentName department={student.department} />
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-foreground">{student.name}</p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {student.regNumber} · <DepartmentName department={student.department} />
                             {student.department === NO_DEPARTMENT_YET && (
-                              <span className="ml-1 text-xs">
-                                (Super Admin holds their records)
-                              </span>
+                              <span className="ml-1 text-xs">(Super Admin holds their records)</span>
                             )}
                           </p>
+                          {/* On a phone the figures fold under the name */}
+                          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground md:hidden">
+                            <span>
+                              CGPA <strong className="text-foreground tabular-nums">{student.cgpa?.toFixed(2) ?? "—"}</strong>
+                            </span>
+                            <span>
+                              Attendance{" "}
+                              <strong
+                                className={cn(
+                                  "tabular-nums",
+                                  !student.hasAttendanceData
+                                    ? "text-muted-foreground"
+                                    : student.avgAttendance >= 80
+                                      ? "text-success-fg"
+                                      : "text-danger-fg",
+                                )}
+                              >
+                                {student.hasAttendanceData ? `${student.avgAttendance}%` : "—"}
+                              </strong>
+                            </span>
+                            <span>
+                              Enrolled <strong className="text-foreground tabular-nums">{student.enrolledCourses}</strong>
+                            </span>
+                            {low && <StatusBadge tone="danger">Low Attendance</StatusBadge>}
+                          </p>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="hidden md:flex items-center gap-6">
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-foreground tabular-nums">
-                              {student.cgpa?.toFixed(2) ?? "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              CGPA
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p
-                              className={`text-lg font-bold ${
-                                !student.hasAttendanceData
-                                  ? "text-muted-foreground"
-                                  : student.avgAttendance >= 80
-                                    ? "text-success-fg"
-                                    : "text-danger-fg"
-                              }`}
-                            >
-                              {student.hasAttendanceData
-                                ? `${student.avgAttendance}%`
-                                : "—"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Attendance
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-foreground">
-                              {student.enrolledCourses}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Enrolled
-                            </p>
-                          </div>
-                        </div>
-                        {student.hasAttendanceData &&
-                          student.avgAttendance < 80 && (
-                            <Badge className="bg-danger-bg text-danger-fg hidden md:flex">
-                              Low Attendance
-                            </Badge>
-                          )}
-                        {expandedId === student.id ? (
-                          <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <span className="hidden text-center text-base font-bold tabular-nums text-foreground md:block">
+                        {student.cgpa?.toFixed(2) ?? "—"}
+                      </span>
+                      <span
+                        className={cn(
+                          "hidden text-center text-base font-bold tabular-nums md:block",
+                          !student.hasAttendanceData
+                            ? "text-muted-foreground"
+                            : student.avgAttendance >= 80
+                              ? "text-success-fg"
+                              : "text-danger-fg",
                         )}
-                      </div>
+                      >
+                        {student.hasAttendanceData ? `${student.avgAttendance}%` : "—"}
+                      </span>
+                      <span className="hidden text-center text-base font-bold tabular-nums text-foreground md:block">
+                        {student.enrolledCourses}
+                      </span>
+                      <span className="hidden justify-end md:flex">
+                        {low && <StatusBadge tone="danger">Low Attendance</StatusBadge>}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                          open && "rotate-180",
+                        )}
+                        aria-hidden="true"
+                      />
                     </div>
-                  </div>
 
-                  {/* Expanded Details */}
-                  {expandedId === student.id && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="mx-2 p-3 rounded-b-xl border border-t-0 border-border bg-muted/30"
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Email
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              {student.email}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Batch
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              {student.batchYear}/{student.batchYear + 1}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Credits Earned
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              {student.totalCredits}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              CGPA
-                            </p>
-                            <p className="text-sm font-medium text-foreground">
-                              {student.cgpa?.toFixed(2) ?? "No results yet"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Repeating a year moves a student to a later intake.
-                          The change is recorded with a reason and who made
-                          it — the database refuses any other route. */}
-                      <div className="mt-3 flex justify-end border-t border-border/70 pt-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            setMovingStudent({
-                              id: student.id,
-                              name: student.name,
-                              batchYear: student.batchYear,
-                            })
-                          }
+                    {/* Expanded Details */}
+                    <AnimatePresence initial={false}>
+                      {open && (
+                        <motion.div
+                          key="details"
+                          variants={expand}
+                          initial="collapsed"
+                          animate="open"
+                          exit="collapsed"
+                          className="overflow-hidden"
                         >
-                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                          Change intake
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          <div className="border-t border-border/60 bg-muted/30 px-4 py-3 sm:pl-16">
+                            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                              {(
+                                [
+                                  [Mail, "Email", student.email],
+                                  [Calendar, "Batch", `${student.batchYear}/${student.batchYear + 1}`],
+                                  [GraduationCap, "Credits Earned", String(student.totalCredits)],
+                                  [TrendingUp, "CGPA", student.cgpa?.toFixed(2) ?? "No results yet"],
+                                ] as const
+                              ).map(([Icon, label, value]) => (
+                                <div key={label} className="flex min-w-0 items-center gap-2">
+                                  <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+                                  <div className="min-w-0">
+                                    <dt className="text-xs text-muted-foreground">{label}</dt>
+                                    <dd className="truncate text-sm font-medium text-foreground">{value}</dd>
+                                  </div>
+                                </div>
+                              ))}
+                            </dl>
+
+                            {/* Repeating a year moves a student to a later intake.
+                                The change is recorded with a reason and who made
+                                it — the database refuses any other route. */}
+                            <div className="mt-3 flex justify-end border-t border-border/70 pt-3">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setMovingStudent({
+                                    id: student.id,
+                                    name: student.name,
+                                    batchYear: student.batchYear,
+                                  })
+                                }
+                              >
+                                <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                                Change intake
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </SectionCard>
 
       <ChangeBatchDialog
         open={movingStudent !== null}
@@ -545,7 +480,7 @@ export default function AdminStudents() {
         batches={batches}
         onChanged={(message) => {
           setMovingStudent(null);
-          setNotice(message);
+          toast.success(message);
           fetchStudents();
         }}
       />

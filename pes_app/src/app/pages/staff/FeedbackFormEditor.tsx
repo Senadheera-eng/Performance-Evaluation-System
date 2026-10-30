@@ -16,6 +16,15 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Checkbox } from "../../components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Textarea } from "../../components/ui/textarea";
+import { toast } from "sonner";
+import {
   CourseCode,
   EmptyState,
   ErrorState,
@@ -114,7 +123,6 @@ export default function FeedbackFormEditor() {
   const [form, setForm] = useState<CourseFormEditor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [addingSection, setAddingSection] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -143,17 +151,15 @@ export default function FeedbackFormEditor() {
     action: () => Promise<{ ok: boolean; error?: string; data?: string }>,
   ): Promise<boolean> => {
     setBusy(true);
-    setError(null);
-    setNotice(null);
     const result = await action();
     if (!result.ok) {
       setBusy(false);
-      setError(result.error ?? "That did not work. Please try again.");
+      toast.error(result.error ?? "That did not work. Please try again.");
       return false;
     }
     await load();
     setBusy(false);
-    setNotice(result.data ?? "Saved.");
+    toast.success(result.data ?? "Saved.");
     return true;
   };
 
@@ -166,12 +172,12 @@ export default function FeedbackFormEditor() {
   ) => {
     if (!periodId || !courseId) return Promise.resolve(false);
     if (!draft.text.trim()) {
-      setError("Give the question some text.");
+      toast.error("Give the question some text.");
       return Promise.resolve(false);
     }
     const options = parseOptions(draft);
     if (needsOptions(draft.type) && (options?.length ?? 0) === 0) {
-      setError("A choice question needs at least one option.");
+      toast.error("A choice question needs at least one option.");
       return Promise.resolve(false);
     }
     return mutate(() =>
@@ -266,11 +272,6 @@ export default function FeedbackFormEditor() {
         }
       />
 
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
       {error && <ErrorState message={error} size="inline" />}
 
       <p className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-xs text-muted-foreground">
@@ -771,19 +772,21 @@ function QuestionForm({
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
             Answer type
           </label>
-          <select
+          <Select
             value={draft.type}
-            onChange={(e) =>
-              setDraft({ ...draft, type: e.target.value as FeedbackQuestionType })
-            }
-            className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+            onValueChange={(v) => setDraft({ ...draft, type: v as FeedbackQuestionType })}
           >
-            {TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger aria-label="Answer type" className="h-10 w-full rounded-control border-border bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {(draft.type === "short_text" || draft.type === "long_text") && (
@@ -807,11 +810,10 @@ function QuestionForm({
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
             Options, one per line
           </label>
-          <textarea
+          <Textarea
             value={draft.options}
             onChange={(e) => setDraft({ ...draft, options: e.target.value })}
             rows={4}
-            className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground"
             placeholder={"Weekly\nFortnightly\nNever"}
           />
         </div>

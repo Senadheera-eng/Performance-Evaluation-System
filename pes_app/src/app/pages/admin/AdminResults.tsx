@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   TrendingUp,
-  Search,
+  Info,
   Save,
   Eye,
   EyeOff,
@@ -16,13 +16,14 @@ import {
   FileUp,
   Pencil,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
 import { CorrectGradeDialog } from "../../components/admin/CorrectGradeDialog";
@@ -50,8 +51,15 @@ import {
   DepartmentDot,
   DepartmentSelect,
   ErrorState,
+  PageHeader,
+  SearchField,
+  SectionCard,
   SegmentedTabs,
+  SkeletonRows,
+  StatStrip,
   StatusBadge,
+  StickyActionBar,
+  useExpandMotion,
 } from "../../components/common";
 import { PendingResultReviews } from "../../components/admin/PendingResultReviews";
 import { supabase } from "../../../lib/supabase";
@@ -166,6 +174,9 @@ const getGradeColor = (grade: string | null) => {
 const deriveAcademicYear = (batchYear: number, courseYear: number): string =>
   `${batchYear + courseYear - 1}/${batchYear + courseYear}`;
 
+/** The shared Select cannot hold an empty value: "no grade" goes by this. */
+const NO_GRADE = "__none__";
+
 export default function AdminResults() {
   const { student } = useAuth();
   /* The department's deliveries. A course taught to a batch in a given year
@@ -201,6 +212,9 @@ export default function AdminResults() {
   >(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
+  /* The note on how marks and grades work, folded away until asked for. */
+  const [showGradingNote, setShowGradingNote] = useState(false);
+  const expand = useExpandMotion();
 
   /* Narrowing the course list, not the data. A super admin sees all five
      departments and 230 courses in one dropdown, which is not a list anyone
@@ -733,23 +747,17 @@ export default function AdminResults() {
   const repeatCount = students.filter((s) => s.isRepeat).length;
   const allPublished =
     students.length > 0 && publishedCount === students.length;
+  /* Edits on screen: Save Draft and Publish ride in the floating bar while
+     there are any, and sit at the foot of the sheet otherwise. */
+  const editing = students.some((s) => s.isDirty);
+  const unsavedCount = students.filter((s) => s.isDirty).length;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Results Management
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Review sheets submitted by lecturers, or enter marks directly and
-          publish them to students.
-        </p>
-      </motion.div>
+    <div className={`space-y-5 ${editing ? "pb-36 sm:pb-24" : ""}`}>
+      <PageHeader
+        title="Results Management"
+        description="Review sheets submitted by lecturers, or enter marks directly and publish them to students."
+      />
 
       {/* Sheets lecturers have handed over. Publication is the department's
           decision — the database refuses it to anyone else — so this is where
@@ -760,23 +768,21 @@ export default function AdminResults() {
         }}
       />
 
-      {/* Course and Batch Selection */}
-      <Card className="border-border">
-        <CardHeader>
-          <CardTitle>Select Course & Batch</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      {/* Course and batch, as one bar of fields over the sheet. */}
+      <div className="rounded-card border border-border bg-card px-4 py-3 shadow-elevation-sm">
           {/* Filters. Department is a super admin's only — a department admin
               is already confined to theirs, so offering it would suggest a
               choice they do not have. */}
           <div
-            className={`grid grid-cols-1 gap-4 ${
-              scope.kind === "all" ? "md:grid-cols-2" : ""
+            className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${
+              scope.kind === "all"
+                ? "lg:grid-cols-[minmax(0,1fr)_10rem_minmax(0,2fr)_minmax(0,1fr)]"
+                : "lg:grid-cols-[10rem_minmax(0,2fr)_minmax(0,1fr)]"
             }`}
           >
             {scope.kind === "all" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">
                   Department
                 </label>
                 <DepartmentSelect
@@ -789,39 +795,38 @@ export default function AdminResults() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
+            <div className="space-y-1">
+              <span id="results-semester-label" className="block text-xs font-medium text-muted-foreground">
                 Semester
-              </label>
-              <select
-                value={filterSemester}
-                onChange={(e) =>
-                  setFilterSemester(
-                    e.target.value === "all" ? "all" : Number(e.target.value),
-                  )
-                }
-                className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              </span>
+              <Select
+                value={String(filterSemester)}
+                onValueChange={(v) => setFilterSemester(v === "all" ? "all" : Number(v))}
               >
-                <option value="all">All semesters</option>
-                {semesterOptions.map((s) => (
-                  <option key={s} value={s}>
-                    Semester {s}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-labelledby="results-semester-label" className="h-9 w-full rounded-control border-border bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All semesters</SelectItem>
+                  {semesterOptions.map((s) => (
+                    <SelectItem key={s} value={String(s)}>
+                      Semester {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Course Dropdown */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">
                 Course
               </label>
               <div className="relative">
                 <button
                   onClick={() => setCourseDropdownOpen(!courseDropdownOpen)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left"
+                  aria-expanded={courseDropdownOpen}
+                  className="flex h-9 w-full items-center justify-between rounded-control border border-border bg-card px-3 text-left text-sm transition-colors hover:bg-muted"
                 >
                   <span
                     className={
@@ -842,11 +847,13 @@ export default function AdminResults() {
                       "Select a course..."
                     )}
                   </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <ChevronDown
+                    className={`h-4 w-4 flex-shrink-0 text-muted-foreground transition-transform duration-200 ${courseDropdownOpen ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {courseDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto rounded-control border border-border bg-card shadow-elevation-lg">
                     {visibleCourses.length === 0 && (
                       <p className="px-3 py-3 text-sm text-muted-foreground">
                         No courses match these filters.
@@ -880,28 +887,29 @@ export default function AdminResults() {
             </div>
 
             {/* Batch */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
+            <div className="space-y-1">
+              <span id="results-batch-label" className="block text-xs font-medium text-muted-foreground">
                 Batch
-              </label>
-              <select
-                value={selectedBatch ?? ""}
-                onChange={(e) =>
-                  setSelectedBatch(
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-                className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              </span>
+              <Select
+                value={selectedBatch !== null ? String(selectedBatch) : undefined}
+                onValueChange={(v) => setSelectedBatch(v ? Number(v) : null)}
               >
-                <option value="">Select a batch...</option>
-                {batches.map((b) => (
-                  <option key={b} value={b}>
-                    {describeBatch(b)}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger aria-labelledby="results-batch-label" className="h-9 w-full rounded-control border-border bg-card">
+                  <SelectValue placeholder="Select a batch..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {batches.map((b) => (
+                    <SelectItem key={b} value={String(b)}>
+                      {describeBatch(b)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
               {selectedCourse && selectedBatch !== null && (
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Academic year {selectedYear} for this batch and course
                   {selectedOffering
                     ? `, Semester ${selectedOffering.semester}${
@@ -914,16 +922,13 @@ export default function AdminResults() {
                   from the batch rather than read from the offering, and the
                   lecturer has no sheet for this pairing at all. */}
               {selectedCourse && selectedBatch !== null && !selectedOffering && (
-                <p className="text-xs text-warning-fg">
+                <p className="mt-1 text-xs text-warning-fg">
                   This course has no recorded delivery to{" "}
                   {describeBatch(selectedBatch)}, so the year above is inferred.
                   Ask for the offering to be created if marks belong here.
                 </p>
               )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Results Entry */}
       {selectedCourse && (
@@ -932,62 +937,47 @@ export default function AdminResults() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <Card
-            className={`border-border border-l-4 ${
+          <SectionCard
+            // Visible overflow, so the column header can stay pinned while a
+            // long sheet scrolls under it.
+            className={`overflow-visible border-l-4 ${
               departmentByCourseCode(selectedCourse.code)?.stripeClass ?? ""
             }`}
+            title={
+              <>
+                <CourseCode code={selectedCourse.code} /> — {selectedCourse.name}
+              </>
+            }
+            description={`${selectedBatch !== null ? describeBatch(selectedBatch) : ""} · ${selectedYear} · ${students.length} students · ${selectedCourse.credits} credits`}
+            actions={
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={publishedCount === 0}
+                onClick={() => setExportDialogOpen(true)}
+                title={
+                  publishedCount === 0
+                    ? "Publish at least one result before exporting"
+                    : undefined
+                }
+              >
+                <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                Download Result Sheet PDF
+              </Button>
+            }
+            bodyClassName="space-y-4"
           >
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <CardTitle>
-                    <CourseCode code={selectedCourse.code} /> — {selectedCourse.name}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {selectedBatch !== null && describeBatch(selectedBatch)} ·{" "}
-                    {selectedYear} · {students.length} students ·{" "}
-                    {selectedCourse.credits} credits
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1 text-success-fg">
-                      <Eye className="h-3 w-3" />
-                      {publishedCount} published
-                    </span>
-                    <span className="flex items-center gap-1 text-warning-fg">
-                      <Clock className="h-3 w-3" />
-                      {draftCount} draft
-                    </span>
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <EyeOff className="h-3 w-3" />
-                      {emptyCount} empty
-                    </span>
-                    {repeatCount > 0 && (
-                      <span className="flex items-center gap-1 text-info-fg">
-                        <Users className="h-3 w-3" />
-                        {repeatCount} repeat
-                      </span>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={publishedCount === 0}
-                    onClick={() => setExportDialogOpen(true)}
-                    title={
-                      publishedCount === 0
-                        ? "Publish at least one result before exporting"
-                        : undefined
-                    }
-                  >
-                    <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                    Download Result Sheet PDF
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            {/* Where the sheet stands, as chips */}
+            <StatStrip
+              items={[
+                { label: "published", value: publishedCount, icon: Eye, tone: "success" },
+                { label: "draft", value: draftCount, icon: Clock, tone: "warning" },
+                { label: "empty", value: emptyCount, icon: EyeOff },
+                ...(repeatCount > 0
+                  ? [{ label: "repeat", value: repeatCount, icon: Users, tone: "info" as const }]
+                  : []),
+              ]}
+            />
               {fetchError && (
                 <ErrorState
                   message={fetchError}
@@ -1004,16 +994,13 @@ export default function AdminResults() {
               )}
 
               {/* Search + candidate filter */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, index no., or reg no..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-card border-border"
-                  />
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <SearchField
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search by name, index no., or reg no."
+                  label="Search students"
+                />
                 <SegmentedTabs
                   aria-label="Filter by candidate type"
                   value={candidateFilter}
@@ -1067,17 +1054,42 @@ export default function AdminResults() {
                 />
               </div>
 
-              {/* Mark Entry Info */}
-              <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                Record the Mid Sem and CA marks, then award the grade. The grade
-                is a decision, not a calculation from the marks beside it — the
-                grade point follows from whichever grade is chosen, so the two
-                can never disagree. Marks outside their range are rejected and
-                cannot be saved.
+              {/* Mark Entry Info, one click away */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowGradingNote((v) => !v)}
+                  aria-expanded={showGradingNote}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline underline-offset-2"
+                >
+                  <Info className="h-3.5 w-3.5" aria-hidden="true" />
+                  How marks and grades work
+                </button>
+                <AnimatePresence initial={false}>
+                  {showGradingNote && (
+                    <motion.div
+                      key="note"
+                      variants={expand}
+                      initial="collapsed"
+                      animate="open"
+                      exit="collapsed"
+                      className="overflow-hidden"
+                    >
+                      <p className="mt-2 rounded-control bg-muted/50 p-3 text-xs text-muted-foreground">
+                        Record the Mid Sem and CA marks, then award the grade. The grade
+                        is a decision, not a calculation from the marks beside it — the
+                        grade point follows from whichever grade is chosen, so the two
+                        can never disagree. Marks outside their range are rejected and
+                        cannot be saved.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              {/* Column Headers */}
-              <div className="hidden md:grid grid-cols-12 gap-2 px-4 text-xs font-medium text-muted-foreground">
+              {/* Column Headers, pinned under the top bar while the sheet
+                  scrolls. */}
+              <div className="sticky top-14 z-10 -mx-4 hidden grid-cols-12 gap-2 border-y border-border/70 bg-card/95 px-8 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm sm:-mx-5 md:grid">
                 <div className="col-span-3">Student</div>
                 <div className="col-span-2 text-center">
                   Mid Sem (/{MARK_MAX.midSem})
@@ -1091,14 +1103,7 @@ export default function AdminResults() {
 
               {/* Student List */}
               {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className="h-16 rounded-xl bg-muted animate-pulse"
-                    />
-                  ))}
-                </div>
+                <SkeletonRows count={5} height="h-16" />
               ) : filteredStudents.length === 0 ? (
                 <div className="text-center py-10">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
@@ -1120,7 +1125,7 @@ export default function AdminResults() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.02 }}
-                      className={`p-3 rounded-xl border transition-all ${
+                      className={`p-3 rounded-control border transition-all ${
                         student.isPublished
                           ? "border-success-border bg-success-bg/60"
                           : student.isDirty
@@ -1262,21 +1267,27 @@ export default function AdminResults() {
                               )}
                             </>
                           ) : (
-                            <select
-                              value={student.grade}
-                              aria-label={`Grade for ${student.name}`}
-                              onChange={(e) =>
-                                updateGrade(student.studentId, e.target.value)
+                            <Select
+                              value={student.grade === "" ? NO_GRADE : student.grade}
+                              onValueChange={(v) =>
+                                updateGrade(student.studentId, v === NO_GRADE ? "" : v)
                               }
-                              className="h-8 w-full rounded-xl border border-border bg-card px-2 text-center text-sm text-foreground"
                             >
-                              <option value="">— no grade —</option>
-                              {validGrades.map((g) => (
-                                <option key={g} value={g}>
-                                  {g}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger
+                                aria-label={`Grade for ${student.name}`}
+                                className="h-8 w-full rounded-control border-border bg-card text-sm"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_GRADE}>— no grade —</SelectItem>
+                                {validGrades.map((g) => (
+                                  <SelectItem key={g} value={g}>
+                                    {g}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
                         </div>
 
@@ -1315,7 +1326,7 @@ export default function AdminResults() {
               {students.length > 0 && (
                 <div className="pt-4 border-t border-border space-y-3">
                   {invalidRowCount > 0 && (
-                    <div className="flex items-start gap-2 p-3 rounded-lg text-sm bg-destructive/10 text-destructive border border-destructive/20">
+                    <div className="flex items-start gap-2 p-3 rounded-control text-sm bg-destructive/10 text-destructive border border-destructive/20">
                       <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       <span>
                         {invalidRowCount} row{invalidRowCount === 1 ? "" : "s"}{" "}
@@ -1328,7 +1339,7 @@ export default function AdminResults() {
 
                   {savedMessage && (
                     <div
-                      className={`p-3 rounded-lg text-sm ${
+                      className={`p-3 rounded-control text-sm ${
                         savedMessage.startsWith("Error")
                           ? "bg-destructive/10 text-destructive border border-destructive/20"
                           : "bg-success-bg text-success-fg border border-success-border"
@@ -1339,6 +1350,8 @@ export default function AdminResults() {
                   )}
 
                   <div className="flex flex-col sm:flex-row gap-3">
+                    {!editing && (
+                    <>
                     <Button
                       onClick={() => void handleSaveDraft()}
                       disabled={saving || sheetLocked || dirtyValidRows().length === 0}
@@ -1380,6 +1393,8 @@ export default function AdminResults() {
                         </div>
                       )}
                     </Button>
+                    </>
+                    )}
 
                     {publishedCount > 0 && (
                       <Button
@@ -1414,10 +1429,45 @@ export default function AdminResults() {
                   )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+          </SectionCard>
         </motion.div>
       )}
+
+      {/* While there are edits on screen, Save Draft and Publish ride along
+          at the bottom of the window rather than waiting at the foot of a
+          sheet of forty rows. */}
+      <StickyActionBar
+        open={Boolean(selectedCourse) && editing}
+        summary={
+          <>
+            <p className="font-medium">
+              {unsavedCount} row{unsavedCount === 1 ? "" : "s"} changed, not saved
+            </p>
+            <p className={`text-xs ${invalidRowCount > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+              {invalidRowCount > 0
+                ? `${invalidRowCount} row${invalidRowCount === 1 ? "" : "s"} with a mark out of range will not be saved.`
+                : "Save a draft, or publish every complete row to students."}
+            </p>
+          </>
+        }
+      >
+        <Button
+          onClick={() => void handleSaveDraft()}
+          disabled={saving || sheetLocked || dirtyValidRows().length === 0}
+          variant="outline"
+          className="border-warning-border text-warning-fg hover:bg-warning-bg"
+        >
+          <Save className="h-4 w-4" />
+          {saving ? "Saving..." : "Save Draft"}
+        </Button>
+        <Button
+          onClick={() => setConfirmDialog("publish")}
+          disabled={publishing || sheetLocked || publishableCount === 0}
+        >
+          <Eye className="h-4 w-4" />
+          {publishing ? "Publishing..." : "Publish Results to Students"}
+        </Button>
+      </StickyActionBar>
 
       <AlertDialog
         open={confirmDialog === "publish"}
