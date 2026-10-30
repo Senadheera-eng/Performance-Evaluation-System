@@ -341,6 +341,156 @@
 }
 
 /**
+ * Main colour: the one colour a person may choose for themselves, under
+ * Settings, Appearance. Crimson, the university's, is the default and is the
+ * set declared above; choosing another puts data-main-colour on <html>
+ * (ThemeContext, and index.html before the first paint) and these sets take
+ * over. They change only what --primary carries (buttons, links, the active
+ * page, focus rings, highlights, the hero wash and the band across a
+ * profile). Status colours stay as they are, so a failing grade or a
+ * warning is red whatever is chosen, and so do the department colours.
+ *
+ * Each colour has a light and a dark shade, chosen like crimson's: the light
+ * one carries white text at WCAG AA (4.5:1 or better); the dark one is
+ * lifted to read on a dark card (about 4:1) while white text on it stays
+ * near 4:1, the same split crimson makes (#E8455F: 3.85 and 4.26).
+ * Green and amber are left out: they would be read as success and warning.
+ *
+ * --swatch-* draw the choices on the Settings page, in the shade the
+ * current mode will use.
+ */
+:root {
+  --swatch-crimson: #C41E3A;
+  --swatch-blue: #2563EB;
+  --swatch-indigo: #4F46E5;
+  --swatch-violet: #7C3AED;
+  --swatch-teal: #0F766E;
+  --swatch-graphite: #334155;
+}
+
+.dark {
+  --swatch-crimson: #E8455F;
+  --swatch-blue: #4C7FF0;
+  --swatch-indigo: #7471F2;
+  --swatch-violet: #9061F7;
+  --swatch-teal: #0F8F84;
+  --swatch-graphite: #71809A;
+}
+
+/* :root[...] outranks .dark and .light, so these win in either mode. */
+:root[data-main-colour] {
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-ring: var(--primary);
+}
+
+:root[data-main-colour="blue"] {
+  --primary: #2563EB;
+  --primary-50: #EFF6FF;
+  --primary-100: #DBEAFE;
+  --primary-200: #BFDBFE;
+  --primary-300: #93C5FD;
+  --primary-400: #60A5FA;
+  --primary-500: #3B82F6;
+  --primary-600: #2563EB;
+  --primary-700: #1D4ED8;
+  --primary-800: #1E40AF;
+  --primary-900: #1E3A8A;
+  --hero-from: #2563EB;
+  --hero-to: #1E3A8A;
+}
+:root.dark[data-main-colour="blue"] {
+  --primary: #4C7FF0;
+  --hero-from: #1E40AF;
+  --hero-to: #0E1C47;
+}
+
+:root[data-main-colour="indigo"] {
+  --primary: #4F46E5;
+  --primary-50: #EEF2FF;
+  --primary-100: #E0E7FF;
+  --primary-200: #C7D2FE;
+  --primary-300: #A5B4FC;
+  --primary-400: #818CF8;
+  --primary-500: #6366F1;
+  --primary-600: #4F46E5;
+  --primary-700: #4338CA;
+  --primary-800: #3730A3;
+  --primary-900: #312E81;
+  --hero-from: #4F46E5;
+  --hero-to: #312E81;
+}
+:root.dark[data-main-colour="indigo"] {
+  --primary: #7471F2;
+  --hero-from: #3730A3;
+  --hero-to: #17153F;
+}
+
+:root[data-main-colour="violet"] {
+  --primary: #7C3AED;
+  --primary-50: #F5F3FF;
+  --primary-100: #EDE9FE;
+  --primary-200: #DDD6FE;
+  --primary-300: #C4B5FD;
+  --primary-400: #A78BFA;
+  --primary-500: #8B5CF6;
+  --primary-600: #7C3AED;
+  --primary-700: #6D28D9;
+  --primary-800: #5B21B6;
+  --primary-900: #4C1D95;
+  --hero-from: #7C3AED;
+  --hero-to: #4C1D95;
+}
+:root.dark[data-main-colour="violet"] {
+  --primary: #9061F7;
+  --hero-from: #5B21B6;
+  --hero-to: #250E4D;
+}
+
+:root[data-main-colour="teal"] {
+  --primary: #0F766E;
+  --primary-50: #F0FDFA;
+  --primary-100: #CCFBF1;
+  --primary-200: #99F6E4;
+  --primary-300: #5EEAD4;
+  --primary-400: #2DD4BF;
+  --primary-500: #14B8A6;
+  --primary-600: #0D9488;
+  --primary-700: #0F766E;
+  --primary-800: #115E59;
+  --primary-900: #134E4A;
+  --hero-from: #0F766E;
+  --hero-to: #134E4A;
+}
+:root.dark[data-main-colour="teal"] {
+  --primary: #0F8F84;
+  --hero-from: #115E59;
+  --hero-to: #072B28;
+}
+
+:root[data-main-colour="graphite"] {
+  --primary: #334155;
+  --primary-50: #F8FAFC;
+  --primary-100: #F1F5F9;
+  --primary-200: #E2E8F0;
+  --primary-300: #CBD5E1;
+  --primary-400: #94A3B8;
+  --primary-500: #64748B;
+  --primary-600: #475569;
+  --primary-700: #334155;
+  --primary-800: #1E293B;
+  --primary-900: #0F172A;
+  --hero-from: #334155;
+  --hero-to: #0F172A;
+}
+:root.dark[data-main-colour="graphite"] {
+  --primary: #71809A;
+  --hero-from: #334155;
+  --hero-to: #111827;
+}
+
+/**
  * Compact desktop design system.
  *
  * Tailwind v4 derives every spacing utility (p-*, m-*, gap-*, w-*, h-*, etc.)

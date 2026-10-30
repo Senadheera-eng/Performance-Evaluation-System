@@ -165,7 +165,7 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **51 tables**, all with row level security enabled, and 248 functions. The main groups:
+The live schema has **49 tables**, all with row level security enabled, and 248 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |
@@ -187,7 +187,7 @@ Students read results only through the `my_published_results` view and RPCs, nev
 
 ### The first tables predate the migration history
 
-`students`, `courses`, `enrollments`, `attendance`, `results`, `lecturers`, `feedback`, `medical_submissions` and `timetables` were created in the SQL editor before migrations were recorded, so `supabase/migrations/` alone cannot rebuild the database from empty. To produce a complete schema file, run this from a machine with the Supabase CLI and the database password:
+`students`, `courses`, `enrollments`, `attendance`, `results`, `lecturers` and `medical_submissions` (and two tables since removed) were created in the SQL editor before migrations were recorded, so `supabase/migrations/` alone cannot rebuild the database from empty. To produce a complete schema file, run this from a machine with the Supabase CLI and the database password:
 
 ```bash
 supabase db dump --db-url "postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres" -f supabase/schema.sql

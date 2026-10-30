@@ -40,7 +40,7 @@ Read it as a sentence: for a signed-in user selecting from the attendance table,
 
 A student running SELECT * FROM attendance does not get an error. They get their own rows and nothing else. There is no way to ask for more, because the filter is applied inside the database before the answer is built.
 
-All 51 tables have RLS switched on, with no exceptions, held by 121 policies (and 13 more on stored files). Five tables have RLS on and no policy at all — the three account tables and the two faculty-website tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
+All 49 tables have RLS switched on, with no exceptions, held by 117 policies (and 13 more on stored files). Five tables have RLS on and no policy at all — the three account tables and the two faculty-website tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
 
 # 2. Who can see what
 
