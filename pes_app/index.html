@@ -19,12 +19,17 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       />
       <script>
-        /* The saved theme, applied before anything paints, so a dark-mode
-           user does not see a white flash. ThemeContext keeps it after. */
+        /* The saved theme and main colour, applied before anything paints,
+           so a dark-mode user does not see a white flash, nor a blue one a
+           red flash. ThemeContext keeps them after. */
         try {
           var t = localStorage.getItem("theme");
           if (t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches)) {
             document.documentElement.classList.add("dark");
+          }
+          var c = localStorage.getItem("main-colour");
+          if (c && c !== "crimson" && /^[a-z]+$/.test(c)) {
+            document.documentElement.setAttribute("data-main-colour", c);
           }
         } catch (e) {}
       </script>
@@ -51,11 +56,18 @@
           border-radius: 9999px;
           border: 2px solid rgba(196, 30, 58, 0.15);
           border-top-color: #c41e3a;
+          /* The main colour, once the stylesheet is in (it is, before this
+             paints, in a built site); crimson until then. */
+          border-color: color-mix(in srgb, var(--primary, #c41e3a) 15%, transparent);
+          border-top-color: var(--primary, #c41e3a);
           animation: boot-spin 0.9s linear infinite;
         }
         .boot-text { margin: 0; font-size: 14px; line-height: 20px; color: #5b6472; }
         html.dark .boot { background: #0f1419; }
-        html.dark .boot-ring { border-color: rgba(232, 69, 95, 0.2); border-top-color: #e8455f; }
+        html.dark .boot-ring {
+          border-color: color-mix(in srgb, var(--primary, #e8455f) 20%, transparent);
+          border-top-color: var(--primary, #e8455f);
+        }
         html.dark .boot-text { color: #9ca8b8; }
         @keyframes boot-spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) { .boot-ring { animation: none; } }
