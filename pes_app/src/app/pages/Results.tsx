@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Loader2,
   Megaphone,
-  TrendingUp,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import {
@@ -30,18 +29,23 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import {
+  AnimatedNumber,
   ChartContainer,
   ChartTooltip,
   EmptyState,
   GpaTrendChart,
   ErrorState,
+  HeroCard,
   PageHeader,
   SectionCard,
   SegmentedTabs,
-  Skeleton,
+  SkeletonHero,
   SkeletonRows,
-  StatCard,
+  Sparkline,
+  StatStrip,
   StatusBadge,
+  TabPanel,
+  heroButtonClass,
   DepartmentDot,
   useChartMotion,
   type StatusTone,
@@ -55,6 +59,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { describeBatch } from "../../lib/batch";
 import { useSettings } from "../../lib/settings";
+import { gpaTrendTakeaway, gradeSpreadTakeaway } from "../../lib/takeaways";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -330,6 +335,9 @@ export default function Results() {
   const activeSemester =
     semesters.find((s) => s.semesterKey === activeSemesterTab) ?? null;
 
+  // Semesters at the Dean's List mark, by the same rule as the badge below.
+  const deansListCount = semesters.filter((s) => s.sgpa !== null && s.sgpa >= 3.8).length;
+
   /* Semesters with at least one result. All eight are on the page, but
      "graded across 8 semesters" counted two with nothing in them. */
   const semestersWithResults = semesters.filter((s) => s.courses.length > 0).length;
@@ -467,7 +475,7 @@ export default function Results() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader
         title="Academic Results"
         description="Your semester-by-semester grades and overall standing."
@@ -482,159 +490,170 @@ export default function Results() {
                 Published result sheets
               </Link>
             </Button>
-          <Button
-            onClick={handleDownloadTranscript}
-            disabled={loading || downloading || semesters.length === 0}
-          >
-            {downloading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            {downloading ? "Preparing…" : "Download Transcript"}
-          </Button>
           </div>
         }
       />
 
-      {/* Summary */}
+      {/* The CGPA leads; the latest semester, credits and graded courses are
+          read off the same card. Downloading the transcript lives with it. */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-[92px]" />
-          ))}
-        </div>
+        <SkeletonHero />
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard
-            index={0}
-            label="Cumulative GPA"
-            value={cgpa.toFixed(2)}
-            icon={Award}
-            tone="brand"
-            hint={
-              classification
-                ? `${classification.label} range`
-                : "Awaiting graded credits"
-            }
-          />
-          <StatCard
-            index={1}
-            label={latest ? `Semester ${latest.semesterNum} GPA` : "Latest SGPA"}
-            value={latest?.sgpa != null ? latest.sgpa.toFixed(2) : "—"}
-            icon={TrendingUp}
-            tone="info"
-            trend={
-              sgpaDelta !== null && previous
-                ? {
-                    direction:
-                      sgpaDelta > 0 ? "up" : sgpaDelta < 0 ? "down" : "flat",
-                    label: `${sgpaDelta > 0 ? "+" : ""}${sgpaDelta.toFixed(2)} vs Semester ${previous.semesterNum}`,
-                  }
-                : undefined
-            }
-            hint={previous ? undefined : "No earlier semester to compare"}
-          />
-          <StatCard
-            index={2}
-            label="Credits Earned"
-            value={totalCredits}
-            icon={GraduationCap}
-            tone="success"
-            hint={`of ${settings.graduationTotalCredits} needed to graduate`}
-          />
-          <StatCard
-            index={3}
-            label="Courses Graded"
-            value={completedCourses}
-            icon={BookOpenCheck}
-            tone="neutral"
-            hint={`Across ${semestersWithResults} semester${semestersWithResults === 1 ? "" : "s"}`}
-          />
-        </div>
+        <HeroCard
+          eyebrow="Cumulative GPA"
+          value={totalCredits === 0 ? "—" : <AnimatedNumber value={cgpa} decimals={2} />}
+          label={classification ? classification.label : "Awaiting graded credits"}
+          meta={
+            latest?.sgpa != null ? (
+              <>
+                Semester {latest.semesterNum} GPA{" "}
+                <span className="font-semibold text-foreground">{latest.sgpa.toFixed(2)}</span>
+                {sgpaDelta !== null && previous
+                  ? ` · ${sgpaDelta > 0 ? "▲ +" : sgpaDelta < 0 ? "▼ " : ""}${sgpaDelta.toFixed(2)} vs Semester ${previous.semesterNum}`
+                  : " · no earlier semester to compare"}
+              </>
+            ) : undefined
+          }
+          progress={{
+            value: totalCredits,
+            max: settings.graduationTotalCredits,
+            label: "Credits earned towards graduation",
+            caption: `${totalCredits} of ${settings.graduationTotalCredits} credits earned`,
+          }}
+          actions={
+            <Button
+              size="sm"
+              className={heroButtonClass}
+              onClick={handleDownloadTranscript}
+              disabled={downloading || semesters.length === 0}
+            >
+              {downloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {downloading ? "Preparing…" : "Download Transcript"}
+            </Button>
+          }
+          aside={
+            gpaChart.length > 1 ? (
+              <div className="hidden flex-col items-start gap-1 sm:flex lg:items-end">
+                <Sparkline onHero data={gpaChart.map((p) => ({ label: p.semester, value: p.gpa }))} />
+                <p className="text-[11px] text-[var(--hero-muted)]">SGPA by semester</p>
+              </div>
+            ) : undefined
+          }
+          footer={
+            <StatStrip
+              onHero
+              items={[
+                {
+                  label: `course${completedCourses === 1 ? "" : "s"} graded across ${semestersWithResults} semester${semestersWithResults === 1 ? "" : "s"}`,
+                  value: completedCourses,
+                  icon: BookOpenCheck,
+                },
+                ...(deansListCount > 0
+                  ? [{ label: `Dean's List semester${deansListCount === 1 ? "" : "s"}`, value: deansListCount, icon: Award }]
+                  : []),
+              ]}
+            />
+          }
+        />
       )}
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <GpaTrendChart data={gpaChart} cgpa={cgpa} loading={loading} />
-
-        <ChartContainer
-          title="Grade distribution"
-          description={`How your ${completedCourses} graded course${completedCourses === 1 ? "" : "s"} break down.`}
-          height={250}
-          loading={loading}
-          hasData={orderedGradeSpread.length > 0}
-          emptyTitle="No grades recorded yet"
-          summary={`Grade counts: ${orderedGradeSpread
-            .map((g) => `${g.grade}: ${g.count}`)
-            .join(", ")}.`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={orderedGradeSpread}
-              layout="vertical"
-              margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+      {/* The two charts straight under the CGPA, side by side and always
+          open, so a student sees them without scrolling or expanding
+          anything. Each says in a line what it shows. */}
+      <SectionCard
+        title="Insights"
+        description="Your GPA by semester and how your grades break down."
+      >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">GPA trend</h3>
+            <GpaTrendChart bare data={gpaChart} cgpa={cgpa} loading={loading} takeaway={gpaTrendTakeaway(gpaChart)} />
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-foreground">Grade distribution</h3>
+            <ChartContainer
+              bare
+              title="Grade distribution"
+              height={250}
+              loading={loading}
+              hasData={orderedGradeSpread.length > 0}
+              emptyTitle="No grades recorded yet"
+              summary={`Grade counts: ${orderedGradeSpread
+                .map((g) => `${g.grade}: ${g.count}`)
+                .join(", ")}.`}
+              takeaway={gradeSpreadTakeaway(orderedGradeSpread)}
             >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border)"
-                horizontal={false}
-              />
-              <XAxis
-                type="number"
-                allowDecimals={false}
-                stroke="var(--muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                type="category"
-                dataKey="grade"
-                width={40}
-                stroke="var(--muted-foreground)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "var(--muted)", opacity: 0.4 }}
-                content={
-                  <ChartTooltip labelFormatter={(l) => `Grade ${l}`} />
-                }
-              />
-              <Bar
-                dataKey="count"
-                name="Courses"
-                radius={[0, 6, 6, 0]}
-                animationDuration={chartDuration}
-                isAnimationActive={chartDuration > 0}
-                shape={(props: any) => {
-                  const { x, y, width, height, payload } = props;
-                  return (
-                    <rect
-                      x={x}
-                      y={y}
-                      width={width}
-                      height={height}
-                      rx={4}
-                      fill={TONE_VAR[gradeTone(payload.grade)]}
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={orderedGradeSpread}
+                  layout="vertical"
+                  margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="grade"
+                    width={40}
+                    stroke="var(--muted-foreground)"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)", opacity: 0.4 }}
+                    content={
+                      <ChartTooltip labelFormatter={(l) => `Grade ${l}`} />
+                    }
+                  />
+                  <Bar
+                    dataKey="count"
+                    name="Courses"
+                    radius={[0, 6, 6, 0]}
+                    animationDuration={chartDuration}
+                    isAnimationActive={chartDuration > 0}
+                    shape={(props: any) => {
+                      const { x, y, width, height, payload } = props;
+                      return (
+                        <rect
+                          x={x}
+                          y={y}
+                          width={width}
+                          height={height}
+                          rx={4}
+                          fill={TONE_VAR[gradeTone(payload.grade)]}
+                        />
+                      );
+                    }}
+                  >
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      fill="var(--muted-foreground)"
+                      fontSize={11}
                     />
-                  );
-                }}
-              >
-                <LabelList
-                  dataKey="count"
-                  position="right"
-                  fill="var(--muted-foreground)"
-                  fontSize={11}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </div>
-
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+        </div>
+      </SectionCard>
       {/* Semester detail */}
       {/* The semester tabs sit in the body on their own row, where eight of
           them can scroll on a phone. In the header they sat beside the title
@@ -662,9 +681,9 @@ export default function Results() {
             description="Results appear here as soon as your department publishes them."
           />
         ) : activeSemester ? (
-          <div className="space-y-4">
+          <TabPanel value={activeSemesterTab} className="space-y-4">
             {/* Semester summary strip */}
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-border surface-tint px-4 py-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-foreground">
@@ -694,8 +713,8 @@ export default function Results() {
                     part that happens to have arrived. */}
                 {activeSemester.sgpa !== null ? (
                   <>
-                    <div className="text-2xl font-bold text-primary tabular-nums leading-none">
-                      {activeSemester.sgpa.toFixed(2)}
+                    <div className="text-3xl font-bold text-primary tabular-nums leading-none">
+                      <AnimatedNumber value={activeSemester.sgpa} decimals={2} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Semester GPA
@@ -830,7 +849,7 @@ export default function Results() {
               </Table>
             </div>
             )}
-          </div>
+          </TabPanel>
         ) : null}
       </SectionCard>
 

@@ -2,17 +2,18 @@ import { useAvatarUrls } from "../../../lib/avatars";
 import { useEffect, useMemo, useState } from "react";
 import { Award, Mail, Users } from "lucide-react";
 import {
+  AnimatedBar,
   DepartmentName,
   EmptyState,
   ErrorState,
   PageHeader,
   PersonAvatar,
+  SearchField,
   SectionCard,
   SkeletonRows,
-  StatCard,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
-import { Input } from "../../components/ui/input";
 import { useAuth } from "../../context/AuthContext";
 import { getStaffCapabilities } from "../../../lib/staffScope";
 import {
@@ -84,6 +85,7 @@ export default function StaffLecturers() {
   );
 
   const unassigned = lecturers.filter((l) => !load_.has(l.lecturer_id)).length;
+  const maxCredits = Math.max(1, ...[...load_.values()].map((v) => v.credits));
 
   return (
     <div className="space-y-5">
@@ -98,36 +100,37 @@ export default function StaffLecturers() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard index={0} label="Academic Staff" value={lecturers.length} icon={Users} tone="brand" />
-        <StatCard
-          index={1}
-          label="Offerings Covered"
-          value={offerings.filter((o) => o.lecturers.length > 0).length}
-          icon={Award}
-          tone="success"
+      {!loading && (
+        <StatStrip
+          items={[
+            { label: "academic staff", value: lecturers.length, icon: Users, tone: "brand" },
+            {
+              label: "offerings covered",
+              value: offerings.filter((o) => o.lecturers.length > 0).length,
+              icon: Award,
+              tone: "success",
+            },
+            {
+              label: "offerings with nobody assigned",
+              value: offerings.filter((o) => o.lecturers.length === 0).length,
+              icon: Award,
+              tone: offerings.some((o) => o.lecturers.length === 0) ? "warning" : "neutral",
+            },
+            {
+              label: "staff with no course",
+              value: unassigned,
+              icon: Users,
+              tone: unassigned > 0 ? "warning" : "neutral",
+            },
+          ]}
         />
-        <StatCard
-          index={2}
-          label="Offerings Uncovered"
-          value={offerings.filter((o) => o.lecturers.length === 0).length}
-          icon={Award}
-          tone={offerings.some((o) => o.lecturers.length === 0) ? "warning" : "neutral"}
-        />
-        <StatCard
-          index={3}
-          label="Staff With No Course"
-          value={unassigned}
-          icon={Users}
-          tone={unassigned > 0 ? "warning" : "neutral"}
-        />
-      </div>
+      )}
 
-      <Input
-        placeholder="Search by name or email..."
+      <SearchField
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="h-9 bg-card"
+        onChange={setQuery}
+        placeholder="Search by name or email"
+        label="Search staff"
       />
 
       <SectionCard title="Staff" description={`${visible.length} shown`} flush>
@@ -172,15 +175,24 @@ export default function StaffLecturers() {
                     </p>
                   </div>
                   </div>
-                  <div className="text-right">
+                  <div className="w-full text-right sm:w-44">
                     {stat ? (
                       <>
                         <p className="text-sm font-semibold text-foreground tabular-nums">
                           {stat.offerings} course{stat.offerings === 1 ? "" : "s"}
+                          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                            {stat.credits} credits
+                          </span>
                         </p>
-                        <p className="text-xs text-muted-foreground tabular-nums">
-                          {stat.credits} credits
-                        </p>
+                        {/* Load against the heaviest in the department, so
+                            an uneven spread shows down the column. */}
+                        <AnimatedBar
+                          value={stat.credits}
+                          max={maxCredits}
+                          tone="info"
+                          label={`${l.name}: ${stat.credits} credits`}
+                          className="mt-1.5 h-1.5"
+                        />
                       </>
                     ) : (
                       <StatusBadge tone="neutral">No assignments</StatusBadge>

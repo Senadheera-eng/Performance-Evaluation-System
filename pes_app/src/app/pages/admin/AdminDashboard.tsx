@@ -9,21 +9,28 @@ import {
   ArrowRight,
   CheckCircle,
   Clock,
+  PartyPopper,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import {
   ActionCard,
+  AnimatedNumber,
   CourseAttendanceChart,
   CourseCode,
   EmptyState,
   ErrorState,
+  HeroCard,
   PageHeader,
+  PillTabs,
+  ProgressRing,
   SectionCard,
+  SkeletonHero,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
+  StatStrip,
   StatusBadge,
+  TabPanel,
   gradeTone,
+  heroGhostButtonClass,
 } from "../../components/common";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
@@ -90,6 +97,7 @@ export default function AdminDashboard() {
     null,
   );
   const [loading, setLoading] = useState(true);
+  const [chartTab, setChartTab] = useState<"courses" | "departments">("courses");
 
   useEffect(() => {
     if (student) fetchDashboardData();
@@ -215,6 +223,45 @@ export default function AdminDashboard() {
      course has a recorded lecture there is no average to show. */
   const attendanceRecorded = courseAttendance.length > 0;
 
+  /* One line under the chart saying what it shows, from the very numbers
+     it draws. */
+  const lowest = courseAttendance.reduce<CourseAttendanceStat | null>(
+    (lo, c) => (lo === null || c.avgAttendance < lo.avgAttendance ? c : lo),
+    null,
+  );
+  const below = courseAttendance.filter((c) => c.avgAttendance < settings.attendanceThreshold).length;
+  const chartTakeaway = lowest
+    ? below > 0
+      ? `${lowest.code} is lowest at ${lowest.avgAttendance}%. ${below} of ${courseAttendance.length} courses are below ${settings.attendanceThreshold}%.`
+      : `Every course with recorded lectures is at or above ${settings.attendanceThreshold}%; the lowest is ${lowest.code} at ${lowest.avgAttendance}%.`
+    : undefined;
+
+  const attendanceTone = !attendanceRecorded
+    ? "neutral"
+    : stats.avgAttendance < settings.attendanceThreshold
+      ? "danger"
+      : stats.avgAttendance < settings.attendancePrewarningThreshold
+        ? "warning"
+        : "success";
+
+  const chart = (
+    <CourseAttendanceChart
+      bare
+      title="Course attendance"
+      description="Lowest first — the courses needing attention"
+      data={courseAttendance.map((c) => ({
+        code: c.code,
+        percentage: c.avgAttendance,
+      }))}
+      threshold={settings.attendanceThreshold}
+      prewarning={settings.attendancePrewarningThreshold}
+      awaitingCount={coursesAwaitingAttendance}
+      limit={10}
+      loading={loading}
+      takeaway={chartTakeaway}
+    />
+  );
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -222,67 +269,82 @@ export default function AdminDashboard() {
         description={`Overview of ${describeAdminReach(student)}.`}
       />
 
-      {/* Headline figures, each opening the page behind it */}
-      {loading ? (
-        <SkeletonStatGrid count={4} />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            index={0}
-            label="Total students"
-            value={stats.totalStudents}
-            hint="Registered in the system"
-            icon={Users}
-            tone="info"
-            onClick={() => navigate("/admin/students")}
-          />
-          <StatCard
-            index={1}
-            label="Total courses"
-            value={stats.totalCourses}
-            hint="In the course catalogue"
-            icon={BookOpen}
-            tone="brand"
-            onClick={() => navigate("/admin/courses")}
-          />
-          <StatCard
-            index={2}
-            label="Courses running now"
-            value={stats.coursesRunning}
-            hint={`${stats.activeEnrolments} active enrolment${stats.activeEnrolments === 1 ? "" : "s"}`}
-            icon={Calendar}
-            tone="success"
-            onClick={() => navigate("/admin/enrollment")}
-          />
-          <StatCard
-            index={3}
-            label="Avg. attendance"
-            value={attendanceRecorded ? `${stats.avgAttendance}%` : "—"}
-            hint={attendanceRecorded ? "Across courses with lectures recorded" : "No lectures recorded yet"}
-            icon={TrendingUp}
-            tone={
-              !attendanceRecorded
-                ? "neutral"
-                : stats.avgAttendance < settings.attendanceThreshold
-                  ? "danger"
-                  : stats.avgAttendance < settings.attendancePrewarningThreshold
-                    ? "warning"
-                    : "success"
+      {/* The department (or faculty) at a glance, beside the students who
+          need someone to act. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {loading ? (
+          <div className="lg:col-span-2">
+            <SkeletonHero />
+          </div>
+        ) : (
+          <HeroCard
+            className="lg:col-span-2"
+            eyebrow={scope.kind === "all" ? "Whole faculty" : `${scope.department} Department`}
+            value={<AnimatedNumber value={stats.totalStudents} />}
+            label="active students"
+            meta="Registered in the system."
+            actions={
+              <Button size="sm" className={heroGhostButtonClass} onClick={() => navigate("/admin/students")}>
+                <Users className="h-4 w-4" aria-hidden="true" />
+                View students
+              </Button>
             }
-            onClick={() => navigate("/admin/attendance")}
+            aside={
+              <div className="flex items-center gap-3 lg:flex-col lg:items-end">
+                {attendanceRecorded ? (
+                  <ProgressRing
+                    onHero
+                    value={stats.avgAttendance}
+                    size={112}
+                    strokeWidth={10}
+                    threshold={settings.attendanceThreshold}
+                    label="Average attendance"
+                  />
+                ) : (
+                  <span className="flex h-[112px] w-[112px] items-center justify-center rounded-full border-[10px] border-[var(--hero-track)] text-2xl font-bold text-foreground">
+                    —
+                  </span>
+                )}
+                <p className="text-xs text-[var(--hero-muted)] lg:text-right">
+                  {attendanceRecorded
+                    ? `Average attendance · ${settings.attendanceThreshold}% needed`
+                    : "No lectures recorded yet"}
+                </p>
+              </div>
+            }
+            footer={
+              <StatStrip
+                onHero
+                items={[
+                  {
+                    label: "courses in the catalogue",
+                    value: stats.totalCourses,
+                    icon: BookOpen,
+                    onClick: () => navigate("/admin/courses"),
+                  },
+                  {
+                    label: `running now · ${stats.activeEnrolments} active enrolment${stats.activeEnrolments === 1 ? "" : "s"}`,
+                    value: stats.coursesRunning,
+                    icon: Calendar,
+                    onClick: () => navigate("/admin/enrollment"),
+                  },
+                  {
+                    label: attendanceRecorded ? "average attendance" : "attendance: no lectures yet",
+                    value: attendanceRecorded ? `${stats.avgAttendance}%` : "—",
+                    icon: TrendingUp,
+                    tone: attendanceTone,
+                    onClick: () => navigate("/admin/attendance"),
+                  },
+                ]}
+              />
+            }
           />
-        </div>
-      )}
+        )}
 
-      {/* The whole faculty at a glance, one row per department in its
-          colour. A department admin's dashboard is one department already. */}
-      {scope.kind === "all" && <DepartmentBreakdown />}
-
-      {/* Attendance alerts */}
-      {alerts.length > 0 && (
+        {/* The students furthest below the requirement */}
         <SectionCard
           title={`Below ${settings.attendanceThreshold}% attendance`}
-          description="The students furthest below the requirement."
+          description={alerts.length > 0 ? "The students furthest below the requirement." : undefined}
           actions={
             <Button
               variant="ghost"
@@ -296,86 +358,135 @@ export default function AdminDashboard() {
           }
           flush
         >
-          <ul className="divide-y divide-border/70">
-            {alerts.map((alert, index) => (
-              <li
-                key={index}
-                className={`flex items-center justify-between gap-3 px-4 py-2.5 transition-colors ${courseRowClass(alert.courseCode)}`}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0 text-danger-fg" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground">
-                      {alert.studentName}
-                      <span className="font-normal text-muted-foreground"> — {alert.regNumber}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <CourseCode code={alert.courseCode} /> · {alert.courseName}
-                    </p>
+          {loading ? (
+            <div className="space-y-2 p-4" aria-hidden="true">
+              <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+              <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+            </div>
+          ) : alerts.length === 0 ? (
+            <div className="flex items-center gap-3 px-4 py-5">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-success-bg text-success-fg">
+                <PartyPopper className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">Nobody is below {settings.attendanceThreshold}%.</span>{" "}
+                {attendanceRecorded ? "Every student is at or above it." : "No lectures are recorded yet."}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/70">
+              {alerts.map((alert, index) => (
+                <li
+                  key={index}
+                  className={`flex items-center justify-between gap-3 px-4 py-2.5 transition-colors ${courseRowClass(alert.courseCode)}`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 text-danger-fg" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {alert.studentName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {alert.regNumber} · <CourseCode code={alert.courseCode} /> {alert.courseName}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <StatusBadge tone="danger">{alert.percentage}%</StatusBadge>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-      )}
-
-      {/* Chart and shortcuts */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <CourseAttendanceChart
-          title="Course attendance"
-          description="Lowest first — the courses needing attention"
-          data={courseAttendance.map((c) => ({
-            code: c.code,
-            percentage: c.avgAttendance,
-          }))}
-          threshold={settings.attendanceThreshold}
-          prewarning={settings.attendancePrewarningThreshold}
-          awaitingCount={coursesAwaitingAttendance}
-          limit={10}
-          loading={loading}
-        />
-
-        <SectionCard title="Quick actions" bodyClassName="space-y-2">
-          <ActionCard
-            index={0}
-            label="Attendance"
-            description="Mark a lecture, or see each student's attendance"
-            icon={Calendar}
-            tone="info"
-            onClick={() => navigate("/admin/attendance")}
-          />
-          <ActionCard
-            index={1}
-            label="Results"
-            description="Review submitted sheets, enter marks and publish"
-            icon={TrendingUp}
-            tone="success"
-            onClick={() => navigate("/admin/results")}
-          />
-          <ActionCard
-            index={2}
-            label="Students"
-            description="Search and view student records"
-            icon={Users}
-            tone="brand"
-            onClick={() => navigate("/admin/students")}
-          />
-          <ActionCard
-            index={3}
-            label="Courses"
-            description="View and manage the course catalogue"
-            icon={BookOpen}
-            tone="neutral"
-            onClick={() => navigate("/admin/courses")}
-          />
+                  <StatusBadge tone="danger">{alert.percentage}%</StatusBadge>
+                </li>
+              ))}
+            </ul>
+          )}
         </SectionCard>
       </div>
+
+      {/* Where an admin goes next, one row */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <ActionCard
+          index={0}
+          label="Attendance"
+          description="Mark a lecture, or see each student's attendance"
+          icon={Calendar}
+          tone="info"
+          onClick={() => navigate("/admin/attendance")}
+        />
+        <ActionCard
+          index={1}
+          label="Results"
+          description="Review submitted sheets, enter marks and publish"
+          icon={TrendingUp}
+          tone="success"
+          onClick={() => navigate("/admin/results")}
+        />
+        <ActionCard
+          index={2}
+          label="Students"
+          description="Search and view student records"
+          icon={Users}
+          tone="brand"
+          onClick={() => navigate("/admin/students")}
+        />
+        <ActionCard
+          index={3}
+          label="Courses"
+          description="View and manage the course catalogue"
+          icon={BookOpen}
+          tone="neutral"
+          onClick={() => navigate("/admin/courses")}
+        />
+      </div>
+
+      {/* Attendance by course; for the whole faculty, the departments in a
+          second tab of the same card. */}
+      {scope.kind === "all" ? (
+        <SectionCard
+          title="Courses and departments"
+          description={
+            chartTab === "courses"
+              ? "Lowest first — the courses needing attention."
+              : "Active students and catalogue courses in each department."
+          }
+          bodyClassName="space-y-4"
+        >
+          <PillTabs
+            aria-label="Attendance or departments"
+            layoutId="admin-dashboard-chart"
+            value={chartTab}
+            onChange={(v) => setChartTab(v as "courses" | "departments")}
+            tabs={[
+              { value: "courses", label: "Course attendance" },
+              { value: "departments", label: "By department" },
+            ]}
+          />
+          <TabPanel value={chartTab}>
+            {chartTab === "courses" ? (
+              chart
+            ) : (
+              <div className="-mx-4 sm:-mx-5">
+                <DepartmentBreakdown bare />
+              </div>
+            )}
+          </TabPanel>
+        </SectionCard>
+      ) : (
+        <SectionCard
+          title="Course attendance"
+          description="Lowest first — the courses needing attention."
+        >
+          {chart}
+        </SectionCard>
+      )}
 
       {/* Recently published */}
       <SectionCard
         title="Recently published results"
+        collapsible
+        defaultOpen={false}
+        storageKey="admin-recent-results"
+        summary={
+          recentResults.length > 0
+            ? `${recentResults.length} latest · ${recentResults.map((r) => r.courseCode).filter((c, i, a) => a.indexOf(c) === i).slice(0, 3).join(", ")}`
+            : undefined
+        }
         actions={
           <Button
             variant="ghost"

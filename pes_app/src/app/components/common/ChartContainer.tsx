@@ -22,6 +22,18 @@ interface ChartContainerProps {
    * readers. Charts are otherwise opaque to assistive technology.
    */
   summary?: string;
+  /**
+   * One plain sentence under the plot saying what the chart means for the
+   * student ("Your SGPA has stayed above 3.30 for five semesters."). Visible
+   * text, so it is read by everyone, not only screen readers.
+   */
+  takeaway?: React.ReactNode;
+  /**
+   * Draws only the plot, without its own card and title, for a chart that
+   * sits inside another card (a tab of a tabbed card, say). The title is
+   * still announced to screen readers.
+   */
+  bare?: boolean;
   children: React.ReactNode;
   className?: string;
 }
@@ -43,6 +55,8 @@ export function ChartContainer({
   emptyTitle = "No data to display yet",
   emptyDescription,
   summary,
+  takeaway,
+  bare = false,
   children,
   className,
 }: ChartContainerProps) {
@@ -50,26 +64,29 @@ export function ChartContainer({
 
   return (
     <section
+      aria-label={bare ? title : undefined}
       className={cn(
-        "rounded-2xl border border-border bg-card shadow-elevation-sm overflow-hidden",
+        !bare && "rounded-card border border-border bg-card shadow-elevation-sm overflow-hidden",
         className,
       )}
     >
-      <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-border/70">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          {description && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {description}
-            </p>
+      {!bare && (
+        <header className="flex items-start justify-between gap-3 px-4 sm:px-5 py-3.5 border-b border-border/70">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground">{title}</h2>
+            {description && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {description}
+              </p>
+            )}
+          </div>
+          {actions && (
+            <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
           )}
-        </div>
-        {actions && (
-          <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
-        )}
-      </header>
+        </header>
+      )}
 
-      <div className="p-4">
+      <div className={cn(!bare && "p-4 sm:p-5")}>
         {loading ? (
           <Skeleton style={{ height }} className="w-full" />
         ) : error ? (
@@ -103,6 +120,12 @@ export function ChartContainer({
             >
               {children}
             </motion.div>
+            {takeaway && (
+              <p className="mt-3 flex items-start gap-2 rounded-control bg-muted/50 px-3 py-2 text-xs text-foreground">
+                <span aria-hidden="true" className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-primary" />
+                <span>{takeaway}</span>
+              </p>
+            )}
           </>
         )}
       </div>
@@ -122,12 +145,15 @@ export function ChartTooltip({
   labelFormatter,
 }: {
   active?: boolean;
-  payload?: Array<{ name?: string; value?: number | string; color?: string }>;
+  payload?: Array<{ name?: string; value?: number | string; color?: string; type?: string }>;
   label?: string | number;
   valueSuffix?: string;
   labelFormatter?: (label: string | number) => string;
 }) {
-  if (!active || !payload?.length) return null;
+  // A series marked tooltipType="none" (a fill under a line) still arrives
+  // here; the default tooltip drops it, so this one does too.
+  const entries = payload?.filter((entry) => entry.type !== "none") ?? [];
+  if (!active || entries.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-border bg-popover px-3 py-2 shadow-elevation-lg">
@@ -137,7 +163,7 @@ export function ChartTooltip({
         </p>
       )}
       <div className="space-y-0.5">
-        {payload.map((entry, i) => (
+        {entries.map((entry, i) => (
           <div key={i} className="flex items-center gap-2 text-xs">
             {entry.color && (
               <span

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowRight,
   BookOpen,
   Calendar,
   CheckCircle2,
@@ -11,16 +12,21 @@ import {
   Users,
   UserSquare,
 } from "lucide-react";
+import { Button } from "../../components/ui/button";
 import {
   CourseCode,
   ActionCard,
+  AnimatedNumber,
   EmptyState,
   ErrorState,
+  HeroCard,
+  heroGhostButtonClass,
   PageHeader,
+  ProgressRing,
   SectionCard,
+  SkeletonHero,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
+  StatStrip,
   StatusBadge,
 } from "../../components/common";
 import { useAuth } from "../../context/AuthContext";
@@ -70,6 +76,11 @@ export default function StaffDashboard() {
   /* Sheets in review stay across every offering: a result sheet sent to the
      department in a past semester is still waiting on someone. */
   const inReview = offerings.filter((o) => o.submitted_count > 0).length;
+  /* This semester's courses still needing results: nothing entered first,
+     then drafts not yet sent. Published or in-review sheets are past you. */
+  const todo = current
+    .filter((o) => o.submitted_count === 0 && !(o.published_count > 0 && o.draft_count === 0))
+    .sort((a, b) => a.draft_count - b.draft_count);
 
   return (
     <div className="space-y-5">
@@ -84,52 +95,187 @@ export default function StaffDashboard() {
 
       {error && <ErrorState message={error} onRetry={load} />}
 
-      {loading ? (
-        <SkeletonStatGrid count={4} />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
-            index={0}
-            label="Teaching Now"
-            value={current.length}
-            icon={BookOpen}
-            tone="brand"
-            hint={
+      {/* This semester at a glance, beside what is waiting on you. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {loading ? (
+          <div className="lg:col-span-2">
+            <SkeletonHero />
+          </div>
+        ) : (
+          <HeroCard
+            className="lg:col-span-2"
+            eyebrow={caps.isHod ? `Head of ${caps.hodDepartment}` : "This semester"}
+            value={<AnimatedNumber value={current.length} />}
+            label={`course${current.length === 1 ? "" : "s"} teaching now`}
+            meta={
               coordinating > 0
-                ? `${coordinating} as coordinator`
+                ? `${coordinating} as coordinator${earlier > 0 ? ` · ${earlier} earlier under My Courses` : ""}.`
                 : earlier > 0
-                  ? `${earlier} earlier course${earlier === 1 ? "" : "s"}`
+                  ? `${earlier} earlier course${earlier === 1 ? "" : "s"} under My Courses.`
                   : undefined
             }
+            actions={
+              <Button size="sm" className={heroGhostButtonClass} onClick={() => navigate("/staff/courses")}>
+                <BookOpen className="h-4 w-4" aria-hidden="true" />
+                My courses
+              </Button>
+            }
+            aside={
+              current.length > 0 ? (
+                <div className="flex items-center gap-3 lg:flex-col lg:items-end">
+                  <ProgressRing
+                    onHero
+                    value={Math.round(((current.length - awaitingEntry) / current.length) * 100)}
+                    size={112}
+                    strokeWidth={10}
+                    label="Courses with marks entered"
+                  />
+                  <p className="text-xs text-[var(--hero-muted)] lg:text-right">
+                    {current.length - awaitingEntry} of {current.length} with marks entered
+                  </p>
+                </div>
+              ) : undefined
+            }
+            footer={
+              <StatStrip
+                onHero
+                items={[
+                  {
+                    label: "students in the courses you teach now",
+                    value: totalStudents,
+                    icon: Users,
+                  },
+                  {
+                    label: `sheet${inReview === 1 ? "" : "s"} in review with the department`,
+                    value: inReview,
+                    icon: ClipboardList,
+                    tone: inReview > 0 ? "warning" : undefined,
+                    onClick: () => navigate("/staff/results"),
+                  },
+                  {
+                    label: `course${awaitingEntry === 1 ? "" : "s"} this semester with no marks yet`,
+                    value: awaitingEntry,
+                    icon: AlertTriangle,
+                    tone: awaitingEntry > 0 ? "warning" : "success",
+                    onClick: () => navigate("/staff/results"),
+                  },
+                ]}
+              />
+            }
           />
-          <StatCard
-            index={1}
-            label="Students Taught"
-            value={totalStudents}
-            icon={Users}
-            tone="info"
-            hint="In the courses you teach now"
-          />
-          <StatCard
-            index={2}
-            label="Sheets In Review"
-            value={inReview}
-            icon={ClipboardList}
-            tone={inReview > 0 ? "warning" : "neutral"}
-            hint="Submitted, awaiting the department"
-          />
-          <StatCard
-            index={3}
-            label="No Marks Yet"
-            value={awaitingEntry}
-            icon={AlertTriangle}
-            tone={awaitingEntry > 0 ? "warning" : "success"}
-            hint="This semester's courses with nothing entered"
-          />
-        </div>
-      )}
+        )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* What is waiting on you: courses with nothing entered, then
+            sheets the department has not finished with. */}
+        <SectionCard
+          title="Waiting on you"
+          description={todo.length > 0 ? "Courses that still need results." : undefined}
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary/80"
+              onClick={() => navigate("/staff/results")}
+            >
+              Results
+              <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+            </Button>
+          }
+          flush
+        >
+          {loading ? (
+            <div className="space-y-2 p-4" aria-hidden="true">
+              <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+              <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+            </div>
+          ) : todo.length === 0 ? (
+            <div className="flex items-center gap-3 px-4 py-5">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-success-bg text-success-fg">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">Nothing waiting.</span>{" "}
+                {current.length > 0
+                  ? "Every course this semester has marks entered."
+                  : "No courses are running this semester."}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/70">
+              {todo.map((o) => (
+                <li key={o.offering_id}>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/staff/results")}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors",
+                      departmentByCourseCode(o.course_code)?.hoverClass ?? "hover:bg-muted/50",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-2 text-sm">
+                        <CourseCode code={o.course_code} />
+                        <span className="truncate text-foreground">{o.course_title}</span>
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {describeBatch(o.batch_year)} · {o.enrolled_count} enrolled
+                      </span>
+                    </span>
+                    <ResultStatusBadge offering={o} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* Where a lecturer goes next, one row. */}
+      <div className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2", caps.isHod && "lg:grid-cols-3 2xl:grid-cols-5")}>
+        <ActionCard
+          index={0}
+          label="Mark attendance"
+          description="Record a lecture for a course you teach"
+          icon={Calendar}
+          tone="info"
+          onClick={() => navigate("/staff/attendance")}
+        />
+        <ActionCard
+          index={1}
+          label="Enter results"
+          description="Mid-sem and CA marks, award the grade, then submit for review"
+          icon={TrendingUp}
+          tone="success"
+          onClick={() => navigate("/staff/results")}
+        />
+        {caps.isHod && (
+          <>
+            <ActionCard
+              index={2}
+              label="Assign lecturers"
+              description={`Course assignments for ${caps.hodDepartment}`}
+              icon={GraduationCap}
+              onClick={() => navigate("/staff/assignments")}
+            />
+            <ActionCard
+              index={3}
+              label="Department students"
+              description="Every student's record, semester by semester"
+              icon={UserSquare}
+              onClick={() => navigate("/staff/students")}
+            />
+            <ActionCard
+              index={4}
+              label="Department staff"
+              description="Academic staff and their teaching load"
+              icon={Users}
+              onClick={() => navigate("/staff/lecturers")}
+            />
+          </>
+        )}
+      </div>
+
+      <div>
         <SectionCard
           title="Current teaching"
           description={
@@ -137,7 +283,6 @@ export default function StaffDashboard() {
               ? `${current.length} course${current.length === 1 ? "" : "s"} running this semester`
               : undefined
           }
-          className="lg:col-span-2"
           flush
         >
           {loading ? (
@@ -181,15 +326,17 @@ export default function StaffDashboard() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <CourseCode code={o.course_code} className="text-sm" />
-                          <span className="truncate text-sm text-foreground">
-                            {o.course_title}
-                          </span>
+                        {/* One line of text, so on a phone the title wraps
+                            after its code instead of each part stacking. */}
+                        <p className="text-sm text-foreground">
+                          <CourseCode code={o.course_code} className="mr-2" />
+                          {o.course_title}
                           {o.my_role === "coordinator" && (
-                            <StatusBadge tone="brand">Coordinator</StatusBadge>
+                            <StatusBadge tone="brand" className="ml-2 align-middle">
+                              Coordinator
+                            </StatusBadge>
                           )}
-                        </div>
+                        </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {describeBatch(o.batch_year)} · Semester {o.semester} ·{" "}
                           {o.credits} credits · {o.enrolled_count} enrolled
@@ -205,50 +352,6 @@ export default function StaffDashboard() {
             </ul>
           )}
         </SectionCard>
-
-        <div className="space-y-3">
-          <ActionCard
-            index={0}
-            label="Mark attendance"
-            description="Record a lecture for a course you teach"
-            icon={Calendar}
-            tone="info"
-            onClick={() => navigate("/staff/attendance")}
-          />
-          <ActionCard
-            index={1}
-            label="Enter results"
-            description="Mid-sem and CA marks, award the grade, then submit for review"
-            icon={TrendingUp}
-            tone="success"
-            onClick={() => navigate("/staff/results")}
-          />
-          {caps.isHod && (
-            <>
-              <ActionCard
-                index={2}
-                label="Assign lecturers"
-                description={`Course assignments for ${caps.hodDepartment}`}
-                icon={GraduationCap}
-                onClick={() => navigate("/staff/assignments")}
-              />
-              <ActionCard
-                index={3}
-                label="Department students"
-                description="Every student's record, semester by semester"
-                icon={UserSquare}
-                onClick={() => navigate("/staff/students")}
-              />
-              <ActionCard
-                index={4}
-                label="Department staff"
-                description="Academic staff and their teaching load"
-                icon={Users}
-                onClick={() => navigate("/staff/lecturers")}
-              />
-            </>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "../ui/utils";
+import { AnimatedNumber } from "./Animated";
 import type { StatusTone } from "./StatusBadge";
 
 interface ProgressRingProps {
@@ -12,6 +13,8 @@ interface ProgressRingProps {
   sublabel?: string;
   /** Optional threshold marker, e.g. the 80% attendance requirement. */
   threshold?: number;
+  /** On a hero card: white on a translucent track. */
+  onHero?: boolean;
   className?: string;
 }
 
@@ -38,6 +41,7 @@ export function ProgressRing({
   label,
   sublabel,
   threshold,
+  onHero = false,
   className,
 }: ProgressRingProps) {
   const reduce = useReducedMotion();
@@ -65,7 +69,7 @@ export function ProgressRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--muted)"
+          stroke={onHero ? "var(--hero-track)" : "var(--muted)"}
           strokeWidth={strokeWidth}
         />
         <motion.circle
@@ -89,17 +93,23 @@ export function ProgressRing({
             y2={size / 2 + (radius + strokeWidth / 2) * Math.sin((thresholdAngle * Math.PI) / 180)}
             stroke="var(--foreground)"
             strokeWidth={2}
-            opacity={0.45}
+            opacity={onHero ? 0.7 : 0.45}
           />
         )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold text-foreground tabular-nums leading-none">
-          {pct}
-          <span className="text-sm font-semibold">%</span>
+        <span
+          className={cn(
+            "font-bold tabular-nums leading-none",
+            size >= 120 ? "text-3xl" : "text-xl",
+            "text-foreground",
+          )}
+        >
+          <AnimatedNumber value={pct} decimals={Number.isInteger(pct) ? 0 : 1} />
+          <span className={size >= 120 ? "text-base font-semibold" : "text-sm font-semibold"}>%</span>
         </span>
         {sublabel && (
-          <span className="text-[10px] text-muted-foreground mt-0.5">
+          <span className={cn("text-[10px] mt-0.5", onHero ? "text-[var(--hero-muted)]" : "text-muted-foreground")}>
             {sublabel}
           </span>
         )}

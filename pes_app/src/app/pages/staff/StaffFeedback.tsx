@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import {
+  AnimatedBar,
   CourseCode,
   EmptyState,
   ErrorState,
@@ -23,6 +24,7 @@ import {
   SegmentedTabs,
   SkeletonRows,
   StatusBadge,
+  TabPanel,
 } from "../../components/common";
 import { CoordinatorQuestions } from "../../components/staff/CoordinatorQuestions";
 import { DepartmentFeedback } from "../../components/staff/DepartmentFeedback";
@@ -254,20 +256,18 @@ export default function StaffFeedback() {
                         setSelectedCourse(null);
                       }}
                       aria-current={active}
-                      className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
-                        active ? "bg-primary/5" : "hover:bg-muted/50"
+                      className={`flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors ${
+                        active ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-muted/50"
                       }`}
                     >
                       <span className="min-w-0">
-                        <span className="flex flex-wrap items-center gap-2">
+                        <span className="block text-sm font-medium text-foreground">
                           <Megaphone
-                            className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground"
+                            className="mr-1.5 inline h-3.5 w-3.5 align-[-2px] text-muted-foreground"
                             aria-hidden="true"
                           />
-                          <span className="truncate text-sm font-medium text-foreground">
-                            {r.title}
-                          </span>
-                          <RoundBadge status={r.status} />
+                          {r.title}
+                          <RoundBadge status={r.status} className="ml-2 align-middle" />
                         </span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                           {r.semester ? `Semester ${r.semester} · ` : ""}
@@ -290,118 +290,128 @@ export default function StaffFeedback() {
             </ul>
           </SectionCard>
 
-          <div className="min-w-0 space-y-4">
-            {round && !course && (
-              <>
-                <SectionCard
-                  title={`Your courses in ${round.title}`}
-                  description={
-                    round.status === "draft"
-                      ? "Only the courses you are assigned to. Open one to add your own questions before your department opens the round."
-                      : "Only the courses you are assigned to. Open one for its results."
-                  }
-                  actions={<RoundBadge status={round.status} />}
-                  flush
-                >
-                  <ul className="divide-y divide-border/70">
-                    {round.courses.map((c) => (
-                      <li key={c.course_id}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            /* Nothing has been answered in a draft, so the
-                               useful thing to open is the form itself. */
-                            round.status === "draft"
-                              ? navigate(
-                                  `/staff/feedback/${round.id}/${c.course_id}/form`,
-                                )
-                              : setSelectedCourse(c.course_id)
-                          }
-                          className={`flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors ${
-                            departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent"
-                          } ${departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50"}`}
-                        >
-                          <span className="min-w-0">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <FileText
-                                className="h-4 w-4 flex-shrink-0 text-muted-foreground"
-                                aria-hidden="true"
-                              />
-                              <CourseCode code={c.course_code} className="text-sm" />
-                              <span className="truncate text-sm text-foreground">
+          {/* The round's courses and a course's report slide in and out of
+              the same column. */}
+          <TabPanel className="min-w-0" value={course ? `course:${course.course_id}` : `round:${round?.id ?? ""}`}>
+            <div className="min-w-0 space-y-4">
+              {round && !course && (
+                <>
+                  <SectionCard
+                    title={`Your courses in ${round.title}`}
+                    description={
+                      round.status === "draft"
+                        ? "Only the courses you are assigned to. Open one to add your own questions before your department opens the round."
+                        : "Only the courses you are assigned to. Open one for its results."
+                    }
+                    actions={<RoundBadge status={round.status} />}
+                    flush
+                  >
+                    <ul className="divide-y divide-border/70">
+                      {round.courses.map((c) => (
+                        <li key={c.course_id}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              /* Nothing has been answered in a draft, so the
+                                 useful thing to open is the form itself. */
+                              round.status === "draft"
+                                ? navigate(
+                                    `/staff/feedback/${round.id}/${c.course_id}/form`,
+                                  )
+                                : setSelectedCourse(c.course_id)
+                            }
+                            className={`flex w-full items-center justify-between gap-3 border-l-4 px-4 py-3 text-left transition-colors ${
+                              departmentByCourseCode(c.course_code)?.stripeClass ?? "border-l-transparent"
+                            } ${departmentByCourseCode(c.course_code)?.hoverClass ?? "hover:bg-muted/50"}`}
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm text-foreground">
+                                <FileText
+                                  className="mr-1.5 inline h-4 w-4 align-[-3px] text-muted-foreground"
+                                  aria-hidden="true"
+                                />
+                                <CourseCode code={c.course_code} className="mr-2" />
                                 {c.course_title}
                               </span>
+                              <span className="mt-0.5 block text-xs text-muted-foreground">
+                                <Users
+                                  className="mr-1 inline h-3 w-3"
+                                  aria-hidden="true"
+                                />
+                                {c.eligible_count} student
+                                {c.eligible_count === 1 ? "" : "s"} ·{" "}
+                                {c.response_count} response
+                                {c.response_count === 1 ? "" : "s"} (
+                                {c.response_rate}%)
+                              </span>
+                              {/* How far the round has got with this class. */}
+                              <AnimatedBar
+                                value={c.response_count}
+                                max={Math.max(c.eligible_count, 1)}
+                                tone="info"
+                                label={`${c.response_count} of ${c.eligible_count} responded`}
+                                className="mt-1.5 h-1.5 max-w-xs"
+                              />
                             </span>
-                            <span className="mt-0.5 block text-xs text-muted-foreground">
-                              <Users
-                                className="mr-1 inline h-3 w-3"
+                            <span className="flex flex-shrink-0 items-center gap-2">
+                              {c.avg_rating !== null && (
+                                <span className="text-right">
+                                  <span className="block text-sm font-semibold tabular-nums text-foreground">
+                                    {c.avg_rating.toFixed(2)}
+                                  </span>
+                                  <span className="block text-[11px] text-muted-foreground">
+                                    avg
+                                  </span>
+                                </span>
+                              )}
+                              {round.status === "draft" ? (
+                                <StatusBadge tone="warning">
+                                  Set up your form
+                                </StatusBadge>
+                              ) : c.results_visible ? (
+                                isClosed(round.status) ? (
+                                  <StatusBadge tone="info">Report ready</StatusBadge>
+                                ) : (
+                                  <StatusBadge tone="success" dot>
+                                    Collecting
+                                  </StatusBadge>
+                                )
+                              ) : (
+                                <StatusBadge tone="neutral" icon={Lock}>
+                                  {c.response_count} so far
+                                </StatusBadge>
+                              )}
+                              <ChevronRight
+                                className="h-4 w-4 text-muted-foreground"
                                 aria-hidden="true"
                               />
-                              {c.eligible_count} student
-                              {c.eligible_count === 1 ? "" : "s"} ·{" "}
-                              {c.response_count} response
-                              {c.response_count === 1 ? "" : "s"} (
-                              {c.response_rate}%)
                             </span>
-                          </span>
-                          <span className="flex flex-shrink-0 items-center gap-2">
-                            {c.avg_rating !== null && (
-                              <span className="text-right">
-                                <span className="block text-sm font-semibold tabular-nums text-foreground">
-                                  {c.avg_rating.toFixed(2)}
-                                </span>
-                                <span className="block text-[11px] text-muted-foreground">
-                                  avg
-                                </span>
-                              </span>
-                            )}
-                            {round.status === "draft" ? (
-                              <StatusBadge tone="warning">
-                                Set up your form
-                              </StatusBadge>
-                            ) : c.results_visible ? (
-                              isClosed(round.status) ? (
-                                <StatusBadge tone="info">Report ready</StatusBadge>
-                              ) : (
-                                <StatusBadge tone="success" dot>
-                                  Collecting
-                                </StatusBadge>
-                              )
-                            ) : (
-                              <StatusBadge tone="neutral" icon={Lock}>
-                                {c.response_count} so far
-                              </StatusBadge>
-                            )}
-                            <ChevronRight
-                              className="h-4 w-4 text-muted-foreground"
-                              aria-hidden="true"
-                            />
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </SectionCard>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
 
-                <RoundSummary round={round} />
-              </>
-            )}
+                  <RoundSummary round={round} />
+                </>
+              )}
 
-            {round && course && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-ml-2"
-                  onClick={() => setSelectedCourse(null)}
-                >
-                  <ArrowLeft className="mr-1.5 h-4 w-4" />
-                  Back to {round.title}
-                </Button>
-                <ReportPanel row={course} round={round} />
-              </>
-            )}
-          </div>
+              {round && course && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-2"
+                    onClick={() => setSelectedCourse(null)}
+                  >
+                    <ArrowLeft className="mr-1.5 h-4 w-4" />
+                    Back to {round.title}
+                  </Button>
+                  <ReportPanel row={course} round={round} />
+                </>
+              )}
+            </div>
+          </TabPanel>
         </div>
       )}
 
@@ -460,21 +470,22 @@ function FeedbackHeader({
         onChange={setTab}
         layoutId="staff-feedback-tabs"
         aria-label="Feedback view"
+        scrollable
       />
     </>
   );
 }
 
-function RoundBadge({ status }: { status: Round["status"] }) {
+function RoundBadge({ status, className }: { status: Round["status"]; className?: string }) {
   if (status === "open") {
     return (
-      <StatusBadge tone="success" dot>
+      <StatusBadge tone="success" dot className={className}>
         Open
       </StatusBadge>
     );
   }
-  if (isClosed(status)) return <StatusBadge tone="neutral">Closed</StatusBadge>;
-  return <StatusBadge tone="warning">Not open yet</StatusBadge>;
+  if (isClosed(status)) return <StatusBadge tone="neutral" className={className}>Closed</StatusBadge>;
+  return <StatusBadge tone="warning" className={className}>Not open yet</StatusBadge>;
 }
 
 /** The round's own facts, stated once under its courses. */

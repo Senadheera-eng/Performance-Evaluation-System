@@ -48,6 +48,10 @@ interface CourseAttendanceChartProps {
   limit?: number;
   loading?: boolean;
   className?: string;
+  /** One sentence on what the chart means; see ChartContainer. */
+  takeaway?: React.ReactNode;
+  /** Plot only, inside another card. */
+  bare?: boolean;
 }
 
 /**
@@ -69,6 +73,8 @@ export function CourseAttendanceChart({
   limit,
   loading = false,
   className,
+  takeaway,
+  bare,
 }: CourseAttendanceChartProps) {
   const chartDuration = useChartMotion();
 
@@ -114,6 +120,8 @@ export function CourseAttendanceChart({
         .map((d) => `${d.code} ${d.percentage}%`)
         .join(", ")}.`}
       className={className}
+      takeaway={takeaway}
+      bare={bare}
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart

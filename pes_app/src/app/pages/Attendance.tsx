@@ -23,12 +23,9 @@ import {
   PageHeader,
   SegmentedTabs,
   Skeleton,
+  SkeletonHero,
   SkeletonRows,
-  SkeletonStatGrid,
-  StatCard,
-  StatusBadge,
   DepartmentDot,
-  type StatusTone,
 } from "../components/common";
 import { SignInToLecture } from "../components/attendance/SignInToLecture";
 import {
@@ -37,8 +34,7 @@ import {
 } from "../components/attendance/AttendanceCalendar";
 import {
   AttendanceOverview,
-  TIER_ICON,
-  TIER_TONE,
+  AttendanceSummaryCard,
   type CourseAttendanceSummary,
 } from "../components/attendance/AttendanceOverview";
 import {
@@ -51,7 +47,6 @@ import { useSettings } from "../../lib/settings";
 import {
   type AttendanceCounts,
   type AttendanceTier,
-  TIER_LABEL,
   classifyTier,
   compliantCount,
   getAbsencesAllowed,
@@ -286,7 +281,7 @@ export default function Attendance() {
           {tab === "overview" ? (
           loading ? (
             <div className="space-y-4">
-              <SkeletonStatGrid count={5} />
+              <SkeletonHero />
               <SkeletonRows count={6} height="h-16" />
             </div>
           ) : (
@@ -358,65 +353,66 @@ export default function Attendance() {
             </div>
           )}
 
+          {/* The course in view: its percentage against the requirement, what
+              that means for the student, and the counts behind it. */}
           {loading ? (
-            <SkeletonStatGrid count={6} />
+            <SkeletonHero />
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-              <StatCard
-                index={0}
-                label="Attendance"
-                value={`${selectedPercentage}%`}
-                icon={TIER_ICON[selectedTier]}
-                tone={TIER_TONE[selectedTier]}
-                hint={TIER_LABEL[selectedTier]}
+            selectedCourse && (
+              <AttendanceSummaryCard
+                key={selectedKey ?? "none"}
+                eyebrow="Attendance in this course"
+                percentage={selectedPercentage}
+                total={selectedTotal}
+                tier={selectedTier}
+                threshold={threshold}
+                headline={
+                  selectedTier === "pending"
+                    ? "No lectures recorded yet"
+                    : selectedTier === "critical"
+                      ? `${lecturesNeeded} lecture${lecturesNeeded === 1 ? "" : "s"} to recover`
+                      : `${absencesAllowed} more absence${absencesAllowed === 1 ? "" : "s"} allowed`
+                }
+                message={statusCopy({
+                  tier: selectedTier,
+                  threshold,
+                  percentage: selectedPercentage,
+                  absencesAllowed,
+                  lecturesNeeded,
+                })}
+                items={[
+                  {
+                    label: `lecture${selectedTotal === 1 ? "" : "s"}`,
+                    value: selectedTotal,
+                    icon: CalendarCheck2,
+                  },
+                  {
+                    label: "present",
+                    value: selectedCounts.present,
+                    icon: CheckCircle2,
+                    tone: "success",
+                  },
+                  {
+                    label: "absent",
+                    value: selectedCounts.absent,
+                    icon: CalendarX2,
+                    tone: "danger",
+                  },
+                  {
+                    label: "excused",
+                    value: selectedCounts.excused,
+                    icon: ShieldCheck,
+                    tone: "info",
+                  },
+                  {
+                    label: `absence${absencesAllowed === 1 ? "" : "s"} allowed before dropping below ${threshold}%`,
+                    value: absencesAllowed,
+                    icon: AlertTriangle,
+                    tone: absencesAllowed === 0 && selectedTotal > 0 ? "danger" : "neutral",
+                  },
+                ]}
               />
-              <StatCard
-                index={1}
-                label="Total Lectures"
-                value={selectedTotal}
-                icon={CalendarCheck2}
-                tone="neutral"
-              />
-              <StatCard
-                index={2}
-                label="Present"
-                value={selectedCounts.present}
-                icon={CheckCircle2}
-                tone="success"
-              />
-              <StatCard
-                index={3}
-                label="Absent"
-                value={selectedCounts.absent}
-                icon={CalendarX2}
-                tone="danger"
-              />
-              <StatCard
-                index={4}
-                label="Excused"
-                value={selectedCounts.excused}
-                icon={ShieldCheck}
-                tone="info"
-              />
-              <StatCard
-                index={5}
-                label="Absences Allowed"
-                value={absencesAllowed}
-                icon={AlertTriangle}
-                tone={absencesAllowed === 0 && selectedTotal > 0 ? "danger" : "neutral"}
-                hint={`Before dropping below ${threshold}%`}
-              />
-            </div>
-          )}
-
-          {!loading && selectedCourse && (
-            <StatusMessage
-              tier={selectedTier}
-              threshold={threshold}
-              percentage={selectedPercentage}
-              absencesAllowed={absencesAllowed}
-              lecturesNeeded={lecturesNeeded}
-            />
+            )
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
@@ -473,7 +469,8 @@ export default function Attendance() {
   );
 }
 
-function StatusMessage({
+/** What the course's attendance means for the student, in a sentence. */
+function statusCopy({
   tier,
   threshold,
   percentage,
@@ -485,10 +482,7 @@ function StatusMessage({
   percentage: number;
   absencesAllowed: number;
   lecturesNeeded: number;
-}) {
-  const Icon = TIER_ICON[tier];
-  const tone = TIER_TONE[tier];
-
+}): string {
   const copy: Record<AttendanceTier, string> = {
     pending:
       "No lectures have been recorded for this course yet — attendance will appear here once your department admin starts marking it.",
@@ -505,39 +499,5 @@ function StatusMessage({
       absencesAllowed === 1 ? "" : "s"
     } while staying above ${threshold}%.`,
   };
-
-  const BG_BORDER: Record<StatusTone, string> = {
-    success: "bg-success-bg border-success-border",
-    info: "bg-info-bg border-info-border",
-    warning: "bg-warning-bg border-warning-border",
-    danger: "bg-danger-bg border-danger-border",
-    neutral: "bg-neutral-bg border-neutral-border",
-    brand: "bg-primary/10 border-primary/20",
-  };
-  const ICON_COLOR: Record<StatusTone, string> = {
-    success: "text-success-fg",
-    info: "text-info-fg",
-    warning: "text-warning-fg",
-    danger: "text-danger-fg",
-    neutral: "text-neutral-fg",
-    brand: "text-primary",
-  };
-
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-xl border px-4 py-3",
-        BG_BORDER[tone],
-      )}
-    >
-      <Icon
-        className={cn("h-4.5 w-4.5 mt-0.5 flex-shrink-0", ICON_COLOR[tone])}
-        aria-hidden="true"
-      />
-      <div className="flex items-center gap-2 flex-wrap">
-        <StatusBadge tone={tone}>{TIER_LABEL[tier]}</StatusBadge>
-        <p className="text-sm text-foreground">{copy[tier]}</p>
-      </div>
-    </div>
-  );
+  return copy[tier];
 }

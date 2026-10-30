@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion, useReducedMotion } from "framer-motion";
+import {
+  AlertCircle,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Info,
+  PartyPopper,
+  type LucideIcon,
+} from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { AlertCard } from "./AlertCard";
+import { SectionCard, listItem, stagger } from "../common";
+import { cn } from "../ui/utils";
 
 /**
  * What the system noticed without being asked.
@@ -17,6 +28,9 @@ import { AlertCard } from "./AlertCard";
  * thresholds, all of them read from system_settings rather than written into
  * the logic. The Dashboard and the assistant read the same thing, so they
  * cannot tell a student different stories about the same term.
+ *
+ * On the Dashboard they are one compact list, "Needs your attention", beside
+ * the CGPA: worst first, each with the page to act on it.
  */
 
 type Severity = "critical" | "warning" | "info" | "positive";
@@ -40,11 +54,34 @@ const DESTINATION: Record<string, { label: string; to: string }> = {
   outstanding_modules: { label: "Go to enrolment", to: "/app/enrollment" },
 };
 
-const CARD_TYPE: Record<Severity, "error" | "warning" | "info" | "success"> = {
-  critical: "error",
-  warning: "warning",
-  info: "info",
-  positive: "success",
+/* Each notice in its own status colour, so "enrolment is open" reads blue
+   and an attendance warning red at a glance, as the dashboard's notices did
+   before the redesign. The button carries the colour too. */
+const LOOK: Record<Severity, { icon: LucideIcon; box: string; text: string; button: string }> = {
+  critical: {
+    icon: AlertCircle,
+    box: "border-danger-border bg-danger-bg",
+    text: "text-danger-fg",
+    button: "bg-danger-fg text-card hover:opacity-90",
+  },
+  warning: {
+    icon: AlertTriangle,
+    box: "border-warning-border bg-warning-bg",
+    text: "text-warning-fg",
+    button: "bg-warning-fg text-card hover:opacity-90",
+  },
+  info: {
+    icon: Info,
+    box: "border-info-border bg-info-bg",
+    text: "text-info-fg",
+    button: "bg-info-fg text-card hover:opacity-90",
+  },
+  positive: {
+    icon: CheckCircle2,
+    box: "border-success-border bg-success-bg",
+    text: "text-success-fg",
+    button: "bg-success-fg text-card hover:opacity-90",
+  },
 };
 
 /* Worst first. A student scanning the top of their dashboard should meet the
@@ -56,9 +93,10 @@ const ORDER: Record<Severity, number> = {
   positive: 3,
 };
 
-export function InsightsPanel() {
+export function InsightsPanel({ className }: { className?: string }) {
   const navigate = useNavigate();
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const reduce = useReducedMotion();
+  const [insights, setInsights] = useState<Insight[] | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.rpc("get_my_insights");
@@ -66,6 +104,7 @@ export function InsightsPanel() {
       // Never block the dashboard on this. A student who cannot see their
       // warnings should still see their marks.
       console.error("[insights]", error);
+      setInsights([]);
       return;
     }
     const list = ((data as { insights?: Insight[] } | null)?.insights ?? [])
@@ -78,26 +117,75 @@ export function InsightsPanel() {
     load();
   }, [load]);
 
-  if (insights.length === 0) return null;
-
   return (
-    <div className="space-y-3">
-      {insights.map((insight, i) => {
-        const destination = DESTINATION[insight.kind];
-        return (
-          <AlertCard
-            key={`${insight.kind}-${insight.course_code ?? i}`}
-            type={CARD_TYPE[insight.severity] ?? "info"}
-            title={insight.title}
-            message={insight.detail}
-            action={
-              destination
-                ? { label: destination.label, onClick: () => navigate(destination.to) }
-                : undefined
-            }
-          />
-        );
-      })}
-    </div>
+    <SectionCard
+      title="Needs your attention"
+      description={
+        insights && insights.length > 0
+          ? `${insights.length} thing${insights.length === 1 ? "" : "s"}, most urgent first.`
+          : undefined
+      }
+      className={className}
+      flush
+    >
+      {insights === null ? (
+        <div className="space-y-2 p-4" aria-hidden="true">
+          <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+          <div className="skeleton-shimmer h-12 rounded-control bg-muted" />
+        </div>
+      ) : insights.length === 0 ? (
+        <div className="flex items-center gap-3 px-4 py-5">
+          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-success-bg text-success-fg">
+            <PartyPopper className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">You're all caught up.</span> Nothing needs you
+            right now.
+          </p>
+        </div>
+      ) : (
+        <motion.ul
+          variants={stagger(0.05)}
+          initial={reduce ? false : "hidden"}
+          animate="show"
+          className="space-y-2 p-3"
+        >
+          {insights.map((insight, i) => {
+            const destination = DESTINATION[insight.kind];
+            const look = LOOK[insight.severity] ?? LOOK.info;
+            const Icon = look.icon;
+            return (
+              <motion.li
+                key={`${insight.kind}-${insight.course_code ?? i}`}
+                variants={listItem}
+                className={cn("flex items-start gap-3 rounded-control border px-3 py-3", look.box)}
+              >
+                <Icon className={cn("mt-0.5 h-5 w-5 flex-shrink-0", look.text)} aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className={cn("text-sm font-semibold", look.text)}>{insight.title}</p>
+                  <p className={cn("mt-0.5 text-xs opacity-90", look.text)}>{insight.detail}</p>
+                  {destination && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(destination.to)}
+                      className={cn(
+                        "group mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-opacity",
+                        look.button,
+                      )}
+                    >
+                      {destination.label}
+                      <ArrowRight
+                        className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  )}
+                </div>
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
+    </SectionCard>
   );
 }

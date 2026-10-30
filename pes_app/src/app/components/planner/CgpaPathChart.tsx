@@ -18,6 +18,8 @@ interface CgpaPathChartProps {
   target: { label: string; threshold: number };
   /** What the dashed part assumes, in a few words. */
   assumption: string;
+  /** Without its own card, inside one that carries the title. */
+  bare?: boolean;
 }
 
 /* Hover: the semester, and the CGPA on the record or projected. */
@@ -43,7 +45,7 @@ function PathTooltip({ active, payload, label }: any) {
  * for. One series in one colour: the line is the CGPA, and the dashing says
  * which part is still to happen.
  */
-export function CgpaPathChart({ data, target, assumption }: CgpaPathChartProps) {
+export function CgpaPathChart({ data, target, assumption, bare = false }: CgpaPathChartProps) {
   const duration = useChartMotion();
   const last = data[data.length - 1];
   const finish = last?.projected ?? last?.actual ?? null;
@@ -55,6 +57,7 @@ export function CgpaPathChart({ data, target, assumption }: CgpaPathChartProps) 
 
   return (
     <ChartContainer
+      bare={bare}
       title="Your CGPA path"
       description={`Solid: your record. Dashed: ${assumption}.`}
       height={220}

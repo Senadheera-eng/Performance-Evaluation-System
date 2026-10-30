@@ -1,30 +1,44 @@
 import { formatDateTime } from "../../../lib/format";
-import { CourseCode, DepartmentSelect, EmptyState, StatusBadge } from "../../components/common";
+import {
+  CourseCode,
+  DepartmentSelect,
+  EmptyState,
+  PageHeader,
+  PillTabs,
+  SectionCard,
+  SkeletonRows,
+  StatStrip,
+  StatusBadge,
+  useExpandMotion,
+  type StatusTone,
+  type StripItem,
+} from "../../components/common";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   EyeOff,
   Eye,
   Plus,
   ChevronDown,
-  ChevronUp,
   Lock,
   Archive,
   PlayCircle,
   Sparkles,
   X,
   MessageSquareText,
+  FilePen,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { Badge } from "../../components/ui/badge";
 import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -61,6 +75,7 @@ import {
   FeedbackQuestion,
 } from "../../../lib/feedbackService";
 import { departmentByCourseCode, departmentStripeClass } from "../../../lib/departments";
+import { cn } from "../../components/ui/utils";
 
 
 const QUESTION_TYPE_LABEL: Record<string, string> = {
@@ -71,12 +86,20 @@ const QUESTION_TYPE_LABEL: Record<string, string> = {
   long_text: "Long answer",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: "bg-neutral-bg text-neutral-fg",
-  scheduled: "bg-info-bg text-info-fg",
-  open: "bg-success-bg text-success-fg",
-  closed: "bg-warning-bg text-warning-fg",
-  archived: "bg-neutral-bg text-neutral-fg",
+const STATUS_TONE: Record<string, StatusTone> = {
+  draft: "neutral",
+  scheduled: "info",
+  open: "success",
+  closed: "warning",
+  archived: "neutral",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  scheduled: "Scheduled",
+  open: "Open",
+  closed: "Closed",
+  archived: "Archived",
 };
 
 /**
@@ -142,19 +165,10 @@ export default function AdminFeedback() {
   const scope = getAdminScope(admin);
   return (
     <div className="space-y-5">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <h1 className="text-2xl font-bold text-foreground mb-1">
-          Course Feedback
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Feedback rounds for {describeAdminReach(admin)} — create one, let its
-          lecturers shape their own course forms, open it, then close it.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Course Feedback"
+        description={`Feedback rounds for ${describeAdminReach(admin)} — create one, let its lecturers shape their own course forms, open it, then close it.`}
+      />
 
       {/* Forms lecturers asked the department to run. */}
       <FeedbackApprovals />
@@ -175,7 +189,7 @@ function PeriodsView({
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const expand = useExpandMotion();
 
   useEffect(() => {
     fetchPeriods();
@@ -187,48 +201,73 @@ function PeriodsView({
     setLoading(false);
   };
 
+  /* The rounds by where they stand, as chips. */
+  const strip: StripItem[] = (
+    [
+      ["open", Eye, "success"],
+      ["draft", FilePen, "neutral"],
+      ["scheduled", PlayCircle, "info"],
+      ["closed", Lock, "warning"],
+      ["archived", Archive, "neutral"],
+    ] as const
+  )
+    .map(([status, icon, tone]) => ({
+      label: STATUS_LABEL[status].toLowerCase(),
+      value: periods.filter((p) => p.status === status).length,
+      icon,
+      tone,
+    }))
+    .filter((it) => it.value > 0);
+
   return (
     <div className="space-y-4">
-      {saveMessage && (
-        <div className="p-3 rounded-xl bg-success-bg border border-success-border text-sm text-success-fg">
-          {saveMessage}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {creating && (
+          <motion.div
+            key="create"
+            variants={expand}
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            className="overflow-hidden"
+          >
+            <CreatePeriodForm
+              adminId={adminId}
+              scopeDepartment={scopeDepartment}
+              onCreated={() => {
+                setCreating(false);
+                toast.success("Feedback period created as a draft.");
+                fetchPeriods();
+              }}
+              onCancel={() => setCreating(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="flex justify-end">
-        <Button
-          onClick={() => setCreating(!creating)}
-          className="bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4 mr-1.5" />
-          New Period
-        </Button>
-      </div>
-
-      {creating && (
-        <CreatePeriodForm
-          adminId={adminId}
-          scopeDepartment={scopeDepartment}
-          onCreated={() => {
-            setCreating(false);
-            setSaveMessage("Feedback period created as a draft.");
-            fetchPeriods();
-          }}
-          onCancel={() => setCreating(false)}
-        />
-      )}
-
-      {loading ? (
-        <div className="h-40 rounded-xl bg-muted animate-pulse" />
-      ) : periods.length === 0 ? (
-        <EmptyState
-          icon={MessageSquareText}
-          title="No feedback rounds yet"
-          description="Create a round with New Period. Its lecturers then shape their own course forms, and you open it to students when they are ready."
-        />
-      ) : (
-        <div className="space-y-3">
-          {periods.map((p) => (
+      <SectionCard
+        title="Feedback rounds"
+        description="Open a round to see its courses and questions."
+        actions={
+          <Button onClick={() => setCreating(!creating)}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            New Period
+          </Button>
+        }
+        bodyClassName="space-y-3"
+      >
+        {!loading && strip.length > 0 && <StatStrip items={strip} />}
+        {loading ? (
+          <SkeletonRows count={3} height="h-24" />
+        ) : periods.length === 0 ? (
+          <EmptyState
+            icon={MessageSquareText}
+            title="No feedback rounds yet"
+            description="Create a round with New Period. Its lecturers then shape their own course forms, and you open it to students when they are ready."
+            size="inline"
+          />
+        ) : (
+          periods.map((p) => (
             <PeriodCard
               key={p.id}
               period={p}
@@ -240,12 +279,11 @@ function PeriodsView({
               }
               onChanged={() => {
                 fetchPeriods();
-                setSaveMessage(null);
               }}
             />
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </SectionCard>
     </div>
   );
 }
@@ -376,11 +414,7 @@ function CreatePeriodForm({
   };
 
   return (
-    <Card className="border-border">
-      <CardHeader>
-        <CardTitle className="text-base">New Feedback Period</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SectionCard title="New Feedback Period" bodyClassName="space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -405,21 +439,25 @@ function CreatePeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Semester
             </label>
-            <select
-              value={semester}
-              onChange={(e) => {
+            <Select
+              value={String(semester)}
+              onValueChange={(v) => {
                 setSemesterTouched(true);
-                setSemester(Number(e.target.value));
+                setSemester(Number(v));
               }}
-              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                <option key={s} value={s}>
-                  Semester {s}
-                  {s === batchSemester ? " (Current)" : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Semester" className="h-9 w-full rounded-control border-border bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    Semester {s}
+                    {s === batchSemester ? " (Current)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {batchSemester !== null && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {describeBatch(Number(batchYear))} is in Semester{" "}
@@ -432,24 +470,16 @@ function CreatePeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Feedback round
             </label>
-            <div className="flex gap-1.5">
-              {(
-                [
-                  ["mid_semester", "Mid semester"],
-                  ["end_semester", "End semester"],
-                ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="sm"
-                  variant={feedbackType === value ? "default" : "outline"}
-                  onClick={() => setFeedbackType(value)}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
+            <PillTabs
+              aria-label="Feedback round"
+              layoutId="feedback-round-type"
+              value={feedbackType}
+              onChange={(v) => setFeedbackType(v as "mid_semester" | "end_semester")}
+              tabs={[
+                { value: "mid_semester", label: "Mid semester" },
+                { value: "end_semester", label: "End semester" },
+              ]}
+            />
             <p className="mt-1 text-xs text-muted-foreground">
               {feedbackType === "mid_semester"
                 ? "Asked while the course is still running, so the answers can still change it."
@@ -460,17 +490,21 @@ function CreatePeriodForm({
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
               Batch
             </label>
-            <select
-              value={batchYear}
-              onChange={(e) => setBatchYear(Number(e.target.value))}
-              className="w-full h-9 px-3 rounded-xl border border-border bg-card text-foreground text-sm"
+            <Select
+              value={batchYear === "" ? undefined : String(batchYear)}
+              onValueChange={(v) => setBatchYear(Number(v))}
             >
-              {batches.map((b) => (
-                <option key={b} value={b}>
-                  {describeBatch(b)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Batch" className="h-9 w-full rounded-control border-border bg-card">
+                <SelectValue placeholder="Choose a batch" />
+              </SelectTrigger>
+              <SelectContent>
+                {batches.map((b) => (
+                  <SelectItem key={b} value={String(b)}>
+                    {describeBatch(b)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {scopeDepartment.kind === "all" && (
             <div>
@@ -517,25 +551,15 @@ function CreatePeriodForm({
 
         {error && <p className="text-sm text-danger-fg">{error}</p>}
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={onCancel}
-            disabled={saving}
-          >
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            className="flex-1 bg-primary hover:bg-primary/90"
-            onClick={handleCreate}
-            disabled={saving}
-          >
+          <Button onClick={handleCreate} disabled={saving}>
             {saving ? "Creating..." : "Create as Draft"}
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </SectionCard>
   );
 }
 
@@ -564,6 +588,7 @@ function PeriodCard({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
+  const expand = useExpandMotion();
   const [questionEditorOpen, setQuestionEditorOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<FeedbackQuestion | null>(
     null,
@@ -674,20 +699,30 @@ function PeriodCard({
   };
 
   return (
-    <Card className={`border-border ${departmentStripeClass(period.department)}`}>
-      <CardContent className="p-3">
+    <div className={cn("rounded-card border border-border bg-card", departmentStripeClass(period.department))}>
+      <div className="p-4">
         <div
-          className="flex items-center justify-between gap-2 flex-wrap cursor-pointer"
+          role="button"
+          tabIndex={0}
+          aria-expanded={expanded}
+          className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           onClick={onToggle}
+          onKeyDown={(e) => {
+            if (e.target !== e.currentTarget) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onToggle();
+            }
+          }}
         >
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-foreground">
                 {period.title}
               </span>
-              <Badge className={STATUS_COLOR[period.status]}>
-                {period.status}
-              </Badge>
+              <StatusBadge tone={STATUS_TONE[period.status] ?? "neutral"} dot>
+                {STATUS_LABEL[period.status] ?? period.status}
+              </StatusBadge>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {period.department ?? "All Departments"} ·{" "}
@@ -750,11 +785,13 @@ function PeriodCard({
                 Archive
               </Button>
             )}
-            {expanded ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                expanded && "rotate-180",
+              )}
+              aria-hidden="true"
+            />
           </div>
         </div>
 
@@ -765,10 +802,19 @@ function PeriodCard({
             that refusal was invisible and the button looked broken. */}
         {error && <p className="mt-2 text-sm text-danger-fg">{error}</p>}
 
+        <AnimatePresence initial={false}>
         {expanded && (
+          <motion.div
+            key="config"
+            variants={expand}
+            initial="collapsed"
+            animate="open"
+            exit="collapsed"
+            className="overflow-hidden"
+          >
           <div className="mt-4 pt-4 border-t border-border space-y-4">
             {!loaded ? (
-              <div className="h-24 rounded-lg bg-muted animate-pulse" />
+              <SkeletonRows count={2} height="h-12" />
             ) : (
               <>
                 <div>
@@ -780,7 +826,7 @@ function PeriodCard({
                       <button
                         type="button"
                         disabled={!editable}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-control border border-border bg-card hover:bg-muted transition-colors text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className={selectedCourseIds.length ? "text-foreground" : "text-muted-foreground"}>
                           {selectedCourseIds.length === 0
@@ -838,9 +884,9 @@ function PeriodCard({
                         const c = courses.find((course) => course.id === id);
                         if (!c) return null;
                         return (
-                          <Badge
+                          <span
                             key={id}
-                            className={`text-xs flex items-center gap-1 ${
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
                               departmentByCourseCode(c.code)?.chipClass ?? "bg-primary/10 text-primary"
                             }`}
                           >
@@ -854,7 +900,7 @@ function PeriodCard({
                                 <X className="h-3 w-3" />
                               </button>
                             )}
-                          </Badge>
+                          </span>
                         );
                       })}
                     </div>
@@ -865,7 +911,7 @@ function PeriodCard({
                   <p className="text-sm font-medium text-foreground mb-2">
                     Questions ({selectedQuestionIds.length} selected)
                   </p>
-                  <div className="border border-border rounded-xl max-h-64 overflow-y-auto divide-y divide-border">
+                  <div className="border border-border rounded-control max-h-64 overflow-y-auto divide-y divide-border">
                     {questionBank.map((q) => (
                       <div
                         key={q.id}
@@ -925,7 +971,6 @@ function PeriodCard({
                     size="sm"
                     onClick={handleSaveConfig}
                     disabled={saving}
-                    className="bg-primary hover:bg-primary/90"
                   >
                     {saving ? "Saving..." : "Save Configuration"}
                   </Button>
@@ -933,8 +978,10 @@ function PeriodCard({
               </>
             )}
           </div>
+          </motion.div>
         )}
-      </CardContent>
+        </AnimatePresence>
+      </div>
 
       <QuestionEditorDialog
         open={questionEditorOpen}
@@ -946,6 +993,6 @@ function PeriodCard({
         bank={questionBank}
         onSave={handleSaveQuestion}
       />
-    </Card>
+    </div>
   );
 }

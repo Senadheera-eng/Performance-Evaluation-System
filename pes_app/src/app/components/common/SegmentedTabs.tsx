@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "../ui/utils";
+import { tabContent } from "./motion";
 
 export interface SegmentedTabItem {
   value: string;
@@ -114,5 +115,39 @@ export function SegmentedTabs({
         );
       })}
     </div>
+  );
+}
+
+/** The same control under the name the design system uses for it. */
+export const PillTabs = SegmentedTabs;
+
+/**
+ * The content under a set of tabs or filters. Changing `value` slides the
+ * old content out and the new in, quickly, in the direction of reading.
+ */
+export function TabPanel({
+  value,
+  children,
+  className,
+}: {
+  /** The selected tab; a new value swaps the content. */
+  value: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={value}
+        initial={reduce ? { opacity: 0 } : tabContent.initial}
+        animate={tabContent.animate}
+        exit={reduce ? { opacity: 0 } : tabContent.exit}
+        transition={reduce ? { duration: 0 } : tabContent.transition}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }

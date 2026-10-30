@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { GripVertical, Plus, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import {
   Dialog,
@@ -19,6 +27,9 @@ import type {
   FeedbackQuestionType,
   QuestionDraft,
 } from "../../../lib/feedbackService";
+
+/* Radix's Select cannot hold an empty value, so "no gate" has its own. */
+const ALWAYS = "__always__";
 
 const TYPES: { value: FeedbackQuestionType; label: string; hint: string }[] = [
   { value: "rating", label: "Rating 1–5", hint: "Strongly Disagree → Strongly Agree" },
@@ -180,12 +191,15 @@ export function QuestionEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* min-w-0: a long question named in the gate picker must not
+            widen the dialog past a phone's edge. */}
+        <div className="min-w-0 space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <Label htmlFor="question-text" className="mb-1.5 block">
               Question <span className="text-destructive">*</span>
-            </label>
+            </Label>
             <Textarea
+              id="question-text"
               value={draft.question_text}
               onChange={(e) => set("question_text", e.target.value)}
               rows={2}
@@ -194,16 +208,17 @@ export function QuestionEditorDialog({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            <p id="question-type-label" className="mb-1.5 text-sm font-medium text-foreground">
               Answer type
-            </label>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            </p>
+            <div role="group" aria-labelledby="question-type-label" className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {TYPES.map((t) => {
                 const active = draft.question_type === t.value;
                 return (
                   <button
                     key={t.value}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => {
                       set("question_type", t.value);
                       if (t.value === "single_choice" && !draft.options?.length) {
@@ -213,10 +228,10 @@ export function QuestionEditorDialog({
                         ]);
                       }
                     }}
-                    className={`rounded-xl border px-3 py-2 text-left transition-all ${
+                    className={`rounded-control border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/40"
+                        ? "border-primary bg-primary/10 ring-1 ring-inset ring-primary/30"
+                        : "border-border bg-card hover:border-primary/40 hover:bg-muted/50"
                     }`}
                   >
                     <span className="block text-sm font-medium text-foreground">
@@ -233,9 +248,9 @@ export function QuestionEditorDialog({
 
           {isChoice && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              <p className="mb-1.5 text-sm font-medium text-foreground">
                 Options <span className="text-destructive">*</span>
-              </label>
+              </p>
               <div className="space-y-1.5">
                 {options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -247,6 +262,7 @@ export function QuestionEditorDialog({
                       value={opt.label}
                       onChange={(e) => setOption(i, { label: e.target.value })}
                       placeholder={`Option ${i + 1} — e.g. Fully Physical`}
+                      aria-label={`Option ${i + 1}`}
                       className="h-9"
                     />
                     <button
@@ -255,7 +271,7 @@ export function QuestionEditorDialog({
                         set("options", options.filter((_, idx) => idx !== i))
                       }
                       disabled={options.length <= 2}
-                      className="rounded p-1 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                      className="rounded-md p-1.5 text-muted-foreground hover:bg-danger-bg hover:text-destructive disabled:pointer-events-none disabled:opacity-40"
                       aria-label={`Remove option ${i + 1}`}
                     >
                       <X className="h-4 w-4" />
@@ -277,10 +293,11 @@ export function QuestionEditorDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <Label htmlFor="question-section" className="mb-1.5 block">
                 Section
-              </label>
+              </Label>
               <Input
+                id="question-section"
                 value={draft.section_title ?? ""}
                 onChange={(e) => set("section_title", e.target.value)}
                 placeholder="e.g. Learning Resources"
@@ -291,10 +308,11 @@ export function QuestionEditorDialog({
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              <Label htmlFor="question-section-order" className="mb-1.5 block">
                 Section position
-              </label>
+              </Label>
               <Input
+                id="question-section-order"
                 type="number"
                 min={0}
                 value={draft.section_order}
@@ -308,10 +326,10 @@ export function QuestionEditorDialog({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+            <p id="question-target-label" className="mb-1.5 text-sm font-medium text-foreground">
               Asked about
-            </label>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            </p>
+            <div role="group" aria-labelledby="question-target-label" className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {(
                 [
                   {
@@ -331,11 +349,12 @@ export function QuestionEditorDialog({
                   <button
                     key={t.value}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => set("target_type", t.value)}
-                    className={`rounded-xl border px-3 py-2 text-left transition-all ${
+                    className={`rounded-control border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       active
-                        ? "border-primary bg-primary/10"
-                        : "border-border hover:border-primary/40"
+                        ? "border-primary bg-primary/10 ring-1 ring-inset ring-primary/30"
+                        : "border-border bg-card hover:border-primary/40 hover:bg-muted/50"
                     }`}
                   >
                     <span className="block text-sm font-medium text-foreground">
@@ -350,10 +369,10 @@ export function QuestionEditorDialog({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border p-3">
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          <div className="rounded-control border border-border bg-muted/30 p-3">
+            <p className="mb-1.5 text-sm font-medium text-foreground">
               Only show this question when…
-            </label>
+            </p>
             {gateCandidates.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 Add a Yes/No or choose-one question first — those are what can
@@ -361,21 +380,28 @@ export function QuestionEditorDialog({
               </p>
             ) : (
               <div className="space-y-2">
-                <select
-                  value={draft.depends_on_question_id ?? ""}
-                  onChange={(e) => {
-                    set("depends_on_question_id", e.target.value || null);
+                <Select
+                  value={draft.depends_on_question_id ?? ALWAYS}
+                  onValueChange={(v) => {
+                    set("depends_on_question_id", v === ALWAYS ? null : v);
                     set("depends_on_values", null);
                   }}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                 >
-                  <option value="">Always show it</option>
-                  {gateCandidates.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.question_text}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger
+                    aria-label="Question that reveals this one"
+                    className="h-9 w-full min-w-0 rounded-control border-border bg-card [&_[data-slot=select-value]]:min-w-0"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[min(40rem,calc(100vw-2rem))]">
+                    <SelectItem value={ALWAYS}>Always show it</SelectItem>
+                    {gateCandidates.map((q) => (
+                      <SelectItem key={q.id} value={q.id}>
+                        <span className="truncate">{q.question_text}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
                 {gate && (
                   <div className="flex flex-wrap gap-1.5">
@@ -386,6 +412,7 @@ export function QuestionEditorDialog({
                         <button
                           key={opt.value}
                           type="button"
+                          aria-pressed={selected}
                           onClick={() => {
                             const current = draft.depends_on_values ?? [];
                             set(
@@ -395,10 +422,10 @@ export function QuestionEditorDialog({
                                 : [...current, opt.value],
                             );
                           }}
-                          className={`rounded-lg border px-2.5 py-1 text-xs transition-all ${
+                          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                             selected
                               ? "border-primary bg-primary/10 font-medium text-primary"
-                              : "border-border text-muted-foreground hover:border-primary/40"
+                              : "border-border bg-card text-muted-foreground hover:border-primary/40"
                           }`}
                         >
                           is “{opt.label}”

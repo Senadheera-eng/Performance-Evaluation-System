@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { ArrowRight, History } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import {
   Dialog,
   DialogContent,
@@ -131,31 +139,36 @@ export function ChangeBatchDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="space-y-4">
+          {/* From the intake they are in to the one they move to. */}
+          <div className="flex flex-wrap items-center gap-3 rounded-control border border-border bg-muted/30 p-3">
             <StatusBadge tone="neutral">
               {student ? describeBatch(student.batchYear) : "—"}
             </StatusBadge>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <select
-              value={toBatch}
-              onChange={(e) => setToBatch(e.target.value)}
-              className="h-9 flex-1 rounded-xl border border-border bg-card px-3 text-sm text-foreground"
-            >
-              <option value="">Select the new intake...</option>
-              {options.map((b) => (
-                <option key={b} value={b}>
-                  {describeBatch(b)}
-                </option>
-              ))}
-            </select>
+            <ArrowRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Select value={toBatch || undefined} onValueChange={setToBatch}>
+              <SelectTrigger
+                aria-label="New intake"
+                className="h-9 min-w-[12rem] flex-1 rounded-control border-border bg-card"
+              >
+                <SelectValue placeholder="Select the new intake…" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((b) => (
+                  <SelectItem key={b} value={String(b)}>
+                    {describeBatch(b)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <Label htmlFor="change-batch-reason" className="mb-1.5 block">
               Reason <span className="text-destructive">*</span>
-            </label>
+            </Label>
             <Textarea
+              id="change-batch-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={2}
@@ -164,10 +177,11 @@ export function ChangeBatchDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Approval reference (optional)
-            </label>
+            <Label htmlFor="change-batch-reference" className="mb-1.5 block">
+              Approval reference <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
             <Input
+              id="change-batch-reference"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               placeholder="e.g. FB/2026/114"
@@ -176,7 +190,7 @@ export function ChangeBatchDialog({
 
           {error && <ErrorState message={error} size="inline" />}
 
-          <div className="rounded-xl border border-border bg-muted/30 p-3">
+          <div className="rounded-control border border-border p-3">
             <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
               <History className="h-3.5 w-3.5" aria-hidden="true" />
               Previous changes

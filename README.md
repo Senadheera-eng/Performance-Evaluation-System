@@ -117,10 +117,10 @@ React app (Vite, hosted on Vercel)
       ▼
 Supabase
   ├── Auth          email + password
-  ├── PostgREST     tables and ~170 RPC functions over HTTP
+  ├── PostgREST     tables and ~190 RPC functions over HTTP
   ├── PostgreSQL    the data and every access rule (row level security)
   ├── Storage       avatars (public); medical-certificates, mentor-attachments, notice-attachments (private)
-  ├── Realtime      mentor chat
+  ├── Realtime      mentor chat, notifications, attendance registers
   ├── Edge Function ai-assistant → the faculty's own model (Ollama) and/or Google Gemini
   ├── Edge Function faculty-site-sync ← nightly pg_cron job; reads eng.sjp.ac.lk
   ├── Edge Function manage-batches    creates and deletes students' sign-in accounts (super admin only)
@@ -147,13 +147,17 @@ pes_app/                       the application
   src/app/pages/admin/         department / faculty admin pages
   src/app/pages/staff/         lecturer and head-of-department pages
   src/app/components/          interface pieces, grouped by feature
+  src/app/components/common/   the design system every screen is built from
   src/app/context/             AuthContext (who is signed in), theme
   src/app/routes.tsx           the URL map, one lazy chunk per page
   src/lib/                     logic with no interface: services, settings, PDF writers
+  src/styles/theme.css         every colour, radius, shadow and duration
 supabase/
-  migrations/                  the database history, one file per change
-  functions/ai-assistant/      the Gemini edge function
-docs/                          study guides (.docx) and Handbook extraction scripts
+  migrations/                  the database history, one file per change (README.md indexes them)
+  functions/                   the four Edge Functions: ai-assistant, faculty-site-sync,
+                               manage-batches, account
+docs/                          the study guides (.docx), their Markdown sources and build,
+                               and Handbook extraction scripts
 pes-scripts/                   one-off data loading scripts (Handbook chunks, accounts)
 ```
 
@@ -161,12 +165,15 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **41 tables**, all with row level security enabled. The main groups:
+The live schema has **51 tables**, all with row level security enabled, and 248 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |
 | People        | `students`, `lecturers`, `admins`, `hod_appointments`, `student_batch_changes`                  |
-| Courses       | `courses` (catalogue), `course_offerings` (a course taught to one batch in one year), `course_lecturers`, `curriculum_slots`, `minor_requirements` |
+| Accounts      | `account_tokens`, `account_deactivations`, `account_request_log` (service role only)            |
+| Courses       | `courses` (catalogue), `course_offerings` (a course taught to one batch in one year), `course_lecturers`, `curriculum_slots`, `elective_credit_norms` |
+| Minors        | `minor_requirements`, `minor_plan_baskets`, `minor_plan_courses`, `student_minor_choices`        |
+| Planner       | `planner_scenarios`, `planner_aims`                                                             |
 | Enrolment     | `enrollment_periods`, `enrollment_period_courses`, `enrollments`                                |
 | Attendance    | `attendance`, `attendance_sessions`, `attendance_checkins`, `attendance_presence_checks`, `attendance_presence_responses` |
 | Results       | `results` (draft → submitted → published, with correction history)                              |
@@ -223,7 +230,9 @@ Taken from the **Faculty Handbook 2026** and stored in `system_settings`, so the
 - **Medical certificates** — 14-day submission window
 - **Feedback** — analytics hidden below `feedback_min_responses_for_analytics` responses
 
-Recorded but not enforced: the Dean's List, and the time limits on completing the degree.
+The Graduation Planner shows the Dean's List (SGPA 3.80) and the gold medal as targets and checks, but PES does not award them; the time limits on completing the degree are not enforced.
+
+The study guides in [`docs/`](docs/README.md) describe all of this in depth: start with Guide 0.
 
 ---
 

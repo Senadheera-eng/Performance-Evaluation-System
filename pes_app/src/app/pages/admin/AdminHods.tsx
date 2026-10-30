@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Award, ChevronDown, History, Shield, UserCog } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertTriangle, Award, ChevronDown, History, Shield, UserCog, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -33,6 +35,8 @@ import {
   PersonAvatar,
   SectionCard,
   SkeletonRows,
+  StatStrip,
+  useExpandMotion,
 } from "../../components/common";
 import { cn } from "../../components/ui/utils";
 import { supabase } from "../../../lib/supabase";
@@ -91,8 +95,8 @@ export default function AdminHods() {
   const [lecturers, setLecturers] = useState<FacultyLecturer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const expand = useExpandMotion();
 
   const [pending, setPending] = useState<PendingChange | null>(null);
   const [reason, setReason] = useState("");
@@ -144,7 +148,7 @@ export default function AdminHods() {
       p_department: department,
     });
     if (rpcError) {
-      setError(rpcError.message);
+      toast.error(rpcError.message);
       return;
     }
     setHistory((prev) => ({ ...prev, [department]: (data ?? []) as HodTerm[] }));
@@ -153,8 +157,6 @@ export default function AdminHods() {
   const apply = async () => {
     if (!pending) return;
     setSaving(true);
-    setError(null);
-    setNotice(null);
 
     const { error: rpcError } =
       pending.kind === "appoint"
@@ -170,7 +172,7 @@ export default function AdminHods() {
     setSaving(false);
 
     if (rpcError) {
-      setError(rpcError.message);
+      toast.error(rpcError.message);
       setPending(null);
       return;
     }
@@ -184,7 +186,7 @@ export default function AdminHods() {
     });
 
     await load();
-    setNotice(
+    toast.success(
       pending.kind === "appoint"
         ? `${pending.lecturer.name} is now Head of ${pending.department}.`
         : `${pending.outgoing.name} has stood down. ${pending.department} has no head until one is appointed.`,
@@ -214,161 +216,202 @@ export default function AdminHods() {
       />
 
       {error && <ErrorState message={error} onRetry={load} size="inline" />}
-      {notice && (
-        <div className="rounded-xl border border-success-border bg-success-bg px-3 py-2 text-sm text-success-fg">
-          {notice}
-        </div>
-      )}
 
       {loading ? (
         <SkeletonRows count={4} height="h-28" />
       ) : (
-        departments.map(({ department, staff, head }) => {
-          const appointable = staff.filter(
-            (l) => l.status === "active" && !l.is_hod,
-          );
-          const dept = departmentByName(department);
-          return (
-            <SectionCard
-              key={department}
-              className={cn("border-l-4", dept?.stripeClass)}
-              title={
-                <span className="flex items-center gap-2">
-                  {dept && <DepartmentDot dept={dept} className="h-2.5 w-2.5" />}
-                  <span className={dept?.textClass}>{department}</span>
-                  {dept && (
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {dept.code}
+        <>
+          {/* The faculty at a glance: a headless department is the one
+              thing on this page that needs doing. */}
+          <StatStrip
+            items={[
+              {
+                label: "departments with a head",
+                value: `${departments.filter((d) => d.head).length} of ${departments.length}`,
+                icon: Award,
+                tone: departments.every((d) => d.head) ? "success" : "warning",
+              },
+              {
+                label: "lecturers in the faculty",
+                value: lecturers.length,
+                icon: Users,
+              },
+            ]}
+          />
+
+          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+            {departments.map(({ department, staff, head }) => {
+              const appointable = staff.filter(
+                (l) => l.status === "active" && !l.is_hod,
+              );
+              const dept = departmentByName(department);
+              const historyOpen = openHistory === department;
+              return (
+                <SectionCard
+                  key={department}
+                  className={cn("border-l-4", dept?.stripeClass)}
+                  title={
+                    // Inline text, so a long name wraps with its code
+                    // rather than splitting into columns.
+                    <span>
+                      {dept && (
+                        <DepartmentDot dept={dept} className="mr-2 inline-block h-2.5 w-2.5 align-middle" />
+                      )}
+                      <span className={dept?.textClass}>{department}</span>
+                      {dept && (
+                        <span className="ml-2 text-xs font-medium text-muted-foreground">
+                          {dept.code}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-              }
-              description={`${staff.length} lecturer${staff.length === 1 ? "" : "s"}`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  {head ? (
-                    <div className="flex items-center gap-3">
-                      <PersonAvatar
-                        name={head.name}
-                        url={avatars[head.lecturer_id]}
+                  }
+                  description={`${staff.length} lecturer${staff.length === 1 ? "" : "s"}`}
+                  actions={
+                    <>
+                      <ChoosePopover
                         department={department}
-                        size="md"
+                        lecturers={appointable}
+                        disabled={saving}
+                        label={head ? "Change head" : "Appoint a head"}
+                        onChoose={(lecturer) =>
+                          setPending({
+                            kind: "appoint",
+                            department,
+                            lecturer,
+                            outgoing: head,
+                          })
+                        }
                       />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">
-                            {head.title ? `${head.title} ` : ""}
-                            {head.name}
-                          </span>
-                          <span
+                      {head && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={saving}
+                          onClick={() =>
+                            setPending({
+                              kind: "stand-down",
+                              department,
+                              outgoing: head,
+                            })
+                          }
+                        >
+                          Stand down
+                        </Button>
+                      )}
+                    </>
+                  }
+                >
+                  <div className="min-w-0">
+                    {head ? (
+                      <div className="flex items-center gap-3">
+                        <PersonAvatar
+                          name={head.name}
+                          url={avatars[head.lecturer_id]}
+                          department={department}
+                          size="md"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">
+                              {head.title ? `${head.title} ` : ""}
+                              {head.name}
+                            </span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                                dept?.chipClass ?? "bg-primary/10 text-primary",
+                              )}
+                            >
+                              <Award className="h-3 w-3" aria-hidden="true" />
+                              Head of Department
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {head.email}
+                            {head.hod_since
+                              ? ` · since ${formatDate(head.hod_since)}`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="flex items-start gap-2 text-sm text-warning-fg">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                        <span>
+                          No head appointed. Nobody has department-wide access to{" "}
+                          {department} until one is.
+                        </span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 border-t border-border/70 pt-2">
+                    <button
+                      type="button"
+                      aria-expanded={historyOpen}
+                      onClick={() => {
+                        const next = historyOpen ? null : department;
+                        setOpenHistory(next);
+                        if (next) loadHistory(department);
+                      }}
+                      className="flex items-center gap-1.5 rounded-md py-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <History className="h-3.5 w-3.5" aria-hidden="true" />
+                      Past heads
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 transition-transform duration-200",
+                          historyOpen && "rotate-180",
+                        )}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {historyOpen && (
+                        <motion.div
+                          key="history"
+                          variants={expand}
+                          initial="collapsed"
+                          animate="open"
+                          exit="collapsed"
+                          className="overflow-hidden"
+                        >
+                          {/* A timeline: the department's colour down the side,
+                              one appointment per line, newest first as stored. */}
+                          <ul
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                              dept?.chipClass ?? "bg-primary/10 text-primary",
+                              "mt-1 space-y-1.5 border-l-2 pb-1 pl-3",
+                              dept?.stripeClass ?? "border-border",
                             )}
                           >
-                            <Award className="h-3 w-3" aria-hidden="true" />
-                            Head of Department
-                          </span>
-                        </div>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {head.email}
-                          {head.hod_since
-                            ? ` · since ${formatDate(head.hod_since)}`
-                            : ""}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No head appointed. Nobody has department-wide access to{" "}
-                      {department} until one is.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <ChoosePopover
-                    department={department}
-                    lecturers={appointable}
-                    disabled={saving}
-                    label={head ? "Change head" : "Appoint a head"}
-                    onChoose={(lecturer) =>
-                      setPending({
-                        kind: "appoint",
-                        department,
-                        lecturer,
-                        outgoing: head,
-                      })
-                    }
-                  />
-                  {head && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={saving}
-                      onClick={() =>
-                        setPending({
-                          kind: "stand-down",
-                          department,
-                          outgoing: head,
-                        })
-                      }
-                    >
-                      Stand down
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const next = openHistory === department ? null : department;
-                  setOpenHistory(next);
-                  if (next) loadHistory(department);
-                }}
-                className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                <History className="h-3.5 w-3.5" aria-hidden="true" />
-                Past heads
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform ${
-                    openHistory === department ? "rotate-180" : ""
-                  }`}
-                  aria-hidden="true"
-                />
-              </button>
-
-              {openHistory === department && (
-                <ul
-                  className={cn(
-                    "mt-2 space-y-1.5 border-l-2 pl-3",
-                    dept?.stripeClass ?? "border-border",
-                  )}
-                >
-                  {(history[department] ?? []).length === 0 ? (
-                    <li className="text-xs text-muted-foreground">
-                      No appointments on record.
-                    </li>
-                  ) : (
-                    history[department].map((t) => (
-                      <li
-                        key={`${t.lecturer_id}-${t.valid_from}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        <span className="text-foreground">{t.name}</span> ·{" "}
-                        {formatDate(t.valid_from)} →{" "}
-                        {t.valid_to ? formatDate(t.valid_to) : "present"}
-                        {t.notes ? ` · ${t.notes}` : ""}
-                      </li>
-                    ))
-                  )}
-                </ul>
-              )}
-            </SectionCard>
-          );
-        })
+                            {(history[department] ?? []).length === 0 ? (
+                              <li className="text-xs text-muted-foreground">
+                                No appointments on record.
+                              </li>
+                            ) : (
+                              history[department].map((t) => (
+                                <li
+                                  key={`${t.lecturer_id}-${t.valid_from}`}
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  <span className="text-foreground">{t.name}</span> ·{" "}
+                                  {formatDate(t.valid_from)} →{" "}
+                                  {t.valid_to ? formatDate(t.valid_to) : "present"}
+                                  {t.notes ? ` · ${t.notes}` : ""}
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </SectionCard>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <AlertDialog
