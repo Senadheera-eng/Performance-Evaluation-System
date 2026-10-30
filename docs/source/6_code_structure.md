@@ -15,7 +15,7 @@ Everything in the browser grows from one file, `src/main.tsx`, which mounts `App
 main.tsx                 mounts <App/> and loads styles/index.css
   App.tsx
     MotionConfig         reduced motion for anyone who asked their device for it
-    ThemeProvider        light / dark / follow the device   (context/ThemeContext)
+    ThemeProvider        light / dark / auto, main colour   (context/ThemeContext)
     AuthProvider         who is signed in, and as what      (context/AuthContext)
     RouterProvider       routes.tsx: one URL map
       ProtectedRoute     the right role, or off to the right portal
@@ -79,7 +79,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 | `routes.tsx` | The URL map (section 3). |
 | `layouts/` | AppLayout (students), StaffLayout (lecturers, heads included), AdminLayout (both admin roles). Each builds its menu and hands it to AppShell. |
 | `context/AuthContext.tsx` | The signed-in user, their normalised profile, and for a lecturer the StaffContext (their lecturer id and any department they head). Also signs out a deactivated account. Guide 3 follows it step by step. |
-| `context/ThemeContext.tsx` | Light, dark or auto, kept in localStorage under `theme`. |
+| `context/ThemeContext.tsx` | Light, dark or auto, kept in localStorage under `theme`; and the main colour (section 6.2), under `main-colour`. Both are per device, and `index.html` applies them before the first paint. |
 | `hooks/useNotifications.ts` | One store for the notification list, shared by the bell and the Notifications page, live through Realtime. |
 | `hooks/useNotificationCounts.ts` | Every badge count in one call (`get_my_notification_counts`), refreshed when something changes. |
 | `hooks/useThreadChannel.ts` | The mentor chat's live channel: new messages, read receipts, and "typing…". |
@@ -214,12 +214,16 @@ Every colour, radius, shadow and duration is a CSS variable in `src/styles/theme
 <!-- widths: 26,74 -->
 | Group | Tokens |
 |---|---|
-| Brand | `--primary` (the university crimson) and its scale, `--brand-gold`. |
-| Surfaces | `--background`, `--card`, `--muted`, `--border`; `surface-hero` (the soft brand wash), `surface-band` (the crimson band on profiles), `surface-tint`. |
+| Brand | `--primary` (the university crimson unless a main colour is chosen) and its scale, `--brand-gold`. |
+| Surfaces | `--background`, `--card`, `--muted`, `--border`; `surface-hero` (the soft brand wash), `surface-band` (the band on profiles, `--hero-from` into `--hero-to`), `surface-tint`. |
 | Status | success, warning, danger, info and neutral, each with `-bg`, `-fg` and `-border` so a badge is readable in both themes. |
 | Departments | `--dept-ce`, `--dept-co`, `--dept-ee`, `--dept-is`, `--dept-me`, each with `-fg` and `-soft`: the colours the Handbook prints each department's pages in. |
 | Shape | `--radius-card`, `--radius-control`; elevation `sm`, `md`, `lg`. |
 | Motion | `--motion-fast`, `--motion-base`, `--motion-slow`, `--motion-ease`. |
+
+**The main colour.** A student can choose PES's main colour under Settings, Appearance: crimson (the default), blue, indigo, violet, teal or graphite. Choosing one puts `data-main-colour` on `<html>`, and a block in `theme.css` for that colour replaces `--primary`, its 50–900 scale, `--ring`, `--chart-1`, the sidebar's two and the band's `--hero-from` and `--hero-to`, with a lighter shade under `.dark`. Nothing else changes: status and department colours keep their own tokens, so a failing grade is red whatever is chosen. The choice is kept in the browser, like the theme, not in the database. Two things stay crimson on purpose: the sign-in page, which is the faculty's front door, and the results PDF.
+
+To add a colour, add its name to `MAIN_COLOURS` in `ThemeContext.tsx`, a light and a dark block and a `--swatch-*` in `theme.css`, and a label in `Settings.tsx`. Check its light shade carries white text at 4.5:1 and its dark shade reads on the dark card.
 
 :::why DEPARTMENT COLOUR IS IDENTITY, NEVER STATUS
 An amber stripe means "Computer Engineering", not "warning". Status keeps its own tokens. `lib/departments.ts` turns a department name or a course code into its classes, and writes every class name out in full, because Tailwind only generates the classes it can find written in the source.

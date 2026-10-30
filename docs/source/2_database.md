@@ -2,14 +2,14 @@
 kicker: Study Guide 2 of 7
 title: Database Guide
 subtitle: Every table, what it holds, and how they connect
-intro: The PES keeps everything in one PostgreSQL 17 database: 51 tables, 248 functions, 2 views and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
+intro: The PES keeps everything in one PostgreSQL 17 database: 49 tables, 248 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
 updated: Updated 30 October 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
 # 1. How to think about this database
 
-Do not start by reading all 51 tables. Start with the four ideas that shape them.
+Do not start by reading all 49 tables. Start with the four ideas that shape them.
 
 **Idea 1 — A course is not the same as a course being taught**
 
@@ -285,13 +285,12 @@ If a published grade has to change, `correct_result_grade()` keeps the original 
 A student may not see a grade before it is published. That is not a preference — it is the reason results are read through functions rather than straight from the table, and why the `my_published_results` view exists.
 :::
 
-## 6.2 The two views
+## 6.2 The view
 
 <!-- widths: 30,70 -->
 | View | What it is |
 |---|---|
 | my_published_results | The signed-in student's published results only. A security-barrier view, so a cleverly written query cannot see past its filter. |
-| student_gpa_summary | Each student's SGPA per semester and CGPA, built on `result_credits`. Nothing in the app reads it today; the screens use functions instead. |
 
 # 7. Feedback
 
@@ -306,7 +305,6 @@ Feedback has more moving parts than it first appears: a round has to be requeste
 | feedback_period_courses | 6 | Which courses this round covers. |
 | feedback_submissions | 3 | One student's response to one course in one round. Carries the is_anonymous flag. Lets go of the student when a batch is removed. |
 | feedback_answers | 155 | The individual answers: rating, text, single choice or multiple choice, per lecturer where the question is about each lecturer. |
-| feedback | 0 | A legacy table, now empty and locked down. |
 
 **How a feedback round is approved**
 
@@ -507,7 +505,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 275. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 275 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 276. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 276 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql
@@ -521,4 +519,4 @@ Every database change is a numbered file under `supabase/migrations/`. There are
 
 Read in order, these files are the honest history of the database — including the mistakes and the fixes. If you ever wonder why a table looks the way it does, the answer is in one of these files, usually in its comment header.
 
-> The very first tables (students, courses, enrollments, attendance, results, lecturers, feedback, medical_submissions, timetables) were made in the SQL editor before migrations were recorded, so the folder alone cannot rebuild the database from empty. Guide 7 shows how to take a full schema dump.
+> The very first tables (students, courses, enrollments, attendance, results, lecturers, medical_submissions, and two since removed) were made in the SQL editor before migrations were recorded, so the folder alone cannot rebuild the database from empty. Guide 7 shows how to take a full schema dump.
