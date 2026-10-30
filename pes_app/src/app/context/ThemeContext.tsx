@@ -2,10 +2,40 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark" | "auto";
 
+/** The colours a person may choose as PES's main colour; crimson, the
+ *  university's, is the default. Each has a light and a dark shade in
+ *  styles/theme.css. */
+export const MAIN_COLOURS = [
+  "crimson",
+  "blue",
+  "indigo",
+  "violet",
+  "teal",
+  "graphite",
+] as const;
+export type MainColour = (typeof MAIN_COLOURS)[number];
+
+const MAIN_COLOUR_KEY = "main-colour";
+
+function isMainColour(value: string | null): value is MainColour {
+  return MAIN_COLOURS.some((colour) => colour === value);
+}
+
+/** Crimson is the stylesheet's own set, so it needs no attribute. */
+function applyMainColour(colour: MainColour) {
+  if (colour === "crimson") {
+    delete document.documentElement.dataset.mainColour;
+  } else {
+    document.documentElement.dataset.mainColour = colour;
+  }
+}
+
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   isDark: boolean;
+  mainColour: MainColour;
+  setMainColour: (colour: MainColour) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -13,6 +43,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
   const [isDark, setIsDark] = useState(false);
+  const [mainColour, setMainColourState] = useState<MainColour>("crimson");
   const [mounted, setMounted] = useState(false);
 
   // Initialize theme from localStorage
@@ -39,6 +70,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.classList.remove("dark");
       }
     }
+
+    // Kept on this device, like the theme. Anything unrecognised (an old or
+    // edited value) falls back to crimson.
+    const savedColour = localStorage.getItem(MAIN_COLOUR_KEY);
+    const colour = isMainColour(savedColour) ? savedColour : "crimson";
+    setMainColourState(colour);
+    applyMainColour(colour);
     setMounted(true);
   }, []);
 
@@ -85,13 +123,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setMainColour = (colour: MainColour) => {
+    setMainColourState(colour);
+    localStorage.setItem(MAIN_COLOUR_KEY, colour);
+    applyMainColour(colour);
+  };
+
   // The provider must wrap children on every render, including the first.
   // Returning bare children before mount meant any consumer rendered by the
   // initial route (e.g. a hard refresh straight onto /app/results) called
   // useTheme() with no provider above it and threw. Flash is prevented by
   // hiding content for the first paint instead of dropping the context.
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, isDark }}>
+    <ThemeContext.Provider
+      value={{ theme, setTheme, isDark, mainColour, setMainColour }}
+    >
       <div style={mounted ? undefined : { visibility: "hidden" }}>
         {children}
       </div>

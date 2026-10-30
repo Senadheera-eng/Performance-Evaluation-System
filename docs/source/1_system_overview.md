@@ -47,9 +47,9 @@ These are the real numbers from the live database on 30 October 2026. They matte
 | Enrolment records | 5,656 |
 | Result records | 7,392 |
 | Notifications written | 806 |
-| Database tables | 51 |
+| Database tables | 49 |
 | Database functions written for the app | 248 |
-| Database migrations (change history) | 275 |
+| Database migrations (change history) | 276 |
 | Edge Functions (server code beside the database) | 4 |
 | TypeScript files in the app (44 pages, 119 components) | 213 |
 
@@ -170,7 +170,7 @@ Performance-Evaluation-System/
       styles/theme.css           every colour, radius and shadow
     vercel.json                  what deploys, and caching
   supabase/
-    migrations/                  275 files - the full database history
+    migrations/                  276 files - the full database history
       README.md                  the same history, numbered and described
     functions/                   the four Edge Functions
   docs/                          these guides
@@ -251,7 +251,7 @@ Guide 2 lists all 18.
 
 ### 6.3 Row Level Security policies
 
-The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 121 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
+The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 117 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
 
 # 7. How the project is developed and deployed
 
@@ -267,7 +267,7 @@ The privacy rules, written as SQL attached to each table. These decide who may s
 
 ## 7.2 Database changes
 
-Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 275 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
+Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 276 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
 
 ```
 20260909150732_a_failed_course_has_to_be_repeatable.sql
@@ -319,7 +319,6 @@ Which model answers is configuration, not code. The faculty can run an open mode
 
 - **Time limits on completing the degree** are recorded in the Handbook but not enforced.
 - **The Dean's List and the gold medal** are shown in the Graduation Planner as targets and checks (an SGPA of 3.80 for the Dean's List; for the medal, an OGPA of 3.80 in four years with no compulsory or elective course repeated), but the system does not award or record them, and it cannot see the medal's last condition, no disciplinary action.
-- **Timetables** — the table exists and is empty; nothing reads it yet.
 
 ## 8.4 Before students use it
 
@@ -338,6 +337,7 @@ Three settings are deliberately relaxed for testing and must be put back before 
 - **Accounts and the faculty's own model** (2 October) — invitations, resets and deactivation by email; the assistant on a local model with Gemini behind it.
 - **Courses over two semesters, and the new Graduation Planner** (28 October) — a course graded once for both parts; semester targets, scenarios, the gold medal check, sharing with the mentor, and a notification when a semester is complete.
 - **Extending an enrolment window** (29 October).
+- **Unused database objects removed** (30 October) — the empty `timetables` and legacy `feedback` tables, the never-filled `courses.lecturer_name` column and an unused view, with no data lost.
 - **The redesign** (29–30 October, `feature/UI`) — every screen rebuilt on one set of shared components; Guide 6 describes them.
 
 # 9. Where to go next
