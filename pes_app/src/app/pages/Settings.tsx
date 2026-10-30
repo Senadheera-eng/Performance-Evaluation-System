@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Bell, CheckCircle2, KeyRound, Monitor, Moon, Sun } from "lucide-react";
+import { Bell, Check, CheckCircle2, KeyRound, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { PageHeader, SPRING, SectionCard } from "../components/common";
 import { ChangePasswordDialog } from "../components/account/ChangePasswordDialog";
 import { cn } from "../components/ui/utils";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme, type MainColour } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
 const THEMES = [
@@ -14,6 +14,17 @@ const THEMES = [
   { value: "dark", label: "Dark", icon: Moon },
   { value: "auto", label: "Auto", icon: Monitor },
 ] as const;
+
+/* The main colours, in the order they are offered. Each swatch is drawn
+   with --swatch-*, in the shade the current mode will use. */
+const MAIN_COLOUR_OPTIONS: { value: MainColour; label: string }[] = [
+  { value: "crimson", label: "Crimson" },
+  { value: "blue", label: "Blue" },
+  { value: "indigo", label: "Indigo" },
+  { value: "violet", label: "Violet" },
+  { value: "teal", label: "Teal" },
+  { value: "graphite", label: "Graphite" },
+];
 
 /* What the bell reports, in the words a student would use. Each line is a
    notification the database actually raises for a student (the notify_*
@@ -35,10 +46,11 @@ const NOTIFIED_ABOUT = [
  * "Delete Account" button and a language section. None of them was stored
  * or read anywhere: a student could turn two-factor authentication "on" and
  * nothing happened. They are gone. What is left all works: the account's
- * password, the theme, and a plain account of what PES notifies you about.
+ * password, the theme, the main colour, and a plain account of what PES
+ * notifies you about.
  */
 export default function Settings() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, mainColour, setMainColour } = useTheme();
   const { student } = useAuth();
   const navigate = useNavigate();
 
@@ -87,9 +99,17 @@ export default function Settings() {
 
         <SectionCard
           title="Appearance"
-          description="Auto follows your device's light or dark setting."
+          description="How PES looks on this device."
         >
-          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3">
+          <h3 id="settings-theme-label" className="mb-2 text-xs font-medium text-muted-foreground">
+            Theme
+          </h3>
+          <div
+            role="radiogroup"
+            aria-labelledby="settings-theme-label"
+            aria-describedby="settings-theme-hint"
+            className="grid grid-cols-3 gap-3"
+          >
             {THEMES.map(({ value, label, icon: Icon }) => {
               const active = theme === value;
               return (
@@ -127,6 +147,64 @@ export default function Settings() {
                 </button>
               );
             })}
+          </div>
+          <p id="settings-theme-hint" className="mt-2 text-xs text-muted-foreground">
+            Auto follows your device's light or dark setting.
+          </p>
+
+          <div className="mt-5 border-t border-border/70 pt-4">
+            <h3
+              id="settings-colour-label"
+              className="mb-2 text-xs font-medium text-muted-foreground"
+            >
+              Main colour
+            </h3>
+            <div
+              role="radiogroup"
+              aria-labelledby="settings-colour-label"
+              aria-describedby="settings-colour-hint"
+              className="grid grid-cols-3 gap-2 sm:gap-3"
+            >
+              {MAIN_COLOUR_OPTIONS.map(({ value, label }) => {
+                const active = mainColour === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setMainColour(value)}
+                    className={cn(
+                      "relative flex min-w-0 items-center gap-2 rounded-control border-2 border-border px-2.5 py-2 text-left transition-colors",
+                      !active && "hover:border-primary/40 hover:bg-muted/40",
+                    )}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="settings-colour-active"
+                        transition={SPRING}
+                        className="absolute -inset-0.5 rounded-control border-2 border-primary bg-primary/5"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <span
+                      className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)]"
+                      style={{ backgroundColor: `var(--swatch-${value})` }}
+                      aria-hidden="true"
+                    >
+                      {active && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
+                    </span>
+                    <span className="relative truncate text-sm font-medium text-foreground">
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p id="settings-colour-hint" className="mt-2 text-xs text-muted-foreground">
+              Buttons, links and highlights take this colour. Warnings and
+              failing grades stay red whichever you choose.
+            </p>
           </div>
         </SectionCard>
 
