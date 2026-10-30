@@ -1,5 +1,19 @@
 # PES UI/UX audit and plan
 
+> **Status, 30 October 2026.** Phase 2 is done on `feature/UI`: every student,
+> lecturer, head-of-department and admin screen has been rebuilt on the shared
+> design system in `pes_app/src/app/components/common/`, with after-screenshots
+> in `Screenshots/after/<Role>/`. After the first review four things changed
+> from this plan: the hero card became a soft brand wash instead of solid
+> crimson (on every dashboard); the student Dashboard's GPA and attendance
+> charts went back side by side near the top, with its notices in their
+> colours; the Results page shows its two insight charts straight under the
+> CGPA; and the Graduation Planner was simplified further (CGPA first, one card
+> of semester targets, a pinned projected CGPA on What-If). No native
+> dropdowns remain. Nothing in the data layer changed. Study Guide 6 describes
+> the design system as built; this document is kept as the audit and plan
+> that led to it.
+
 Branch: `feature/UI`. Phase 1 only: nothing in the app has changed yet. This
 document records what each screen does today, what gets in the way, and how
 each one will be restructured. It also defines the shared design system and
