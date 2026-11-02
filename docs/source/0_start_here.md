@@ -3,7 +3,7 @@ kicker: Study Guide 0  ·  read this first
 title: Start Here
 subtitle: A map of the guides, a reading order, and the words they use
 intro: The Performance Evaluation System is described in seven numbered guides and two feature guides. This one says which guide answers which question, suggests an order for three different readers, and explains the terms every guide assumes you know. It takes ten minutes.
-updated: Updated 30 October 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
+updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -16,7 +16,7 @@ footer: PES Study Guide
 | 2 — Database | Every table and what it holds, how they connect, the rule settings, the views, the storage buckets, the extensions, the scheduled job, and every function by area. |
 | 3 — Login, Roles and Permissions | How signing in works, how a role is decided, how routes are guarded, and an account's life: invited, set up, reset, deactivated. |
 | 4 — Security and Row Level Security | How the database refuses what it should refuse, who can see what, how the Edge Functions guard themselves, what reviews found, and how to test a rule yourself. |
-| 5 — Features and Data Flows | Each feature step by step: enrolment, attendance, results, feedback, medical certificates, mentoring, the Graduation Planner, the assistant, batches and accounts, dashboards and notifications. |
+| 5 — Features and Data Flows | Each feature step by step: enrolment, attendance, results, feedback, medical certificates, mentoring, the Graduation Planner and its grade forecast, the assistant, batches and accounts, dashboards and notifications. |
 | 6 — Code Structure | How the React app is organised: routes, layouts, contexts, services, the design system and its tokens, conventions, and how to add a page. |
 | 7 — Configuration and Operations | Every setting and secret and where it lives, deploying the site and the functions, the nightly job, migrations, scripts, health checks, and the release checklist. |
 | The AI Assistant | The assistant end to end: the page, the server, the tool loop, the fourteen tools, the Handbook and website search, the models, the limits, and how to change it. |

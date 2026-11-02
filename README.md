@@ -36,6 +36,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - **Results** — published grades and GPA; the raw exam mark is never shown, and nothing is visible before the department publishes
 - **Enrolment** — the semester's modules as Handbook baskets, plus outstanding R / F / L modules to repeat
 - **Graduation Planner** — credits and baskets still owed, and the average needed for each class of honours
+- **Grade forecast** — a machine-learning model's likely grade band for each course this semester and a forecast SGPA (see [Grade prediction](#grade-prediction-machine-learning))
 - **Medical certificates** — upload against specific modules within the 14-day window; each module is reviewed separately
 - **Course feedback** — anonymous or named, on the form each course holds
 - **Mentor** — a live chat with the lecturer assigned as their mentor, with attachments
@@ -46,7 +47,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - Live attendance sessions with a rotating code, optional geofence and mid-lecture presence checks
 - Result entry as a draft, then submission to the department, which publishes or returns the sheet (the lecturer never publishes)
 - Feedback rounds requested per course, with a per-course form editor and analytics once responses exist
-- Mentees with an academic overview and private notes the student can never see
+- Mentees with an academic overview and private notes the student can never see, and early warnings of mentees the grade model expects to get an R or F
 - Result sheets and feedback reports exported to PDF, and results imported from Excel
 
 ### Department and faculty administrators
@@ -57,6 +58,15 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - **Batches** (super admin): bring a new intake in from the faculty's Excel/CSV list — each student gets a sign-in account and a temporary password, handed out as a sheet and changed at first sign-in — divide a batch into departments from a list, and remove a batch that has left with all its records (results, attendance, enrolments, medical submissions and files, mentoring, sign-in accounts). Course feedback is kept without names unless the super admin chooses otherwise, and the batch's records can be downloaded as a workbook first
 
 ---
+
+## Grade prediction (machine learning)
+
+A random forest trained on the faculty's past results predicts, for each student and each course of the coming semester, the grade band they are likely to get (A+/A, A-/B+, B/B-, C+/C, R/F), and from those a forecast SGPA and the chance of at least one R or F.
+
+- **Students** see the likely band per course and a forecast SGPA in the Graduation Planner. They are not shown R or F figures: a course whose likeliest band is R/F says "Needs attention" and points to the mentor.
+- **Mentors** get an early-warning list of mentees with an above-usual chance of an R or F, likeliest first, with the courses to watch, and each mentee's full forecast.
+
+It is trained outside the app and loaded once a semester (`ml/`): the results are exported without names or ids, the model is evaluated on semesters it never saw against simple baselines, and the predictions are loaded with a single-use token rather than a service key. On held-out Semester 6 its SGPA forecast was off by 0.26 on average (0.29 for a student's own average so far). [`ml/README.md`](ml/README.md) has the method, the evaluation and the steps.
 
 ## AI Assistant
 
@@ -152,6 +162,7 @@ pes_app/                       the application
   src/app/routes.tsx           the URL map, one lazy chunk per page
   src/lib/                     logic with no interface: services, settings, PDF writers
   src/styles/theme.css         every colour, radius, shadow and duration
+ml/                            the grade-prediction model: export, train, evaluate, load (see ml/README.md)
 supabase/
   migrations/                  the database history, one file per change (README.md indexes them)
   functions/                   the four Edge Functions: ai-assistant, faculty-site-sync,
@@ -165,7 +176,7 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **49 tables**, all with row level security enabled, and 249 functions. The main groups:
+The live schema has **52 tables**, all with row level security enabled, and 254 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |
@@ -182,6 +193,7 @@ The live schema has **49 tables**, all with row level security enabled, and 249 
 | Mentoring     | `mentor_assignments`, `mentor_messages`, `mentor_notes`                                         |
 | Communication | `notices`, `notice_categories`, `notice_attachments`, `notifications`                           |
 | Rules and AI  | `system_settings` (the regulation engine), `handbook_chunks`, `faculty_site_pages`, `faculty_site_chunks`, `ai_assistant_usage_log` |
+| Grade forecast | `ml_models`, `ml_grade_predictions`, `ml_load_tokens` (read only through functions; written only by the token-guarded loader) |
 
 Students read results only through the `my_published_results` view and RPCs, never the `results` table directly. Every migration file in `supabase/migrations/` explains in its header why the change was made.
 

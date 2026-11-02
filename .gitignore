@@ -68,3 +68,9 @@ coverage/
 # Personal Claude Code permissions — machine-local, not shared
 .claude/settings.local.json
 supabase/.temp/
+
+# ML: the exported (anonymised) student data and the generated predictions
+# stay on the machine that trains the model; only code and the report are kept.
+ml/data/
+ml/out/
+__pycache__/

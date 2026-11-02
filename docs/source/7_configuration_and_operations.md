@@ -3,7 +3,7 @@ kicker: Study Guide 7 of 7
 title: Configuration and Operations
 subtitle: Every setting, where it lives, and how to run the system
 intro: Where PES is configured, what each setting and secret does, how a change reaches the live site and the live database, how the nightly job runs, which scripts are still useful, how to check that everything is healthy, and what must be done before students are given it. No secret values appear here — only their names and where to set them.
-updated: Updated 30 October 2026  ·  describes the live project and the feature/UI branch on that date  ·  first written 30 October 2026
+updated: Updated 2 November 2026  ·  describes the live project and the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -215,6 +215,17 @@ Check Guide 2, section 13 first: four settings are not read by anything yet, and
 | `pes-scripts/intent/` | The old question classifier the assistant no longer uses. |
 | `docs/parse_handbook_curriculum.py` | Read the curriculum tables out of the Handbook into `docs/handbook_curriculum_extract.tsv`, the source of `curriculum_slots`. |
 | `docs/source/build_guides.py` | Builds these guides from their Markdown sources (section 10). |
+| `ml/` | The grade forecast's model. Run once a semester, after its results are published: export (`export_dataset.sql`), train (`train.py`), load (`load_predictions.py`). See below. |
+
+## 7.1 Retraining the grade forecast each semester
+
+The forecasts are for one semester; once its results are published, they are spent. To forecast the next one (the full steps are in `ml/README.md`):
+
+1. Run `ml/export_dataset.sql` in the SQL editor and save each row's content into `ml/data/` under the file name it gives. Students and courses leave as numbers, with no names or ids.
+1. `pip install -r ml/requirements.txt`, then `python ml/train.py --test-semesters 5 6 --predict-semester 7`, with each number moved on by one per semester. It prints the evaluation, rewrites `ml/report/`, and writes `ml/out/predictions.json`.
+1. `python ml/load_predictions.py --new-token` prints a token and one line of SQL; run the line in the SQL editor (it stores only the token's hash), then `ML_LOAD_TOKEN=<token> python ml/load_predictions.py`.
+
+A load replaces the active model; the earlier ones stay in `ml_models`, inactive. If a student or course was added after the export, the load is refused: export and train again. `ml/data/` and `ml/out/` are git-ignored; commit the new `ml/report/`.
 
 # 8. Branches and commits
 
@@ -260,7 +271,8 @@ The build needs only Python 3. Its header comment lists the small Markdown diale
 | Leaked-password protection | Turn on in Supabase Auth (needs the Pro plan). |
 | The assistant's limits | Set `AI_DAILY_QUOTA` and `AI_PER_STUDENT_DAILY` to faculty-sized values. |
 | The assistant's model | Configure the faculty's own model, a paid Gemini key, or several keys; the free tier answers only a few questions a day. |
-| Five trigger functions callable by anon | Revoke EXECUTE on them (Guide 4, section 5.10), then run the count again. |
+| Five trigger functions callable by anon | Revoke EXECUTE on them (Guide 4, section 5.10), then run the count again; the one left should be the token-guarded `ml_load_predictions`. |
+| Grade forecast | Retrain on the latest published semester (section 7.1) so the forecast is for the semester students are in. |
 | Four settings that do nothing | Wire up or delete them (Guide 2, section 13), so nobody changes one expecting an effect. |
 | Email | Confirm `PES_APP_URL` is the live address and `PES_EMAIL_FROM`'s domain is verified in Resend; send yourself an invitation and a reset. |
 | The redesign | Merge `feature/UI` into `dev` and then `main` once tested. |

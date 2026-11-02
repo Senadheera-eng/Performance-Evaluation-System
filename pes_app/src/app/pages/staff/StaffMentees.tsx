@@ -39,6 +39,7 @@ import { describeBatch } from "../../../lib/batch";
 import { MentorChat } from "../../components/mentor/MentorChat";
 import { MentorNotes } from "../../components/mentor/MentorNotes";
 import { MenteePlanCard } from "../../components/mentor/MenteePlanCard";
+import { MenteeEarlyWarnings, MenteeForecastCard } from "../../components/forecast/GradeForecast";
 import {
   getMenteeNoteCounts,
   getMenteeOverview,
@@ -206,6 +207,17 @@ export default function StaffMentees() {
                 counts.attendance_concern > 0 ? () => setBand("attendance_concern") : undefined,
             },
           ]}
+        />
+      )}
+
+      {/* Who the grade model expects to struggle this semester, so a mentor
+          can start the conversation before the results do. */}
+      {!loading && mentees.length > 0 && (
+        <MenteeEarlyWarnings
+          onOpen={(id) => {
+            const m = mentees.find((x) => x.student_id === id);
+            if (m) setOpen(m);
+          }}
         />
       )}
 
@@ -463,6 +475,8 @@ function MenteeDetail({
           </div>
 
           <MenteePlanCard studentId={mentee.student_id} />
+
+          <MenteeForecastCard studentId={mentee.student_id} />
 
           {/* The same SGPA chart the student sees on their own Results page,
               against their CGPA. */}

@@ -1,0 +1,229 @@
+{
+  "name": "grade-band-forest",
+  "algorithm": "Random forest (300 trees), scikit-learn 1.9.1",
+  "trained_at": "2026-11-02T19:01:29+00:00",
+  "params": {
+    "max_depth": 10,
+    "min_samples_leaf": 10
+  },
+  "features": [
+    "Earlier average",
+    "Last semester's average",
+    "Change in average last semester",
+    "Average in this department's courses",
+    "Spread of earlier grades",
+    "Earlier R or F grades",
+    "Earlier deferrals",
+    "Share of A grades",
+    "Course credits",
+    "Elective course",
+    "Own department's course",
+    "Interdisciplinary course",
+    "Department's usual average"
+  ],
+  "train_rows": 6103,
+  "evaluation": {
+    "5": {
+      "train_rows": 3426,
+      "test_rows": 1341,
+      "results": [
+        {
+          "model": "Most common band (baseline)",
+          "accuracy": 0.3363,
+          "macro_f1": 0.1007,
+          "weighted_f1": 0.1693,
+          "within_one_band": 0.9359,
+          "gpv_mae": 0.5318,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "sgpa_mae": 0.3345,
+          "sgpa_within_0_25": 0.4873,
+          "students": 158
+        },
+        {
+          "model": "Same as before: average so far (baseline)",
+          "accuracy": 0.349,
+          "macro_f1": 0.2264,
+          "weighted_f1": 0.2833,
+          "within_one_band": 0.8628,
+          "gpv_mae": 0.5356,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "at_risk_auc": 0.7804,
+          "sgpa_mae": 0.3336,
+          "sgpa_within_0_25": 0.4684,
+          "students": 158,
+          "student_risk_auc": 0.8075,
+          "top25_flag_recall": 0.6552
+        },
+        {
+          "model": "Same as before: with last semester (baseline)",
+          "accuracy": 0.3542,
+          "macro_f1": 0.2403,
+          "weighted_f1": 0.3066,
+          "within_one_band": 0.877,
+          "gpv_mae": 0.5385,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "at_risk_auc": 0.7935,
+          "sgpa_mae": 0.3342,
+          "sgpa_within_0_25": 0.4684,
+          "students": 158,
+          "student_risk_auc": 0.823,
+          "top25_flag_recall": 0.6207
+        },
+        {
+          "model": "Decision tree (CART)",
+          "accuracy": 0.3781,
+          "macro_f1": 0.2591,
+          "weighted_f1": 0.3579,
+          "within_one_band": 0.7778,
+          "gpv_mae": 0.591,
+          "at_risk_recall": 0.1111,
+          "at_risk_precision": 0.25,
+          "at_risk_auc": 0.7282,
+          "sgpa_mae": 0.4266,
+          "sgpa_within_0_25": 0.3038,
+          "students": 158,
+          "student_risk_auc": 0.6763,
+          "top25_flag_recall": 0.3793,
+          "params": {
+            "criterion": "entropy",
+            "max_depth": 5,
+            "min_samples_leaf": 20
+          },
+          "cv_accuracy": 0.4644
+        },
+        {
+          "model": "Random forest",
+          "accuracy": 0.3975,
+          "macro_f1": 0.274,
+          "weighted_f1": 0.3783,
+          "within_one_band": 0.8553,
+          "gpv_mae": 0.5687,
+          "at_risk_recall": 0.1111,
+          "at_risk_precision": 0.4,
+          "at_risk_auc": 0.7681,
+          "sgpa_mae": 0.4008,
+          "sgpa_within_0_25": 0.2785,
+          "students": 158,
+          "student_risk_auc": 0.8009,
+          "top25_flag_recall": 0.5862,
+          "params": {
+            "max_depth": 6,
+            "min_samples_leaf": 10
+          },
+          "cv_accuracy": 0.4653
+        }
+      ]
+    },
+    "6": {
+      "train_rows": 4767,
+      "test_rows": 1336,
+      "results": [
+        {
+          "model": "Most common band (baseline)",
+          "accuracy": 0.3451,
+          "macro_f1": 0.1026,
+          "weighted_f1": 0.177,
+          "within_one_band": 0.9064,
+          "gpv_mae": 0.5794,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "sgpa_mae": 0.3896,
+          "sgpa_within_0_25": 0.5,
+          "students": 158
+        },
+        {
+          "model": "Same as before: average so far (baseline)",
+          "accuracy": 0.3922,
+          "macro_f1": 0.2472,
+          "weighted_f1": 0.349,
+          "within_one_band": 0.8787,
+          "gpv_mae": 0.5232,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "at_risk_auc": 0.7534,
+          "sgpa_mae": 0.2888,
+          "sgpa_within_0_25": 0.5696,
+          "students": 158,
+          "student_risk_auc": 0.7215,
+          "top25_flag_recall": 0.4
+        },
+        {
+          "model": "Same as before: with last semester (baseline)",
+          "accuracy": 0.4012,
+          "macro_f1": 0.2429,
+          "weighted_f1": 0.3472,
+          "within_one_band": 0.896,
+          "gpv_mae": 0.5171,
+          "at_risk_recall": 0.0,
+          "at_risk_precision": 0.0,
+          "at_risk_auc": 0.7511,
+          "sgpa_mae": 0.2828,
+          "sgpa_within_0_25": 0.6076,
+          "students": 158,
+          "student_risk_auc": 0.7356,
+          "top25_flag_recall": 0.425
+        },
+        {
+          "model": "Decision tree (CART)",
+          "accuracy": 0.3802,
+          "macro_f1": 0.2497,
+          "weighted_f1": 0.3641,
+          "within_one_band": 0.7874,
+          "gpv_mae": 0.5497,
+          "at_risk_recall": 0.0351,
+          "at_risk_precision": 1.0,
+          "at_risk_auc": 0.717,
+          "sgpa_mae": 0.2883,
+          "sgpa_within_0_25": 0.5823,
+          "students": 158,
+          "student_risk_auc": 0.6901,
+          "top25_flag_recall": 0.375,
+          "params": {
+            "criterion": "gini",
+            "max_depth": 5,
+            "min_samples_leaf": 20
+          },
+          "cv_accuracy": 0.4726
+        },
+        {
+          "model": "Random forest",
+          "accuracy": 0.378,
+          "macro_f1": 0.2437,
+          "weighted_f1": 0.3556,
+          "within_one_band": 0.7934,
+          "gpv_mae": 0.52,
+          "at_risk_recall": 0.0351,
+          "at_risk_precision": 1.0,
+          "at_risk_auc": 0.7803,
+          "sgpa_mae": 0.2553,
+          "sgpa_within_0_25": 0.6646,
+          "students": 158,
+          "student_risk_auc": 0.7587,
+          "top25_flag_recall": 0.45,
+          "params": {
+            "max_depth": 10,
+            "min_samples_leaf": 10
+          },
+          "cv_accuracy": 0.4814
+        }
+      ]
+    }
+  },
+  "bands": [
+    "A+/A",
+    "A-/B+",
+    "B/B-",
+    "C+/C",
+    "R/F"
+  ],
+  "band_mean_gpv": {
+    "A-/B+": 3.494,
+    "A+/A": 4.0,
+    "B/B-": 2.94,
+    "R/F": 0.0,
+    "C+/C": 2.183
+  }
+}

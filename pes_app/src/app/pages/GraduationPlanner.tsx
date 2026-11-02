@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { CgpaPathChart } from "../components/planner/CgpaPathChart";
+import { MyGradeForecastCard } from "../components/forecast/GradeForecast";
 import {
   AnimatedBar,
   AnimatedNumber,
@@ -1373,6 +1374,7 @@ export default function GraduationPlanner() {
 
           <TabsContent value="standing" className="mt-5 space-y-5">
             {renderHero()}
+            <MyGradeForecastCard />
             {renderTargets()}
             {renderRequirements()}
             {renderPath()}
