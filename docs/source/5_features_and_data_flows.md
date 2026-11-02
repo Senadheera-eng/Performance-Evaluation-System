@@ -153,7 +153,7 @@ A department or lecturer can download a sheet as an Excel workbook, fill in the 
 1. A department admin approves or rejects a request. `decide_feedback_period()` records the decision and any notes.
 1. While the round is a draft, lecturers shape their course's form. Everyone teaching a course in the round, and the sitting head of department, may add, edit, rename and reorder questions and sections for that course. The first edit gives the course its own copy of the round's template, so one lecturer's change never reaches another course. The department's own questions stay fixed.
 1. The round opens to the students it covers. Opening it is also the release: since 29 August 2026 there is no separate step where the department forwards results course by course.
-1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), which students see on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A faculty-wide round is the super admin's to extend. Students are not sent a notification when a round is extended.
+1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), and its students are told the new closing time in a notification (since 2 November 2026), as well as seeing it on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A faculty-wide round is the super admin's to extend.
 1. A student fills in the form. They can save a draft first and submit later, if editing is allowed.
 1. Answers are stored as ratings, free text, single choices or multiple choices.
 1. Results appear as answers arrive. A lecturer reads their own courses on the Feedback page and the head of department reads the whole department, but only once the minimum number of responses exists (feedback_min_responses_for_analytics).
@@ -366,7 +366,7 @@ They are written only by database triggers and a few functions, never by the bro
 | notify_mentor_message, notify_mentor_assigned | The other person in the thread; a student and their new mentor. |
 | notify_medical_submitted, notify_medical_reviewed | The department office; then the student, per module. |
 | notify_enrolment_window | The students a window covers, when it opens or is extended. |
-| notify_feedback_changes | The students a round covers, when it opens; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
+| notify_feedback_changes | The students a round covers, when it opens and when an open round is given a later closing time; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
 | notify_draft_form_ready | The lecturers of each course in a draft round ("set up your feedback form"), and the head of department. |
 | notify_course_assigned | A lecturer, when they are assigned to teach an offering. |
 | notify_notice_published, notify_notice_created_published | Everyone a notice is aimed at. |

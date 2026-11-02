@@ -505,7 +505,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 276. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 276 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 277. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 277 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql
