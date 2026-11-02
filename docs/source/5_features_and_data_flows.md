@@ -149,7 +149,7 @@ A department or lecturer can download a sheet as an Excel workbook, fill in the 
 
 ## 5.1 The flow
 
-1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none.
+1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none. When creating a round the office picks a semester and, optionally, one course: left at "All courses" the round covers every course of that semester in the department (the list can still be changed before it opens); with a course chosen it covers that course alone, so its students see only that form and the round's answers are that course's. The round's row then says, for example, "CO4204 only".
 1. A department admin approves or rejects a request. `decide_feedback_period()` records the decision and any notes.
 1. While the round is a draft, lecturers shape their course's form. Everyone teaching a course in the round, and the sitting head of department, may add, edit, rename and reorder questions and sections for that course. The first edit gives the course its own copy of the round's template, so one lecturer's change never reaches another course. The department's own questions stay fixed.
 1. The round opens to the students it covers. Opening it is also the release: since 29 August 2026 there is no separate step where the department forwards results course by course.

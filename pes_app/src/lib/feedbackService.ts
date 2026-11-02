@@ -1029,6 +1029,31 @@ export async function getPeriodCourseIds(periodId: string): Promise<string[]> {
   return (data ?? []).map((r: any) => r.course_id);
 }
 
+/** Each round's course codes, keyed by round, so the list can say when a
+ *  round covers a single course. One read for every round on the page. */
+export async function getPeriodCourseCodes(
+  periodIds: string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (periodIds.length === 0) return out;
+  const { data } = await supabase
+    .from("feedback_period_courses")
+    .select("feedback_period_id, courses(course_code)")
+    .in("feedback_period_id", periodIds);
+  const rows = (data ?? []) as unknown as {
+    feedback_period_id: string;
+    courses: { course_code: string } | null;
+  }[];
+  rows.forEach((r) => {
+    if (!r.courses) return;
+    out.set(r.feedback_period_id, [
+      ...(out.get(r.feedback_period_id) ?? []),
+      r.courses.course_code,
+    ]);
+  });
+  return out;
+}
+
 export async function getPeriodQuestionIds(periodId: string): Promise<string[]> {
   const { data } = await supabase
     .from("feedback_period_questions")
