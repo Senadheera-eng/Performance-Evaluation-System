@@ -295,7 +295,10 @@ function PeriodsView({
               period={p}
               courseCodes={courseCodes.get(p.id) ?? []}
               adminId={adminId}
-              managedElsewhere={scopeDepartment.kind === "department" && p.department === null}
+              managedElsewhere={
+                scopeDepartment.kind === "department" &&
+                (p.department === null || p.created_by_super_admin)
+              }
               expanded={expandedId === p.id}
               onToggle={() =>
                 setExpandedId(expandedId === p.id ? null : p.id)
@@ -682,8 +685,9 @@ function PeriodCard({
   /** The round's course codes as saved, for the row's own label. */
   courseCodes: string[];
   adminId: string;
-  /** A faculty-wide round seen by a department admin: theirs to watch, the
-   *  super admin's to change. The database refuses their edits anyway. */
+  /** A round the super admin created (or a faculty-wide one), seen by a
+   *  department admin: theirs to watch, the super admin's to change. The
+   *  database refuses their edits anyway. */
   managedElsewhere?: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -874,8 +878,8 @@ function PeriodCard({
               </Button>
             )}
             {/* A later closing time while it is open, so students who need
-                a few more days get them. Faculty-wide rounds are the Super
-                Admin's to extend, as they are to close. */}
+                a few more days get them. A round the Super Admin created is
+                the Super Admin's to extend, as it is to close. */}
             {period.status === "open" && !managedElsewhere && (
               <Button
                 size="sm"

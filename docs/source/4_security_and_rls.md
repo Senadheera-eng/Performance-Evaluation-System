@@ -3,7 +3,7 @@ kicker: Study Guide 4 of 7
 title: Security and Row Level Security
 subtitle: How the database refuses what it should refuse
 intro: Because the browser talks straight to the database, the database has to be the gate. This guide explains how that gate is built, who can see what, how the four Edge Functions guard themselves, what was found wrong in the September 2026 review and since, and how you can test any rule yourself.
-updated: Updated 30 October 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
+updated: Updated 2 November 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
@@ -40,7 +40,7 @@ Read it as a sentence: for a signed-in user selecting from the attendance table,
 
 A student running SELECT * FROM attendance does not get an error. They get their own rows and nothing else. There is no way to ask for more, because the filter is applied inside the database before the answer is built.
 
-All 49 tables have RLS switched on, with no exceptions, held by 117 policies (and 13 more on stored files). Five tables have RLS on and no policy at all — the three account tables and the two faculty-website tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
+All 52 tables have RLS switched on, with no exceptions, held by 120 policies (and 13 more on stored files). Eight tables have RLS on and no policy at all — the three account tables, the two faculty-website tables and the three grade-forecast tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`; the forecasts only through the functions in section 5.11. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
 
 # 2. Who can see what
 
@@ -119,6 +119,8 @@ using ((select get_my_role()) = 'super_admin')
 ```
 
 Some things are the super admin's alone, and each is checked by name rather than inferred from 'can see everything': enrolment windows, heads of department, batches, and accounts. The last two run on Edge Functions with the service role, so their check is in the function (section 3A).
+
+**A feedback round belongs to whoever created it** (since 2 November 2026). A department admin may read every round of their department, but may change, open, extend, close or delete only the ones their department created — their own, or a lecturer's request they approved. A round the super admin created is the super admin's, even when it is for one department, and so are its course and question lists. The test is `is_super_admin_account(created_by)`, a security-definer helper: a department admin cannot read the super admin's `admins` row, so a policy that looked for it directly would find nothing and wrongly allow the change.
 
 > There is one deliberate special case. The Interdisciplinary Studies admin can see students from any department, but only those who are actually linked to an interdisciplinary module. That is what students_is_admin_read does.
 
@@ -259,11 +261,28 @@ alter default privileges for role postgres in schema public
 
 The same day, the eleven dated backup tables were dropped (one had Row Level Security off), two functions that still resolved names through the caller's search_path were pinned, and the pgvector extension was moved from the public schema into extensions so its hundred-odd functions are no longer exposed beside the application's. After the change the anonymous role could call 0 functions and signed-in users could still call every one of the application's 169 functions they could call before, proved by counting both before and after, and by calling a function as anon and getting "permission denied".
 
-## 5.10 Where things stand on 30 October 2026
+## 5.10 Where things stand on 2 November 2026
 
-The same counts, taken again for this edition: 248 application functions, 194 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **5 callable by the anonymous role**. All five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
+The same counts, taken again for this edition: 254 application functions, 199 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **6 callable by the anonymous role**. One is deliberate: `ml_load_predictions`, whose credential is a single-use token rather than a sign-in (section 5.11). The other five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
 
 They are harmless as they stand: PostgreSQL refuses to run a trigger function except as a trigger, so calling one through the API only returns an error. But they break the rule this section exists for, and the fact that the default did not hold for them is worth knowing. The tidy-up is one migration that revokes EXECUTE on the five from anon (and, like the other triggers, from authenticated), followed by the count in section 6 run again.
+
+## 5.11 Grade forecasts: who sees what
+
+The machine-learning feature added on 2 November 2026 (Guide 5, section 8.4) brought three tables and five functions, built to the same rules.
+
+<!-- widths: 30,70 -->
+| Function | Who may call it, and what it returns |
+|---|---|
+| `get_my_grade_forecast()` | A signed-in student, for themselves only (`auth.uid()`). The likely band and its probability per course, and the forecast SGPA. The chance of an R or F is left out in every form: a course whose likeliest band is R/F returns `needs_attention` with no band, and the band probabilities are not returned, because four of them add up to the fifth. |
+| `get_mentee_early_warnings()` | A lecturer (`my_lecturer_id()`), for their own current mentees only. Each mentee's chance of an R or F, its level and the courses to watch. |
+| `get_student_grade_forecast(student)` | The student's mentor (`is_my_mentee`) or anyone who may see their record (`can_view_student_record`): their head of department, department admin, the super admin. The full forecast. Anyone else gets "Access denied". |
+| `ml_forecast_for(student)` | Nobody directly: EXECUTE is revoked from everyone but the owner. The three functions above call it after their own checks. |
+| `ml_load_predictions(token, payload)` | Anyone holding a valid token, signed in or not. Without one it raises before changing anything. |
+
+**Why a signed-out caller may call the loader.** The training machine has the app's public key and nothing else; giving it the service-role key to load a semester's predictions would hand it every table. Instead `ml/load_predictions.py` makes a random token, prints the SQL that stores its SHA-256 hash, and a person with access to the SQL editor runs that line. The function accepts a token only if its hash is stored, unused and under an hour old, and marks it used in the same statement, so a token works once. It also refuses a payload whose student or course lists changed since the export.
+
+**Tested.** As the student, as a mentor, and signed out, inside a transaction that was rolled back: the student saw their own forecast with no `risk`, `level`, `at_risk` or probabilities; was refused the tables (`permission denied`), the mentor list ("lecturers only"), another student's forecast ("Access denied") and the internal function; the mentor saw their seven mentees and was refused a student who is not one; signed out, the tables and `get_my_grade_forecast` were refused. A wrong token and a reused token were both refused through the API.
 
 # 6. How to test a rule yourself
 
@@ -319,7 +338,7 @@ left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
 where n.nspname = 'public' and d.objid is null;   -- the app's own functions
 ```
 
-On 30 October 2026 it returns 5 and 194 (section 5.10). The answer to aim for in the first column is 0.
+On 2 November 2026 it returns 6 and 199 (section 5.10). The answer to aim for in the first column is 1: the token-guarded loader, and nothing else.
 
 # 7. Things deliberately left alone
 

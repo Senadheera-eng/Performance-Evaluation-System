@@ -3,7 +3,7 @@ kicker: Study Guide 5 of 7
 title: Features and Data Flows
 subtitle: What each part of the system does, step by step
 intro: This is the practical guide. Each feature is described the same way: who uses it, which pages it lives in, what happens in order, and which rules the system enforces along the way.
-updated: Updated 30 October 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
+updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
@@ -153,7 +153,7 @@ A department or lecturer can download a sheet as an Excel workbook, fill in the 
 1. A department admin approves or rejects a request. `decide_feedback_period()` records the decision and any notes.
 1. While the round is a draft, lecturers shape their course's form. Everyone teaching a course in the round, and the sitting head of department, may add, edit, rename and reorder questions and sections for that course. The first edit gives the course its own copy of the round's template, so one lecturer's change never reaches another course. The department's own questions stay fixed.
 1. The round opens to the students it covers. Opening it is also the release: since 29 August 2026 there is no separate step where the department forwards results course by course.
-1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), and its students are told the new closing time in a notification (since 2 November 2026), as well as seeing it on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A faculty-wide round is the super admin's to extend.
+1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), and its students are told the new closing time in a notification (since 2 November 2026), as well as seeing it on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A round the super admin created is the super admin's to extend, open and close; a department admin manages the rounds their department created, and sees the super admin's marked "Managed by the Super Admin".
 1. A student fills in the form. They can save a draft first and submit later, if editing is allowed.
 1. Answers are stored as ratings, free text, single choices or multiple choices.
 1. Results appear as answers arrive. A lecturer reads their own courses on the Feedback page and the head of department reads the whole department, but only once the minimum number of responses exists (feedback_min_responses_for_analytics).
@@ -257,6 +257,24 @@ Everything on the What-If tab is a projection. The scenario tables hold guesses,
 When the last GPA course of a student's semester is published, `nudge_semester_complete` writes them a notification: their new SGPA, and the SGPA they now need for the class they are aiming at (or that it is secured, or out of reach). It links to the planner.
 
 > The Dean's List and the gold medal are checks and targets, not awards: the system does not record either. The time limits on completing the degree are not enforced. Both were left for a decision rather than guessed at.
+
+## 8.4 The grade forecast
+
+**Who:** students see their own; mentors see their mentees'. **Where:** `components/forecast/GradeForecast.tsx` and `lib/gradeForecast.ts`; the model itself is trained outside the app, by `ml/train.py`.
+
+The first machine-learning feature, added on 2 November 2026. A random forest trained on the faculty's past results predicts, for each student and each course of the coming semester, the grade band they are likely to get (A+/A, A-/B+, B/B-, C+/C or R/F); from those come a forecast SGPA and the chance of at least one R or F.
+
+1. **Once a semester, outside the app.** The results are exported without names or ids (`ml/export_dataset.sql`), the model is trained and checked on semesters it never saw (`ml/train.py`), and the predictions are loaded through `ml_load_predictions` with a single-use token. Guide 7, section 7 has the steps.
+1. **The student** sees a "Semester 7 forecast" card under the CGPA on Current Standing: the likely band of each course they are enrolled in (before enrolling, each compulsory course of their department), how likely it is, and the forecast SGPA with its usual error. "How this forecast works" says what the model read from their record and how well it did.
+1. **The mentor** sees an Early warnings card at the top of Academic Mentoring: the mentees whose chance of an R or F is above the usual, likeliest first, with the courses to watch. A mentee's own page carries their full forecast.
+
+The levels come from the faculty's own record: 5% of past course grades were an R or F, and 22% of students got at least one in a semester. A mentee is **Watch** from a 25% chance and **High** from 40%; a course is listed to watch from 10%, twice the usual rate.
+
+:::why WHY A STUDENT DOES NOT SEE THE R OR F FIGURES
+"A 44% chance of an R" handed to a student cold can do more harm than good, and the model names the exact band only some of the time. The student is told the course needs attention and pointed to their mentor; the mentor, who can put it in context, sees the figures. The database enforces it, not the page (Guide 4, section 5.11).
+:::
+
+> How good is it? On Semester 6, which it had not seen, the forecast SGPA was off by 0.26 on average, against 0.29 for the student's own average so far, and its early-warning ranking scored an AUC of 0.76 against 0.72. With grades alone and one cohort the margin over simple rules is small; mid-semester, CA and attendance marks are the features to add next. `ml/README.md` and `ml/report/report.md` have the full evaluation.
 
 # 9. The AI Assistant
 

@@ -3,7 +3,7 @@ kicker: Study Guide 1 of 7
 title: System Overview
 subtitle: What the PES is, and how the parts fit together
 intro: Start here. This guide explains what the Performance Evaluation System does, who uses it, what it is built from, and how one click in the browser turns into an answer from the database. Read it before the other guides; Guide 0 lists them all and suggests an order.
-updated: Updated 30 October 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
+updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
@@ -28,6 +28,7 @@ The PES puts all of it in one place, applies the Faculty Handbook rules automati
 - **Medical certificates** — students upload a certificate for specific modules and an admin approves or rejects each module separately; an approval excuses the affected absences.
 - **Mentoring** — every student has a lecturer as a mentor, with a live private chat, file attachments, and notes only the mentor can read.
 - **Graduation Planner** — a student sees their CGPA, the SGPA each remaining semester needs for every class of honours, what is still left to graduate, and can try expected grades and save the scenario (or share it with their mentor).
+- **Grade forecast (machine learning)** — a model trained on the faculty's past results predicts the grade band each student is likely to get in each course of the coming semester, and their SGPA. Students see it in the Graduation Planner; mentors get an early-warning list of mentees likely to get an R or F.
 - **AI Assistant** — a chat assistant that answers from the student's own record, the Faculty Handbook and the faculty website, using a model the faculty runs itself or Google Gemini.
 - **Notices and notifications** — a notice board aimed at the faculty, a department, a batch or one course, and a record of what happened to each person (a result published, a register opened, a mentor message, a semester's results complete).
 - **Batches and accounts** — the Super Admin brings a new intake in with sign-in accounts, divides it into departments, invites staff by email, deactivates an account, and removes a batch that has left (after downloading its records). Anyone can reset a forgotten password from an emailed link.
@@ -47,11 +48,11 @@ These are the real numbers from the live database on 30 October 2026. They matte
 | Enrolment records | 5,656 |
 | Result records | 7,392 |
 | Notifications written | 806 |
-| Database tables | 49 |
-| Database functions written for the app | 248 |
-| Database migrations (change history) | 277 |
+| Database tables | 52 |
+| Database functions written for the app | 254 |
+| Database migrations (change history) | 280 |
 | Edge Functions (server code beside the database) | 4 |
-| TypeScript files in the app (44 pages, 119 components) | 213 |
+| TypeScript files in the app (45 pages, 121 components) | 217 |
 
 > This is a faculty-sized system, not a national one. That single fact decides a lot of design choices later in these guides — for example, why long lists are not virtualised and why some queries are allowed to be simple.
 
@@ -162,7 +163,7 @@ Performance-Evaluation-System/
         layouts/                 the frame around each portal
         context/                 AuthContext (who is signed in), theme
         hooks/                   notifications, live chat
-      lib/                       logic with no interface (35 modules)
+      lib/                       logic with no interface (36 modules)
         supabase.ts              the one database client
         settings.ts              the regulation engine's defaults
         graduationPlan.ts        the planner's arithmetic
@@ -170,9 +171,10 @@ Performance-Evaluation-System/
       styles/theme.css           every colour, radius and shadow
     vercel.json                  what deploys, and caching
   supabase/
-    migrations/                  277 files - the full database history
+    migrations/                  280 files - the full database history
       README.md                  the same history, numbered and described
     functions/                   the four Edge Functions
+  ml/                            the grade-prediction model: export, train, load
   docs/                          these guides
     source/                      their Markdown sources, and the build
   pes-scripts/                   one-off data scripts (handbook search)
@@ -212,7 +214,7 @@ You will see both patterns all over the codebase, and it is worth knowing why ea
 | Direct table read | `supabase.from('courses').select(...)` | The rows are simple and Row Level Security alone is enough to decide who sees what. |
 | Function call (RPC) | `supabase.rpc('get_my_mentees')` | The answer needs joining, calculating, or a rule that RLS cannot express on its own — for example, hiding a grade until it is published. |
 
-Most of the interesting features use the second pattern. There are 248 functions in the database, of which signed-in users may call 194; the rest are triggers and internal helpers. Guide 2 explains how they are organised.
+Most of the interesting features use the second pattern. There are 254 functions in the database, of which signed-in users may call 199; the rest are triggers and internal helpers. Guide 2 explains how they are organised.
 
 ## 5.2 A third way: things that happen by themselves
 
@@ -251,7 +253,7 @@ Guide 2 lists all 18.
 
 ### 6.3 Row Level Security policies
 
-The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 117 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
+The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 120 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
 
 # 7. How the project is developed and deployed
 
@@ -267,7 +269,7 @@ The privacy rules, written as SQL attached to each table. These decide who may s
 
 ## 7.2 Database changes
 
-Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 277 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
+Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 280 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
 
 ```
 20260909150732_a_failed_course_has_to_be_repeatable.sql
@@ -307,6 +309,7 @@ You will need a `pes_app/.env.local` file holding the Supabase project URL and t
 - PDF result sheets and feedback reports
 - Notice board with attachments, and notifications with unread badges
 - An AI assistant over the student's record, the Handbook and the faculty website
+- Grade forecasts from a machine-learning model, with early warnings for mentors
 - Profiles and photos for every role; department colours throughout; light and dark themes
 
 ## 8.2 The AI Assistant
@@ -339,6 +342,7 @@ Three settings are deliberately relaxed for testing and must be put back before 
 - **Extending an enrolment window** (29 October).
 - **Unused database objects removed** (30 October) — the empty `timetables` and legacy `feedback` tables, the never-filled `courses.lecturer_name` column and an unused view, with no data lost.
 - **The redesign** (29–30 October, `feature/UI`) — every screen rebuilt on one set of shared components; Guide 6 describes them.
+- **Grade forecasts** (2 November) — the first machine-learning feature: a random forest trained on past results forecasts each student's grade bands and SGPA for the coming semester, and flags mentees likely to get an R or F. `ml/README.md` and Guide 5, section 8.4.
 
 # 9. Where to go next
 
