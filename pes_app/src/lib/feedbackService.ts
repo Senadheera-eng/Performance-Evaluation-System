@@ -421,6 +421,8 @@ export interface AdminFeedbackPeriod {
   closes_at: string;
   status: "draft" | "scheduled" | "open" | "closed" | "archived";
   allow_editing: boolean;
+  /** The super admin created it, so it is the super admin's to change. */
+  created_by_super_admin: boolean;
 }
 
 export interface AdminFeedbackSummary {
@@ -1022,9 +1024,10 @@ export async function updatePeriodStatus(
 }
 
 /** A later closing time for a round, so students can keep answering; the
- *  database tells them (notify_feedback_changes). The department's own
- *  rounds are its to change, faculty-wide ones the Super Admin's; row
- *  security decides, and a refused change touches no row. */
+ *  database tells them (notify_feedback_changes). A round is its creator's:
+ *  a department admin changes the rounds their department created, and the
+ *  ones the Super Admin created are the Super Admin's. Row security decides,
+ *  and a refused change touches no row. */
 export async function extendFeedbackPeriod(
   periodId: string,
   closesAt: string,

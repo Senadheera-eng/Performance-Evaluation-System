@@ -165,7 +165,7 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **49 tables**, all with row level security enabled, and 248 functions. The main groups:
+The live schema has **49 tables**, all with row level security enabled, and 249 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |

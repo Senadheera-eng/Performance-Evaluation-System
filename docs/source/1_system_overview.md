@@ -48,8 +48,8 @@ These are the real numbers from the live database on 30 October 2026. They matte
 | Result records | 7,392 |
 | Notifications written | 806 |
 | Database tables | 49 |
-| Database functions written for the app | 248 |
-| Database migrations (change history) | 277 |
+| Database functions written for the app | 249 |
+| Database migrations (change history) | 278 |
 | Edge Functions (server code beside the database) | 4 |
 | TypeScript files in the app (44 pages, 119 components) | 213 |
 
@@ -170,7 +170,7 @@ Performance-Evaluation-System/
       styles/theme.css           every colour, radius and shadow
     vercel.json                  what deploys, and caching
   supabase/
-    migrations/                  277 files - the full database history
+    migrations/                  278 files - the full database history
       README.md                  the same history, numbered and described
     functions/                   the four Edge Functions
   docs/                          these guides
@@ -212,7 +212,7 @@ You will see both patterns all over the codebase, and it is worth knowing why ea
 | Direct table read | `supabase.from('courses').select(...)` | The rows are simple and Row Level Security alone is enough to decide who sees what. |
 | Function call (RPC) | `supabase.rpc('get_my_mentees')` | The answer needs joining, calculating, or a rule that RLS cannot express on its own — for example, hiding a grade until it is published. |
 
-Most of the interesting features use the second pattern. There are 248 functions in the database, of which signed-in users may call 194; the rest are triggers and internal helpers. Guide 2 explains how they are organised.
+Most of the interesting features use the second pattern. There are 249 functions in the database, of which signed-in users may call 195; the rest are triggers and internal helpers. Guide 2 explains how they are organised.
 
 ## 5.2 A third way: things that happen by themselves
 
@@ -251,7 +251,7 @@ Guide 2 lists all 18.
 
 ### 6.3 Row Level Security policies
 
-The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 117 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
+The privacy rules, written as SQL attached to each table. These decide who may see which row. There are 120 of them on the application's tables and 13 more on the stored files. They are covered fully in Guide 4.
 
 # 7. How the project is developed and deployed
 
@@ -267,7 +267,7 @@ The privacy rules, written as SQL attached to each table. These decide who may s
 
 ## 7.2 Database changes
 
-Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 277 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
+Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 278 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
 
 ```
 20260909150732_a_failed_course_has_to_be_repeatable.sql

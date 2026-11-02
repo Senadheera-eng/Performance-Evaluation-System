@@ -40,7 +40,7 @@ Read it as a sentence: for a signed-in user selecting from the attendance table,
 
 A student running SELECT * FROM attendance does not get an error. They get their own rows and nothing else. There is no way to ask for more, because the filter is applied inside the database before the answer is built.
 
-All 49 tables have RLS switched on, with no exceptions, held by 117 policies (and 13 more on stored files). Five tables have RLS on and no policy at all — the three account tables and the two faculty-website tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
+All 49 tables have RLS switched on, with no exceptions, held by 120 policies (and 13 more on stored files). Five tables have RLS on and no policy at all — the three account tables and the two faculty-website tables — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
 
 # 2. Who can see what
 
@@ -119,6 +119,8 @@ using ((select get_my_role()) = 'super_admin')
 ```
 
 Some things are the super admin's alone, and each is checked by name rather than inferred from 'can see everything': enrolment windows, heads of department, batches, and accounts. The last two run on Edge Functions with the service role, so their check is in the function (section 3A).
+
+**A feedback round belongs to whoever created it** (since 2 November 2026). A department admin may read every round of their department, but may change, open, extend, close or delete only the ones their department created — their own, or a lecturer's request they approved. A round the super admin created is the super admin's, even when it is for one department, and so are its course and question lists. The test is `is_super_admin_account(created_by)`, a security-definer helper: a department admin cannot read the super admin's `admins` row, so a policy that looked for it directly would find nothing and wrongly allow the change.
 
 > There is one deliberate special case. The Interdisciplinary Studies admin can see students from any department, but only those who are actually linked to an interdisciplinary module. That is what students_is_admin_read does.
 
@@ -261,7 +263,7 @@ The same day, the eleven dated backup tables were dropped (one had Row Level Sec
 
 ## 5.10 Where things stand on 30 October 2026
 
-The same counts, taken again for this edition: 248 application functions, 194 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **5 callable by the anonymous role**. All five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
+The same counts, taken again for this edition: 249 application functions, 195 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **5 callable by the anonymous role**. All five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
 
 They are harmless as they stand: PostgreSQL refuses to run a trigger function except as a trigger, so calling one through the API only returns an error. But they break the rule this section exists for, and the fact that the default did not hold for them is worth knowing. The tidy-up is one migration that revokes EXECUTE on the five from anon (and, like the other triggers, from authenticated), followed by the count in section 6 run again.
 
@@ -319,7 +321,7 @@ left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
 where n.nspname = 'public' and d.objid is null;   -- the app's own functions
 ```
 
-On 30 October 2026 it returns 5 and 194 (section 5.10). The answer to aim for in the first column is 0.
+On 2 November 2026 it returns 5 and 195 (section 5.10). The answer to aim for in the first column is 0.
 
 # 7. Things deliberately left alone
 

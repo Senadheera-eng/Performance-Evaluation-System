@@ -2,7 +2,7 @@
 kicker: Study Guide 2 of 7
 title: Database Guide
 subtitle: Every table, what it holds, and how they connect
-intro: The PES keeps everything in one PostgreSQL 17 database: 49 tables, 248 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
+intro: The PES keeps everything in one PostgreSQL 17 database: 49 tables, 249 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
 updated: Updated 30 October 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
@@ -408,7 +408,7 @@ Changing the last four rows changes nothing today. Two are written into page cod
 
 # 14. The function layer
 
-There are 248 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
+There are 249 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
 
 <!-- widths: 24,12,64 -->
 | Kind | How many | What it means |
@@ -449,7 +449,7 @@ This is the whole list, so a name met in the code can be placed. The functions a
 <!-- widths: 24,76 -->
 | Area | Functions |
 |---|---|
-| Who is asking | academic_year_for, account_has_password, account_is_active, batch_currently_in_semester, can_view_student_record, current_semester_for_batch, department_admin_ids, department_head_id, department_owns_student, get_avatar_urls, get_my_department, get_my_role, is_active_hod_of, is_assigned_lecturer, is_my_mentee, is_offering_staff, is_super_admin, my_account_active, my_current_semester, my_hod_department, my_lecturer_id, my_offering_ids, my_staff_department, set_my_avatar, student_department, student_has_is_course_link |
+| Who is asking | academic_year_for, account_has_password, account_is_active, batch_currently_in_semester, can_view_student_record, current_semester_for_batch, department_admin_ids, department_head_id, department_owns_student, get_avatar_urls, get_my_department, get_my_role, is_active_hod_of, is_assigned_lecturer, is_my_mentee, is_offering_staff, is_super_admin, is_super_admin_account, my_account_active, my_current_semester, my_hod_department, my_lecturer_id, my_offering_ids, my_staff_department, set_my_avatar, student_department, student_has_is_course_link |
 | Accounts, batches, profiles | admin_list_users, assign_batch_departments, change_student_batch, export_batch_records, get_batch_footprint, get_batches, get_student_batch_history, update_my_admin_profile, update_my_lecturer_profile |
 | Courses and teaching | curriculum_gpa_credits, delete_course, end_department_hod, get_admin_offerings, get_assignable_lecturers, get_course_detail, get_course_enrolled_students, get_course_enrolment_counts, get_course_info, get_course_roster, get_courses_by_semester, get_department_students, get_department_teaching, get_faculty_lecturers, get_hod_history, get_my_teaching, get_offering_roster, get_upcoming_courses, my_coordinated_offering, offering_department, offering_for_student_course, offering_label, offering_lecturer_ids, offering_roster_ids, offering_student_count, offering_student_ids, set_department_hod |
 | Minors | delete_minor, get_department_minor_plan, get_department_minors, get_my_minor_progress, may_manage_minors, rename_minor, set_my_minor, student_minor_plan |
@@ -505,7 +505,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 277. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 277 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 278. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 278 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql

@@ -1,6 +1,6 @@
 # Database migrations
 
-The 277 migrations in this folder, numbered in the order they were applied.
+The 278 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -289,3 +289,4 @@ New migrations are added to the end of this list.
 | 275 | 2026-10-29 | An open enrolment window can be extended | [`20261029033624_an_open_enrolment_window_can_be_extended.sql`](20261029033624_an_open_enrolment_window_can_be_extended.sql) |
 | 276 | 2026-10-30 | Unused empty tables (timetables, feedback), courses.lecturer_name and the student_gpa_summary view go, with no data lost | [`20261030104834_unused_empty_tables_a_column_and_a_view_go.sql`](20261030104834_unused_empty_tables_a_column_and_a_view_go.sql) |
 | 277 | 2026-11-02 | An extended feedback round tells its students | [`20261102050939_an_extended_feedback_round_tells_its_students.sql`](20261102050939_an_extended_feedback_round_tells_its_students.sql) |
+| 278 | 2026-11-02 | A round the super admin created is the super admin's | [`20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql`](20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql) |
