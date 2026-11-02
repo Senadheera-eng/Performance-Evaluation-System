@@ -1021,6 +1021,25 @@ export async function updatePeriodStatus(
   return { ok: true };
 }
 
+/** A later closing time for a round, so students can keep answering. The
+ *  department's own rounds are its to change, faculty-wide ones the Super
+ *  Admin's; row security decides, and a refused change touches no row. */
+export async function extendFeedbackPeriod(
+  periodId: string,
+  closesAt: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase
+    .from("feedback_periods")
+    .update({ closes_at: closesAt })
+    .eq("id", periodId)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "You cannot change this round. It is managed by the Super Admin." };
+  }
+  return { ok: true };
+}
+
 export async function getPeriodCourseIds(periodId: string): Promise<string[]> {
   const { data } = await supabase
     .from("feedback_period_courses")
