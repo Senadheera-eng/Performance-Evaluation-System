@@ -27,6 +27,7 @@ import {
   X,
   MessageSquareText,
   FilePen,
+  CalendarPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -39,6 +40,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -66,6 +75,7 @@ import {
   setPeriodCourses,
   setPeriodQuestions,
   updatePeriodStatus,
+  extendFeedbackPeriod,
   getPeriodCourseIds,
   getPeriodCourseCodes,
   getPeriodQuestionIds,
@@ -687,6 +697,7 @@ function PeriodCard({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
+  const [extending, setExtending] = useState(false);
   const expand = useExpandMotion();
   const [questionEditorOpen, setQuestionEditorOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<FeedbackQuestion | null>(
@@ -860,6 +871,22 @@ function PeriodCard({
               >
                 <PlayCircle className="h-3.5 w-3.5 mr-1" />
                 Open
+              </Button>
+            )}
+            {/* A later closing time while it is open, so students who need
+                a few more days get them. Faculty-wide rounds are the Super
+                Admin's to extend, as they are to close. */}
+            {period.status === "open" && !managedElsewhere && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExtending(true);
+                }}
+              >
+                <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                Extend
               </Button>
             )}
             {period.status === "open" && !managedElsewhere && (
@@ -1086,6 +1113,18 @@ function PeriodCard({
         </AnimatePresence>
       </div>
 
+      {extending && (
+        <ExtendFeedbackDialog
+          period={period}
+          onClose={() => setExtending(false)}
+          onExtended={(message) => {
+            setExtending(false);
+            toast.success(message);
+            onChanged();
+          }}
+        />
+      )}
+
       <QuestionEditorDialog
         open={questionEditorOpen}
         onOpenChange={(open) => {
@@ -1097,5 +1136,112 @@ function PeriodCard({
         onSave={handleSaveQuestion}
       />
     </div>
+  );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** An ISO time as a datetime-local input's value, in the browser's time. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
+ * A later closing time for an open round, as an enrolment window is
+ * extended. Only later: a round is never cut short under students who are
+ * still answering it. If the closing time has already passed, a later one
+ * lets students answer again, since a round accepts answers only between
+ * its opening and closing times.
+ */
+function ExtendFeedbackDialog({
+  period,
+  onClose,
+  onExtended,
+}: {
+  period: AdminFeedbackPeriod;
+  onClose: () => void;
+  onExtended: (message: string) => void;
+}) {
+  const closes = new Date(period.closes_at).getTime();
+  const ended = closes < Date.now();
+  // Counted from the current closing time, or from now if that has passed.
+  const base = Math.max(closes, Date.now());
+  const [value, setValue] = useState(() => toLocalInput(new Date(base + 7 * DAY_MS).toISOString()));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const next = new Date(value).getTime();
+    if (!value || Number.isNaN(next)) return setError("Pick a new closing date and time.");
+    if (next <= closes) return setError("The new closing time must be later than the current one.");
+    if (next <= Date.now()) return setError("The new closing time must be in the future.");
+    setSaving(true);
+    setError(null);
+    const iso = new Date(next).toISOString();
+    const result = await extendFeedbackPeriod(period.id, iso);
+    setSaving(false);
+    if (!result.ok) return setError(`Could not extend the round: ${result.error ?? ""}`.trim());
+    onExtended(`${period.title} now closes ${formatDateTime(iso)}.`);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Extend {period.title}</DialogTitle>
+          <DialogDescription>
+            {ended
+              ? `It stopped taking answers on ${formatDateTime(period.closes_at)}. A later closing time lets students answer again.`
+              : `It closes on ${formatDateTime(period.closes_at)}.`}{" "}
+            Students see the new closing time on their Feedback page.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-foreground">New closing time</span>
+            <Input
+              type="datetime-local"
+              value={value}
+              min={toLocalInput(new Date(base).toISOString())}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "+1 day", days: 1 },
+              { label: "+3 days", days: 3 },
+              { label: "+1 week", days: 7 },
+            ].map((q) => (
+              <Button
+                key={q.days}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setValue(toLocalInput(new Date(base + q.days * DAY_MS).toISOString()))}
+              >
+                {q.label}
+              </Button>
+            ))}
+          </div>
+          {error && <p className="text-sm text-danger-fg">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Extending…" : "Extend"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
