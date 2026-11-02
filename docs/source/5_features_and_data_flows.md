@@ -26,7 +26,7 @@ Every feature below follows the same four-part shape:
 
 1. The super admin creates an enrolment window for a batch, department and semester, with an opening and closing time and optional instructions. It moves from draft to open. Only the super admin can write windows; a window that never opened can be deleted, and an open one can be extended to a later closing time (since 29 October 2026), which tells the students it covers.
 1. The student opens the Enrollment page. It calls `get_my_enrolment_options()`, which returns every module they may take right now.
-1. The page shows the semester's baskets — the compulsory courses, and each elective basket with the credits it asks for — and, separately, outstanding modules they still owe from an earlier attempt.
+1. The page shows the semester as the Faculty Handbook prints it: a table of course code, title, credit value, category and whether it counts towards the GPA, with the category and GPA cells merged down each basket and a tick box on every course. Under each category it shows, live, how many of the credits it asks for the ticks so far supply. On a phone the same courses are a list headed by each category. Separately, it lists outstanding modules the student still owes from an earlier attempt.
 1. A student in a semester with minors picks their minor from the department's study plan. The page draws the plan's table for that semester and warns, in red, if the minor's mandatory course is left out (`set_my_minor`, `student_minor_plan`).
 1. The student ticks and unticks. Nothing is saved yet; the changes are held in the browser.
 1. They press save. One call to `update_my_enrolment(p_add, p_remove)` applies everything at once, recording each course under the academic year of the semester that offers it.
@@ -149,10 +149,11 @@ A department or lecturer can download a sheet as an Excel workbook, fill in the 
 
 ## 5.1 The flow
 
-1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none.
+1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none. When creating a round the office picks a semester and, optionally, one course: left at "All courses" the round covers every course of that semester in the department (the list can still be changed before it opens); with a course chosen it covers that course alone, so its students see only that form and the round's answers are that course's. The round's row then says, for example, "CO4204 only".
 1. A department admin approves or rejects a request. `decide_feedback_period()` records the decision and any notes.
 1. While the round is a draft, lecturers shape their course's form. Everyone teaching a course in the round, and the sitting head of department, may add, edit, rename and reorder questions and sections for that course. The first edit gives the course its own copy of the round's template, so one lecturer's change never reaches another course. The department's own questions stay fixed.
 1. The round opens to the students it covers. Opening it is also the release: since 29 August 2026 there is no separate step where the department forwards results course by course.
+1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), and its students are told the new closing time in a notification (since 2 November 2026), as well as seeing it on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A faculty-wide round is the super admin's to extend.
 1. A student fills in the form. They can save a draft first and submit later, if editing is allowed.
 1. Answers are stored as ratings, free text, single choices or multiple choices.
 1. Results appear as answers arrive. A lecturer reads their own courses on the Feedback page and the head of department reads the whole department, but only once the minimum number of responses exists (feedback_min_responses_for_analytics).
@@ -365,7 +366,7 @@ They are written only by database triggers and a few functions, never by the bro
 | notify_mentor_message, notify_mentor_assigned | The other person in the thread; a student and their new mentor. |
 | notify_medical_submitted, notify_medical_reviewed | The department office; then the student, per module. |
 | notify_enrolment_window | The students a window covers, when it opens or is extended. |
-| notify_feedback_changes | The students a round covers, when it opens; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
+| notify_feedback_changes | The students a round covers, when it opens and when an open round is given a later closing time; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
 | notify_draft_form_ready | The lecturers of each course in a draft round ("set up your feedback form"), and the head of department. |
 | notify_course_assigned | A lecturer, when they are assigned to teach an offering. |
 | notify_notice_published, notify_notice_created_published | Everyone a notice is aimed at. |

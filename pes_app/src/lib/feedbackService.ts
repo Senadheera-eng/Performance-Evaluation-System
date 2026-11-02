@@ -1021,12 +1021,57 @@ export async function updatePeriodStatus(
   return { ok: true };
 }
 
+/** A later closing time for a round, so students can keep answering; the
+ *  database tells them (notify_feedback_changes). The department's own
+ *  rounds are its to change, faculty-wide ones the Super Admin's; row
+ *  security decides, and a refused change touches no row. */
+export async function extendFeedbackPeriod(
+  periodId: string,
+  closesAt: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase
+    .from("feedback_periods")
+    .update({ closes_at: closesAt })
+    .eq("id", periodId)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: "You cannot change this round. It is managed by the Super Admin." };
+  }
+  return { ok: true };
+}
+
 export async function getPeriodCourseIds(periodId: string): Promise<string[]> {
   const { data } = await supabase
     .from("feedback_period_courses")
     .select("course_id")
     .eq("feedback_period_id", periodId);
   return (data ?? []).map((r: any) => r.course_id);
+}
+
+/** Each round's course codes, keyed by round, so the list can say when a
+ *  round covers a single course. One read for every round on the page. */
+export async function getPeriodCourseCodes(
+  periodIds: string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (periodIds.length === 0) return out;
+  const { data } = await supabase
+    .from("feedback_period_courses")
+    .select("feedback_period_id, courses(course_code)")
+    .in("feedback_period_id", periodIds);
+  const rows = (data ?? []) as unknown as {
+    feedback_period_id: string;
+    courses: { course_code: string } | null;
+  }[];
+  rows.forEach((r) => {
+    if (!r.courses) return;
+    out.set(r.feedback_period_id, [
+      ...(out.get(r.feedback_period_id) ?? []),
+      r.courses.course_code,
+    ]);
+  });
+  return out;
 }
 
 export async function getPeriodQuestionIds(periodId: string): Promise<string[]> {

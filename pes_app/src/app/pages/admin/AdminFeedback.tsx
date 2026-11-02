@@ -27,6 +27,7 @@ import {
   X,
   MessageSquareText,
   FilePen,
+  CalendarPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -39,6 +40,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -66,7 +75,9 @@ import {
   setPeriodCourses,
   setPeriodQuestions,
   updatePeriodStatus,
+  extendFeedbackPeriod,
   getPeriodCourseIds,
+  getPeriodCourseCodes,
   getPeriodQuestionIds,
   createQuestion,
   updateQuestion,
@@ -160,6 +171,9 @@ interface SimpleCourse {
   semester: number;
 }
 
+/** The Course choice in a new round that means "every course in the semester". */
+const ALL_COURSES = "__all__";
+
 export default function AdminFeedback() {
   const { student: admin } = useAuth();
   const scope = getAdminScope(admin);
@@ -186,6 +200,8 @@ function PeriodsView({
   scopeDepartment: { kind: "all" } | { kind: "department"; department: string };
 }) {
   const [periods, setPeriods] = useState<AdminFeedbackPeriod[]>([]);
+  /** Each round's course codes, so a single-course round says so on its row. */
+  const [courseCodes, setCourseCodes] = useState<Map<string, string[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -197,7 +213,9 @@ function PeriodsView({
 
   const fetchPeriods = async () => {
     setLoading(true);
-    setPeriods(await getAdminFeedbackPeriods());
+    const list = await getAdminFeedbackPeriods();
+    setPeriods(list);
+    setCourseCodes(await getPeriodCourseCodes(list.map((p) => p.id)));
     setLoading(false);
   };
 
@@ -234,9 +252,13 @@ function PeriodsView({
             <CreatePeriodForm
               adminId={adminId}
               scopeDepartment={scopeDepartment}
-              onCreated={() => {
+              onCreated={(courseCode) => {
                 setCreating(false);
-                toast.success("Feedback period created as a draft.");
+                toast.success(
+                  courseCode
+                    ? `Feedback round for ${courseCode} created as a draft.`
+                    : "Feedback period created as a draft.",
+                );
                 fetchPeriods();
               }}
               onCancel={() => setCreating(false)}
@@ -271,6 +293,7 @@ function PeriodsView({
             <PeriodCard
               key={p.id}
               period={p}
+              courseCodes={courseCodes.get(p.id) ?? []}
               adminId={adminId}
               managedElsewhere={scopeDepartment.kind === "department" && p.department === null}
               expanded={expandedId === p.id}
@@ -296,7 +319,8 @@ function CreatePeriodForm({
 }: {
   adminId: string;
   scopeDepartment: { kind: "all" } | { kind: "department"; department: string };
-  onCreated: () => void;
+  /** Called once the round exists, with its course when it covers just one. */
+  onCreated: (courseCode?: string) => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState("");
@@ -327,6 +351,13 @@ function CreatePeriodForm({
      Semester 1 whatever batch was chosen. */
   const [batchSemester, setBatchSemester] = useState<number | null>(null);
   const [semesterTouched, setSemesterTouched] = useState(false);
+  /* Optionally, one course. Left at "All courses" the round covers the
+     whole semester, as it always has; with a course chosen it covers that
+     course alone, so its students see only that course's form and the
+     round's answers are that course's. The list is the same one the
+     round's card offers later: the semester's courses in its department. */
+  const [semesterCourses, setSemesterCourses] = useState<SimpleCourse[]>([]);
+  const [courseId, setCourseId] = useState(ALL_COURSES);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const settings = useSettings();
@@ -373,6 +404,38 @@ function CreatePeriodForm({
     };
   }, [batchYear, semesterTouched]);
 
+  const courseDepartment =
+    scopeDepartment.kind === "department" ? scopeDepartment.department : department;
+
+  useEffect(() => {
+    let cancelled = false;
+    // A course chosen for another semester or department is not on the new list.
+    setCourseId(ALL_COURSES);
+    let query = supabase
+      .from("courses")
+      .select("id, course_code, title, semester")
+      .eq("semester", semester)
+      .order("course_code");
+    if (courseDepartment) query = query.eq("department", courseDepartment);
+    query.then(({ data }) => {
+      if (cancelled) return;
+      const rows = (data ?? []) as unknown as {
+        id: string;
+        course_code: string;
+        title: string;
+        semester: number;
+      }[];
+      setSemesterCourses(
+        rows.map((c) => ({ id: c.id, code: c.course_code, title: c.title, semester: c.semester })),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [semester, courseDepartment]);
+
+  const chosenCourse = semesterCourses.find((c) => c.id === courseId) ?? null;
+
   const handleCreate = async () => {
     setError(null);
     if (!title || !batchYear || !opensAt || !closesAt) {
@@ -404,13 +467,23 @@ function CreatePeriodForm({
       allow_editing: allowEditing,
       created_by: adminId,
     });
-    setSaving(false);
 
     if (!result.ok) {
+      setSaving(false);
       setError(result.error);
       return;
     }
-    onCreated();
+    // The round exists; give it its one course, if one was chosen.
+    if (chosenCourse) {
+      const courses = await setPeriodCourses(result.id, [chosenCourse.id]);
+      if (!courses.ok) {
+        toast.error("The round was created, but its course was not set", {
+          description: `${courses.error ?? ""} Open the round and choose its course.`.trim(),
+        });
+      }
+    }
+    setSaving(false);
+    onCreated(chosenCourse?.code);
   };
 
   return (
@@ -423,7 +496,11 @@ function CreatePeriodForm({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Semester 6 Course Feedback"
+              placeholder={
+                chosenCourse
+                  ? `e.g. ${chosenCourse.code} ${feedbackType === "mid_semester" ? "Mid-semester" : "End-semester"} Feedback`
+                  : "e.g. Semester 6 Course Feedback"
+              }
             />
           </div>
           <div>
@@ -462,9 +539,38 @@ function CreatePeriodForm({
               <p className="mt-1 text-xs text-muted-foreground">
                 {describeBatch(Number(batchYear))} is in Semester{" "}
                 {batchSemester} now. A round may cover an earlier semester —
-                the courses below follow whichever you pick.
+                the course list follows whichever you pick.
               </p>
             )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Course <span className="font-normal">(optional)</span>
+            </label>
+            <Select value={courseId} onValueChange={setCourseId}>
+              <SelectTrigger
+                aria-label="Course"
+                className="h-9 w-full rounded-control border-border bg-card [&_[data-slot=select-value]]:min-w-0"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_COURSES}>All courses in Semester {semester}</SelectItem>
+                {semesterCourses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <CourseCode code={c.code} className="text-xs flex-shrink-0" />
+                    <span className="truncate">{c.title}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {chosenCourse
+                ? `Only ${chosenCourse.code} is in this round: its students see this one form, and the answers are this course's alone.`
+                : semesterCourses.length > 0
+                  ? `All ${semesterCourses.length} Semester ${semester} courses are included. Pick one to run feedback on that course alone.`
+                  : `No Semester ${semester} courses found${courseDepartment ? ` in ${courseDepartment}` : ""}.`}
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -565,6 +671,7 @@ function CreatePeriodForm({
 
 function PeriodCard({
   period,
+  courseCodes,
   adminId,
   managedElsewhere = false,
   expanded,
@@ -572,6 +679,8 @@ function PeriodCard({
   onChanged,
 }: {
   period: AdminFeedbackPeriod;
+  /** The round's course codes as saved, for the row's own label. */
+  courseCodes: string[];
   adminId: string;
   /** A faculty-wide round seen by a department admin: theirs to watch, the
    *  super admin's to change. The database refuses their edits anyway. */
@@ -588,6 +697,7 @@ function PeriodCard({
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
+  const [extending, setExtending] = useState(false);
   const expand = useExpandMotion();
   const [questionEditorOpen, setQuestionEditorOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<FeedbackQuestion | null>(
@@ -723,6 +833,10 @@ function PeriodCard({
               <StatusBadge tone={STATUS_TONE[period.status] ?? "neutral"} dot>
                 {STATUS_LABEL[period.status] ?? period.status}
               </StatusBadge>
+              {/* A round on one course says which, without opening it. */}
+              {courseCodes.length === 1 && (
+                <StatusBadge tone="info">{courseCodes[0]} only</StatusBadge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {period.department ?? "All Departments"} ·{" "}
@@ -757,6 +871,22 @@ function PeriodCard({
               >
                 <PlayCircle className="h-3.5 w-3.5 mr-1" />
                 Open
+              </Button>
+            )}
+            {/* A later closing time while it is open, so students who need
+                a few more days get them. Faculty-wide rounds are the Super
+                Admin's to extend, as they are to close. */}
+            {period.status === "open" && !managedElsewhere && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExtending(true);
+                }}
+              >
+                <CalendarPlus className="h-3.5 w-3.5 mr-1" />
+                Extend
               </Button>
             )}
             {period.status === "open" && !managedElsewhere && (
@@ -983,6 +1113,18 @@ function PeriodCard({
         </AnimatePresence>
       </div>
 
+      {extending && (
+        <ExtendFeedbackDialog
+          period={period}
+          onClose={() => setExtending(false)}
+          onExtended={(message) => {
+            setExtending(false);
+            toast.success(message);
+            onChanged();
+          }}
+        />
+      )}
+
       <QuestionEditorDialog
         open={questionEditorOpen}
         onOpenChange={(open) => {
@@ -994,5 +1136,113 @@ function PeriodCard({
         onSave={handleSaveQuestion}
       />
     </div>
+  );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** An ISO time as a datetime-local input's value, in the browser's time. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
+ * A later closing time for an open round, as an enrolment window is
+ * extended. Only later: a round is never cut short under students who are
+ * still answering it. If the closing time has already passed, a later one
+ * lets students answer again, since a round accepts answers only between
+ * its opening and closing times. Its students are told the new time (the
+ * database does that, on the change).
+ */
+function ExtendFeedbackDialog({
+  period,
+  onClose,
+  onExtended,
+}: {
+  period: AdminFeedbackPeriod;
+  onClose: () => void;
+  onExtended: (message: string) => void;
+}) {
+  const closes = new Date(period.closes_at).getTime();
+  const ended = closes < Date.now();
+  // Counted from the current closing time, or from now if that has passed.
+  const base = Math.max(closes, Date.now());
+  const [value, setValue] = useState(() => toLocalInput(new Date(base + 7 * DAY_MS).toISOString()));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const next = new Date(value).getTime();
+    if (!value || Number.isNaN(next)) return setError("Pick a new closing date and time.");
+    if (next <= closes) return setError("The new closing time must be later than the current one.");
+    if (next <= Date.now()) return setError("The new closing time must be in the future.");
+    setSaving(true);
+    setError(null);
+    const iso = new Date(next).toISOString();
+    const result = await extendFeedbackPeriod(period.id, iso);
+    setSaving(false);
+    if (!result.ok) return setError(`Could not extend the round: ${result.error ?? ""}`.trim());
+    onExtended(`${period.title} now closes ${formatDateTime(iso)}. Its students have been told.`);
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Extend {period.title}</DialogTitle>
+          <DialogDescription>
+            {ended
+              ? `It stopped taking answers on ${formatDateTime(period.closes_at)}. A later closing time lets students answer again.`
+              : `It closes on ${formatDateTime(period.closes_at)}.`}{" "}
+            Its students are told the new closing time.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-foreground">New closing time</span>
+            <Input
+              type="datetime-local"
+              value={value}
+              min={toLocalInput(new Date(base).toISOString())}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "+1 day", days: 1 },
+              { label: "+3 days", days: 3 },
+              { label: "+1 week", days: 7 },
+            ].map((q) => (
+              <Button
+                key={q.days}
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setValue(toLocalInput(new Date(base + q.days * DAY_MS).toISOString()))}
+              >
+                {q.label}
+              </Button>
+            ))}
+          </div>
+          {error && <p className="text-sm text-danger-fg">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Extending…" : "Extend"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
