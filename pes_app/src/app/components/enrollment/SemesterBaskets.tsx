@@ -93,13 +93,14 @@ interface Row extends PlanCourse {
 /**
  * The semester as the Faculty Handbook sets it out.
  *
- * The same content as the printed sheet — course code, title, credit value,
- * category, whether it counts towards the GPA — grouped the way the handbook
- * groups it: each category heads its block of courses with what it asks for
- * and, live, how much of that the ticks so far supply. The handbook's merged
- * "Category" and "Contributing to GPA" columns were mostly empty space on a
- * wide screen; a category's header now carries both, and a course that is
- * the exception in its block says so on its own row.
+ * On a laptop or wider it is the handbook's own table — course code, title,
+ * credit value, category, contributing to GPA — with the Category and GPA
+ * cells merged down each basket exactly as the printed sheet merges them, a
+ * tick box in front of each course, and under each category, live, how much
+ * of what it asks for the ticks so far supply. Students already know that
+ * sheet, so the page reads like it. A phone has no room for six columns, so
+ * there each category heads its own list instead, and a course that is the
+ * exception in its block says so on its own row.
  *
  * Nothing here refuses anything. A category's requirement is what it asks for,
  * not a ceiling, so a student who wants a third elective may take it; a
@@ -434,85 +435,216 @@ export function SemesterBaskets({
         }
         flush
       >
-        <p className="sr-only">
-          Semester {plan.semester} curriculum. Tick a course to enrol in it.
-        </p>
-        {plan.baskets.map((b) => {
-          const basketRows = rows.filter((r) => r.basket === b.basket);
-          if (basketRows.length === 0) return null;
-          const allInGpa = basketRows.every((r) => r.contributes_to_gpa);
-          const noneInGpa = basketRows.every((r) => !r.contributes_to_gpa);
-          return (
-            <div key={b.basket} className="border-b border-border last:border-b-0">
-              {/* The category once, with what it asks for and how much of
-                  that the ticks so far supply. */}
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-muted/50 px-4 py-2 sm:px-5">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground">{b.basket}</span>
-                  {!allInGpa && (
-                    <StatusBadge tone="neutral">
-                      {noneInGpa ? "Not in GPA" : "Partly in GPA"}
-                    </StatusBadge>
-                  )}
-                </span>
-                {basketProgress(b.basket, b.required_credits)}
+        {/* A phone: each category heads its own list. */}
+        <div className="md:hidden">
+          <p className="sr-only">
+            Semester {plan.semester} curriculum. Tick a course to enrol in it.
+          </p>
+          {plan.baskets.map((b) => {
+            const basketRows = rows.filter((r) => r.basket === b.basket);
+            if (basketRows.length === 0) return null;
+            const allInGpa = basketRows.every((r) => r.contributes_to_gpa);
+            const noneInGpa = basketRows.every((r) => !r.contributes_to_gpa);
+            return (
+              <div key={b.basket} className="border-b border-border last:border-b-0">
+                {/* The category once, with what it asks for and how much of
+                    that the ticks so far supply. */}
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 bg-muted/50 px-4 py-2 sm:px-5">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">{b.basket}</span>
+                    {!allInGpa && (
+                      <StatusBadge tone="neutral">
+                        {noneInGpa ? "Not in GPA" : "Partly in GPA"}
+                      </StatusBadge>
+                    )}
+                  </span>
+                  {basketProgress(b.basket, b.required_credits)}
+                </div>
+                <ul className="divide-y divide-border/50">
+                  {basketRows.map((c) => {
+                    const want = chosen(c);
+                    const id = `enrol-${c.course_id}`;
+                    const dept = departmentByCourseCode(c.course_code);
+                    return (
+                      <li
+                        key={c.course_id}
+                        className={cn(
+                          "flex items-start gap-3 border-l-4 px-4 py-2.5 transition-colors sm:items-center sm:px-5",
+                          dept?.stripeClass ?? "border-l-transparent",
+                          // An unsaved change keeps its own tint; otherwise
+                          // the department's shows on hover.
+                          draft.has(c.course_id) ? "bg-primary/5" : dept?.hoverClass,
+                        )}
+                      >
+                        <Checkbox
+                          id={id}
+                          className="mt-1 transition-transform active:scale-90 sm:mt-0"
+                          checked={want}
+                          disabled={!editable(c)}
+                          onCheckedChange={() => toggle(c)}
+                          aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
+                        />
+                        <label
+                          htmlFor={id}
+                          className={cn(
+                            "flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3",
+                            editable(c) && "cursor-pointer",
+                          )}
+                        >
+                          <span className="flex items-center gap-2 text-xs sm:w-[4.75rem] sm:flex-shrink-0 sm:text-sm">
+                            <span className={codeClass(c.course_code)}>{c.course_code}</span>
+                            <span className="text-muted-foreground sm:hidden">
+                              {c.credits} credit{c.credits === 1 ? "" : "s"}
+                            </span>
+                          </span>
+                          <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-sm text-foreground">{c.title}</span>
+                            {courseBadges(c)}
+                            {/* The exception in a block that otherwise counts. */}
+                            {!c.contributes_to_gpa && !noneInGpa && (
+                              <StatusBadge tone="neutral">Not in GPA</StatusBadge>
+                            )}
+                          </span>
+                          <span className="hidden w-14 flex-shrink-0 text-right text-sm tabular-nums text-muted-foreground sm:block">
+                            {c.credits} cr
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-              <ul className="divide-y divide-border/50">
-                {basketRows.map((c) => {
+            );
+          })}
+        </div>
+
+        {/* A laptop or wider: the handbook's table. The table's own outer
+            border is hidden so the card's edge is the only frame; inside,
+            every cell is ruled as on the printed sheet. */}
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full border-collapse border-hidden text-sm">
+            <caption className="sr-only">
+              Semester {plan.semester} curriculum. Tick a course to enrol in it.
+            </caption>
+            <thead>
+              <tr className="bg-muted/70 text-xs font-semibold text-foreground">
+                <th scope="col" className="w-12 border border-border px-3 py-2.5">
+                  <span className="sr-only">Enrol</span>
+                </th>
+                <th scope="col" className="w-24 border border-border px-3 py-2.5 text-left">
+                  Course code
+                </th>
+                <th scope="col" className="border border-border px-3 py-2.5 text-left">
+                  Title
+                </th>
+                <th scope="col" className="w-20 border border-border px-3 py-2.5 text-center">
+                  Credit value
+                </th>
+                <th scope="col" className="w-40 border border-border px-3 py-2.5 text-center">
+                  Category
+                </th>
+                <th scope="col" className="w-24 border border-border px-3 py-2.5 text-center">
+                  Contributing to GPA
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {plan.baskets.flatMap((b) => {
+                const basketRows = rows.filter((r) => r.basket === b.basket);
+                if (basketRows.length === 0) return [];
+                // One merged GPA cell when the whole basket agrees, as the
+                // handbook prints it; a cell per course when it does not.
+                const allInGpa = basketRows.every((r) => r.contributes_to_gpa);
+                const noneInGpa = basketRows.every((r) => !r.contributes_to_gpa);
+                const oneGpaCell = allInGpa || noneInGpa;
+                const gpaText = (yes: boolean) => (
+                  <span className={yes ? "text-foreground" : "text-muted-foreground"}>
+                    {yes ? "Yes" : "No"}
+                  </span>
+                );
+                return basketRows.map((c, i) => {
                   const want = chosen(c);
-                  const id = `enrol-${c.course_id}`;
+                  const id = `enrol-table-${c.course_id}`;
                   const dept = departmentByCourseCode(c.course_code);
                   return (
-                    <li
+                    <tr
                       key={c.course_id}
                       className={cn(
-                        "flex items-start gap-3 border-l-4 px-4 py-2.5 transition-colors sm:items-center sm:px-5",
-                        dept?.stripeClass ?? "border-l-transparent",
-                        // An unsaved change keeps its own tint; otherwise
-                        // the department's shows on hover.
+                        "transition-colors",
                         draft.has(c.course_id) ? "bg-primary/5" : dept?.hoverClass,
                       )}
                     >
-                      <Checkbox
-                        id={id}
-                        className="mt-1 transition-transform active:scale-90 sm:mt-0"
-                        checked={want}
-                        disabled={!editable(c)}
-                        onCheckedChange={() => toggle(c)}
-                        aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
-                      />
-                      <label
-                        htmlFor={id}
-                        className={cn(
-                          "flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3",
-                          editable(c) && "cursor-pointer",
-                        )}
-                      >
-                        <span className="flex items-center gap-2 text-xs sm:w-[4.75rem] sm:flex-shrink-0 sm:text-sm">
-                          <span className={codeClass(c.course_code)}>{c.course_code}</span>
-                          <span className="text-muted-foreground sm:hidden">
-                            {c.credits} credit{c.credits === 1 ? "" : "s"}
-                          </span>
-                        </span>
-                        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                          <span className="text-sm text-foreground">{c.title}</span>
-                          {courseBadges(c)}
-                          {/* The exception in a block that otherwise counts. */}
-                          {!c.contributes_to_gpa && !noneInGpa && (
-                            <StatusBadge tone="neutral">Not in GPA</StatusBadge>
+                      <td className="relative border border-border px-3 py-2 text-center align-middle">
+                        {/* The course's department, as the stripe on every list. */}
+                        <span
+                          className={cn("absolute inset-y-0 left-0 w-1", dept?.swatchClass)}
+                          aria-hidden="true"
+                        />
+                        <Checkbox
+                          id={id}
+                          className="align-middle transition-transform active:scale-90"
+                          checked={want}
+                          disabled={!editable(c)}
+                          onCheckedChange={() => toggle(c)}
+                          aria-label={`${want ? "Drop" : "Enrol in"} ${c.course_code} ${c.title}`}
+                        />
+                      </td>
+                      <td className="border border-border px-3 py-2 align-middle">
+                        <label
+                          htmlFor={id}
+                          className={cn(codeClass(c.course_code), editable(c) && "cursor-pointer")}
+                        >
+                          {c.course_code}
+                        </label>
+                      </td>
+                      <td className="border border-border px-3 py-2 align-middle">
+                        <label
+                          htmlFor={id}
+                          className={cn(
+                            "flex flex-wrap items-center gap-x-2 gap-y-1",
+                            editable(c) && "cursor-pointer",
                           )}
-                        </span>
-                        <span className="hidden w-14 flex-shrink-0 text-right text-sm tabular-nums text-muted-foreground sm:block">
-                          {c.credits} cr
-                        </span>
-                      </label>
-                    </li>
+                        >
+                          <span className="text-foreground">{c.title}</span>
+                          {courseBadges(c)}
+                        </label>
+                      </td>
+                      <td className="border border-border px-3 py-2 text-center align-middle tabular-nums">
+                        {c.credits}
+                      </td>
+                      {/* The merged cells are painted solid, so the first
+                          row's hover or unsaved tint stays on that row and
+                          does not spread over the whole basket. */}
+                      {i === 0 && (
+                        <td
+                          rowSpan={basketRows.length}
+                          className="border border-border bg-[color-mix(in_oklab,var(--muted)_40%,var(--card))] px-3 py-2 text-center align-middle"
+                        >
+                          <p className="font-medium text-foreground">{b.basket}</p>
+                          <p className="mt-1">{basketProgress(b.basket, b.required_credits)}</p>
+                        </td>
+                      )}
+                      {oneGpaCell ? (
+                        i === 0 && (
+                          <td
+                            rowSpan={basketRows.length}
+                            className="border border-border bg-card px-3 py-2 text-center align-middle"
+                          >
+                            {gpaText(allInGpa)}
+                          </td>
+                        )
+                      ) : (
+                        <td className="border border-border px-3 py-2 text-center align-middle">
+                          {gpaText(c.contributes_to_gpa)}
+                        </td>
+                      )}
+                    </tr>
                   );
-                })}
-              </ul>
-            </div>
-          );
-        })}
+                });
+              })}
+            </tbody>
+          </table>
+        </div>
         {open && !dirty && (
           <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
             Your enrolment is saved. Tick or untick a course to change it — you
