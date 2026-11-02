@@ -36,6 +36,8 @@ The Markdown dialect, all of it:
     ```  ...  ```               a code box, line for line
     | a | b |                   a table; the first row is the header
     <!-- widths: 30,70 -->      optional, before a table: column shares
+    ![Caption](images/x.png)    a picture (PNG), page-wide, with its caption under it;
+    ![Caption](x.png){width=60%}  or narrower; the path is relative to this folder
 
 Inline: `code`, **bold**, *italic*.
 """
@@ -44,6 +46,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import re
+import struct
 import sys
 import zipfile
 from pathlib import Path
@@ -65,6 +68,7 @@ GUIDES = {
     "7_configuration_and_operations": "PES_Guide_7_Configuration_and_Operations.docx",
     "ai_assistant": "PES_Guide_AI_Assistant.docx",
     "ai_assistant_rag_explained": "PES_Guide_AI_Assistant_RAG_Explained.docx",
+    "ml_grade_prediction": "PES_Guide_ML_Grade_Prediction.docx",
 }
 
 # The house palette and measures, as the guides have always used them.
@@ -154,7 +158,7 @@ def note(text: str) -> str:
                 '<w:spacing w:after="170" w:before="60" w:line="276"/><w:ind w:left="220"/>')
 
 
-def heading(level: int, text: str, bookmark: str | None) -> str:
+def heading(level: int, text: str, bookmark: str | None, new_page: bool = False) -> str:
     style, before, after, color, size = {
         1: ("Heading1", 380, 170, RED, 32),
         2: ("Heading2", 300, 120, INK, 26),
@@ -164,7 +168,10 @@ def heading(level: int, text: str, bookmark: str | None) -> str:
     if bookmark:
         bid = bookmark.split("_")[-1]
         r = f'<w:bookmarkStart w:id="{bid}" w:name="{bookmark}"/>{r}<w:bookmarkEnd w:id="{bid}"/>'
-    return para(r, f'<w:pStyle w:val="{style}"/><w:keepNext/><w:spacing w:after="{after}" w:before="{before}"/>')
+    # A section starts its own page through the heading, not a separate
+    # break: a break paragraph that lands at the top of a page leaves it blank.
+    brk = "<w:pageBreakBefore/>" if new_page else ""
+    return para(r, f'<w:pStyle w:val="{style}"/><w:keepNext/>{brk}<w:spacing w:after="{after}" w:before="{before}"/>')
 
 
 def _box(fill: str, margins: tuple[int, int], inner: str, after: bool = True) -> str:
@@ -198,6 +205,49 @@ def code_box(lines: list[str]) -> str:
     inner = "".join(para(run(line if line else " ", size=18, color=CODE_INK, mono=True),
                          '<w:spacing w:after="20" w:line="240"/>') for line in lines)
     return _box("F5F5F2", (120, 160), inner)
+
+
+EMU_PER_TWIP = 635
+MAX_PICTURE_HEIGHT = 7_772_400  # 8.5 inches, in EMU
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    """A PNG's width and height in pixels, from its header."""
+    head = path.read_bytes()[:24]
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ValueError(f"{path} is not a PNG")
+    return struct.unpack(">II", head[16:24])
+
+
+def attr(text: str) -> str:
+    """Text made safe inside an XML attribute's double quotes."""
+    return escape(text, {'"': "&quot;"})
+
+
+def picture(rid: str, pid: int, path: Path, caption: str, width_pct: int) -> str:
+    """A picture on its own line, centred, with a grey caption under it."""
+    w_px, h_px = png_size(path)
+    cx = int(PAGE_WIDTH * EMU_PER_TWIP * width_pct / 100)
+    cy = int(cx * h_px / w_px)
+    if cy > MAX_PICTURE_HEIGHT:
+        cx, cy = int(cx * MAX_PICTURE_HEIGHT / cy), MAX_PICTURE_HEIGHT
+    a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    pic = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+    drawing = (
+        f'<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
+        f'<wp:extent cx="{cx}" cy="{cy}"/><wp:docPr id="{pid}" name="Picture {pid}" descr="{attr(plain(caption))}"/>'
+        f'<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="{a}" noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+        f'<a:graphic xmlns:a="{a}"><a:graphicData uri="{pic}"><pic:pic xmlns:pic="{pic}">'
+        f'<pic:nvPicPr><pic:cNvPr id="{pid}" name="{attr(path.name)}"/><pic:cNvPicPr/></pic:nvPicPr>'
+        f'<pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+        f'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm>'
+        f'<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>'
+        f'</wp:inline></w:drawing></w:r>')
+    out = para(drawing, '<w:keepNext/><w:jc w:val="center"/><w:spacing w:before="120" w:after="60"/>')
+    if caption:
+        out += para(inline(caption, size=18, color=GREY, italic=True),
+                    '<w:jc w:val="center"/><w:spacing w:after="200" w:line="250"/>')
+    return out
 
 
 def table(rows: list[list[str]], shares: list[float] | None) -> str:
@@ -355,6 +405,12 @@ def parse(source: str) -> tuple[dict[str, str], list[tuple]]:
             blocks.append(("callout", kind, title, paras))
             i += 1
             continue
+        m = re.match(r"!\[(.*?)\]\((.+?)\)(?:\{width=(\d+)%\})?$", s)
+        if m:
+            flush_para(buf)
+            blocks.append(("img", m.group(1), m.group(2), int(m.group(3) or 100)))
+            i += 1
+            continue
         m = re.match(r"(#{1,3})\s+(.*)", s)
         if m:
             flush_para(buf)
@@ -406,8 +462,9 @@ def parse(source: str) -> tuple[dict[str, str], list[tuple]]:
     return meta, blocks
 
 
-def render(meta: dict[str, str], blocks: list[tuple]) -> tuple[str, int]:
-    """The document body, and how many numbered lists it holds."""
+def render(meta: dict[str, str], blocks: list[tuple]) -> tuple[str, int, list[tuple[str, Path]]]:
+    """The document body, how many numbered lists it holds, and its pictures
+    (relationship id, file)."""
     entries: list[tuple[int, str, str]] = []
     marks: list[str | None] = []
     n = 0
@@ -422,16 +479,16 @@ def render(meta: dict[str, str], blocks: list[tuple]) -> tuple[str, int]:
 
     out = [title_page(meta), contents(entries)]
     lists = 0
+    pictures: list[tuple[str, Path]] = []
     heading_marks = iter(marks)
     first_h1 = True
     for b in blocks:
         kind = b[0]
         if kind == "h":
+            new_page = b[1] == 1 and not first_h1
             if b[1] == 1:
-                if not first_h1:
-                    out.append(PAGE_BREAK)
                 first_h1 = False
-            out.append(heading(b[1], b[2], next(heading_marks)))
+            out.append(heading(b[1], b[2], next(heading_marks), new_page))
         elif kind == "p":
             out.append(body(b[1]))
         elif kind == "ul":
@@ -447,7 +504,12 @@ def render(meta: dict[str, str], blocks: list[tuple]) -> tuple[str, int]:
             out.append(code_box(b[1]))
         elif kind == "table":
             out.append(table(b[1], b[2]))
-    return "".join(out), lists
+        elif kind == "img":
+            path = (HERE / b[2]).resolve()
+            rid = f"rIdPic{len(pictures) + 1}"
+            pictures.append((rid, path))
+            out.append(picture(rid, 1000 + len(pictures), path, b[1], b[3]))
+    return "".join(out), lists, pictures
 
 
 # --------------------------------------------------------------------------
@@ -457,7 +519,7 @@ def render(meta: dict[str, str], blocks: list[tuple]) -> tuple[str, int]:
 def build(name: str) -> Path:
     src = HERE / f"{name}.md"
     meta, blocks = parse(src.read_text(encoding="utf-8"))
-    body_xml, lists = render(meta, blocks)
+    body_xml, lists, pictures = render(meta, blocks)
 
     with zipfile.ZipFile(TEMPLATE) as tz:
         parts = {n: tz.read(n) for n in tz.namelist()}
@@ -476,6 +538,16 @@ def build(name: str) -> Path:
         for k in range(1, lists + 1))
     numbering = numbering.replace("</w:numbering>", extra + "</w:numbering>")
     parts["word/numbering.xml"] = numbering.encode("utf-8")
+
+    # Each picture as a media part, with a relationship the body points at.
+    if pictures:
+        rels = parts["word/_rels/document.xml.rels"].decode("utf-8")
+        image_rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+        extra_rels = ""
+        for k, (rid, path) in enumerate(pictures, start=1):
+            parts[f"word/media/picture{k}.png"] = path.read_bytes()
+            extra_rels += f'<Relationship Id="{rid}" Type="{image_rel}" Target="media/picture{k}.png"/>'
+        parts["word/_rels/document.xml.rels"] = rels.replace("</Relationships>", extra_rels + "</Relationships>").encode("utf-8")
 
     footer = parts["word/footer1.xml"].decode("utf-8")
     footer = re.sub(r"(<w:t[^>]*>)[^<]*·\s*page\s*(</w:t>)",

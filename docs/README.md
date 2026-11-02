@@ -18,8 +18,9 @@ The guides are Word documents (`.docx`) for reading and printing. Each one is bu
 | [7 — Configuration and Operations](PES_Guide_7_Configuration_and_Operations.docx) | Settings and secrets, deploying, migrations, the nightly job, scripts, the release checklist | [source](source/7_configuration_and_operations.md) |
 | [The AI Assistant](PES_Guide_AI_Assistant.docx) | The assistant end to end | [source](source/ai_assistant.md) |
 | [RAG and the 14 tools, explained](PES_Guide_AI_Assistant_RAG_Explained.docx) | The assistant in plain English | [source](source/ai_assistant_rag_explained.md) |
+| [Grade Prediction (machine learning)](PES_Guide_ML_Grade_Prediction.docx) | The grade forecast: data, features, models, how well it works, who sees what, retraining | [source](source/ml_grade_prediction.md) |
 
-Suggested order for a developer: 0, 1, 3, 4, 2, 5, 6, 7, then the AI guides. Guide 0 gives shorter orders for other readers.
+Suggested order for a developer: 0, 1, 3, 4, 2, 5, 6, 7, then the AI guides and the Grade Prediction guide. Guide 0 gives shorter orders for other readers.
 
 ## Also here
 

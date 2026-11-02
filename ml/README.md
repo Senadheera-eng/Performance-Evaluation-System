@@ -39,9 +39,13 @@ hand. The full table is in [`report/report.md`](report/report.md); on Semester 6
 
 The proposal chose a decision tree. A single tree proved unstable, so following the proposal's improvement strategy
 the deployed model is a random forest (300 trees, depth 10, at least 10 results per leaf, tuned by grouped
-cross-validation). It forecasts SGPA best and ranks students for early warning better than their own average does.
+cross-validation). On Semester 6 it forecasts SGPA best and ranks students for early warning better than their own
+average does. On Semester 5, trained on less data, the student's own average did better on both: the forest gains
+most from more data, and the deployed model is trained on the most (6,103 results).
 With grades alone and one cohort, a student's own average is a strong baseline. Mid-semester, CA and attendance marks
 are the next features to add, and should lift every number.
+
+The full explanation, with the charts, is the study guide `docs/PES_Guide_ML_Grade_Prediction.docx`.
 
 Charts in `report/`: `confusion_matrix.png`, `feature_importance.png`, `sgpa_forecast.png` (random forest, Semester 6),
 and `tree_top.png` (the top of the CART tree).
