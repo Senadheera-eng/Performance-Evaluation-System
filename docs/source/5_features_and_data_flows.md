@@ -26,7 +26,7 @@ Every feature below follows the same four-part shape:
 
 1. The super admin creates an enrolment window for a batch, department and semester, with an opening and closing time and optional instructions. It moves from draft to open. Only the super admin can write windows; a window that never opened can be deleted, and an open one can be extended to a later closing time (since 29 October 2026), which tells the students it covers.
 1. The student opens the Enrollment page. It calls `get_my_enrolment_options()`, which returns every module they may take right now.
-1. The page shows the semester's baskets — the compulsory courses, and each elective basket with the credits it asks for — and, separately, outstanding modules they still owe from an earlier attempt.
+1. The page shows the semester as the Faculty Handbook prints it: a table of course code, title, credit value, category and whether it counts towards the GPA, with the category and GPA cells merged down each basket and a tick box on every course. Under each category it shows, live, how many of the credits it asks for the ticks so far supply. On a phone the same courses are a list headed by each category. Separately, it lists outstanding modules the student still owes from an earlier attempt.
 1. A student in a semester with minors picks their minor from the department's study plan. The page draws the plan's table for that semester and warns, in red, if the minor's mandatory course is left out (`set_my_minor`, `student_minor_plan`).
 1. The student ticks and unticks. Nothing is saved yet; the changes are held in the browser.
 1. They press save. One call to `update_my_enrolment(p_add, p_remove)` applies everything at once, recording each course under the academic year of the semester that offers it.

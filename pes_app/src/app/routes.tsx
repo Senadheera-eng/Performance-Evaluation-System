@@ -64,6 +64,9 @@ const Results = page(() => import("./pages/Results"));
 const AIAssistant = page(() => import("./pages/AIAssistant"));
 const Profile = page(() => import("./pages/Profile"));
 const Settings = page(() => import("./pages/Settings"));
+/* Lecturers' and admins' Settings: the same Appearance card as the
+   student page, with links to the portal's own profile and notifications. */
+const AccountSettings = page(() => import("./pages/AccountSettings"));
 const StaffProfile = page(() => import("./pages/staff/StaffProfile"));
 const Enrollment = page(() => import("./pages/Enrollment"));
 const MedicalCertificates = page(() => import("./pages/MedicalCertificates"));
@@ -176,6 +179,7 @@ export const router = createBrowserRouter([
       { path: "batches", element: held(<AdminBatches />) },
       { path: "users", element: held(<AdminUsers />) },
       { path: "profile", element: held(<AdminProfile />) },
+      { path: "settings", element: held(<AccountSettings />) },
       { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
     ],
@@ -211,6 +215,7 @@ export const router = createBrowserRouter([
       { path: "students", element: held(<StaffStudents />) },
       { path: "lecturers", element: held(<StaffLecturers />) },
       { path: "profile", element: held(<StaffProfile />) },
+      { path: "settings", element: held(<AccountSettings />) },
       { path: "notices", element: held(<ManageNotices />) },
       { path: "notifications", element: held(<Notifications />) },
     ],
