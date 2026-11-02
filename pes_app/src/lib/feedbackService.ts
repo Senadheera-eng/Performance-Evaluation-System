@@ -1021,9 +1021,10 @@ export async function updatePeriodStatus(
   return { ok: true };
 }
 
-/** A later closing time for a round, so students can keep answering. The
- *  department's own rounds are its to change, faculty-wide ones the Super
- *  Admin's; row security decides, and a refused change touches no row. */
+/** A later closing time for a round, so students can keep answering; the
+ *  database tells them (notify_feedback_changes). The department's own
+ *  rounds are its to change, faculty-wide ones the Super Admin's; row
+ *  security decides, and a refused change touches no row. */
 export async function extendFeedbackPeriod(
   periodId: string,
   closesAt: string,

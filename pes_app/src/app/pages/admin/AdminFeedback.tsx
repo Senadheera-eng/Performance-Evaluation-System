@@ -1153,7 +1153,8 @@ const toLocalInput = (iso: string) => {
  * extended. Only later: a round is never cut short under students who are
  * still answering it. If the closing time has already passed, a later one
  * lets students answer again, since a round accepts answers only between
- * its opening and closing times.
+ * its opening and closing times. Its students are told the new time (the
+ * database does that, on the change).
  */
 function ExtendFeedbackDialog({
   period,
@@ -1183,7 +1184,7 @@ function ExtendFeedbackDialog({
     const result = await extendFeedbackPeriod(period.id, iso);
     setSaving(false);
     if (!result.ok) return setError(`Could not extend the round: ${result.error ?? ""}`.trim());
-    onExtended(`${period.title} now closes ${formatDateTime(iso)}.`);
+    onExtended(`${period.title} now closes ${formatDateTime(iso)}. Its students have been told.`);
   };
 
   return (
@@ -1195,7 +1196,7 @@ function ExtendFeedbackDialog({
             {ended
               ? `It stopped taking answers on ${formatDateTime(period.closes_at)}. A later closing time lets students answer again.`
               : `It closes on ${formatDateTime(period.closes_at)}.`}{" "}
-            Students see the new closing time on their Feedback page.
+            Its students are told the new closing time.
           </DialogDescription>
         </DialogHeader>
         <form

@@ -49,7 +49,7 @@ These are the real numbers from the live database on 30 October 2026. They matte
 | Notifications written | 806 |
 | Database tables | 49 |
 | Database functions written for the app | 248 |
-| Database migrations (change history) | 276 |
+| Database migrations (change history) | 277 |
 | Edge Functions (server code beside the database) | 4 |
 | TypeScript files in the app (44 pages, 119 components) | 213 |
 
@@ -170,7 +170,7 @@ Performance-Evaluation-System/
       styles/theme.css           every colour, radius and shadow
     vercel.json                  what deploys, and caching
   supabase/
-    migrations/                  276 files - the full database history
+    migrations/                  277 files - the full database history
       README.md                  the same history, numbered and described
     functions/                   the four Edge Functions
   docs/                          these guides
@@ -267,7 +267,7 @@ The privacy rules, written as SQL attached to each table. These decide who may s
 
 ## 7.2 Database changes
 
-Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 276 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
+Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 277 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
 
 ```
 20260909150732_a_failed_course_has_to_be_repeatable.sql
