@@ -75,6 +75,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSettings, getSettings } from "../../lib/settings";
 import {
   bestPossibleCgpa,
+  projectedCgpa,
   capGrades,
   cgpaPath,
   gradeMix,
@@ -623,7 +624,10 @@ export default function GraduationPlanner() {
      from the real one, and the in-progress semester's SGPA once grades are
      guessed. It stays in view while the grades below it are changed. */
   const renderProjection = () => {
-    const delta = Math.round((simulatedStanding.cgpa - actualStanding.cgpa) * 100) / 100;
+    // A planned semester counts at its planned SGPA, as if it were done.
+    const projected = projectedCgpa(simulatedStanding, open);
+    const plannedSems = open.filter((s) => s.planned !== null && s.openCredits > 0).map((s) => String(s.semester));
+    const delta = Math.round((projected - actualStanding.cgpa) * 100) / 100;
     return (
       <div className="sticky top-14 z-20 rounded-card border border-primary/15 surface-hero px-4 py-3 shadow-elevation-sm sm:px-5 sm:py-4">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -633,12 +637,17 @@ export default function GraduationPlanner() {
             </p>
             <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="text-4xl font-bold leading-none tracking-tight tabular-nums text-primary sm:text-5xl">
-                <AnimatedNumber value={simulatedStanding.cgpa} decimals={2} />
+                <AnimatedNumber value={projected} decimals={2} />
               </span>
               <span className="text-base font-semibold text-foreground">
-                {classificationForGpa(simulatedStanding.cgpa)}
+                {classificationForGpa(projected)}
               </span>
             </p>
+            {plannedSems.length > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                With your planned SGPA for Semester {andList(plannedSems)}.
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="rounded-full bg-card/80 px-3 py-1 text-muted-foreground ring-1 ring-inset ring-border">
