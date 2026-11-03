@@ -3,7 +3,7 @@ kicker: Study Guide 5 of 7
 title: Features and Data Flows
 subtitle: What each part of the system does, step by step
 intro: This is the practical guide. Each feature is described the same way: who uses it, which pages it lives in, what happens in order, and which rules the system enforces along the way.
-updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
+updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
@@ -66,7 +66,7 @@ A student looking at one mixed list cannot tell which rule applies to which modu
 
 1. The lecturer starts a session. `start_attendance_session()` opens a window for a few minutes, optionally fixed to the lecture hall's coordinates with a radius.
 1. A code appears, and keeps changing. It is computed from the session's secret and the current time slice, so it rotates every few seconds.
-1. Students check in by scanning the QR code or typing the short code. `check_in_with_code()` records it.
+1. Students check in by scanning the QR code or typing the short code. `check_in_to_lecture()` or `check_in_with_code()` records it, with the phone's location if it has one. The phone starts finding its location when the student taps Scan or Type code, and sends the code at most 1.5 seconds after reading it, location or not: the code's age is measured when it arrives, and an old code is one of the signs of a relayed photo (section 3.4).
 1. The lecturer may fire a presence check mid-lecture — a prompt students have about ninety seconds to answer.
 1. The lecturer closes the session. Check-ins become attendance rows.
 
@@ -100,6 +100,23 @@ Marking a class of forty used to mean forty sequential requests. Worse, it was n
 - A percentage is counted per delivery. A student repeating a course has one register per attempt, and only the attempt being sat now decides eligibility.
 - A lecturer and the department office mark the same register. Both write the offering with every row, so a mark entered on either screen appears on both.
 - An approved medical certificate rewrites the affected rows to excused automatically.
+
+## 3.4 Sign-ins to review
+
+**Who:** the course's lecturer (and its head of department, department admin and the super admin). **Where:** `components/attendance/CheckinReview.tsx` and `lib/checkinReview.ts`, under the lecture's register on StaffAttendance; the model is trained outside the app, by `ml/attendance_anomaly.py`.
+
+The rotating code stops a photo that arrives late, but a friend in the hall can still relay one at once, or sign the absent student in from a second browser or phone. The second machine-learning feature, added on 3 November 2026, looks for the traces those leave.
+
+1. **When the lecturer picks a course and date**, the page calls `get_checkin_review(offering, date)`. The database works out six signals for every live sign-in of that lecture (how old the code was, how far the phone was from the hall, location withheld by a phone that usually sends it, a student's first sign-in from a device, a device that has signed in other students, presence checks missed afterwards), scores each sign-in with the stored Isolation Forest, and returns the ones at or above the threshold, or made 1 km or more away.
+1. **The card** lists them, most unusual first, each with the reasons in plain words ("Signed in 16.2 km from the lecture", "Missed 2 of 2 presence checks after signing in") and a Review badge. When nothing stands out it says so in one line; when the lecture had no live sign-ins, or no model is loaded, it does not appear.
+1. **When the lecturer closes the register**, the card checks again, so presence checks answered or missed in the last minutes count.
+1. **The lecturer decides.** A flag marks nobody absent and changes no row: if they find a proxy, they correct the register as before.
+
+:::why WHY A MODEL, AND WHY ONLY A LIST
+Each signal on its own has innocent causes — indoor GPS drifts, people deny location, phones get replaced, a flat battery misses a check. Flagging every sign-in far from the hall or without a location would list six honest students a lecture; the model, which looks for unusual combinations, lists one every two lectures and still catches about half the proxies relayed by photo or a second device. That is a useful prompt and a poor verdict, so it is shown only to the course's staff and never acted on by itself.
+:::
+
+> The figures come from simulated lectures, because PES has recorded only a handful of real live sign-ins; the Attendance Anomaly Detection guide sets out the assumptions and the results. On the real sign-ins so far, the one made 16.2 km from its lecture is listed and the one 268 m away is not.
 
 # 4. Results
 

@@ -42,6 +42,32 @@ async function currentPosition(): Promise<GeolocationCoordinates | null> {
 }
 
 /**
+ * How long a code that has just been read may wait for a location still on
+ * its way.
+ *
+ * The database measures a code's age when it arrives, so every moment between
+ * reading it and sending it counts against the student. Waiting the full eight
+ * seconds for an indoor fix once made an honest sign-in look like a relayed
+ * photo — an old code and no location — so the location is now started when
+ * the student taps Scan or Type code, and a code never waits long for it.
+ */
+const LOCATION_GRACE_MS = 1500;
+
+/** The location if it is known within `ms`, otherwise nothing. */
+function locationWithin(
+  pending: Promise<GeolocationCoordinates | null>,
+  ms: number,
+): Promise<GeolocationCoordinates | null> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(null), ms);
+    void pending.then((coords) => {
+      window.clearTimeout(timer);
+      resolve(coords);
+    });
+  });
+}
+
+/**
  * Signing the lecture register from the student's own phone.
  *
  * Renders nothing at all unless a register is open on a course this student is
@@ -65,6 +91,13 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const submitting = useRef(false);
+  const placeRef = useRef<Promise<GeolocationCoordinates | null> | null>(null);
+
+  /* Started from the student's tap, so the fix comes while they aim or type,
+     and a first-time permission prompt appears before the code is read. */
+  const startLocating = () => {
+    placeRef.current = currentPosition();
+  };
 
   const load = useCallback(async () => {
     const { data, error: rpcError } = await supabase.rpc(
@@ -84,6 +117,21 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     const id = window.setInterval(load, 20000);
     return () => window.clearInterval(id);
   }, [load]);
+
+  /* With a register open and location already allowed, find it now: the fix
+     is kept for a minute, so a tap on Scan has it at once. Asks nothing new. */
+  const registerOpen = sessions.some((s) => !s.already_checked_in);
+  useEffect(() => {
+    if (!registerOpen || !navigator.permissions) return;
+    navigator.permissions
+      .query({ name: "geolocation" })
+      .then((p) => {
+        if (p.state === "granted") void currentPosition();
+      })
+      .catch(() => {
+        /* No permissions API answer: the tap will ask as before. */
+      });
+  }, [registerOpen]);
 
   /* A presence check is a question with a deadline, so it has to be looked for
      often enough that ninety seconds is not mostly spent waiting to hear it. */
@@ -145,7 +193,10 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     setError(null);
 
     const device = getDeviceId();
-    const here = await currentPosition();
+    const here = await locationWithin(
+      placeRef.current ?? currentPosition(),
+      LOCATION_GRACE_MS,
+    );
     const place = {
       p_lat: here?.latitude ?? null,
       p_lng: here?.longitude ?? null,
@@ -172,7 +223,9 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     }
     const result = data as { ok: boolean; message: string };
     if (!result.ok) {
-      // Wrong or stale code: stay on camera so the next frame can succeed.
+      // Wrong or stale code: stay on camera so the next frame can succeed,
+      // and give a location that had not arrived another chance.
+      if (!here) startLocating();
       setError(result.message);
       return;
     }
@@ -180,6 +233,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
     stopCamera();
     setMode("idle");
     setActive(null);
+    placeRef.current = null;
     setCode("");
     setDone(result.message);
     await load();
@@ -187,6 +241,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
   };
 
   const startCamera = async (session: OpenSession) => {
+    startLocating();
     setActive(session);
     setError(null);
     setDone(null);
@@ -232,6 +287,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
 
   const cancel = () => {
     stopCamera();
+    placeRef.current = null;
     setMode("idle");
     setActive(null);
     setError(null);
@@ -329,6 +385,7 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
                     size="sm"
                     variant="outline"
                     onClick={() => {
+                      startLocating();
                       setActive(s);
                       setMode("code");
                       setError(null);

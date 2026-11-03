@@ -1,4 +1,6 @@
-"""Load ml/out/predictions.json into the database.
+"""Load a trained model's output into the database: the grade predictions
+(ml/out/predictions.json, the default) or, with --anomaly, the attendance
+anomaly model (ml/out/anomaly_model.json).
 
 The load goes through the database function ml_load_predictions, signed in
 with nothing but the app's public (anon) key. What lets it write is a
@@ -11,6 +13,7 @@ Usage
 -----
     python ml/load_predictions.py --new-token     # prints a token and the SQL for it
     ML_LOAD_TOKEN=<token> python ml/load_predictions.py
+    ML_LOAD_TOKEN=<token> python ml/load_predictions.py --anomaly
 
 The project URL and anon key are read from pes_app/.env.local (or from the
 VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables).
@@ -59,13 +62,13 @@ def new_token() -> None:
     print("    ML_LOAD_TOKEN=<token> python ml/load_predictions.py")
 
 
-def load(payload_path: Path) -> None:
+def load(payload_path: Path, rpc: str) -> None:
     url, key = settings()
     token = os.environ.get("ML_LOAD_TOKEN") or getpass.getpass("Load token: ")
     payload = json.loads(payload_path.read_text())
     body = json.dumps({"p_token": token.strip(), "p_payload": payload}).encode()
     req = urllib.request.Request(
-        f"{url}/rest/v1/rpc/ml_load_predictions",
+        f"{url}/rest/v1/rpc/{rpc}",
         data=body,
         method="POST",
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -80,6 +83,10 @@ def load(payload_path: Path) -> None:
         except ValueError:
             pass
         sys.exit(f"Load refused ({e.code}): {detail}")
+    if rpc == "ml_load_anomaly_model":
+        print(f"Loaded {out['trees']} trees; the database scored all {out['checks_matched']} sample sign-ins "
+              f"as scikit-learn did. Model {out['model_id']} is now active.")
+        return
     print(f"Loaded {out['predictions']} predictions for Semester {payload['semester']} "
           f"from {len(payload['rows'])} in the file; model {out['model_id']} is now active.")
     if out["predictions"] != len(payload["rows"]):
@@ -89,12 +96,15 @@ def load(payload_path: Path) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--new-token", action="store_true", help="make a load token and print the SQL for it")
-    ap.add_argument("--payload", type=Path, default=ROOT / "out" / "predictions.json")
+    ap.add_argument("--anomaly", action="store_true", help="load the attendance anomaly model instead")
+    ap.add_argument("--payload", type=Path, help="the file to load (default: the one for the chosen model)")
     args = ap.parse_args()
     if args.new_token:
         new_token()
+    elif args.anomaly:
+        load(args.payload or ROOT / "out" / "anomaly_model.json", "ml_load_anomaly_model")
     else:
-        load(args.payload)
+        load(args.payload or ROOT / "out" / "predictions.json", "ml_load_predictions")
 
 
 if __name__ == "__main__":

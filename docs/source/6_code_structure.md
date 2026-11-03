@@ -2,8 +2,8 @@
 kicker: Study Guide 6 of 7
 title: Code Structure
 subtitle: How the React application is organised, and why
-intro: Guides 1 to 5 describe what the system does and how the database enforces it. This one opens the application itself: how a page is reached, where its data comes from, which shared pieces every screen is built from, and the conventions that keep 213 files readable. Read it before changing the code.
-updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
+intro: Guides 1 to 5 describe what the system does and how the database enforces it. This one opens the application itself: how a page is reached, where its data comes from, which shared pieces every screen is built from, and the conventions that keep 219 files readable. Read it before changing the code.
+updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -67,7 +67,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 | `layout/` | AppShell (the frame), NotificationBell, BrandLoader (the crest with a turning ring) and RouteFallback. |
 | `account/` | ChangePasswordDialog, and FirstSignInPassword, which a student with a temporary password sees before anything else. |
 | `admin/`, `batches/`, `users/` | The admin dialogs: change a student's intake, correct a grade, the question editor, intake / departments / remove-batch dialogs, add a user. |
-| `attendance/`, `results/`, `enrollment/`, `courses/`, `minors/`, `feedback/`, `mentor/`, `notices/`, `planner/`, `forecast/`, `dashboard/`, `staff/`, `chat/` | Pieces for one feature each: the QR sign-in and calendar, the results import, the semester baskets and minor selection, the course editor, the minor study plan editor, the Likert grid, the mentor chat, the notice card, the CGPA path chart, the grade-forecast cards, the insights panel, the feedback report, the assistant's markdown. |
+| `attendance/`, `results/`, `enrollment/`, `courses/`, `minors/`, `feedback/`, `mentor/`, `notices/`, `planner/`, `forecast/`, `dashboard/`, `staff/`, `chat/` | Pieces for one feature each: the QR sign-in, the calendar and the sign-ins to review, the results import, the semester baskets and minor selection, the course editor, the minor study plan editor, the Likert grid, the mentor chat, the notice card, the CGPA path chart, the grade-forecast cards, the insights panel, the feedback report, the assistant's markdown. |
 | `figma/` | ImageWithFallback, a leftover of the Figma Make template the project began from. |
 | `ProtectedRoute.tsx` | The route guard (section 3.2). |
 
@@ -86,7 +86,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 
 ## 2.5 src/lib
 
-36 modules, no JSX. The services wrap database calls; the rest are calculations and file formats.
+37 modules, no JSX. The services wrap database calls; the rest are calculations and file formats.
 
 <!-- widths: 30,70 -->
 | Module | Job |
@@ -102,6 +102,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 | `batches.ts`, `batchIntake.ts` | Calls to `manage-batches`; reading an intake spreadsheet and writing a batch's records out. |
 | `graduationPlan.ts`, `splitCourses.ts`, `plannerScenarios.ts` | The planner's arithmetic, courses taught over two semesters, saved scenarios. |
 | `gradeForecast.ts` | The machine-learning forecasts: a student's own, a mentor's early warnings, one student's in full, and how the model did when it was checked. |
+| `checkinReview.ts` | The attendance anomaly model's list for one lecture: the flagged sign-ins with their reasons, and how the model did against the rules when it was tested. |
 | `minors.ts`, `minorPlan.ts` | A department's minors and their study plans. |
 | `attendanceMath.ts`, `attendanceRegister.ts`, `studentAttendance.ts` | Percentages and tiers; the office's register; a student's attendance per delivery. |
 | `resultsWorkbook.ts`, `resultSheetPdf.ts`, `feedbackReportPdf.ts` | The Excel results workbook (out and back in), the faculty's result sheet PDF, the feedback report PDF. |

@@ -37,7 +37,7 @@ const LEVEL_TONE: Record<WarningLevel, StatusTone> = { high: "danger", watch: "w
 const LEVEL_LABEL: Record<WarningLevel, string> = { high: "High", watch: "Watch", low: "On track" };
 
 /** Marks the card as a model's prediction, not a record. */
-function ModelBadge() {
+export function ModelBadge() {
   return (
     <StatusBadge tone="brand" icon={BrainCircuit}>
       Machine learning

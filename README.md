@@ -36,7 +36,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - **Results** — published grades and GPA; the raw exam mark is never shown, and nothing is visible before the department publishes
 - **Enrolment** — the semester's modules as Handbook baskets, plus outstanding R / F / L modules to repeat
 - **Graduation Planner** — credits and baskets still owed, and the average needed for each class of honours
-- **Grade forecast** — a machine-learning model's likely grade band for each course this semester and a forecast SGPA (see [Grade prediction](#grade-prediction-machine-learning))
+- **Grade forecast** — a machine-learning model's likely grade band for each course this semester and a forecast SGPA (see [Machine learning](#machine-learning))
 - **Medical certificates** — upload against specific modules within the 14-day window; each module is reviewed separately
 - **Course feedback** — anonymous or named, on the form each course holds
 - **Mentor** — a live chat with the lecturer assigned as their mentor, with attachments
@@ -48,6 +48,7 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 - Result entry as a draft, then submission to the department, which publishes or returns the sheet (the lecturer never publishes)
 - Feedback rounds requested per course, with a per-course form editor and analytics once responses exist
 - Mentees with an academic overview and private notes the student can never see, and early warnings of mentees the grade model expects to get an R or F
+- Sign-ins to review: under each lecture's register, the live sign-ins whose pattern is unusual (a possible proxy), with what was unusual about each; a flag never marks anyone absent
 - Result sheets and feedback reports exported to PDF, and results imported from Excel
 
 ### Department and faculty administrators
@@ -59,14 +60,23 @@ A **Head of Department is not a role.** It is a lecturer with an active row in `
 
 ---
 
-## Grade prediction (machine learning)
+## Machine learning
+
+Two models, each trained outside the app and loaded into the database with a single-use token rather than a service key. [`ml/README.md`](ml/README.md) has the method, the evaluation and the steps for both.
+
+### Grade prediction
 
 A random forest trained on the faculty's past results predicts, for each student and each course of the coming semester, the grade band they are likely to get (A+/A, A-/B+, B/B-, C+/C, R/F), and from those a forecast SGPA and the chance of at least one R or F.
 
 - **Students** see the likely band per course and a forecast SGPA in the Graduation Planner. They are not shown R or F figures: a course whose likeliest band is R/F says "Needs attention" and points to the mentor.
 - **Mentors** get an early-warning list of mentees with an above-usual chance of an R or F, likeliest first, with the courses to watch, and each mentee's full forecast.
 
-It is trained outside the app and loaded once a semester (`ml/`): the results are exported without names or ids, the model is evaluated on semesters it never saw against simple baselines, and the predictions are loaded with a single-use token rather than a service key. On held-out Semester 6 its SGPA forecast was off by 0.26 on average (0.29 for a student's own average so far). [`ml/README.md`](ml/README.md) has the method, the evaluation and the steps.
+It is trained outside the app and loaded once a semester (`ml/`): the results are exported without names or ids, the model is evaluated on semesters it never saw against simple baselines, and the predictions are loaded with a single-use token rather than a service key. On held-out Semester 6 its SGPA forecast was off by 0.26 on average (0.29 for a student's own average so far). 
+### Attendance anomaly detection
+
+A live register's rotating code stops most proxy sign-ins, but a friend can still relay a photo of the code or sign in from a second phone. An Isolation Forest (unsupervised: it needs no labelled cheating) scores how unusual each live sign-in is from six signals the register already records — how old the code was, how far the phone was, location withheld by a phone that usually sends it, a student's first sign-in from a device, a device that has signed in other students, and presence checks missed — and lists the unusual ones, with the reasons, for the course's lecturer to look at. A sign-in 1 km or more from the lecture is always listed. Nothing is marked: the lecturer decides.
+
+The trees are stored in the database and scored there, so a sign-in is checked as soon as the list is opened. PES has few real sign-ins yet, so it was trained and tested on simulated lectures: on 720 test lectures it listed 41% of the proxies hidden in them (about half of those relayed by photo or from a second device) while flagging one honest student every two lectures; flagging every far or location-less sign-in would list 44% but flag six honest students a lecture.
 
 ## AI Assistant
 
@@ -162,7 +172,7 @@ pes_app/                       the application
   src/app/routes.tsx           the URL map, one lazy chunk per page
   src/lib/                     logic with no interface: services, settings, PDF writers
   src/styles/theme.css         every colour, radius, shadow and duration
-ml/                            the grade-prediction model: export, train, evaluate, load (see ml/README.md)
+ml/                            the two models (grade prediction, attendance anomalies): export, train, evaluate, load (see ml/README.md)
 supabase/
   migrations/                  the database history, one file per change (README.md indexes them)
   functions/                   the four Edge Functions: ai-assistant, faculty-site-sync,
@@ -176,7 +186,7 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **52 tables**, all with row level security enabled, and 254 functions. The main groups:
+The live schema has **53 tables**, all with row level security enabled, and 260 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |
@@ -193,7 +203,7 @@ The live schema has **52 tables**, all with row level security enabled, and 254 
 | Mentoring     | `mentor_assignments`, `mentor_messages`, `mentor_notes`                                         |
 | Communication | `notices`, `notice_categories`, `notice_attachments`, `notifications`                           |
 | Rules and AI  | `system_settings` (the regulation engine), `handbook_chunks`, `faculty_site_pages`, `faculty_site_chunks`, `ai_assistant_usage_log` |
-| Grade forecast | `ml_models`, `ml_grade_predictions`, `ml_load_tokens` (read only through functions; written only by the token-guarded loader) |
+| Machine learning | `ml_models`, `ml_grade_predictions`, `ml_isolation_trees`, `ml_load_tokens` (read only through functions; written only by the token-guarded loaders) |
 
 Students read results only through the `my_published_results` view and RPCs, never the `results` table directly. Every migration file in `supabase/migrations/` explains in its header why the change was made.
 

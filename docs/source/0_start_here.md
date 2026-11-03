@@ -2,8 +2,8 @@
 kicker: Study Guide 0  ·  read this first
 title: Start Here
 subtitle: A map of the guides, a reading order, and the words they use
-intro: The Performance Evaluation System is described in seven numbered guides and three feature guides. This one says which guide answers which question, suggests an order for three different readers, and explains the terms every guide assumes you know. It takes ten minutes.
-updated: Updated 2 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
+intro: The Performance Evaluation System is described in seven numbered guides and four feature guides. This one says which guide answers which question, suggests an order for three different readers, and explains the terms every guide assumes you know. It takes ten minutes.
+updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -16,12 +16,13 @@ footer: PES Study Guide
 | 2 — Database | Every table and what it holds, how they connect, the rule settings, the views, the storage buckets, the extensions, the scheduled job, and every function by area. |
 | 3 — Login, Roles and Permissions | How signing in works, how a role is decided, how routes are guarded, and an account's life: invited, set up, reset, deactivated. |
 | 4 — Security and Row Level Security | How the database refuses what it should refuse, who can see what, how the Edge Functions guard themselves, what reviews found, and how to test a rule yourself. |
-| 5 — Features and Data Flows | Each feature step by step: enrolment, attendance, results, feedback, medical certificates, mentoring, the Graduation Planner and its grade forecast, the assistant, batches and accounts, dashboards and notifications. |
+| 5 — Features and Data Flows | Each feature step by step: enrolment, attendance, results, feedback, medical certificates, mentoring, the Graduation Planner and its grade forecast, sign-ins to review, the assistant, batches and accounts, dashboards and notifications. |
 | 6 — Code Structure | How the React app is organised: routes, layouts, contexts, services, the design system and its tokens, conventions, and how to add a page. |
 | 7 — Configuration and Operations | Every setting and secret and where it lives, deploying the site and the functions, the nightly job, migrations, scripts, health checks, and the release checklist. |
 | The AI Assistant | The assistant end to end: the page, the server, the tool loop, the fourteen tools, the Handbook and website search, the models, the limits, and how to change it. |
 | RAG and the 14 tools, explained | The same assistant in plain English, for a reader who has never met the words RAG or tool calling. |
 | Grade Prediction | The machine-learning grade forecast: the data it learns from, the features, why a random forest, how well it works on semesters it never saw, who sees what, and retraining it each semester. |
+| Attendance Anomaly Detection | The second machine-learning feature: the six signals a live sign-in leaves, why an Isolation Forest, the simulation it was tested on and what it found, how the database scores a sign-in, and retraining it on real lectures. |
 
 Beside the guides, three Markdown files go deeper on one thing each: `local-llm.md` (running the assistant on a faculty computer), `ui-ux-audit.md` (the audit of every screen behind the October redesign, and what was done) and `README.md` (the same list as this page, for GitHub).
 
