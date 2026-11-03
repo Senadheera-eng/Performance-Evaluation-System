@@ -15,6 +15,7 @@ import {
   PageHeader,
   SearchField,
   SegmentedTabs,
+  StatusBadge,
   useExpandMotion,
   type ActiveFilter,
 } from "../components/common";
@@ -52,6 +53,18 @@ interface Course {
   minor_category: string | null;
   semester: number;
   year: number;
+  /** The Handbook basket it sits in that semester, as printed; null if none. */
+  basket: string | null;
+  /** The Handbook's "Contributing to GPA" for it in that basket. */
+  basketGpa: boolean | null;
+}
+
+/** One row of a semester's table in the Faculty Handbook. */
+interface CurriculumSlot {
+  course_id: string;
+  semester: number;
+  basket: string;
+  handbook_gpa: boolean | null;
 }
 
 export default function Courses() {
@@ -98,6 +111,30 @@ export default function Courses() {
 
   const fetchCourses = async () => {
     setLoading(true);
+
+    /* The Handbook's table for each semester of the student's curriculum:
+       their department's, and the faculty-wide first year. A course can sit
+       in two semesters' tables (a humanities elective offered in Semester 5
+       and again in 7), and it is taken once. */
+    const { data: slotData } = await supabase
+      .from("curriculum_slots")
+      .select("course_id, semester, basket, handbook_gpa")
+      .in("department", [student!.department ?? "", "COMMON"]);
+    const slotsByCourse = new Map<string, CurriculumSlot[]>();
+    for (const sl of (slotData ?? []) as CurriculumSlot[]) {
+      const list = slotsByCourse.get(sl.course_id) ?? [];
+      list.push(sl);
+      slotsByCourse.set(sl.course_id, list);
+    }
+    /* A course taken or being taken stays in the semester it was sat, in the
+       basket that semester's table gives it (or the nearest table's). */
+    const takenSlot = (courseId: string, semester: number) => {
+      const slots = slotsByCourse.get(courseId) ?? [];
+      const sl = [...slots].sort(
+        (a, b) => Math.abs(a.semester - semester) - Math.abs(b.semester - semester),
+      )[0];
+      return { basket: sl?.basket ?? null, basketGpa: sl?.handbook_gpa ?? null };
+    };
 
     // Ongoing courses: the student's active enrollment for the current semester.
     const { data: enrollments } = await supabase
@@ -174,6 +211,7 @@ export default function Courses() {
         minor_category: c.minor_category,
         semester: c.semester,
         year: c.year,
+        ...takenSlot(c.id, c.semester),
       };
     });
 
@@ -200,6 +238,7 @@ export default function Courses() {
         minor_category: r.minor_category,
         semester: r.semester,
         year: r.course_year,
+        ...takenSlot(r.course_id, r.semester),
       }));
 
     // Remaining catalogue courses: everything in the student's own curriculum
@@ -240,17 +279,25 @@ export default function Courses() {
     (catalogueData ?? [])
       .filter((c: any) => !knownIds.has(c.id))
       .forEach((c: any) => {
+        /* A course not taken sits where the Handbook next offers it: the
+           first of its tables after the furthest semester on record, else the
+           latest one. Without a table it keeps the catalogue's semester. */
+        const slots = [...(slotsByCourse.get(c.id) ?? [])].sort((a, b) => a.semester - b.semester);
+        const slot =
+          slots.find((sl) => sl.semester > furthestKnownSemester) ?? slots[slots.length - 1];
+        const semester = slot?.semester ?? c.semester;
         const course: Course = {
           id: c.id,
           code: c.course_code,
           name: c.title,
           credits: c.credits,
-          status:
-            c.semester > furthestKnownSemester ? "upcoming" : "not_recorded",
+          status: semester > furthestKnownSemester ? "upcoming" : "not_recorded",
           category: c.category,
           minor_category: c.minor_category,
-          semester: c.semester,
+          semester,
           year: c.year,
+          basket: slot?.basket ?? null,
+          basketGpa: slot?.handbook_gpa ?? null,
         };
         (course.status === "upcoming" ? upcomingCourses : notRecordedCourses).push(
           course,
@@ -578,11 +625,40 @@ const GROUP_STATUS_ORDER: { status: CourseStatus; label: string }[] = [
   { status: "upcoming", label: "upcoming" },
 ];
 
+type BasketCourse = CourseListItem & { basket: string | null; basketGpa: boolean | null };
+
+/** What a basket asks for, in words, from the label the Handbook prints. */
+function basketRule(basket: string | null): string {
+  if (basket === null) return "Not in this semester's Handbook table";
+  if (basket === "Compulsory") return "Take every course";
+  if (basket === "Optional") return "Not required";
+  const credits = (n: number) => `${n} credit${n === 1 ? "" : "s"}`;
+  const m = basket.match(/\((\d+)(?:\/(\d+))?\)/);
+  if (!m) return "Choose from these";
+  const a = Number(m[1]);
+  if (m[2] === undefined) return `Choose ${credits(a)}`;
+  const b = Number(m[2]);
+  // "(1/0)": one credit here or in the paired semester's table.
+  if (Math.min(a, b) === 0) return `Choose up to ${credits(Math.max(a, b))}`;
+  return `Choose ${a} or ${credits(b)}`;
+}
+
+/* Compulsory first, then the electives that count towards the GPA, then the
+   ones that do not, then anything optional, then courses the table lacks. */
+function basketRank(basket: string | null, inGpa: boolean): number {
+  if (basket === "Compulsory") return 0;
+  if (basket === null) return 4;
+  if (basket === "Optional") return 3;
+  return inGpa ? 1 : 2;
+}
+
 /**
  * One semester of the curriculum: a header that says what is in it, and the
- * courses under it, opening and closing with an animation. The header stays
- * pinned while its courses scroll past, so a row is never far from the
- * semester it belongs to.
+ * courses under it in the Faculty Handbook's baskets -- the compulsory
+ * courses, then each elective basket with the credits it asks for and
+ * whether it counts towards the GPA -- opening and closing with an
+ * animation. The header stays pinned while its courses scroll past, so a row
+ * is never far from the semester it belongs to.
  */
 function SemesterGroup({
   semester,
@@ -592,7 +668,7 @@ function SemesterGroup({
   onOpenCourse,
 }: {
   semester: number;
-  courses: CourseListItem[];
+  courses: BasketCourse[];
   open: boolean;
   onToggle: () => void;
   onOpenCourse: (id: string) => void;
@@ -607,6 +683,28 @@ function SemesterGroup({
     .filter((b) => b.n > 0)
     .map((b) => `${b.n} ${b.label}`)
     .join(" · ");
+
+  const baskets = [...new Set(courses.map((c) => c.basket))]
+    .map((basket) => {
+      const list = courses
+        .filter((c) => c.basket === basket)
+        .sort((a, b) => a.code.localeCompare(b.code));
+      const inGpa = list.filter((c) => c.basketGpa !== false).length;
+      return {
+        basket,
+        courses: list,
+        inGpa: inGpa === list.length,
+        noneInGpa: inGpa === 0,
+        credits: list.reduce((n, c) => n + c.credits, 0),
+      };
+    })
+    .sort(
+      (a, b) =>
+        basketRank(a.basket, a.inGpa) - basketRank(b.basket, b.inGpa) ||
+        (a.basket ?? "").localeCompare(b.basket ?? "", undefined, { numeric: true }),
+    );
+  // A running index, so the rows stagger in once down the whole semester.
+  let rowIndex = 0;
 
   return (
     <section>
@@ -649,17 +747,44 @@ function SemesterGroup({
             exit="collapsed"
             className="overflow-hidden"
           >
-            {/* Two across from xl, three only on genuinely wide screens.
-                Three columns any earlier leaves each cell too narrow and
-                every course title truncates. */}
-            <div className="grid grid-cols-1 gap-1.5 pb-1 xl:grid-cols-2 min-[1700px]:grid-cols-3">
-              {courses.map((course, index) => (
-                <CourseListRow
-                  key={course.id}
-                  course={course}
-                  index={index}
-                  onClick={() => onOpenCourse(course.id)}
-                />
+            <div className="space-y-3 pb-1">
+              {baskets.map((b) => (
+                <div key={b.basket ?? "other"} role="group" aria-label={b.basket ?? "Other courses"}>
+                  {/* The basket once, as the Handbook prints it, with what it
+                      asks for and whether it counts towards the GPA. */}
+                  <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
+                    <span
+                      className={cn(
+                        "h-2 w-2 flex-shrink-0 rounded-full",
+                        b.basket === "Compulsory" ? "bg-primary" : "bg-muted-foreground/50",
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="text-sm font-semibold text-foreground">
+                      {b.basket ?? "Other courses"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{basketRule(b.basket)}</span>
+                    {b.basket !== null && !b.inGpa && (
+                      <StatusBadge tone="neutral">{b.noneInGpa ? "Not in GPA" : "Partly in GPA"}</StatusBadge>
+                    )}
+                    {b.basket === "Compulsory" && (
+                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">{b.credits} cr</span>
+                    )}
+                  </div>
+                  {/* Two across from xl, three only on genuinely wide
+                      screens. Three columns any earlier leaves each cell too
+                      narrow and every course title truncates. */}
+                  <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-2 min-[1700px]:grid-cols-3">
+                    {b.courses.map((course) => (
+                      <CourseListRow
+                        key={course.id}
+                        course={course}
+                        index={rowIndex++}
+                        onClick={() => onOpenCourse(course.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </motion.div>
