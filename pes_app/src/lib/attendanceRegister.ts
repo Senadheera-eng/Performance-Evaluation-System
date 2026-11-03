@@ -142,7 +142,28 @@ export async function saveSession(
       .in("student_id", cleared);
     if (error) return fail("saveSession.clear", error);
   }
+  await noteAttendanceSaved(offeringId, lectureDate);
   return { ok: true, data: { saved: marks.length, cleared: cleared.length } };
+}
+
+/**
+ * Tell the database a lecture's sheet has been saved, so its sign-in register
+ * stays closed from now on. Reopening it and closing it again would write the
+ * register's sign-ins back over marks changed by hand, such as a flagged
+ * sign-in marked absent.
+ *
+ * Called after the marks are written, and never fails the save: if this one
+ * call is lost, the register can still be reopened, which is how it was.
+ */
+export async function noteAttendanceSaved(
+  offeringId: string,
+  lectureDate: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("note_attendance_saved", {
+    p_offering_id: offeringId,
+    p_lecture_date: lectureDate,
+  });
+  if (error) console.error("[noteAttendanceSaved]", error.message);
 }
 
 /** How long after this page's own save its echoes are still arriving. */

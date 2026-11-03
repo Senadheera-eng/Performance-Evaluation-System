@@ -263,7 +263,7 @@ The same day, the eleven dated backup tables were dropped (one had Row Level Sec
 
 ## 5.10 Where things stand on 3 November 2026
 
-The same counts, taken again for this edition: 260 application functions, 201 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **7 callable by the anonymous role**. Two are deliberate: the model loaders `ml_load_predictions` and `ml_load_anomaly_model`, whose credential is a single-use token rather than a sign-in (sections 5.11 and 5.12). The other five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
+The same counts, taken again for this edition: 264 application functions, 204 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **7 callable by the anonymous role**. Two are deliberate: the model loaders `ml_load_predictions` and `ml_load_anomaly_model`, whose credential is a single-use token rather than a sign-in (sections 5.11 and 5.12). The other five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
 
 They are harmless as they stand: PostgreSQL refuses to run a trigger function except as a trigger, so calling one through the API only returns an error. But they break the rule this section exists for, and the fact that the default did not hold for them is worth knowing. The tidy-up is one migration that revokes EXECUTE on the five from anon (and, like the other triggers, from authenticated), followed by the count in section 6 run again.
 
@@ -353,7 +353,7 @@ left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
 where n.nspname = 'public' and d.objid is null;   -- the app's own functions
 ```
 
-On 3 November 2026 it returns 7 and 201 (section 5.10). The answer to aim for in the first column is 2: the two token-guarded loaders, and nothing else.
+On 3 November 2026 it returns 7 and 204 (section 5.10). The answer to aim for in the first column is 2: the two token-guarded loaders, and nothing else.
 
 # 7. Things deliberately left alone
 

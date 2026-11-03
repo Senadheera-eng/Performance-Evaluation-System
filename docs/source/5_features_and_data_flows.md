@@ -68,7 +68,9 @@ A student looking at one mixed list cannot tell which rule applies to which modu
 1. A code appears, and keeps changing. It is computed from the session's secret and the current time slice, so it rotates every few seconds.
 1. Students check in by scanning the QR code or typing the short code. `check_in_to_lecture()` or `check_in_with_code()` records it, with the phone's location if it has one. The phone starts finding its location when the student taps Scan or Type code, and sends the code at most 1.5 seconds after reading it, location or not: the code's age is measured when it arrives, and an old code is one of the signs of a relayed photo (section 3.4).
 1. The lecturer may fire a presence check mid-lecture — a prompt students have about ninety seconds to answer.
-1. The lecturer closes the session. Check-ins become attendance rows.
+1. The lecturer closes the session. Check-ins become attendance rows: present for everyone who signed in, absent for the rest.
+1. **Closed too soon?** Until the sheet below is saved, the lecturer can reopen the same register the same day (`reopen_attendance_session()`): everyone already signed in stays signed in, the class is told it is open again, and closing it again adds the newcomers. Closing only ever turns an absence into a presence.
+1. **Saving the sheet settles the lecture** (`note_attendance_saved()`). From then on its register stays closed and anyone else is marked by hand: closing it again would write the register's sign-ins back over a mark the lecturer changed, such as a flagged sign-in marked absent.
 
 :::why WHY THE CODE ROTATES
 A fixed code could be photographed and sent to a friend sitting at home. A code that changes every few seconds is useless by the time it arrives. The code is calculated rather than stored, so reading the database would not help either. The optional location radius closes the same hole from a different direction.
