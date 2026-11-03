@@ -13,7 +13,9 @@
 -- changed.
 --
 -- Formats (records separated by ";"):
---   courses.txt   number,department,semester,credits,category (C/E/O),in GPA (1/0)
+--   courses.txt   number,department,semester,credits,category (C/E/O),in GPA (1/0),
+--                 graded here (1/0: 0 for the earlier part of a course taught over
+--                 two semesters, whose grade is given with its later part)
 --   students.txt  number,department
 --   results.txt   student=<course number in two base-36 digits><grade code>...
 --                 grade codes: 1 A+, 2 A, 3 A-, 4 B+, 5 B, 6 B-, 7 C+, 8 C, R, F, L
@@ -23,7 +25,7 @@ with dept(name, code) as (values
   ('Interdisciplinary Studies', 'IS')),
 s as (select id, department, (dense_rank() over (order by id))::int si
         from public.students where role = 'student'),
-c as (select id, department, semester, credits, category, contributes_to_gpa,
+c as (select id, department, semester, credits, category, contributes_to_gpa, graded_with,
              (dense_rank() over (order by id))::int ci
         from public.courses),
 k as (select ci, id,
@@ -42,7 +44,8 @@ r as (select s.si,
        group by s.si)
 select 'courses.txt' as file,
        (select string_agg(ci || ',' || d.code || ',' || semester || ',' || credits || ',' ||
-                          left(category, 1) || ',' || (case when contributes_to_gpa then 1 else 0 end),
+                          left(category, 1) || ',' || (case when contributes_to_gpa then 1 else 0 end) || ',' ||
+                          (case when graded_with is null then 1 else 0 end),
                           ';' order by ci)
           from c join dept d on d.name = c.department) as content
 union all
