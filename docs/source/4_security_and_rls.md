@@ -40,7 +40,7 @@ Read it as a sentence: for a signed-in user selecting from the attendance table,
 
 A student running SELECT * FROM attendance does not get an error. They get their own rows and nothing else. There is no way to ask for more, because the filter is applied inside the database before the answer is built.
 
-All 53 tables have RLS switched on, with no exceptions, held by 120 policies (and 13 more on stored files). Nine tables have RLS on and no policy at all — the three account tables, the two faculty-website tables, the three grade-forecast tables and the attendance model's trees — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`; the forecasts only through the functions in section 5.11, and the trees only through those in section 5.12. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
+All 54 tables have RLS switched on, with no exceptions, held by 120 policies (and 13 more on stored files). Ten tables have RLS on and no policy at all — the three account tables, the two faculty-website tables, the three grade-forecast tables, the attendance model's trees and the record of refused sign-ins — which means nobody can read them through the API. The account tables are touched only by server code with the service role; the website is read only through `search_faculty_site()` and `get_faculty_site_status()`; the forecasts only through the functions in section 5.11, and the trees only through those in section 5.12. The dated backup tables that used to be the exceptions were dropped on 27 September 2026.
 
 # 2. Who can see what
 
@@ -263,7 +263,7 @@ The same day, the eleven dated backup tables were dropped (one had Row Level Sec
 
 ## 5.10 Where things stand on 3 November 2026
 
-The same counts, taken again for this edition: 260 application functions, 201 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **7 callable by the anonymous role**. Two are deliberate: the model loaders `ml_load_predictions` and `ml_load_anomaly_model`, whose credential is a single-use token rather than a sign-in (sections 5.11 and 5.12). The other five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
+The same counts, taken again for this edition: 264 application functions, 204 callable by signed-in users, every SECURITY DEFINER function with its search path pinned — and **7 callable by the anonymous role**. Two are deliberate: the model loaders `ml_load_predictions` and `ml_load_anomaly_model`, whose credential is a single-use token rather than a sign-in (sections 5.11 and 5.12). The other five are trigger functions added in October: `check_course_graded_with`, `courses_default_result_credits`, `refresh_result_credits` and `results_refuse_ungraded_part` (two-semester courses) and `planner_scenarios_guard` (saved scenarios). They arrived with Supabase's default grant again, despite the default being changed by name in September.
 
 They are harmless as they stand: PostgreSQL refuses to run a trigger function except as a trigger, so calling one through the API only returns an error. But they break the rule this section exists for, and the fact that the default did not hold for them is worth knowing. The tidy-up is one migration that revokes EXECUTE on the five from anon (and, like the other triggers, from authenticated), followed by the count in section 6 run again.
 
@@ -294,6 +294,8 @@ The second machine-learning feature, added on 3 November 2026 (Guide 5, section 
 | `get_checkin_review(offering, date)` | The course's staff only (`is_offering_staff`): its assigned lecturer, the head of its department, that department's admin, the super admin. The flagged sign-ins of that course on that date, with their scores and reasons. A former lecturer of the course, a student or anyone else gets "Only the staff of this course can review its sign-ins". |
 | `ml_checkin_review`, `ml_checkin_features`, `ml_isolation_score`, `ml_avg_path_length` | Nobody directly: EXECUTE is revoked from public, anon and authenticated. `get_checkin_review` calls them after its own check, so the signals of one student (their devices, where their phone was) cannot be read for a course the caller does not run. |
 | `ml_load_anomaly_model(token, payload)` | Anyone holding a valid token, signed in or not, exactly as the grade loader (section 5.11). It also refuses a model whose stored trees do not score its 40 sample sign-ins as scikit-learn did. |
+
+Two signals need the request itself: how long before signing the student logged in (read from their auth session), and the network address and browser string. The address is never stored: only an md5 of it and the browser string, salted with that register's secret, so two sign-ins can be compared within one lecture and nowhere else. A browser refused for trying to sign in a second student is recorded in `attendance_device_refusals` (RLS on, no policy), and only `get_checkin_review` reads it.
 
 Students are shown nothing, and nothing in the feature writes to `attendance`, `attendance_checkins` or the presence-check tables: deciding that a flagged student was absent stays a person's act, through the register as before.
 
@@ -353,7 +355,7 @@ left join pg_depend d on d.objid = p.oid and d.deptype = 'e'
 where n.nspname = 'public' and d.objid is null;   -- the app's own functions
 ```
 
-On 3 November 2026 it returns 7 and 201 (section 5.10). The answer to aim for in the first column is 2: the two token-guarded loaders, and nothing else.
+On 3 November 2026 it returns 7 and 204 (section 5.10). The answer to aim for in the first column is 2: the two token-guarded loaders, and nothing else.
 
 # 7. Things deliberately left alone
 

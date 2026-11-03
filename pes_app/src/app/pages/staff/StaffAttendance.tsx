@@ -82,6 +82,8 @@ export default function StaffAttendance() {
   const [date, setDate] = useState(today());
   /** Bumped when a register closes, so the sign-in review catches up. */
   const [reviewKey, setReviewKey] = useState(0);
+  // Bumped when the sheet is saved: its register can no longer be reopened.
+  const [registerKey, setRegisterKey] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
   const [recordedDates, setRecordedDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,6 +245,7 @@ export default function StaffAttendance() {
     // Reload first, then confirm, so the toast describes the sheet as it
     // now stands.
     await loadSheet(selected.offering_id, date);
+    setRegisterKey((k) => k + 1);
     toast.success("Attendance saved", {
       description: `${result.data} student${result.data === 1 ? "" : "s"} on ${date}.`,
     });
@@ -396,6 +399,7 @@ export default function StaffAttendance() {
           offeringId={selected.offering_id}
           courseLabel={selected.course_code}
           lectureDate={date}
+          refreshKey={registerKey}
           onClosed={() => {
             loadSheet(selected.offering_id, date);
             setReviewKey((k) => k + 1);

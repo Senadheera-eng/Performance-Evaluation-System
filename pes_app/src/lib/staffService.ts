@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { noteAttendanceSaved } from "./attendanceRegister";
 
 /**
  * Data layer for the staff portal.
@@ -358,6 +359,7 @@ export async function saveOfferingAttendance(
     { onConflict: "student_id,course_id,lecture_date" },
   );
   if (error) return fail("saveOfferingAttendance", error);
+  await noteAttendanceSaved(offeringId, lectureDate);
   return { ok: true, data: marks.length };
 }
 

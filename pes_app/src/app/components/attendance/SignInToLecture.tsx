@@ -53,6 +53,9 @@ async function currentPosition(): Promise<GeolocationCoordinates | null> {
  */
 const LOCATION_GRACE_MS = 1500;
 
+/** Refusals that the next frame of the camera can put right. */
+const RETRYABLE = new Set(["unreadable", "expired", "bad_signature"]);
+
 /** The location if it is known within `ms`, otherwise nothing. */
 function locationWithin(
   pending: Promise<GeolocationCoordinates | null>,
@@ -221,12 +224,21 @@ export function SignInToLecture({ onCheckedIn }: { onCheckedIn?: () => void }) {
       setError(rpcError.message);
       return;
     }
-    const result = data as { ok: boolean; message: string };
+    const result = data as { ok: boolean; message: string; reason?: string };
     if (!result.ok) {
+      setError(result.message);
+      // A refusal no later frame can change (this phone already signed in
+      // someone else, not enrolled, register closed): stop reading the code.
+      if (result.reason && !RETRYABLE.has(result.reason)) {
+        stopCamera();
+        setMode("idle");
+        setActive(null);
+        placeRef.current = null;
+        return;
+      }
       // Wrong or stale code: stay on camera so the next frame can succeed,
       // and give a location that had not arrived another chance.
       if (!here) startLocating();
-      setError(result.message);
       return;
     }
 

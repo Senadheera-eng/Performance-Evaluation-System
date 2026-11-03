@@ -70,6 +70,7 @@ GUIDES = {
     "ai_assistant_rag_explained": "PES_Guide_AI_Assistant_RAG_Explained.docx",
     "ml_grade_prediction": "PES_Guide_ML_Grade_Prediction.docx",
     "ml_attendance_anomaly": "PES_Guide_ML_Attendance_Anomaly.docx",
+    "ml_mid_evaluation_brief": "PES_Guide_ML_Mid_Evaluation_Brief.docx",
 }
 
 # The house palette and measures, as the guides have always used them.

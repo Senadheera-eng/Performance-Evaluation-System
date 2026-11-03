@@ -93,12 +93,14 @@ export, the load is refused, because the numbering would no longer match: export
 A live register shows a code that changes every few seconds, and students sign in by scanning it. A friend can still
 sign in a student who is not there: by relaying a photo of the code, or from a second browser or phone. Each leaves
 traces (an old code, a phone far from the hall or sending no location, a device the student has never used, a device
-that has signed in other students, presence checks missed), but each trace also has innocent causes, so a rule on any
+that has signed in other students, presence checks missed, a login seconds before signing, the same network and
+browser as another student's sign-in a minute earlier), but each trace also has innocent causes, so a rule on any
 one of them either misses proxies or buries the lecturer in false alarms.
 
-An **Isolation Forest** (100 trees, scikit-learn) learns what ordinary sign-ins look like from six signals and scores
+An **Isolation Forest** (100 trees, scikit-learn) learns what ordinary sign-ins look like from eight signals and scores
 how unusual each one's combination is. It is unsupervised, so it needs no labelled cases of cheating. A sign-in is
-listed for review when its score is at least 0.626, or when it was made 1 km or more from the lecture.
+listed for review when its score is at least 0.643, when it was made 1 km or more from the lecture, or when its
+browser then tried to sign in another student (the register refuses that, and records the attempt).
 
 | Who | Where | What |
 |---|---|---|
@@ -106,24 +108,29 @@ listed for review when its score is at least 0.626, or when it was made 1 km or 
 | Student | – | Nothing. A flag is a reason for the lecturer to look, never a mark: nothing here changes attendance. |
 
 The model is scored **inside the database**: its trees are stored in `ml_isolation_trees`, and
-`ml_checkin_features` computes the six signals from what the register already records, so a sign-in is checked the
+`ml_checkin_features` computes the eight signals from what the register already records, so a sign-in is checked the
 moment the list is opened, with no server to run.
 
 ### How well it works
 
 PES has recorded only a handful of live sign-ins, so the model is trained and tested on simulated lectures with
-proxy sign-ins injected (the assumptions are `SIM` in `attendance_anomaly.py`). On 720 test lectures, 345 proxies
-among 23,052 sign-ins:
+proxy sign-ins injected (the assumptions are `SIM` in `attendance_anomaly.py`). On 720 test lectures, 386 proxies
+among 28,397 sign-ins:
 
-| Approach | Proxies caught | Flags that were proxies | Honest students flagged per lecture |
-|---|---|---|---|
-| Rules today (far or no location) | 44% | 4% | 5.85 |
-| Every signal as a rule | 80% | 3% | 11.65 |
-| Isolation Forest | 39% | 28% | 0.49 |
-| **Isolation Forest + 1 km rule (deployed)** | **41%** | **29%** | **0.49** |
+| Approach | Proxies caught | Flags that were proxies | Honest students flagged per lecture | Friend's phone, switching accounts |
+|---|---|---|---|---|
+| Rules today (far or no location) | 41% | 3% | 6.69 | 9% |
+| Every signal as a rule | 88% | 2% | 20.85 | 100% |
+| Isolation Forest | 42% | 30% | 0.54 | 91% |
+| **Isolation Forest + 1 km rule (deployed)** | **47%** | **32%** | **0.54** | **91%** |
+| Six signals + 1 km rule (the first model) | 38% | 27% | 0.55 | 34% |
 
-It catches about half of the photo and second-device proxies while flagging one honest student every two lectures;
-the rules flag six to twelve. A proxy on the student's own phone, carried into the room, leaves no trace and is not
+The two newest signals (a login just before, the same network and browser as the sign-in before) were added for a
+friend who signs in and then switches to the absent student's account on their own phone, in a private window or
+another browser. They lift those catches from 34% to 91%; photo relays fall from 51% to 40%, since the same false-alarm
+budget is shared. In the same browser, the switch is refused by the database, recorded, and always listed. The
+network address and browser string are kept only as an md5 salted with the register's secret, so they can be compared
+within one lecture and nowhere else. A proxy on the student's own phone, carried into the room, leaves no trace and is not
 caught by any method here. On the real sign-ins so far, the one made 16.2 km from its lecture is listed and the one
 268 m away is not. The full table is in [`report/attendance/report.md`](report/attendance/report.md), and the study
 guide is `docs/PES_Guide_ML_Attendance_Anomaly.docx`.
@@ -134,7 +141,7 @@ Once a semester of live registers has been recorded:
 
 ```bash
 # 1. Run ml/export_checkins.sql in the Supabase SQL editor and save the result as
-#    ml/data/checkins.csv (six numbers per sign-in, nothing else).
+#    ml/data/checkins.csv (eight numbers per sign-in, nothing else).
 
 # 2. Train on the simulation plus the real sign-ins, and evaluate.
 python ml/attendance_anomaly.py --real ml/data/checkins.csv
@@ -154,8 +161,8 @@ model; earlier ones stay in `ml_models`, inactive.
 |---|---|
 | `export_dataset.sql` | Grade prediction: the anonymised training data, as rows to save into `ml/data/`. |
 | `train.py` | Grade prediction: features, evaluation against baselines, the report and charts, and the predictions (`ml/out/predictions.json`). |
-| `attendance_anomaly.py` | Attendance anomalies: the simulation, the six signals, the Isolation Forest, its evaluation and charts, and the model as `ml/out/anomaly_model.json`. |
-| `export_checkins.sql` | Attendance anomalies: the six signals of every real sign-in, with nothing else, for `--real`. |
+| `attendance_anomaly.py` | Attendance anomalies: the simulation, the eight signals, the Isolation Forest, its evaluation and charts, and the model as `ml/out/anomaly_model.json`. |
+| `export_checkins.sql` | Attendance anomalies: the eight signals of every real sign-in, with nothing else, for `--real`. |
 | `load_predictions.py` | Makes a load token; sends the predictions to `ml_load_predictions`, or with `--anomaly` the model to `ml_load_anomaly_model`. Standard library only. |
 | `report/` | The latest grade-prediction evaluation: `report.md`, `metrics.json` and the charts. |
 | `report/attendance/` | The latest attendance-anomaly evaluation: `report.md`, `metrics.json` and the charts. |
@@ -165,6 +172,6 @@ Grade prediction: database side `supabase/migrations/20261102185644_grade_predic
 and `20261102190702_early_warning_levels_and_a_students_own_forecast.sql`; app side `pes_app/src/lib/gradeForecast.ts`
 and `pes_app/src/app/components/forecast/GradeForecast.tsx`.
 
-Attendance anomalies: database side `supabase/migrations/20261103041134_sign_ins_worth_a_second_look.sql` and
-`20261103041416_a_sign_in_kilometres_away_is_always_listed.sql`; app side `pes_app/src/lib/checkinReview.ts` and
+Attendance anomalies: database side `supabase/migrations/20261103041134_sign_ins_worth_a_second_look.sql`,
+`20261103041416_a_sign_in_kilometres_away_is_always_listed.sql` and `20261103094409_two_students_signed_in_from_one_phone.sql`; app side `pes_app/src/lib/checkinReview.ts` and
 `pes_app/src/app/components/attendance/CheckinReview.tsx`.

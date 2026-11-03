@@ -1,12 +1,14 @@
 {
   "name": "attendance-anomaly-forest",
   "algorithm": "Isolation Forest (100 trees), scikit-learn 1.9.1",
-  "trained_at": "2026-11-03T04:22:12+00:00",
+  "trained_at": "2026-11-03T09:47:45+00:00",
   "params": {
     "n_estimators": 100,
     "max_samples": 512,
     "seed": 7,
-    "far_limit_m": 1000
+    "far_limit_m": 1000,
+    "fresh_login_s": 600,
+    "same_phone_s": 180
   },
   "features": [
     "code_age",
@@ -14,7 +16,9 @@
     "location_withheld",
     "first_use_of_device",
     "shared_device",
-    "missed_checks"
+    "missed_checks",
+    "fresh_login",
+    "same_phone_recent"
   ],
   "feature_labels": [
     "Age of the code",
@@ -22,10 +26,12 @@
     "Location withheld, unusually",
     "First sign-in from this device",
     "Device used by other students",
-    "Presence checks missed"
+    "Presence checks missed",
+    "Logged in just before signing",
+    "Same network and browser as a sign-in just before"
   ],
-  "train_rows": 7447,
-  "threshold": 0.626142,
+  "train_rows": 8405,
+  "threshold": 0.643449,
   "c_norm": 11.631076760210474,
   "simulation": {
     "students_per_class": [
@@ -47,87 +53,112 @@
     "previous_code": 0.06,
     "latency_s": 1.2,
     "new_phone_per_lecture": 0.015,
+    "fresh_login": 0.03,
+    "campus_wifi": 0.5,
+    "common_browser": 0.6,
     "borrowed_phone": 0.004,
     "presence_check": 0.4,
     "answer_check": 0.93,
     "proxy_rate": 0.06,
     "proxy_types": {
-      "photo": 0.4,
-      "second_device": 0.4,
+      "photo": 0.35,
+      "account_switch": 0.25,
+      "second_device": 0.2,
       "own_phone": 0.2
     }
   },
   "evaluation": {
-    "validation_rows": 6362,
+    "validation_rows": 6600,
     "target_honest_flag_rate": 0.015,
     "test": {
-      "rows": 23052,
+      "rows": 28397,
       "lectures": 720,
-      "proxies": 345,
+      "proxies": 386,
       "results": [
         {
           "model": "Rules today (far or no location)",
-          "recall": 0.4435,
-          "precision": 0.0351,
-          "false_alarms_per_lecture": 5.8458,
-          "flags_per_lecture": 6.0583,
-          "proxies": 345,
-          "honest": 22707,
+          "recall": 0.4067,
+          "precision": 0.0315,
+          "false_alarms_per_lecture": 6.6944,
+          "flags_per_lecture": 6.9125,
+          "proxies": 386,
+          "honest": 28011,
           "lectures": 720,
           "by_type": {
-            "photo": 0.9481481481481482,
-            "second_device": 0.125,
-            "own_phone": 0.10975609756097561
+            "photo": 0.9361702127659575,
+            "account_switch": 0.08695652173913043,
+            "second_device": 0.08974358974358974,
+            "own_phone": 0.13333333333333333
           }
         },
         {
           "model": "Every signal as a rule",
-          "recall": 0.8,
-          "precision": 0.0319,
-          "false_alarms_per_lecture": 11.6514,
-          "flags_per_lecture": 12.0347,
-          "proxies": 345,
-          "honest": 22707,
+          "recall": 0.8756,
+          "precision": 0.022,
+          "false_alarms_per_lecture": 20.8472,
+          "flags_per_lecture": 21.3167,
+          "proxies": 386,
+          "honest": 28011,
           "lectures": 720,
           "by_type": {
-            "photo": 1.0,
-            "second_device": 0.9296875,
-            "own_phone": 0.2682926829268293
+            "photo": 0.9858156028368794,
+            "account_switch": 1.0,
+            "second_device": 0.9487179487179487,
+            "own_phone": 0.44
           }
         },
         {
           "model": "Isolation Forest",
-          "recall": 0.3942,
-          "precision": 0.2793,
-          "false_alarms_per_lecture": 0.4875,
-          "flags_per_lecture": 0.6764,
-          "proxies": 345,
-          "honest": 22707,
+          "recall": 0.4197,
+          "precision": 0.2956,
+          "false_alarms_per_lecture": 0.5361,
+          "flags_per_lecture": 0.7611,
+          "proxies": 386,
+          "honest": 28011,
           "lectures": 720,
           "by_type": {
-            "photo": 0.5333333333333333,
-            "second_device": 0.484375,
-            "own_phone": 0.024390243902439025
+            "photo": 0.2765957446808511,
+            "account_switch": 0.9130434782608695,
+            "second_device": 0.48717948717948717,
+            "own_phone": 0.013333333333333334
           },
-          "auc": 0.822
+          "auc": 0.844
         },
         {
           "model": "Isolation Forest + 1 km rule",
-          "recall": 0.4058,
-          "precision": 0.2851,
-          "false_alarms_per_lecture": 0.4875,
-          "flags_per_lecture": 0.6819,
-          "proxies": 345,
-          "honest": 22707,
+          "recall": 0.4663,
+          "precision": 0.318,
+          "false_alarms_per_lecture": 0.5361,
+          "flags_per_lecture": 0.7861,
+          "proxies": 386,
+          "honest": 28011,
           "lectures": 720,
           "by_type": {
-            "photo": 0.562962962962963,
-            "second_device": 0.484375,
-            "own_phone": 0.024390243902439025
+            "photo": 0.40425531914893614,
+            "account_switch": 0.9130434782608695,
+            "second_device": 0.48717948717948717,
+            "own_phone": 0.013333333333333334
           },
-          "auc": 0.822
+          "auc": 0.844
         }
-      ]
+      ],
+      "six_signals": {
+        "model": "Six signals + 1 km rule (before)",
+        "recall": 0.3756,
+        "precision": 0.2685,
+        "false_alarms_per_lecture": 0.5486,
+        "flags_per_lecture": 0.75,
+        "proxies": 386,
+        "honest": 28011,
+        "lectures": 720,
+        "by_type": {
+          "photo": 0.5106382978723404,
+          "account_switch": 0.33695652173913043,
+          "second_device": 0.5256410256410257,
+          "own_phone": 0.013333333333333334
+        },
+        "auc": 0.8508
+      }
     }
   }
 }

@@ -2,14 +2,14 @@
 kicker: Study Guide 2 of 7
 title: Database Guide
 subtitle: Every table, what it holds, and how they connect
-intro: The PES keeps everything in one PostgreSQL 17 database: 53 tables, 260 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
+intro: The PES keeps everything in one PostgreSQL 17 database: 54 tables, 264 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
 updated: Updated 3 November 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
 # 1. How to think about this database
 
-Do not start by reading all 53 tables. Start with the four ideas that shape them.
+Do not start by reading all 54 tables. Start with the four ideas that shape them.
 
 **Idea 1 — A course is not the same as a course being taught**
 
@@ -237,8 +237,9 @@ The final record. One row per student, per course, per lecture date.
 <!-- widths: 36,64 -->
 | Table | What it is for |
 |---|---|
-| attendance_sessions | An open window. Holds a secret, a rotation interval, and optionally a location and radius so check-ins can be limited to the lecture hall. |
-| attendance_checkins | A student's check-in, with device hash and coordinates. |
+| attendance_sessions | An open window. Holds a secret, a rotation interval, and optionally a location and radius so check-ins can be limited to the lecture hall. `saved_at` records when the lecture's sheet was saved after the register closed; until then the register can be reopened the same day. |
+| attendance_checkins | A student's check-in, with device hash and coordinates, how long before it the student logged in (`login_age_s`), and `net_hash`: the request's network address and browser string as an md5 salted with the register's secret, comparable within that lecture only. |
+| attendance_device_refusals | A browser that had signed in one student and then tried to sign in another in the same lecture. The register refuses the second; this records the attempt, for the anomaly review. RLS on, no policy. |
 | attendance_presence_checks | A surprise 'are you still here?' prompt the lecturer can fire mid-lecture. |
 | attendance_presence_responses | Who answered that prompt. |
 
@@ -385,10 +386,10 @@ Like the forecast tables, it has Row Level Security on and no policy. The functi
 <!-- widths: 30,70 -->
 | Function | What it does |
 |---|---|
-| ml_checkin_features(session) | The six signals of every sign-in to one register: how old the code was, the distance from the hall, location withheld by a phone that usually sends it, a first sign-in from a device, a device that signed in other students before, and presence checks missed. "Before" means the student's last 20 earlier lectures. |
+| ml_checkin_features(session) | The eight signals of every sign-in to one register: how old the code was, the distance from the hall, location withheld by a phone that usually sends it, a first sign-in from a device, a device that signed in other students before, presence checks missed, a login within ten minutes before signing, and another student signed in from the same network and browser in the three minutes before. "Before" means the student's last 20 earlier lectures. |
 | ml_isolation_score(model, x) | Walks each tree to a leaf and turns the average path length into a score from 0 to 1, as scikit-learn does. |
 | ml_avg_path_length(n) | The normaliser in that score. |
-| ml_checkin_review(session) | Scores a register's sign-ins with the active model, applies the threshold and the 1 km rule, and writes the reasons in plain words. |
+| ml_checkin_review(session) | Scores a register's sign-ins with the active model, applies the threshold, the 1 km rule and the refused-browser rule, and writes the reasons in plain words. |
 | get_checkin_review(offering, date) | What the page calls: the flagged sign-ins of one course on one date, most unusual first, for the course's staff only. |
 | ml_load_anomaly_model(token, payload) | The loader: checks the token, stores the trees, and refuses the load unless the database scores 40 sample sign-ins as scikit-learn did. |
 
@@ -446,15 +447,15 @@ Changing the last four rows changes nothing today. Two are written into page cod
 
 # 14. The function layer
 
-There are 260 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
+There are 264 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
 
 <!-- widths: 24,12,64 -->
 | Kind | How many | What it means |
 |---|---|---|
-| SECURITY DEFINER | 248 | Runs with the privileges of the function's owner, not the caller. It can see everything, so it must check for itself who is asking. Every one has its search path pinned. |
+| SECURITY DEFINER | 252 | Runs with the privileges of the function's owner, not the caller. It can see everything, so it must check for itself who is asking. Every one has its search path pinned. |
 | SECURITY INVOKER | 12 | Runs as the caller. Row Level Security still applies to everything it touches. |
 | Of which triggers | 37 | Fire on a write to a table; never called directly. |
-| Callable by signed-in users | 201 | The application's API. |
+| Callable by signed-in users | 204 | The application's API. |
 
 **Why so many are DEFINER**
 
@@ -492,7 +493,7 @@ This is the whole list, so a name met in the code can be placed. The functions a
 | Courses and teaching | curriculum_gpa_credits, delete_course, end_department_hod, get_admin_offerings, get_assignable_lecturers, get_course_detail, get_course_enrolled_students, get_course_enrolment_counts, get_course_info, get_course_roster, get_courses_by_semester, get_department_students, get_department_teaching, get_faculty_lecturers, get_hod_history, get_my_teaching, get_offering_roster, get_upcoming_courses, my_coordinated_offering, offering_department, offering_for_student_course, offering_label, offering_lecturer_ids, offering_roster_ids, offering_student_count, offering_student_ids, set_department_hod |
 | Minors | delete_minor, get_department_minor_plan, get_department_minors, get_my_minor_progress, may_manage_minors, rename_minor, set_my_minor, student_minor_plan |
 | Enrolment | can_read_enrollment_period, delete_enrollment_period, enrollment_period_visible, enrollment_window_open_for_me, enrolment_kind_for_course, enrolment_oversight, get_enrollment_period_course_stats, get_enrollment_period_summary, get_my_enrolment_options, get_my_enrolment_plan, my_outstanding_modules, update_my_enrolment |
-| Attendance | attendance_session_state, attendance_session_token, attendance_window_code, attendance_window_signature, check_in_to_lecture, check_in_with_code, close_attendance_session, confirm_presence, extend_attendance_session, get_admin_attendance_overview, get_my_attendance, get_my_attendance_detail, get_offering_attendance_summary, metres_between, my_open_attendance_sessions, my_pending_presence_check, my_unclosed_registers, open_register_for_offering, start_attendance_session, trigger_presence_check |
+| Attendance | attendance_reopen_blocker, attendance_session_state, attendance_session_token, attendance_window_code, attendance_window_signature, check_in_to_lecture, check_in_with_code, close_attendance_session, confirm_presence, extend_attendance_session, get_admin_attendance_overview, get_lecture_register, get_my_attendance, get_my_attendance_detail, get_offering_attendance_summary, metres_between, my_open_attendance_sessions, my_pending_presence_check, my_unclosed_registers, note_attendance_saved, open_register_for_offering, reopen_attendance_session, start_attendance_session, trigger_presence_check |
 | Results and standing | calculate_gpa_target, correct_result_grade, get_academic_standing, get_admin_recent_results, get_all_students_academic_stats, get_my_academic_record, get_my_insights, get_my_published_result_sheets, get_pending_result_reviews, get_published_result_sheet, get_student_academic_record, get_student_course_result, get_student_results, grade_point_value, publish_offering_results, return_offering_results, submit_offering_results |
 | Graduation Planner | get_mentee_graduation_plan, get_my_graduation_plan, graduation_plan_for, nudge_semester_complete, share_planner_scenario |
 | Grade forecasts | get_mentee_early_warnings, get_my_grade_forecast, get_student_grade_forecast, ml_forecast_for, ml_load_predictions |
@@ -545,7 +546,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 283. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 283 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 285. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 285 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql

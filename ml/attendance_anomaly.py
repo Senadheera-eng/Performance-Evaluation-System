@@ -3,11 +3,13 @@
 What it does
 ------------
 Every live sign-in to a lecture records how old the code was, how far the
-phone was from the hall, which device signed in, and whether the student
-answered the surprise presence checks. A proxy sign-in (someone signing in a
+phone was from the hall, which device signed in, how long before it the
+student logged in to PES, and whether they answered the surprise presence
+checks. A proxy sign-in (someone signing in a
 student who is not there) tends to leave an unusual combination of these: an
 old code relayed by photo, no location or a far one, a device the student has
-never used, a device that has signed in other students, a presence check
+never used, a device that has signed in other students, a login seconds before
+signing (a friend switching accounts on their own phone), a presence check
 missed. Each signal alone has innocent causes (indoor GPS drifts, people deny
 location, phones get replaced), so a single rule either misses proxies or
 raises false alarms.
@@ -62,6 +64,8 @@ FEATURES = [
     "first_use_of_device",  # 1 if a student with earlier sign-ins has never used this device before
     "shared_device",        # other students this device signed in before (capped at 3)
     "missed_checks",        # share of presence checks after the sign-in left unanswered
+    "fresh_login",          # 1 if the student logged in to PES within 10 minutes before signing
+    "same_phone_recent",    # 1 if another student signed in from the same network and browser just before
 ]
 LABELS = {
     "code_age": "Age of the code",
@@ -70,12 +74,20 @@ LABELS = {
     "first_use_of_device": "First sign-in from this device",
     "shared_device": "Device used by other students",
     "missed_checks": "Presence checks missed",
+    "fresh_login": "Logged in just before signing",
+    "same_phone_recent": "Same network and browser as a sign-in just before",
 }
 HISTORY = 20  # earlier sign-ins looked at, as in the database
 # A sign-in this far from the lecture is always listed, whatever the model
 # scores: no hall is that big, and indoor GPS errs by a few hundred metres at
 # most. The model is for the subtler combinations.
 FAR_LIMIT_M = 1000
+# A login this recent counts as "just before": switching accounts on a phone
+# takes under a minute, and an honest student is almost always still logged in.
+FRESH_LOGIN_S = 600
+# "Just before" for two sign-ins from one phone: a friend signing themselves in
+# and then switching to another account takes well under three minutes.
+SAME_PHONE_S = 180
 
 # ---------------------------------------------------------------- the simulation's assumptions
 SIM = {
@@ -91,16 +103,21 @@ SIM = {
     "gps_glitch": 0.05,                # indoor GPS jumps 100-600 m
     "previous_code": 0.06,             # scanned just as the code changed
     "latency_s": 1.2,                  # mean scan-to-server delay
-    "new_phone_per_lecture": 0.015,    # new phone or cleared storage; the new id stays
+    "new_phone_per_lecture": 0.015,    # new phone or cleared storage; the new id stays (and a fresh login)
+    "fresh_login": 0.03,               # an honest student logged out or expired, logging in to sign
+    "campus_wifi": 0.5,                # sign-ins over the campus Wi-Fi, where every phone shares one address
+    "common_browser": 0.6,             # phones whose browser string many others share (Chrome on Android,
+                                       # Safari on one iOS version); the rest are told apart
     "borrowed_phone": 0.004,           # signs in on a friend's phone (another lecture)
     "presence_check": 0.4,             # lectures with one presence check
     "answer_check": 0.93,              # an honest student answers it
     "proxy_rate": 0.06,                # absences covered by a proxy sign-in
-    "proxy_types": {"photo": 0.4, "second_device": 0.4, "own_phone": 0.2},
+    "proxy_types": {"photo": 0.35, "account_switch": 0.25, "second_device": 0.2, "own_phone": 0.2},
 }
 TYPE_NAMES = {
     "photo": "Code relayed by photo",
-    "second_device": "Second browser or phone",
+    "account_switch": "Friend's phone, switching accounts",
+    "second_device": "Spare phone kept signed in",
     "own_phone": "Their own phone, carried in",
 }
 
@@ -111,6 +128,7 @@ class Student:
     attend: float
     shares_location: bool
     device: str
+    ua: str                                      # the browser string the phone sends
     history: list = field(default_factory=list)  # earlier sign-ins: (device, sent_location, lecture_had_location)
 
 
@@ -132,8 +150,10 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
         size = int(rng.integers(*SIM["students_per_class"]))
         students = []
         for _ in range(size):
+            ua = (("chrome-android" if rng.random() < 0.6 else "safari-ios")
+                  if rng.random() < SIM["common_browser"] else f"ua{sid}")
             students.append(Student(sid, float(rng.beta(*SIM["attend"])),
-                                    bool(rng.random() > SIM["never_location"]), new_device()))
+                                    bool(rng.random() > SIM["never_location"]), new_device(), ua))
             sid += 1
         spare_devices = [new_device() for _ in range(3)]  # a few second phones/tablets in the class
         for lec in range(SIM["lectures"]):
@@ -142,6 +162,11 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
             has_loc = bool(rng.random() < SIM["lecture_has_location"])
             check_at = float(rng.uniform(2, 6)) if rng.random() < SIM["presence_check"] else None
             lecture_rows = []
+
+            def network(phone: str) -> str:
+                # the campus Wi-Fi shows one address for every phone; mobile data, one each
+                return "campus" if rng.random() < SIM["campus_wifi"] else f"mobile-{phone}"
+
             for st in students:
                 present = rng.random() < st.attend
                 proxy = None
@@ -152,8 +177,10 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
                 at = float(min(rng.exponential(1.4), 6.5))  # minutes after the register opened
                 # ---- what the sign-in looks like
                 if proxy is None:
+                    fresh = rng.random() < SIM["fresh_login"]
                     if rng.random() < SIM["new_phone_per_lecture"]:
                         st.device = new_device()
+                        fresh = True
                     device = st.device
                     if rng.random() < SIM["borrowed_phone"]:
                         device = students[int(rng.integers(len(students)))].device
@@ -164,27 +191,59 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
                     dist = (abs(rng.normal(0, SIM["gps_spread_m"])) +
                             (rng.uniform(100, 600) if rng.random() < SIM["gps_glitch"] else 0))
                     answers = rng.random() < SIM["answer_check"]
+                    net, ua = network(device), st.ua
                 elif proxy == "photo":       # the absent student scans a photo sent from the hall
                     device = st.device
                     age = rng.uniform(0.6, 2.0)
                     sends = st.shares_location and rng.random() < 0.45
                     dist = rng.uniform(2_000, 60_000)
                     answers = rng.random() < 0.35
-                elif proxy == "second_device":  # a friend in the hall, on a private window or spare phone
-                    device = new_device() if rng.random() < 0.6 else spare_devices[int(rng.integers(3))]
+                    fresh = rng.random() < SIM["fresh_login"]
+                    net, ua = f"home-{st.sid}", st.ua
+                elif proxy == "account_switch":
+                    # A friend in the hall signs themselves in, then logs in as the absent
+                    # student on their own phone and scans again. In the same browser the
+                    # database refuses a second student, so it is a private window or another
+                    # browser: a device id never seen before, and a login seconds earlier.
+                    device = new_device()
+                    age = rng.uniform(0, 1) + rng.exponential(SIM["latency_s"]) / rotate
+                    sends = rng.random() > 0.1
+                    dist = abs(rng.normal(0, SIM["gps_spread_m"]))
+                    answers = rng.random() < 0.3   # needs another switch within 90 seconds
+                    fresh = rng.random() < 0.95
+                    net, ua = None, None           # the friend's phone: set below, with the time
+                elif proxy == "second_device":  # a spare phone or tablet kept signed in as the absent student
+                    device = spare_devices[int(rng.integers(3))]
                     age = rng.uniform(0, 1) + rng.exponential(SIM["latency_s"]) / rotate
                     sends = rng.random() > 0.1
                     dist = abs(rng.normal(0, SIM["gps_spread_m"]))
                     answers = rng.random() < 0.6
+                    fresh = rng.random() < 0.1
+                    net = network(device)
+                    ua = "chrome-android" if rng.random() < SIM["common_browser"] else f"ua-{device}"
                 else:                         # the student's own phone, carried in by a friend
                     device = st.device
                     age = rng.uniform(0, 1) + rng.exponential(SIM["latency_s"]) / rotate
                     sends = st.shares_location and rng.random() > SIM["location_slip"]
                     dist = abs(rng.normal(0, SIM["gps_spread_m"]))
                     answers = rng.random() < 0.9
+                    fresh = rng.random() < SIM["fresh_login"]
+                    net, ua = network(device), st.ua
                 age = float(min(age, 1.999))   # anything older is refused by the database
                 lecture_rows.append(dict(student=st, device=device, age=age, sends=bool(sends),
-                                         dist=float(dist), at=at, answers=bool(answers), proxy=proxy))
+                                         dist=float(dist), at=at, answers=bool(answers), proxy=proxy,
+                                         fresh=bool(fresh), net=net, ua=ua))
+            # An account switch happens on a friend's phone, under a minute or so after
+            # the friend signed themselves in: same network, same browser string.
+            honest_rows = [r for r in lecture_rows if r["proxy"] is None]
+            for r in lecture_rows:
+                if r["proxy"] == "account_switch":
+                    if honest_rows:
+                        f = honest_rows[int(rng.integers(len(honest_rows)))]
+                        r["at"] = f["at"] + float(rng.uniform(0.3, 1.5))
+                        r["net"], r["ua"] = f["net"], f["ua"]
+                    else:
+                        r["net"], r["ua"] = f"alone-{r['student'].sid}", r["student"].ua
             # one device signs in one student per lecture (the database refuses a second)
             seen_dev = set()
             kept = []
@@ -207,6 +266,10 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
                     shared=len(device_owner[r["device"]] - {st.sid}),
                     checks_after=(1 if check_at is not None and check_at > r["at"] else 0),
                     answered=(1 if check_at is not None and check_at > r["at"] and r["answers"] else 0),
+                    fresh=r["fresh"],
+                    same_recent=any(o is not r and o["student"] is not st and o["net"] == r["net"]
+                                    and o["ua"] == r["ua"] and r["at"] - SAME_PHONE_S / 60 <= o["at"] < r["at"]
+                                    for o in kept),
                 )
                 rows.append(dict(x=x, proxy=r["proxy"], cls=cls, lecture=(start_id, cls, lec),
                                  present=(r["proxy"] is None),
@@ -220,7 +283,8 @@ def simulate(rng: np.random.Generator, n_classes: int, start_id: int = 0) -> lis
     return rows
 
 
-def feature_vector(code_age, distance, no_location, history, device, shared, checks_after, answered) -> list[float]:
+def feature_vector(code_age, distance, no_location, history, device, shared, checks_after, answered,
+                   fresh=False, same_recent=False) -> list[float]:
     """The features, exactly as ml_checkin_features computes them in the database."""
     with_loc = [h for h in history if h[2]]
     usually_sends = (sum(1 for h in with_loc if h[1]) / len(with_loc)) if with_loc else 0.5
@@ -228,7 +292,7 @@ def feature_vector(code_age, distance, no_location, history, device, shared, che
     first_use = 1.0 if device and len(history) >= 2 and all(h[0] != device for h in history) else 0.0
     missed = ((checks_after - answered) / checks_after) if checks_after else 0.0
     return [float(code_age), float(distance), float(withheld), first_use,
-            float(min(shared, 3)), float(missed)]
+            float(min(shared, 3)), float(missed), 1.0 if fresh else 0.0, 1.0 if same_recent else 0.0]
 
 
 # ---------------------------------------------------------------- rules PES already has
@@ -243,7 +307,8 @@ def any_signal(X: np.ndarray, rows: list[dict]) -> np.ndarray:
     """Every signal as its own rule: the obvious alternative to a model."""
     f = {k: X[:, i] for i, k in enumerate(FEATURES)}
     return (rule_flags(rows) | (f["code_age"] >= 1.0) | (f["first_use_of_device"] > 0) |
-            (f["shared_device"] >= 1) | (f["missed_checks"] > 0))
+            (f["shared_device"] >= 1) | (f["missed_checks"] > 0) | (f["fresh_login"] > 0) |
+            (f["same_phone_recent"] > 0))
 
 
 def evaluate(name: str, flagged: np.ndarray, rows: list[dict], score: np.ndarray | None = None) -> dict:
@@ -323,12 +388,12 @@ def charts(report: Path, scores: np.ndarray, rows: list[dict], threshold: float,
 
     names = [r["model"] for r in results]
     colours = ["#CBD5E1", "#94A3B8", "#64748B", "#334155"]
-    fig, axes = plt.subplots(1, 2, figsize=(9.2, 3.9))
+    fig, axes = plt.subplots(1, 2, figsize=(10.4, 3.9))
     types = list(SIM["proxy_types"])
-    short = {"photo": "Code relayed\nby photo", "second_device": "Second browser\nor phone",
-             "own_phone": "Their own phone,\ncarried in"}
+    short = {"photo": "Code relayed\nby photo", "account_switch": "Friend's phone,\nswitching accounts",
+             "second_device": "Spare phone\nkept signed in", "own_phone": "Their own phone,\ncarried in"}
     w = 0.2
-    for i, r in enumerate(results):
+    for i, r in enumerate(results):  # four approaches side by side per kind
         axes[0].bar(np.arange(len(types)) + (i - 1.5) * w, [r["by_type"][t] for t in types], w,
                     color=colours[i], label=r["model"])
     axes[0].set_xticks(range(len(types)), [short[t] for t in types], fontsize=8)
@@ -375,7 +440,23 @@ def write_report(path: Path, info: dict) -> None:
                      f" | {r['auc']:.3f} |" if "auc" in r else
                      f"| {r['model']} | {r['recall']:.0%} | {r['precision']:.0%} | {r['false_alarms_per_lecture']:.2f} | " +
                      " | ".join(f"{r['by_type'][t]:.0%}" for t in SIM["proxy_types"]) + " | – |")
+    six = ev["test"]["six_signals"]
+    new = ev["test"]["results"][-1]
     lines += [
+        "",
+        "## What the two newest signals add",
+        "",
+        "A login to PES just before signing, and a sign-in from the same network and browser as another student's "
+        "moments earlier, were added for a friend who signs themselves in and then switches to the absent student's "
+        "account on their own phone. On the same test lectures, the model with only the first six signals caught "
+        f"{six['by_type']['account_switch']:.0%} of those and {six['recall']:.0%} of all proxies, at "
+        f"{six['false_alarms_per_lecture']:.2f} honest students per lecture; with all eight, "
+        f"{new['by_type']['account_switch']:.0%} and {new['recall']:.0%}, at {new['false_alarms_per_lecture']:.2f}. "
+        f"Photo relays went from {six['by_type']['photo']:.0%} to {new['by_type']['photo']:.0%}: the same budget of "
+        "false alarms is now shared with the new pattern.",
+        "",
+        "Switching accounts in the same browser is not a matter for the model: the database refuses a second student "
+        "from one browser in a lecture, records the attempt, and always lists the sign-in whose browser tried.",
         "",
         "## Reading the numbers",
         "",
@@ -429,7 +510,15 @@ def main() -> None:
         evaluate(f"Isolation Forest + {FAR_LIMIT_M // 1000} km rule",
                  (s_test >= threshold) | np.array([r["very_far"] for r in test]), test, s_test),
     ]
-    for r in results:
+    # What the two newest signals (a login just before, the same phone as the
+    # sign-in before) add, on the same lectures: the model as it was, with six.
+    six = IsolationForest(n_estimators=100, max_samples=512, random_state=args.seed).fit(X_train[:, :6])
+    s6_valid = -six.score_samples(X_valid[:, :6])
+    th6 = float(np.quantile(s6_valid[honest_valid], 1 - args.honest_flag_rate))
+    s6_test = -six.score_samples(X_test[:, :6])
+    six_signals = evaluate(f"Six signals + {FAR_LIMIT_M // 1000} km rule (before)",
+                           (s6_test >= th6) | np.array([r["very_far"] for r in test]), test, s6_test)
+    for r in results + [six_signals]:
         print(f"{r['model']:36s} caught {r['recall']:.0%}  precision {r['precision']:.0%}  "
               f"false alarms/lecture {r['false_alarms_per_lecture']:.2f}  by type " +
               ", ".join(f"{t} {v:.0%}" for t, v in r["by_type"].items()) +
@@ -450,7 +539,7 @@ def main() -> None:
         "algorithm": f"Isolation Forest (100 trees), scikit-learn {__import__('sklearn').__version__}",
         "trained_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "params": {"n_estimators": 100, "max_samples": int(model.max_samples_), "seed": args.seed,
-                   "far_limit_m": FAR_LIMIT_M},
+                   "far_limit_m": FAR_LIMIT_M, "fresh_login_s": FRESH_LOGIN_S, "same_phone_s": SAME_PHONE_S},
         "features": FEATURES,
         "feature_labels": [LABELS[f] for f in FEATURES],
         "train_rows": int(len(X_train)),
@@ -461,7 +550,7 @@ def main() -> None:
             "validation_rows": len(valid),
             "target_honest_flag_rate": args.honest_flag_rate,
             "test": {"rows": len(test), "lectures": results[0]["lectures"], "proxies": results[0]["proxies"],
-                     "results": results},
+                     "results": results, "six_signals": six_signals},
         },
     }
     (args.report / "metrics.json").write_text(json.dumps(info, indent=2))

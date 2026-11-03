@@ -2,7 +2,7 @@
 kicker: Study Guide 0  ·  read this first
 title: Start Here
 subtitle: A map of the guides, a reading order, and the words they use
-intro: The Performance Evaluation System is described in seven numbered guides and four feature guides. This one says which guide answers which question, suggests an order for three different readers, and explains the terms every guide assumes you know. It takes ten minutes.
+intro: The Performance Evaluation System is described in seven numbered guides and five feature guides. This one says which guide answers which question, suggests an order for three different readers, and explains the terms every guide assumes you know. It takes ten minutes.
 updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
@@ -22,7 +22,8 @@ footer: PES Study Guide
 | The AI Assistant | The assistant end to end: the page, the server, the tool loop, the fourteen tools, the Handbook and website search, the models, the limits, and how to change it. |
 | RAG and the 14 tools, explained | The same assistant in plain English, for a reader who has never met the words RAG or tool calling. |
 | Grade Prediction | The machine-learning grade forecast: the data it learns from, the features, why a random forest, how well it works on semesters it never saw, who sees what, and retraining it each semester. |
-| Attendance Anomaly Detection | The second machine-learning feature: the six signals a live sign-in leaves, why an Isolation Forest, the simulation it was tested on and what it found, how the database scores a sign-in, and retraining it on real lectures. |
+| Machine Learning brief | Both machine-learning features in plain words, for explaining them: what each does, how it was tested, the numbers to remember, likely examiner questions with answers, and how to demonstrate them. |
+| Attendance Anomaly Detection | The second machine-learning feature: the eight signals a live sign-in leaves, why an Isolation Forest, the simulation it was tested on and what it found, how the database scores a sign-in, and retraining it on real lectures. |
 
 Beside the guides, three Markdown files go deeper on one thing each: `local-llm.md` (running the assistant on a faculty computer), `ui-ux-audit.md` (the audit of every screen behind the October redesign, and what was done) and `README.md` (the same list as this page, for GitHub).
 

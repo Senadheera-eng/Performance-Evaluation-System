@@ -231,7 +231,7 @@ A load replaces the active model; the earlier ones stay in `ml_models`, inactive
 
 The model in use was trained on simulated lectures, because PES had almost no real live sign-ins when it was built. Once a semester of live registers has been recorded, retrain it so it learns from the faculty's own:
 
-1. Run `ml/export_checkins.sql` in the SQL editor and save the result as `ml/data/checkins.csv`. It holds the six signals of each sign-in in a closed register, as numbers, and nothing else: no student, course, device or place.
+1. Run `ml/export_checkins.sql` in the SQL editor and save the result as `ml/data/checkins.csv`. It holds the eight signals of each sign-in in a closed register, as numbers, and nothing else: no student, course, device or place.
 1. `python ml/attendance_anomaly.py --real ml/data/checkins.csv`. It trains on the simulation and the real sign-ins together, sets the threshold, prints the evaluation, rewrites `ml/report/attendance/`, and writes `ml/out/anomaly_model.json`.
 1. Make a token as in section 7.1, then `ML_LOAD_TOKEN=<token> python ml/load_predictions.py --anomaly`.
 
