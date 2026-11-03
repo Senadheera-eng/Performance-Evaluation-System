@@ -19,8 +19,9 @@ The guides are Word documents (`.docx`) for reading and printing. Each one is bu
 | [The AI Assistant](PES_Guide_AI_Assistant.docx) | The assistant end to end | [source](source/ai_assistant.md) |
 | [RAG and the 14 tools, explained](PES_Guide_AI_Assistant_RAG_Explained.docx) | The assistant in plain English | [source](source/ai_assistant_rag_explained.md) |
 | [Grade Prediction (machine learning)](PES_Guide_ML_Grade_Prediction.docx) | The grade forecast: data, features, models, how well it works, who sees what, retraining | [source](source/ml_grade_prediction.md) |
+| [Attendance Anomaly Detection (machine learning)](PES_Guide_ML_Attendance_Anomaly.docx) | Sign-ins worth a second look: the signals, the Isolation Forest, the simulation it was tested on, the database scoring, retraining | [source](source/ml_attendance_anomaly.md) |
 
-Suggested order for a developer: 0, 1, 3, 4, 2, 5, 6, 7, then the AI guides and the Grade Prediction guide. Guide 0 gives shorter orders for other readers.
+Suggested order for a developer: 0, 1, 3, 4, 2, 5, 6, 7, then the AI guides and the two machine-learning guides. Guide 0 gives shorter orders for other readers.
 
 ## Also here
 

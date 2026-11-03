@@ -3,7 +3,7 @@ kicker: Study Guide 7 of 7
 title: Configuration and Operations
 subtitle: Every setting, where it lives, and how to run the system
 intro: Where PES is configured, what each setting and secret does, how a change reaches the live site and the live database, how the nightly job runs, which scripts are still useful, how to check that everything is healthy, and what must be done before students are given it. No secret values appear here — only their names and where to set them.
-updated: Updated 2 November 2026  ·  describes the live project and the feature/UI branch on that date  ·  first written 30 October 2026
+updated: Updated 3 November 2026  ·  describes the live project and the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -215,7 +215,7 @@ Check Guide 2, section 13 first: four settings are not read by anything yet, and
 | `pes-scripts/intent/` | The old question classifier the assistant no longer uses. |
 | `docs/parse_handbook_curriculum.py` | Read the curriculum tables out of the Handbook into `docs/handbook_curriculum_extract.tsv`, the source of `curriculum_slots`. |
 | `docs/source/build_guides.py` | Builds these guides from their Markdown sources (section 10). |
-| `ml/` | The grade forecast's model. Run once a semester, after its results are published: export (`export_dataset.sql`), train (`train.py`), load (`load_predictions.py`). See below. |
+| `ml/` | The two machine-learning models. The grade forecast, once a semester after its results are published: export (`export_dataset.sql`), train (`train.py`), load (`load_predictions.py`). The attendance anomaly model, once real lectures have been recorded: export (`export_checkins.sql`), train (`attendance_anomaly.py`), load (`load_predictions.py --anomaly`). See below. |
 
 ## 7.1 Retraining the grade forecast each semester
 
@@ -226,6 +226,16 @@ The forecasts are for one semester; once its results are published, they are spe
 1. `python ml/load_predictions.py --new-token` prints a token and one line of SQL; run the line in the SQL editor (it stores only the token's hash), then `ML_LOAD_TOKEN=<token> python ml/load_predictions.py`.
 
 A load replaces the active model; the earlier ones stay in `ml_models`, inactive. If a student or course was added after the export, the load is refused: export and train again. `ml/data/` and `ml/out/` are git-ignored; commit the new `ml/report/`.
+
+## 7.2 Retraining the attendance anomaly model
+
+The model in use was trained on simulated lectures, because PES had almost no real live sign-ins when it was built. Once a semester of live registers has been recorded, retrain it so it learns from the faculty's own:
+
+1. Run `ml/export_checkins.sql` in the SQL editor and save the result as `ml/data/checkins.csv`. It holds the six signals of each sign-in in a closed register, as numbers, and nothing else: no student, course, device or place.
+1. `python ml/attendance_anomaly.py --real ml/data/checkins.csv`. It trains on the simulation and the real sign-ins together, sets the threshold, prints the evaluation, rewrites `ml/report/attendance/`, and writes `ml/out/anomaly_model.json`.
+1. Make a token as in section 7.1, then `ML_LOAD_TOKEN=<token> python ml/load_predictions.py --anomaly`.
+
+The load is refused unless the database, using the trees it has just stored, scores 40 sample sign-ins as scikit-learn did; the earlier model stays in `ml_models`, inactive. Before relying on the new one, ask the lecturers whether the sign-ins it listed were worth a look: that is the first real measure of it.
 
 # 8. Branches and commits
 
@@ -271,8 +281,9 @@ The build needs only Python 3. Its header comment lists the small Markdown diale
 | Leaked-password protection | Turn on in Supabase Auth (needs the Pro plan). |
 | The assistant's limits | Set `AI_DAILY_QUOTA` and `AI_PER_STUDENT_DAILY` to faculty-sized values. |
 | The assistant's model | Configure the faculty's own model, a paid Gemini key, or several keys; the free tier answers only a few questions a day. |
-| Five trigger functions callable by anon | Revoke EXECUTE on them (Guide 4, section 5.10), then run the count again; the one left should be the token-guarded `ml_load_predictions`. |
+| Five trigger functions callable by anon | Revoke EXECUTE on them (Guide 4, section 5.10), then run the count again; the two left should be the token-guarded loaders, `ml_load_predictions` and `ml_load_anomaly_model`. |
 | Grade forecast | Retrain on the latest published semester (section 7.1) so the forecast is for the semester students are in. |
+| Sign-ins to review | Once real live registers exist, retrain on them (section 7.2) and check its flags with the lecturers. |
 | Four settings that do nothing | Wire up or delete them (Guide 2, section 13), so nobody changes one expecting an effect. |
 | Email | Confirm `PES_APP_URL` is the live address and `PES_EMAIL_FROM`'s domain is verified in Resend; send yourself an invitation and a reset. |
 | The redesign | Merge `feature/UI` into `dev` and then `main` once tested. |

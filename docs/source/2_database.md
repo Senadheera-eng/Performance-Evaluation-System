@@ -2,14 +2,14 @@
 kicker: Study Guide 2 of 7
 title: Database Guide
 subtitle: Every table, what it holds, and how they connect
-intro: The PES keeps everything in one PostgreSQL 17 database: 52 tables, 254 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
-updated: Updated 2 November 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
+intro: The PES keeps everything in one PostgreSQL 17 database: 53 tables, 260 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
+updated: Updated 3 November 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
 # 1. How to think about this database
 
-Do not start by reading all 52 tables. Start with the four ideas that shape them.
+Do not start by reading all 53 tables. Start with the four ideas that shape them.
 
 **Idea 1 — A course is not the same as a course being taught**
 
@@ -363,13 +363,36 @@ Added on 2 November 2026 for the machine-learning feature (Guide 5, section 8.4)
 <!-- widths: 26,10,64 -->
 | Table | Rows | What it holds |
 |---|---|---|
-| ml_models | 2 | One row per trained model: its algorithm and parameters, the features it used, how many results it learned from, and its evaluation against the baselines (`metrics`). One model of a name is active at a time; loading a new one retires the old. |
+| ml_models | 5 | One row per trained model (both kinds): its algorithm and parameters, the features it used, how many results it learned from, and its evaluation against the baselines (`metrics`). One model of a name is active at a time; loading a new one retires the old. |
 | ml_grade_predictions | 4,082 | For each student and each course of the coming semester, the likeliest grade band, the probability of every band, the expected grade point, the chance of an R or F, and the figures from the student's record the prediction rests on (`reasons`). |
-| ml_load_tokens | 2 | Single-use tokens, valid for an hour, that let `ml/load_predictions.py` load predictions without a service key. Only a token's SHA-256 hash is stored. |
+| ml_load_tokens | 5 | Single-use tokens, valid for an hour, that let `ml/load_predictions.py` load a model or its predictions without a service key. Only a token's SHA-256 hash is stored. |
 
 All three have Row Level Security on and no policy, so nothing reads them directly. `ml_load_predictions(token, payload)` writes them, after checking the token and that the student and course lists have not changed since the data was exported (students and courses leave the database as numbers, not ids). `get_my_grade_forecast()`, `get_mentee_early_warnings()` and `get_student_grade_forecast()` read them, through the internal `ml_forecast_for()`, which picks the courses the student is enrolled in (or their department's compulsory ones), works out the forecast SGPA with the credits each course carries in that semester's GPA, and sets the early-warning level. A course graded with a later part (`courses.graded_with`), such as the Engineering Project's Semester 7 part, is never forecast: its grade is given in the later semester.
 
 The first model's 2,062 predictions are kept, inactive; the active model's 2,020 are the ones shown.
+
+## 10.2 Attendance anomalies
+
+Added on 3 November 2026 for the second machine-learning feature (Guide 5, section 3.4). The model, an Isolation Forest, is trained outside the database by `ml/attendance_anomaly.py`, but unlike the grade forecast it is scored inside it: a sign-in is checked when the lecturer opens the list, from what the register already records.
+
+<!-- widths: 26,10,64 -->
+| Table | Rows | What it holds |
+|---|---|---|
+| ml_isolation_trees | 300 | The forest itself, one row per tree: for each node, the signal it splits on, the split value, its two children and how many training sign-ins reached it, as five parallel arrays. Three models of 100 trees are stored; the active one is used. Its threshold and the 1 km rule are in its `ml_models` row (`params`). |
+
+Like the forecast tables, it has Row Level Security on and no policy. The functions, in the order they run:
+
+<!-- widths: 30,70 -->
+| Function | What it does |
+|---|---|
+| ml_checkin_features(session) | The six signals of every sign-in to one register: how old the code was, the distance from the hall, location withheld by a phone that usually sends it, a first sign-in from a device, a device that signed in other students before, and presence checks missed. "Before" means the student's last 20 earlier lectures. |
+| ml_isolation_score(model, x) | Walks each tree to a leaf and turns the average path length into a score from 0 to 1, as scikit-learn does. |
+| ml_avg_path_length(n) | The normaliser in that score. |
+| ml_checkin_review(session) | Scores a register's sign-ins with the active model, applies the threshold and the 1 km rule, and writes the reasons in plain words. |
+| get_checkin_review(offering, date) | What the page calls: the flagged sign-ins of one course on one date, most unusual first, for the course's staff only. |
+| ml_load_anomaly_model(token, payload) | The loader: checks the token, stores the trees, and refuses the load unless the database scores 40 sample sign-ins as scikit-learn did. |
+
+All but the last two are internal (EXECUTE revoked from everyone); Guide 4, section 5.12 has who may call what. Nothing here writes to the attendance tables: a flag is never a mark.
 
 # 11. Communication
 
@@ -423,22 +446,22 @@ Changing the last four rows changes nothing today. Two are written into page cod
 
 # 14. The function layer
 
-There are 254 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
+There are 260 functions written for this application, on top of the tables. They are the reason the browser can talk to the database directly without the rules leaking.
 
 <!-- widths: 24,12,64 -->
 | Kind | How many | What it means |
 |---|---|---|
-| SECURITY DEFINER | 243 | Runs with the privileges of the function's owner, not the caller. It can see everything, so it must check for itself who is asking. Every one has its search path pinned. |
-| SECURITY INVOKER | 11 | Runs as the caller. Row Level Security still applies to everything it touches. |
+| SECURITY DEFINER | 248 | Runs with the privileges of the function's owner, not the caller. It can see everything, so it must check for itself who is asking. Every one has its search path pinned. |
+| SECURITY INVOKER | 12 | Runs as the caller. Row Level Security still applies to everything it touches. |
 | Of which triggers | 37 | Fire on a write to a table; never called directly. |
-| Callable by signed-in users | 199 | The application's API. |
+| Callable by signed-in users | 201 | The application's API. |
 
 **Why so many are DEFINER**
 
 Because most useful answers need data the caller may not read directly. A student may see their own published grade but not the results table. A definer function can read the table, apply the publication rule, and hand back only what is allowed.
 
 :::warn THE DANGER OF DEFINER, AND THE RULE THAT FOLLOWS
-A definer function is powerful, so it must check the caller's role itself — and that check must fail closed. In September 2026 several of these checks were found to fail open when the role came back as NULL. Guide 4 explains the problem and the fix in detail. Since 27 September 2026 no application function can be called by a signed-out caller; the only exceptions today are five trigger functions added in October, which PostgreSQL will not run outside a trigger anyway, and `ml_load_predictions`, which changes nothing without a valid single-use token (Guide 4, section 5.10).
+A definer function is powerful, so it must check the caller's role itself — and that check must fail closed. In September 2026 several of these checks were found to fail open when the role came back as NULL. Guide 4 explains the problem and the fix in detail. Since 27 September 2026 no application function can be called by a signed-out caller; the only exceptions today are five trigger functions added in October, which PostgreSQL will not run outside a trigger anyway, and the two model loaders, `ml_load_predictions` and `ml_load_anomaly_model`, which change nothing without a valid single-use token (Guide 4, section 5.10).
 :::
 
 **The helper functions you will see everywhere**
@@ -473,6 +496,7 @@ This is the whole list, so a name met in the code can be placed. The functions a
 | Results and standing | calculate_gpa_target, correct_result_grade, get_academic_standing, get_admin_recent_results, get_all_students_academic_stats, get_my_academic_record, get_my_insights, get_my_published_result_sheets, get_pending_result_reviews, get_published_result_sheet, get_student_academic_record, get_student_course_result, get_student_results, grade_point_value, publish_offering_results, return_offering_results, submit_offering_results |
 | Graduation Planner | get_mentee_graduation_plan, get_my_graduation_plan, graduation_plan_for, nudge_semester_complete, share_planner_scenario |
 | Grade forecasts | get_mentee_early_warnings, get_my_grade_forecast, get_student_grade_forecast, ml_forecast_for, ml_load_predictions |
+| Attendance anomalies | get_checkin_review, ml_avg_path_length, ml_checkin_features, ml_checkin_review, ml_isolation_score, ml_load_anomaly_model |
 | Feedback | add_course_feedback_question, assert_can_edit_course_form, course_form_questions, decide_feedback_period, feedback_answer_provided, feedback_privacy_threshold, fork_course_form, get_admin_course_feedback_analytics, get_admin_feedback_comments, get_admin_feedback_periods, get_admin_feedback_summary, get_admin_question_feedback_analytics, get_course_feedback_report, get_course_form_editor, get_department_feedback_detail, get_department_feedback_overview, get_department_lecturer_feedback, get_my_coordinated_feedback, get_my_feedback_overview, get_pending_feedback_approvals, get_student_active_feedback_period, get_student_eligible_feedback_courses, get_student_feedback_catalogue, get_student_feedback_form, may_manage_round_form, missing_required_feedback, my_editable_feedback_offering, period_covers_course, remove_course_feedback_question, reorder_course_form_sections, save_course_form_question, save_feedback_draft, save_form_section, student_eligible_for_feedback, student_took_course, submission_belongs_to_me_fb, submit_course_feedback, write_feedback_answers |
 | Medical certificates | get_admin_medical_submissions, get_my_medical_submissions, review_medical_submission_course, student_has_medical_submission_in_my_department, submission_belongs_to_me, submission_has_course_in_my_department |
 | Mentoring | assign_student_mentor, clear_student_mentor, delete_mentor_note, get_department_mentor_allocations, get_department_mentor_roster, get_mentee_academic_overview, get_mentor_message, get_mentor_notes, get_mentor_thread, get_my_mentees, get_my_mentor, get_student_mentor_history, is_mentor_thread_participant, mark_mentor_thread_read, my_mentee_note_counts, my_mentee_unread, my_mentor_thread, my_unread_mentor_messages, save_mentor_note, send_mentor_message |
@@ -521,7 +545,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 281. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 281 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 283. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 283 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql
