@@ -74,9 +74,9 @@ A random forest trained on the faculty's past results predicts, for each student
 It is trained outside the app and loaded once a semester (`ml/`): the results are exported without names or ids, the model is evaluated on semesters it never saw against simple baselines, and the predictions are loaded with a single-use token rather than a service key. On held-out Semester 6 its SGPA forecast was off by 0.26 on average (0.29 for a student's own average so far). 
 ### Attendance anomaly detection
 
-A live register's rotating code stops most proxy sign-ins, but a friend can still relay a photo of the code or sign in from a second phone. An Isolation Forest (unsupervised: it needs no labelled cheating) scores how unusual each live sign-in is from six signals the register already records — how old the code was, how far the phone was, location withheld by a phone that usually sends it, a student's first sign-in from a device, a device that has signed in other students, and presence checks missed — and lists the unusual ones, with the reasons, for the course's lecturer to look at. A sign-in 1 km or more from the lecture is always listed. Nothing is marked: the lecturer decides.
+A live register's rotating code stops most proxy sign-ins, but a friend can still relay a photo of the code, switch to the absent student's account on their own phone, or carry a spare phone. An Isolation Forest (unsupervised: it needs no labelled cheating) scores how unusual each live sign-in is from eight signals the register already records — how old the code was, how far the phone was, location withheld by a phone that usually sends it, a student's first sign-in from a device, a device that has signed in other students, presence checks missed, a login to PES just before signing, and a sign-in from the same network and browser as another student's moments earlier — and lists the unusual ones, with the reasons, for the course's lecturer to look at. A sign-in 1 km or more from the lecture is always listed, and so is a browser that signed in one student and then tried another (the register refuses the second). Nothing is marked: the lecturer decides.
 
-The trees are stored in the database and scored there, so a sign-in is checked as soon as the list is opened. PES has few real sign-ins yet, so it was trained and tested on simulated lectures: on 720 test lectures it listed 41% of the proxies hidden in them (about half of those relayed by photo or from a second device) while flagging one honest student every two lectures; flagging every far or location-less sign-in would list 44% but flag six honest students a lecture.
+The trees are stored in the database and scored there, so a sign-in is checked as soon as the list is opened. PES has few real sign-ins yet, so it was trained and tested on simulated lectures: on 720 test lectures it listed 47% of the proxies hidden in them, including 91% of friends switching accounts on their own phone, while flagging one honest student every two lectures; flagging every far or location-less sign-in would list 41% but flag nearly seven honest students a lecture.
 
 ## AI Assistant
 
@@ -186,7 +186,7 @@ pes-scripts/                   one-off data loading scripts (Handbook chunks, ac
 
 ## Database
 
-The live schema has **53 tables**, all with row level security enabled, and 264 functions. The main groups:
+The live schema has **54 tables**, all with row level security enabled, and 264 functions. The main groups:
 
 | Area          | Tables                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------- |
@@ -196,7 +196,7 @@ The live schema has **53 tables**, all with row level security enabled, and 264 
 | Minors        | `minor_requirements`, `minor_plan_baskets`, `minor_plan_courses`, `student_minor_choices`        |
 | Planner       | `planner_scenarios`, `planner_aims`                                                             |
 | Enrolment     | `enrollment_periods`, `enrollment_period_courses`, `enrollments`                                |
-| Attendance    | `attendance`, `attendance_sessions`, `attendance_checkins`, `attendance_presence_checks`, `attendance_presence_responses` |
+| Attendance    | `attendance`, `attendance_sessions`, `attendance_checkins`, `attendance_presence_checks`, `attendance_presence_responses`, `attendance_device_refusals` |
 | Results       | `results` (draft → submitted → published, with correction history)                              |
 | Feedback      | `feedback_periods`, `feedback_questions`, `feedback_period_questions`, `feedback_period_courses`, `feedback_submissions`, `feedback_answers` |
 | Medical       | `medical_submissions`, `medical_submission_courses`, `medical_submission_files`                 |

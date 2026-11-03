@@ -127,11 +127,16 @@ export function CheckinReview({
             >
               <div className="space-y-2 pt-2 text-xs leading-relaxed text-muted-foreground">
                 <p>
-                  An Isolation Forest of 100 decision trees learned what ordinary sign-ins look like from six
+                  An Isolation Forest of 100 decision trees learned what ordinary sign-ins look like from eight
                   signals: how old the code was, how far the phone was from the lecture, location withheld by a
                   phone that usually sends it, a student's first sign-in from a device, a device that has signed in
-                  other students, and presence checks missed. Each alone has innocent causes; the model looks for
-                  unusual combinations. A sign-in a kilometre or more from the lecture is always listed.
+                  other students, presence checks missed, a login to PES just before signing, and a sign-in from the
+                  same network and browser as another student's moments earlier — a friend switching accounts on
+                  their own phone. Each alone has innocent causes; the model looks for unusual combinations.
+                </p>
+                <p>
+                  Two things are always listed: a sign-in a kilometre or more from the lecture, and a browser that
+                  signed in one student and then tried to sign in another (the register refuses the second).
                 </p>
                 {check.model && check.rules && (
                   <p>

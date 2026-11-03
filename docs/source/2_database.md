@@ -2,14 +2,14 @@
 kicker: Study Guide 2 of 7
 title: Database Guide
 subtitle: Every table, what it holds, and how they connect
-intro: The PES keeps everything in one PostgreSQL 17 database: 53 tables, 264 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
+intro: The PES keeps everything in one PostgreSQL 17 database: 54 tables, 264 functions, a view and the files beside them. This guide walks through them area by area, in the order the academic year actually happens: people, then courses, then enrolment, attendance and results, then everything that hangs off them.
 updated: Updated 3 November 2026  ·  figures from the live database on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
 # 1. How to think about this database
 
-Do not start by reading all 53 tables. Start with the four ideas that shape them.
+Do not start by reading all 54 tables. Start with the four ideas that shape them.
 
 **Idea 1 — A course is not the same as a course being taught**
 
@@ -238,7 +238,8 @@ The final record. One row per student, per course, per lecture date.
 | Table | What it is for |
 |---|---|
 | attendance_sessions | An open window. Holds a secret, a rotation interval, and optionally a location and radius so check-ins can be limited to the lecture hall. `saved_at` records when the lecture's sheet was saved after the register closed; until then the register can be reopened the same day. |
-| attendance_checkins | A student's check-in, with device hash and coordinates. |
+| attendance_checkins | A student's check-in, with device hash and coordinates, how long before it the student logged in (`login_age_s`), and `net_hash`: the request's network address and browser string as an md5 salted with the register's secret, comparable within that lecture only. |
+| attendance_device_refusals | A browser that had signed in one student and then tried to sign in another in the same lecture. The register refuses the second; this records the attempt, for the anomaly review. RLS on, no policy. |
 | attendance_presence_checks | A surprise 'are you still here?' prompt the lecturer can fire mid-lecture. |
 | attendance_presence_responses | Who answered that prompt. |
 
@@ -385,10 +386,10 @@ Like the forecast tables, it has Row Level Security on and no policy. The functi
 <!-- widths: 30,70 -->
 | Function | What it does |
 |---|---|
-| ml_checkin_features(session) | The six signals of every sign-in to one register: how old the code was, the distance from the hall, location withheld by a phone that usually sends it, a first sign-in from a device, a device that signed in other students before, and presence checks missed. "Before" means the student's last 20 earlier lectures. |
+| ml_checkin_features(session) | The eight signals of every sign-in to one register: how old the code was, the distance from the hall, location withheld by a phone that usually sends it, a first sign-in from a device, a device that signed in other students before, presence checks missed, a login within ten minutes before signing, and another student signed in from the same network and browser in the three minutes before. "Before" means the student's last 20 earlier lectures. |
 | ml_isolation_score(model, x) | Walks each tree to a leaf and turns the average path length into a score from 0 to 1, as scikit-learn does. |
 | ml_avg_path_length(n) | The normaliser in that score. |
-| ml_checkin_review(session) | Scores a register's sign-ins with the active model, applies the threshold and the 1 km rule, and writes the reasons in plain words. |
+| ml_checkin_review(session) | Scores a register's sign-ins with the active model, applies the threshold, the 1 km rule and the refused-browser rule, and writes the reasons in plain words. |
 | get_checkin_review(offering, date) | What the page calls: the flagged sign-ins of one course on one date, most unusual first, for the course's staff only. |
 | ml_load_anomaly_model(token, payload) | The loader: checks the token, stores the trees, and refuses the load unless the database scores 40 sample sign-ins as scikit-learn did. |
 
@@ -545,7 +546,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 284. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 284 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 285. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 285 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql

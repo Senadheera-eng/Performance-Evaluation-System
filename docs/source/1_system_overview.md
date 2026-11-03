@@ -29,7 +29,7 @@ The PES puts all of it in one place, applies the Faculty Handbook rules automati
 - **Mentoring** — every student has a lecturer as a mentor, with a live private chat, file attachments, and notes only the mentor can read.
 - **Graduation Planner** — a student sees their CGPA, the SGPA each remaining semester needs for every class of honours, what is still left to graduate, and can try expected grades and save the scenario (or share it with their mentor).
 - **Grade forecast (machine learning)** — a model trained on the faculty's past results predicts the grade band each student is likely to get in each course of the coming semester, and their SGPA. Students see it in the Graduation Planner; mentors get an early-warning list of mentees likely to get an R or F.
-- **Attendance anomaly detection (machine learning)** — an Isolation Forest scores how unusual each live sign-in is, from how old the code was, where the phone was, which device signed in and whether the presence checks were answered, and lists the unusual ones with the reasons for the course's lecturer. A flag is a reason to look, never a mark.
+- **Attendance anomaly detection (machine learning)** — an Isolation Forest scores how unusual each live sign-in is, from how old the code was, where the phone was, which device signed in, whether the student logged in just before, whether another student signed in from the same phone moments earlier, and whether the presence checks were answered, and lists the unusual ones with the reasons for the course's lecturer. A flag is a reason to look, never a mark.
 - **AI Assistant** — a chat assistant that answers from the student's own record, the Faculty Handbook and the faculty website, using a model the faculty runs itself or Google Gemini.
 - **Notices and notifications** — a notice board aimed at the faculty, a department, a batch or one course, and a record of what happened to each person (a result published, a register opened, a mentor message, a semester's results complete).
 - **Batches and accounts** — the Super Admin brings a new intake in with sign-in accounts, divides it into departments, invites staff by email, deactivates an account, and removes a batch that has left (after downloading its records). Anyone can reset a forgotten password from an emailed link.
@@ -49,9 +49,9 @@ These are the real numbers from the live database on 30 October 2026. They matte
 | Enrolment records | 5,656 |
 | Result records | 7,392 |
 | Notifications written | 806 |
-| Database tables | 53 |
+| Database tables | 54 |
 | Database functions written for the app | 264 |
-| Database migrations (change history) | 284 |
+| Database migrations (change history) | 285 |
 | Edge Functions (server code beside the database) | 4 |
 | TypeScript files in the app (45 pages, 122 components) | 219 |
 
@@ -172,7 +172,7 @@ Performance-Evaluation-System/
       styles/theme.css           every colour, radius and shadow
     vercel.json                  what deploys, and caching
   supabase/
-    migrations/                  284 files - the full database history
+    migrations/                  285 files - the full database history
       README.md                  the same history, numbered and described
     functions/                   the four Edge Functions
   ml/                            the two models: grade prediction, attendance anomalies
@@ -270,7 +270,7 @@ The privacy rules, written as SQL attached to each table. These decide who may s
 
 ## 7.2 Database changes
 
-Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 284 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
+Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version number, so the repository and the live history stay identical. There are 285 of them, and together they are the history of how the database reached its current shape. `supabase/migrations/README.md` lists them all, numbered, with one line on what each does.
 
 ```
 20260909150732_a_failed_course_has_to_be_repeatable.sql
@@ -346,6 +346,7 @@ Three settings are deliberately relaxed for testing and must be put back before 
 - **The redesign** (29–30 October, `feature/UI`) — every screen rebuilt on one set of shared components; Guide 6 describes them.
 - **Grade forecasts** (2 November) — the first machine-learning feature: a random forest trained on past results forecasts each student's grade bands and SGPA for the coming semester, and flags mentees likely to get an R or F. `ml/README.md` and Guide 5, section 8.4.
 - **Sign-ins to review** (3 November) — the second machine-learning feature: an Isolation Forest, stored and scored in the database, lists the live sign-ins whose pattern suggests a proxy, with the reasons, under the lecture's register. Guide 5, section 3.4, and the Attendance Anomaly Detection guide.
+- **Two students from one phone** (3 November) — the anomaly model gained two signals for a friend switching to the absent student's account on their own phone (a login just before signing; the same network and browser as the sign-in before), and a browser that tries to sign in a second student is recorded and always listed.
 - **Reopening a register** (3 November) — a register closed too soon can be reopened the same day, with everyone already signed in kept, until the lecture's attendance is saved. Guide 5, section 3.1.
 
 # 9. Where to go next

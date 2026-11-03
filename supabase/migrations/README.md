@@ -1,6 +1,6 @@
 # Database migrations
 
-The 284 migrations in this folder, numbered in the order they were applied.
+The 285 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -296,3 +296,4 @@ New migrations are added to the end of this list.
 | 282 | 2026-11-03 | Sign-ins worth a second look | [`20261103041134_sign_ins_worth_a_second_look.sql`](20261103041134_sign_ins_worth_a_second_look.sql) |
 | 283 | 2026-11-03 | A sign-in kilometres away is always listed | [`20261103041416_a_sign_in_kilometres_away_is_always_listed.sql`](20261103041416_a_sign_in_kilometres_away_is_always_listed.sql) |
 | 284 | 2026-11-03 | A closed register can be reopened until its attendance is saved | [`20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql`](20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql) |
+| 285 | 2026-11-03 | Two students signed in from one phone | [`20261103094409_two_students_signed_in_from_one_phone.sql`](20261103094409_two_students_signed_in_from_one_phone.sql) |

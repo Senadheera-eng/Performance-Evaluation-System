@@ -22,7 +22,7 @@ footer: PES Study Guide
 | The AI Assistant | The assistant end to end: the page, the server, the tool loop, the fourteen tools, the Handbook and website search, the models, the limits, and how to change it. |
 | RAG and the 14 tools, explained | The same assistant in plain English, for a reader who has never met the words RAG or tool calling. |
 | Grade Prediction | The machine-learning grade forecast: the data it learns from, the features, why a random forest, how well it works on semesters it never saw, who sees what, and retraining it each semester. |
-| Attendance Anomaly Detection | The second machine-learning feature: the six signals a live sign-in leaves, why an Isolation Forest, the simulation it was tested on and what it found, how the database scores a sign-in, and retraining it on real lectures. |
+| Attendance Anomaly Detection | The second machine-learning feature: the eight signals a live sign-in leaves, why an Isolation Forest, the simulation it was tested on and what it found, how the database scores a sign-in, and retraining it on real lectures. |
 
 Beside the guides, three Markdown files go deeper on one thing each: `local-llm.md` (running the assistant on a faculty computer), `ui-ux-audit.md` (the audit of every screen behind the October redesign, and what was done) and `README.md` (the same list as this page, for GitHub).
 
