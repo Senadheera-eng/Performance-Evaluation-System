@@ -66,7 +66,7 @@ A student looking at one mixed list cannot tell which rule applies to which modu
 
 1. The lecturer starts a session. `start_attendance_session()` opens a window for a few minutes, optionally fixed to the lecture hall's coordinates with a radius.
 1. A code appears, and keeps changing. It is computed from the session's secret and the current time slice, so it rotates every few seconds.
-1. Students check in by scanning the QR code or typing the short code. `check_in_with_code()` records it.
+1. Students check in by scanning the QR code or typing the short code. `check_in_to_lecture()` or `check_in_with_code()` records it, with the phone's location if it has one. The phone starts finding its location when the student taps Scan or Type code, and sends the code at most 1.5 seconds after reading it, location or not: the code's age is measured when it arrives, and an old code is one of the signs of a relayed photo (section 3.4).
 1. The lecturer may fire a presence check mid-lecture — a prompt students have about ninety seconds to answer.
 1. The lecturer closes the session. Check-ins become attendance rows.
 

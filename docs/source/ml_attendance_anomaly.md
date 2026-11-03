@@ -143,6 +143,14 @@ As the assigned lecturer, a former lecturer, a student and a signed-out caller, 
 - The former lecturer and the student were refused ("Only the staff of this course can review its sign-ins").
 - Signed-out callers, and everyone else for the internal functions and the trees table, got "permission denied".
 
+## 6.4 The first test on a phone, and what it changed
+
+On 3 November a student signed in with their own phone, in the room, and was listed: "Used a code 18 seconds old; it changes every 10 seconds" and "Sent no location, though their phone usually does". Score 0.630, against a threshold of 0.626.
+
+Both signals had one cause, and it was in the app, not the student. The sign-in page read the code, *then* waited for a GPS fix before sending it, for up to eight seconds. Indoors no fix came, so the code arrived eight seconds older and with no location — exactly what a photo relayed from outside looks like. Either signal alone would not have been listed (0.487 with a location; 0.552 for a 10-second code with none).
+
+The page now starts finding the location when the student taps Scan or Type code (or as soon as a register is open, when location is already allowed), and a code that has been read waits at most 1.5 seconds for it. Timed in a browser with a fake camera and a GPS that never answers, the check-in went from 8.2 seconds after the tap to 1.8. This is what the simulation had assumed all along (section 4: the current code plus about a second); the real test showed the app did not yet behave that way. The sign-in already recorded keeps its flag: the data is not changed.
+
 # 7. Retraining with real lectures
 
 Once a semester of live registers has been recorded:
