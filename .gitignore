@@ -27,6 +27,8 @@ backend/build/
 *.iml
 .DS_Store
 Thumbs.db
+# Office lock files, made while a document is open
+~$*
 
 # Logs
 logs/
