@@ -19,7 +19,8 @@ course is listed to watch from a 10% chance (twice the usual rate).
 ## How it works
 
 1. **Export** the results, anonymised (`export_dataset.sql`). Students and courses become numbers; no id, name or
-   index number leaves the database.
+   index number leaves the database. Each course also says whether it is graded in its own semester: the earlier
+   part of a course taught over two semesters (the Engineering Project's Semester 7 part) is never predicted.
 2. **Train and evaluate** (`train.py`). Features are what was known before the semester: the student's average so
    far, last semester's average and the change, their average in the course's department, how uneven their grades
    are, earlier R/F grades and deferrals, the share of A grades, and the course's credits, type and department.

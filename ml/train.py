@@ -113,6 +113,9 @@ class Course:
     credits: int
     category: str
     in_gpa: bool
+    # False for the earlier part of a course taught over two semesters: its
+    # grade is given with the later part, so it has no result to predict.
+    graded_here: bool = True
 
 
 @dataclass
@@ -137,8 +140,9 @@ class Student:
 def load(data: Path) -> tuple[dict[int, Course], dict[int, Student]]:
     courses: dict[int, Course] = {}
     for part in (data / "courses.txt").read_text().strip().split(";"):
-        ci, dept, sem, credits, cat, gpa = part.split(",")
-        courses[int(ci)] = Course(int(ci), dept, int(sem), int(credits), cat, gpa == "1")
+        ci, dept, sem, credits, cat, gpa, *rest = part.split(",")
+        graded_here = rest[0] == "1" if rest else True
+        courses[int(ci)] = Course(int(ci), dept, int(sem), int(credits), cat, gpa == "1", graded_here)
     students: dict[int, Student] = {}
     for part in (data / "students.txt").read_text().strip().split(";"):
         si, dept = part.split(",")
@@ -446,8 +450,8 @@ def main() -> None:
     rows = []
     for st in students.values():
         for c in courses.values():
-            if c.semester != ps or c.dept not in (st.dept, "IS"):
-                continue
+            if c.semester != ps or c.dept not in (st.dept, "IS") or not c.graded_here:
+                continue  # not this semester's, not theirs, or graded in a later semester
             if any(r.course.idx == c.idx for r in st.results):
                 continue  # already graded
             f = features(st, c, ps, diff)

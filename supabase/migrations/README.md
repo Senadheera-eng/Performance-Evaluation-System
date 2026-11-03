@@ -1,6 +1,6 @@
 # Database migrations
 
-The 280 migrations in this folder, numbered in the order they were applied.
+The 281 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -292,3 +292,4 @@ New migrations are added to the end of this list.
 | 278 | 2026-11-02 | A round the super admin created is the super admin's | [`20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql`](20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql) |
 | 279 | 2026-11-02 | Grade predictions, and the model behind them | [`20261102185644_grade_predictions_and_the_model_behind_them.sql`](20261102185644_grade_predictions_and_the_model_behind_them.sql) |
 | 280 | 2026-11-02 | Early-warning levels, and a student's own forecast | [`20261102190702_early_warning_levels_and_a_students_own_forecast.sql`](20261102190702_early_warning_levels_and_a_students_own_forecast.sql) |
+| 281 | 2026-11-02 | A course graded later is not forecast now | [`20261102200501_a_course_graded_later_is_not_forecast_now.sql`](20261102200501_a_course_graded_later_is_not_forecast_now.sql) |

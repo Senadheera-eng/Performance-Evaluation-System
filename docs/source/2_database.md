@@ -363,11 +363,13 @@ Added on 2 November 2026 for the machine-learning feature (Guide 5, section 8.4)
 <!-- widths: 26,10,64 -->
 | Table | Rows | What it holds |
 |---|---|---|
-| ml_models | 1 | One row per trained model: its algorithm and parameters, the features it used, how many results it learned from, and its evaluation against the baselines (`metrics`). One model of a name is active at a time; loading a new one retires the old. |
-| ml_grade_predictions | 2,062 | For each student and each course of the coming semester, the likeliest grade band, the probability of every band, the expected grade point, the chance of an R or F, and the figures from the student's record the prediction rests on (`reasons`). |
-| ml_load_tokens | 1 | Single-use tokens, valid for an hour, that let `ml/load_predictions.py` load predictions without a service key. Only a token's SHA-256 hash is stored. |
+| ml_models | 2 | One row per trained model: its algorithm and parameters, the features it used, how many results it learned from, and its evaluation against the baselines (`metrics`). One model of a name is active at a time; loading a new one retires the old. |
+| ml_grade_predictions | 4,082 | For each student and each course of the coming semester, the likeliest grade band, the probability of every band, the expected grade point, the chance of an R or F, and the figures from the student's record the prediction rests on (`reasons`). |
+| ml_load_tokens | 2 | Single-use tokens, valid for an hour, that let `ml/load_predictions.py` load predictions without a service key. Only a token's SHA-256 hash is stored. |
 
-All three have Row Level Security on and no policy, so nothing reads them directly. `ml_load_predictions(token, payload)` writes them, after checking the token and that the student and course lists have not changed since the data was exported (students and courses leave the database as numbers, not ids). `get_my_grade_forecast()`, `get_mentee_early_warnings()` and `get_student_grade_forecast()` read them, through the internal `ml_forecast_for()`, which picks the courses the student is enrolled in (or their department's compulsory ones), works out the forecast SGPA with the credits each course carries in that semester's GPA, and sets the early-warning level.
+All three have Row Level Security on and no policy, so nothing reads them directly. `ml_load_predictions(token, payload)` writes them, after checking the token and that the student and course lists have not changed since the data was exported (students and courses leave the database as numbers, not ids). `get_my_grade_forecast()`, `get_mentee_early_warnings()` and `get_student_grade_forecast()` read them, through the internal `ml_forecast_for()`, which picks the courses the student is enrolled in (or their department's compulsory ones), works out the forecast SGPA with the credits each course carries in that semester's GPA, and sets the early-warning level. A course graded with a later part (`courses.graded_with`), such as the Engineering Project's Semester 7 part, is never forecast: its grade is given in the later semester.
+
+The first model's 2,062 predictions are kept, inactive; the active model's 2,020 are the ones shown.
 
 # 11. Communication
 
@@ -519,7 +521,7 @@ Three tables are published to Supabase Realtime: `mentor_messages` (the live cha
 
 # 16. Migrations
 
-Every database change is a numbered file under `supabase/migrations/`. There are 280. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 280 with a line each.
+Every database change is a numbered file under `supabase/migrations/`. There are 281. The name is the date and time it was applied, followed by a short description of what it did, and `supabase/migrations/README.md` numbers them 001 to 281 with a line each.
 
 ```
 20260830144759_a_mentors_notes_are_their_own.sql

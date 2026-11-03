@@ -1,7 +1,7 @@
 {
   "name": "grade-band-forest",
   "algorithm": "Random forest (300 trees), scikit-learn 1.9.1",
-  "trained_at": "2026-11-02T19:01:29+00:00",
+  "trained_at": "2026-11-02T20:09:15+00:00",
   "params": {
     "max_depth": 10,
     "min_samples_leaf": 10

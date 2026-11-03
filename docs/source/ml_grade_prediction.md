@@ -70,7 +70,7 @@ The model is not trained inside the app. Training needs Python libraries the bro
 | Courses in the catalogue | 232 |
 | Semesters with results | 1 to 6 |
 | Results the final model is trained on | 6,103 (Semesters 2 to 6, deferrals left out) |
-| Predictions made for Semester 7 | 2,062, for 166 students |
+| Predictions made for Semester 7 | 2,020, for 166 students |
 
 Semester 1 results are used only as history: a Semester 1 grade has no earlier record to predict it from. The final count is lower than the total because Semester 1 and the L grades are not training rows.
 
@@ -81,7 +81,7 @@ The export (`ml/export_dataset.sql`) writes four small text files into `ml/data/
 <!-- widths: 26,74 -->
 | File | Holds |
 |---|---|
-| `courses.txt` | For each course: its number, department, semester, credits, category (compulsory, elective, optional) and whether it counts towards the GPA. |
+| `courses.txt` | For each course: its number, department, semester, credits, category (compulsory, elective, optional), whether it counts towards the GPA, and whether it is graded in its own semester. |
 | `students.txt` | For each student: their number and department. Nothing else. |
 | `results.txt` | For each student, their grades as course numbers and grade codes. |
 | `fingerprint.json` | A checksum of the student list and of the course list the numbers came from. |
@@ -224,7 +224,7 @@ Each test semester is completely unseen: no grade from it is in training, in tun
 
 ## 6.1 Which courses
 
-For each student, the forecast covers the coming semester's courses they are **enrolled** in. Before they have enrolled, it covers their department's **compulsory** courses, and the card says so. Only courses of the student's own department and Interdisciplinary Studies are predicted, and a course that already has a result is left out.
+For each student, the forecast covers the coming semester's courses they are **enrolled** in. Before they have enrolled, it covers their department's **compulsory** courses, and the card says so. Only courses of the student's own department and Interdisciplinary Studies are predicted. A course that already has a result is left out, and so is the earlier part of a course taught over two semesters: the Engineering Project (CO4002) is graded once, in Semester 8, so its Semester 7 part has no grade to predict.
 
 ## 6.2 The forecast SGPA
 
@@ -293,7 +293,7 @@ All of these were run as a real student, a real mentor and a signed-out caller, 
 - The student saw their own forecast, with no risk, level, R or F chance or band probabilities. They were refused the tables, the mentor list, another student's forecast and the internal function.
 - The mentor saw their seven mentees, likeliest first, and was refused a student who is not their mentee.
 - A signed-out caller was refused the tables and the forecasts.
-- Through the API, a wrong token and a reused token were both refused, and the real load stored all 2,062 predictions.
+- Through the API, a wrong token and a reused token were both refused, and the real load stored all 2,020 predictions.
 
 # 8. In the app
 
