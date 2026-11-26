@@ -44,6 +44,62 @@ export async function changeStudentBatch(
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Moving a student to another department (Super Admin)                 */
+/* ------------------------------------------------------------------ */
+
+export interface DepartmentChange {
+  from_department: string | null;
+  to_department: string | null;
+  reason: string | null;
+  changed_at: string;
+  changed_by_name: string;
+}
+
+/** What the Super Admin sees before moving a student. */
+export interface StudentDepartmentPreview {
+  name: string;
+  department: string | null;
+  mentor_name: string | null;
+  mentor_department: string | null;
+  minor: string | null;
+  minor_department: string | null;
+  history: DepartmentChange[];
+}
+
+export async function getStudentDepartmentPreview(
+  studentId: string,
+): Promise<Result<StudentDepartmentPreview>> {
+  const { data, error } = await supabase.rpc("admin_student_department_preview", {
+    p_student_id: studentId,
+  });
+  if (error) {
+    console.error("[registryService] admin_student_department_preview", error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true, data: data as StudentDepartmentPreview };
+}
+
+export async function changeStudentDepartment(
+  studentId: string,
+  department: string,
+  reason: string,
+): Promise<Result<{ ok: boolean; message: string }>> {
+  const { data, error } = await supabase.rpc("admin_change_student_department", {
+    p_student_id: studentId,
+    p_department: department,
+    p_reason: reason,
+  });
+  if (error) {
+    console.error("[registryService] admin_change_student_department", error);
+    return { ok: false, error: error.message };
+  }
+  return {
+    ok: true,
+    data: { ok: Boolean(data?.ok), message: data?.message ?? "Done." },
+  };
+}
+
 export async function getStudentBatchHistory(
   studentId: string,
 ): Promise<Result<BatchChange[]>> {

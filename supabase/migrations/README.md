@@ -1,6 +1,6 @@
 # Database migrations
 
-The 285 migrations in this folder, numbered in the order they were applied.
+The 288 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -297,3 +297,6 @@ New migrations are added to the end of this list.
 | 283 | 2026-11-03 | A sign-in kilometres away is always listed | [`20261103041416_a_sign_in_kilometres_away_is_always_listed.sql`](20261103041416_a_sign_in_kilometres_away_is_always_listed.sql) |
 | 284 | 2026-11-03 | A closed register can be reopened until its attendance is saved | [`20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql`](20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql) |
 | 285 | 2026-11-03 | Two students signed in from one phone | [`20261103094409_two_students_signed_in_from_one_phone.sql`](20261103094409_two_students_signed_in_from_one_phone.sql) |
+| 286 | 2026-11-03 | A grade forecast reads the grade model | [`20261103193132_a_grade_forecast_reads_the_grade_model.sql`](20261103193132_a_grade_forecast_reads_the_grade_model.sql) |
+| 287 | 2026-11-26 | A member of staff can change role, and nothing is lost | [`20261126143043_a_member_of_staff_can_change_role_and_nothing_is_lost.sql`](20261126143043_a_member_of_staff_can_change_role_and_nothing_is_lost.sql) |
+| 288 | 2026-11-26 | The Super Admin can move a student to another department | [`20261126143133_the_super_admin_can_move_a_student_to_another_department.sql`](20261126143133_the_super_admin_can_move_a_student_to_another_department.sql) |

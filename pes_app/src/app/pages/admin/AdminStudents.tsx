@@ -7,6 +7,7 @@ import {
   Calendar,
   ChevronDown,
   Mail,
+  Split,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
@@ -33,6 +34,7 @@ import {
 } from "../../components/common";
 import { useAvatarUrls } from "../../../lib/avatars";
 import { ChangeBatchDialog } from "../../components/admin/ChangeBatchDialog";
+import { ChangeDepartmentDialog } from "../../components/admin/ChangeDepartmentDialog";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { getAdminScope, describeAdminReach } from "../../../lib/adminScope";
@@ -78,6 +80,8 @@ export default function AdminStudents() {
     name: string;
     batchYear: number;
   } | null>(null);
+  // Moving a student to another department is the Super Admin's alone.
+  const [movingDepartment, setMovingDepartment] = useState<{ id: string; name: string } | null>(null);
   const reduce = useReducedMotion();
   const expand = useExpandMotion();
 
@@ -442,10 +446,20 @@ export default function AdminStudents() {
                               ))}
                             </dl>
 
-                            {/* Repeating a year moves a student to a later intake.
-                                The change is recorded with a reason and who made
-                                it — the database refuses any other route. */}
-                            <div className="mt-3 flex justify-end border-t border-border/70 pt-3">
+                            {/* Repeating a year moves a student to a later intake;
+                                a transfer moves them to another department. Each
+                                change is recorded with a reason and who made it. */}
+                            <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-border/70 pt-3">
+                              {scope.kind === "all" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setMovingDepartment({ id: student.id, name: student.name })}
+                                >
+                                  <Split className="mr-1.5 h-3.5 w-3.5" />
+                                  Change department
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -484,6 +498,18 @@ export default function AdminStudents() {
           fetchStudents();
         }}
       />
+
+      {scope.kind === "all" && (
+        <ChangeDepartmentDialog
+          student={movingDepartment}
+          onOpenChange={(open) => !open && setMovingDepartment(null)}
+          onChanged={(message) => {
+            setMovingDepartment(null);
+            toast.success(message, { duration: 8_000 });
+            fetchStudents();
+          }}
+        />
+      )}
     </div>
   );
 }

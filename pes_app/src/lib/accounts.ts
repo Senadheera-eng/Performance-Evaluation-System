@@ -3,6 +3,9 @@
  * `account` edge function (supabase/functions/account). The links it emails
  * carry a single-use, time-limited token after "#", read by the
  * /account/setup and /account/reset pages.
+ *
+ * Changing a member of staff's role goes through the database instead
+ * (admin_change_staff_role), so the whole move happens in one transaction.
  */
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
@@ -62,6 +65,82 @@ export interface InviteResult {
   invite_link?: string;
   email_error?: string;
   expires_in_hours: number;
+}
+
+export const STUDENT_DEPARTMENTS = [
+  "Civil Engineering",
+  "Computer Engineering",
+  "Electrical and Electronic Engineering",
+  "Mechanical Engineering",
+] as const;
+/** Staff can also belong to Interdisciplinary Studies, which has no students of its own. */
+export const STAFF_DEPARTMENTS = [...STUDENT_DEPARTMENTS, "Interdisciplinary Studies"] as const;
+
+/* ------------------------------------------------------------------ */
+/* Changing a member of staff's role (admin_change_staff_role)          */
+/* ------------------------------------------------------------------ */
+
+export type StaffRole = Exclude<UserKind, "student">;
+
+export const STAFF_ROLES: StaffRole[] = ["lecturer", "dept_admin", "super_admin"];
+
+/** What the Super Admin sees before changing someone's role. */
+export interface StaffRolePreview {
+  name: string;
+  role: StaffRole;
+  department: string | null;
+  is_self: boolean;
+  deactivated: boolean;
+  /** Set when they are a lecturer who heads a department. */
+  hod_department: string | null;
+  active_mentees: number;
+  current_courses: number;
+  other_super_admins: number;
+}
+
+type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+
+export async function getStaffRolePreview(userId: string): Promise<Result<StaffRolePreview>> {
+  const { data, error } = await supabase.rpc("admin_staff_role_preview", { p_user: userId });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: data as StaffRolePreview };
+}
+
+export async function changeStaffRole(
+  userId: string,
+  role: StaffRole,
+  department: string | null,
+  reason: string | null,
+): Promise<Result<{ message: string }>> {
+  const { data, error } = await supabase.rpc("admin_change_staff_role", {
+    p_user: userId,
+    p_role: role,
+    p_department: role === "super_admin" ? null : department,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: { message: String(data?.message ?? "The role was changed.") } };
+}
+
+/**
+ * Why a role change cannot go ahead yet, if it cannot: the same rules the
+ * database applies, said before the Super Admin fills in the form.
+ */
+export function roleChangeBlocker(preview: StaffRolePreview, to: StaffRole): string | null {
+  if (preview.is_self) return "You cannot change your own role. Another Super Admin can.";
+  if (preview.deactivated) return "This account is deactivated. Reactivate it first.";
+  if (preview.role === "lecturer" && to !== "lecturer") {
+    if (preview.hod_department) {
+      return `${preview.name} is Head of ${preview.hod_department}. Appoint another head on Heads of Department first.`;
+    }
+    if (preview.active_mentees > 0) {
+      return `${preview.name} mentors ${preview.active_mentees} student${preview.active_mentees === 1 ? "" : "s"}. The Head of ${preview.department ?? "their department"} moves them to another mentor first.`;
+    }
+  }
+  if (preview.role === "super_admin" && to !== "super_admin" && preview.other_super_admins < 1) {
+    return "PES needs at least one Super Admin.";
+  }
+  return null;
 }
 
 /** The password rules the account function enforces, checked as the person types. */
