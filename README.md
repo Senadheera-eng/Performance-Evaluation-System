@@ -265,6 +265,12 @@ GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on 
 
 `main` requires **CI passed** before a pull request can be merged, so nothing reaches production with a failing check.
 
+Security checks run alongside:
+
+- **CodeQL** ([`codeql.yml`](.github/workflows/codeql.yml)) scans the TypeScript, Python and workflow code on every pull request, every push to `main` and `dev`, and weekly; findings appear under the Security tab.
+- **Dependency review** ([`dependency-review.yml`](.github/workflows/dependency-review.yml)) fails a pull request that adds a dependency with a known high or critical vulnerability.
+- **Dependabot** ([`dependabot.yml`](.github/dependabot.yml)) opens weekly pull requests into `dev` with updated npm packages and GitHub Actions, and monthly for the ML scripts' Python packages.
+
 ---
 
 ## Academic Rules Implemented
