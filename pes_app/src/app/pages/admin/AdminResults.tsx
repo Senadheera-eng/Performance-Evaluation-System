@@ -16,6 +16,7 @@ import {
   FileUp,
   Pencil,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "../../components/ui/button";
 import {
   Select,
@@ -26,7 +27,10 @@ import {
 } from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
 import { Badge } from "../../components/ui/badge";
-import { CorrectGradeDialog } from "../../components/admin/CorrectGradeDialog";
+import { useSearchParams } from "react-router-dom";
+import { EditResultDialog, type EditableResult } from "../../components/results/EditResultDialog";
+import { StudentResultsPanel } from "../../components/results/StudentResultsPanel";
+import { mustRetake } from "../../../lib/resultChanges";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,6 +133,8 @@ interface StudentResult {
   ca: string;
   /** Awarded by the examiners, not calculated from the marks beside it. */
   grade: string;
+  /** The R or F a re-sit grade replaced, if any. */
+  originalGrade: string | null;
   isPublished: boolean;
   isDirty: boolean;
   /** Per-field validation messages; a row with any entry here cannot be
@@ -161,7 +167,7 @@ const getGradeColor = (grade: string | null) => {
   if (grade.startsWith("A")) return "bg-success-bg text-success-fg";
   if (grade.startsWith("B")) return "bg-info-bg text-info-fg";
   if (grade.startsWith("C")) return "bg-warning-bg text-warning-fg";
-  if (grade === "F") return "bg-danger-bg text-danger-fg";
+  if (grade === "F" || grade === "R") return "bg-danger-bg text-danger-fg";
   return "bg-neutral-bg text-neutral-fg";
 };
 
@@ -179,6 +185,11 @@ const NO_GRADE = "__none__";
 
 export default function AdminResults() {
   const { student } = useAuth();
+  /* By course (the sheet), or by student (Super Admin): /admin/results?student=<id>
+     opens a student's results directly, as the Students page does. */
+  const [searchParams] = useSearchParams();
+  const initialStudentId = searchParams.get("student");
+  const [view, setView] = useState<"course" | "student">(initialStudentId ? "student" : "course");
   /* The department's deliveries. A course taught to a batch in a given year
      is an offering, and the offering is what carries the academic year the
      marks are filed under — the formula below is only a fallback for a
@@ -187,20 +198,18 @@ export default function AdminResults() {
   const [offerings, setOfferings] = useState<AdminOffering[]>([]);
   const settings = useSettings();
   const scope = getAdminScope(student);
+  const studentView = scope.kind === "all" && view === "student";
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [batches, setBatches] = useState<number[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<number | null>(null);
   const [students, setStudents] = useState<StudentResult[]>([]);
   const avatars = useAvatarUrls(students.map((s) => s.studentId));
-  const [correcting, setCorrecting] = useState<{
-    id: string;
-    studentName: string;
-    currentGrade: string | null;
-  } | null>(null);
+  /* A published result being changed (marks, grade, reason). */
+  const [changing, setChanging] = useState<EditableResult | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState<
-    "all" | "regular" | "repeat"
+    "all" | "regular" | "repeat" | "retake"
   >("all");
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -431,6 +440,7 @@ export default function AdminResults() {
         midSem: existing?.mid_sem_mark?.toString() ?? "",
         ca: existing?.ca_mark?.toString() ?? "",
         grade: existing?.grade ?? "",
+        originalGrade: existing?.original_grade ?? null,
         isPublished: existing?.is_published ?? false,
         isDirty: false,
         errors: {},
@@ -736,6 +746,7 @@ export default function AdminResults() {
     .filter((s) => {
       if (candidateFilter === "regular") return !s.isRepeat;
       if (candidateFilter === "repeat") return s.isRepeat;
+      if (candidateFilter === "retake") return mustRetake(s.grade);
       return true;
     });
 
@@ -745,6 +756,10 @@ export default function AdminResults() {
   ).length;
   const emptyCount = students.filter((s) => s.resultId === null).length;
   const repeatCount = students.filter((s) => s.isRepeat).length;
+  /* Students in this sheet who got an R, F or L and so take the course
+     again with a later batch. Not the same as "Repeat" above, which counts
+     students from an earlier batch who are re-sitting it here. */
+  const retakeCount = students.filter((s) => mustRetake(s.grade)).length;
   const allPublished =
     students.length > 0 && publishedCount === students.length;
   /* Edits on screen: Save Draft and Publish ride in the floating bar while
@@ -756,8 +771,32 @@ export default function AdminResults() {
     <div className={`space-y-5 ${editing ? "pb-36 sm:pb-24" : ""}`}>
       <PageHeader
         title="Results Management"
-        description="Review sheets submitted by lecturers, or enter marks directly and publish them to students."
+        description={
+          studentView
+            ? "Find a student and change any of their published results, semester by semester."
+            : "Review sheets submitted by lecturers, or enter marks directly and publish them to students."
+        }
       />
+
+      {/* The Super Admin can also come at results one student at a time. */}
+      {scope.kind === "all" && (
+        <SegmentedTabs
+          aria-label="Find results by"
+          layoutId="results-view"
+          value={view}
+          onChange={(v) => setView(v as typeof view)}
+          tabs={[
+            { value: "course", label: "By course" },
+            { value: "student", label: "By student" },
+          ]}
+        />
+      )}
+
+      {studentView && <StudentResultsPanel initialStudentId={initialStudentId} />}
+
+      {/* The course view stays mounted while hidden, so switching back keeps
+          the course, batch and any unsaved marks where they were. */}
+      <div className={studentView ? "hidden" : "space-y-5"}>
 
       {/* Sheets lecturers have handed over. Publication is the department's
           decision — the database refuses it to anyone else — so this is where
@@ -994,28 +1033,39 @@ export default function AdminResults() {
               )}
 
               {/* Search + candidate filter */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <SearchField
-                  value={searchQuery}
-                  onChange={setSearchQuery}
-                  placeholder="Search by name, index no., or reg no."
-                  label="Search students"
-                />
-                <SegmentedTabs
-                  aria-label="Filter by candidate type"
-                  value={candidateFilter}
-                  onChange={(v) => setCandidateFilter(v as typeof candidateFilter)}
-                  layoutId="results-candidate-filter"
-                  tabs={[
-                    { value: "all", label: "All", count: students.length },
-                    {
-                      value: "regular",
-                      label: "Regular",
-                      count: students.length - repeatCount,
-                    },
-                    { value: "repeat", label: "Repeat", count: repeatCount },
-                  ]}
-                />
+              <div className="space-y-1.5">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <SearchField
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search by name, index no., or reg no."
+                    label="Search students"
+                  />
+                  <SegmentedTabs
+                    aria-label="Filter by candidate type"
+                    value={candidateFilter}
+                    onChange={(v) => setCandidateFilter(v as typeof candidateFilter)}
+                    layoutId="results-candidate-filter"
+                    scrollable
+                    tabs={[
+                      { value: "all", label: "All", count: students.length },
+                      {
+                        value: "regular",
+                        label: "Regular",
+                        count: students.length - repeatCount,
+                      },
+                      { value: "repeat", label: "Repeat", count: repeatCount },
+                      { value: "retake", label: "R, F or L", count: retakeCount },
+                    ]}
+                  />
+                </div>
+                {/* The two are easy to mix up: one is who is sitting this
+                    exam, the other is who has to take it again. */}
+                <p className="text-xs text-muted-foreground sm:text-right">
+                  Repeat: students from an earlier batch re-sitting this course with{" "}
+                  {selectedBatch !== null ? describeBatch(selectedBatch) : "this batch"}. R, F or L: students on this
+                  sheet who take it again later.
+                </p>
               </div>
 
               {/* A class of forty is not typed in one box at a time. The
@@ -1110,7 +1160,9 @@ export default function AdminResults() {
                   <p className="text-muted-foreground">
                     {searchQuery
                       ? "No students match your search."
-                      : candidateFilter !== "all"
+                      : candidateFilter === "retake"
+                        ? "No one on this sheet has an R, F or L."
+                        : candidateFilter !== "all"
                         ? `No ${candidateFilter} candidates for this course and batch.`
                         : `No students enrolled in this course for ${
                             selectedBatch !== null ? describeBatch(selectedBatch) : "this batch"
@@ -1243,26 +1295,29 @@ export default function AdminResults() {
                                   —
                                 </span>
                               )}
-                              {/* A published row is otherwise locked, which is
-                                  right — but a grade entered in error still has
-                                  to be fixable, and editing an R back clamps to
-                                  C because the row treats it as a re-sit. */}
-                              {student.resultId && (
+                              {/* A published row is locked to ordinary entry,
+                                  which is right; changing it is a recorded act
+                                  with a reason, and the student is told. */}
+                              {student.resultId && student.isPublished && selectedCourse && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 px-1.5"
-                                  title="Correct a grade recorded in error"
+                                  title="Change this published result"
                                   onClick={() =>
-                                    setCorrecting({
+                                    setChanging({
                                       id: student.resultId!,
                                       studentName: student.name,
-                                      currentGrade: student.grade,
+                                      courseLabel: `${selectedCourse.code} ${selectedCourse.name}`,
+                                      midSem: student.midSem === "" ? null : Number(student.midSem),
+                                      ca: student.ca === "" ? null : Number(student.ca),
+                                      grade: student.grade || null,
+                                      originalGrade: student.originalGrade,
                                     })
                                   }
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
-                                  <span className="sr-only">Correct grade</span>
+                                  <span className="sr-only">Change result for {student.name}</span>
                                 </Button>
                               )}
                             </>
@@ -1627,6 +1682,7 @@ export default function AdminResults() {
           </p>
         </motion.div>
       )}
+      </div>
 
       <ResultsImportDialog
         report={importReport}
@@ -1634,11 +1690,14 @@ export default function AdminResults() {
         onClose={() => setImportReport(null)}
       />
 
-      <CorrectGradeDialog
-        open={correcting !== null}
-        onOpenChange={(open) => !open && setCorrecting(null)}
-        result={correcting}
-        onCorrected={fetchStudentResults}
+      <EditResultDialog
+        result={changing}
+        onOpenChange={(open) => !open && setChanging(null)}
+        onSaved={(message) => {
+          setChanging(null);
+          toast.success(message, { duration: 8_000 });
+          fetchStudentResults();
+        }}
       />
     </div>
   );

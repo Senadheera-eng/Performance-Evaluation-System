@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Download,
   Lock,
+  Pencil,
   Save,
   Send,
   TrendingUp,
@@ -48,6 +49,7 @@ import { departmentByCourseCode } from "../../../lib/departments";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { useAuth } from "../../context/AuthContext";
 import { ResultsImportDialog } from "../../components/results/ResultsImportDialog";
+import { EditResultDialog, type EditableResult } from "../../components/results/EditResultDialog";
 import { describeBatch } from "../../../lib/batch";
 import { formatRegNumber } from "../../../lib/format";
 import { useSettings } from "../../../lib/settings";
@@ -125,6 +127,8 @@ function validate(field: Field, value: string): string | undefined {
 }
 
 interface Row {
+  /** The saved result, once there is one. */
+  resultId: string | null;
   studentId: string;
   name: string;
   indexNumber: string;
@@ -133,6 +137,7 @@ interface Row {
   midSem: string;
   ca: string;
   grade: string;
+  originalGrade: string | null;
   status: OfferingResultRow["status"] | null;
   dirty: boolean;
   errors: Partial<Record<Field, string>>;
@@ -164,9 +169,10 @@ export default function StaffResults() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const [changing, setChanging] = useState<EditableResult | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const selected = offerings.find((o) => o.offering_id === selectedId) ?? null;
+  const selected =offerings.find((o) => o.offering_id === selectedId) ?? null;
   // The first part of a course graded at the end of its second semester.
   const gradedElsewhere = useGradedElsewhere(selected?.course_id);
 
@@ -278,6 +284,7 @@ export default function StaffResults() {
       roster.data.map((s: RosterStudent) => {
         const r = byStudent.get(s.student_id);
         return {
+          resultId: r?.id ?? null,
           studentId: s.student_id,
           name: s.name,
           indexNumber: s.index_number ?? "—",
@@ -286,6 +293,7 @@ export default function StaffResults() {
           midSem: r?.mid_sem_mark?.toString() ?? "",
           ca: r?.ca_mark?.toString() ?? "",
           grade: r?.grade ?? "",
+          originalGrade: r?.original_grade ?? null,
           status: r?.status ?? null,
           dirty: false,
           errors: {},
@@ -331,6 +339,11 @@ export default function StaffResults() {
     (selected?.canEdit ?? false) &&
     !gradedElsewhere &&
     (r.status === null || r.status === "draft");
+
+  /* A head may change a published result in a course their department owns,
+     whoever teaches it; the database checks the same thing again. */
+  const canChangePublished =
+    caps.isHod && selected !== null && selected.department === caps.hodDepartment;
 
   const publishedCount = rows.filter((r) => r.status === "published").length;
   const submittedCount = rows.filter((r) => r.status === "submitted").length;
@@ -554,12 +567,39 @@ export default function StaffResults() {
                               </SelectContent>
                             </Select>
                           ) : r.grade ? (
-                            <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
+                            <span className="inline-flex items-center gap-1">
+                              <StatusBadge tone={gradeTone(r.grade)}>{r.grade}</StatusBadge>
+                              {canChangePublished && r.status === "published" && r.resultId && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-1.5"
+                                  title="Change this published result"
+                                  onClick={() => openChange(r)}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span className="sr-only">Change result for {r.name}</span>
+                                </Button>
+                              )}
+                            </span>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
     </>
   );
+
+  const openChange = (r: Row) => {
+    if (!selected || !r.resultId) return;
+    setChanging({
+      id: r.resultId,
+      studentName: r.name,
+      courseLabel: `${selected.course_code} ${selected.course_title}`,
+      midSem: r.midSem === "" ? null : Number(r.midSem),
+      ca: r.ca === "" ? null : Number(r.ca),
+      grade: r.grade || null,
+      originalGrade: r.originalGrade,
+    });
+  };
 
   return (
     // Room under the sheet while the action bar floats over it.
@@ -586,8 +626,9 @@ export default function StaffResults() {
         {caps.isHod && (
           <p className="mt-2 text-xs text-muted-foreground">
             As Head of {caps.hodDepartment} you can see every course the
-            department delivers. Marks stay editable only on the courses you
-            teach.
+            department delivers. Draft marks stay editable only on the courses
+            you teach; a published result in any of the department's courses
+            can be changed with the pencil beside its grade.
           </p>
         )}
       </SectionCard>
@@ -921,6 +962,16 @@ export default function StaffResults() {
         report={importReport}
         onApply={applyImport}
         onClose={() => setImportReport(null)}
+      />
+
+      <EditResultDialog
+        result={changing}
+        onOpenChange={(open) => !open && setChanging(null)}
+        onSaved={(message) => {
+          setChanging(null);
+          toast.success(message, { duration: 8_000 });
+          if (selectedId) loadSheet(selectedId);
+        }}
       />
 
       <AlertDialog open={confirmSubmit} onOpenChange={setConfirmSubmit}>

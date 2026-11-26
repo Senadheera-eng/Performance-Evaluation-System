@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Users,
@@ -64,6 +65,7 @@ interface Student {
 
 export default function AdminStudents() {
   const { student: currentAdmin } = useAuth();
+  const navigate = useNavigate();
   const scope = getAdminScope(currentAdmin);
   const [students, setStudents] = useState<Student[]>([]);
   const avatars = useAvatarUrls(students.map((st) => st.id));
@@ -450,6 +452,16 @@ export default function AdminStudents() {
                                 a transfer moves them to another department. Each
                                 change is recorded with a reason and who made it. */}
                             <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-border/70 pt-3">
+                              {scope.kind === "all" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => navigate(`/admin/results?student=${student.id}`)}
+                                >
+                                  <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
+                                  Results
+                                </Button>
+                              )}
                               {scope.kind === "all" && (
                                 <Button
                                   size="sm"
