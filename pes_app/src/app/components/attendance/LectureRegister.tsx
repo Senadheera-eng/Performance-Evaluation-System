@@ -7,6 +7,7 @@ import {
   MapPinOff,
   PlayCircle,
   Plus,
+  RotateCcw,
   Square,
   Users,
 } from "lucide-react";
@@ -51,6 +52,21 @@ async function currentPosition(): Promise<GeolocationCoordinates | null> {
   });
 }
 
+/** The latest register of the lecture on the page, for offering Reopen. */
+interface LastRegister {
+  session_id: string;
+  status: "open" | "closed";
+  closed_at: string | null;
+  saved_at: string | null;
+  signed_in: number;
+  enrolled: number;
+  /** Why it cannot be reopened, or null when it can. */
+  reopen_blocked: string | null;
+}
+
+const clock = (iso: string) =>
+  new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
 interface TokenPayload {
   open: boolean;
   token?: string;
@@ -71,18 +87,26 @@ interface TokenPayload {
  * Nothing reaches the attendance table until Close. Until then a check-in is
  * evidence, not a fact, so a lecture interrupted halfway leaves no half-marked
  * register behind.
+ *
+ * A register closed too soon can be reopened, the same register, so everyone
+ * already signed in stays signed in. That lasts until the sheet below is
+ * saved: closing again rewrites the register's sign-ins, which must not undo
+ * a mark the lecturer has since changed and saved by hand.
  */
 export function LectureRegister({
   offeringId,
   courseLabel,
   lectureDate,
   onClosed,
+  refreshKey = 0,
 }: {
   offeringId: string;
   courseLabel: string;
   /** The date the page is showing, so the rows land on the sheet below it. */
   lectureDate?: string;
   onClosed?: () => void;
+  /** Changes when the sheet is saved, so Reopen is withdrawn. */
+  refreshKey?: number;
 }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [token, setToken] = useState<TokenPayload | null>(null);
@@ -92,6 +116,7 @@ export function LectureRegister({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number>(0);
+  const [last, setLast] = useState<LastRegister | null>(null);
 
   const tokenTimer = useRef<number | null>(null);
   const stateTimer = useRef<number | null>(null);
@@ -171,6 +196,7 @@ export function LectureRegister({
     setQrUrl(null);
     setState(null);
     setNotice(null);
+    setLast(null);
     if (!offeringId) return;
 
     let cancelled = false;
@@ -187,6 +213,46 @@ export function LectureRegister({
       cancelled = true;
     };
   }, [offeringId]);
+
+  /* With no register running, find the one this lecture last had: if it
+     closed today and the sheet is not yet saved, it can be reopened. */
+  const loadLast = useCallback(async () => {
+    if (!offeringId || !lectureDate) {
+      setLast(null);
+      return;
+    }
+    const { data, error: rpcError } = await supabase.rpc("get_lecture_register", {
+      p_offering_id: offeringId,
+      p_lecture_date: lectureDate,
+    });
+    setLast(rpcError ? null : ((data as LastRegister | null) ?? null));
+  }, [offeringId, lectureDate]);
+
+  useEffect(() => {
+    if (sessionId) return;
+    void loadLast();
+  }, [sessionId, loadLast, refreshKey]);
+
+  const reopen = async () => {
+    if (!last) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    const { error: rpcError } = await supabase.rpc("reopen_attendance_session", {
+      p_session_id: last.session_id,
+      p_minutes: 5,
+    });
+    setBusy(false);
+    if (rpcError) {
+      setError(rpcError.message);
+      void loadLast();
+      return;
+    }
+    setNotice(
+      "Register reopened for 5 minutes. Everyone already signed in stays signed in; the class has been told it is open.",
+    );
+    setSessionId(last.session_id);
+  };
 
   const start = async () => {
     setBusy(true);
@@ -287,6 +353,9 @@ export function LectureRegister({
   const windowPassed = token !== null && !token.open;
 
   if (!sessionId) {
+    const closed = last?.status === "closed" ? last : null;
+    const canReopen = closed !== null && closed.reopen_blocked === null;
+    const saved = closed?.saved_at != null;
     return (
       <SectionCard
         title="Sign-in register"
@@ -298,10 +367,29 @@ export function LectureRegister({
             {notice}
           </div>
         )}
-        <Button onClick={start} disabled={busy || !offeringId}>
-          <PlayCircle className="mr-1.5 h-4 w-4" aria-hidden="true" />
-          {busy ? "Opening…" : "Open register for 5 minutes"}
-        </Button>
+        {closed && (
+          <p className="mb-3 text-sm text-muted-foreground">
+            This lecture's register
+            {closed.closed_at ? ` closed at ${clock(closed.closed_at)}` : " is closed"}, with{" "}
+            {closed.signed_in} of {closed.enrolled} signed in.{" "}
+            {canReopen
+              ? "Reopen it to let latecomers sign in; everyone already signed in stays signed in. Once the attendance below is saved, it stays closed."
+              : closed.reopen_blocked}
+          </p>
+        )}
+        {canReopen ? (
+          <Button onClick={reopen} disabled={busy}>
+            <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            {busy ? "Reopening…" : "Reopen register for 5 minutes"}
+          </Button>
+        ) : (
+          !saved && (
+            <Button onClick={start} disabled={busy || !offeringId}>
+              <PlayCircle className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              {busy ? "Opening…" : "Open register for 5 minutes"}
+            </Button>
+          )
+        )}
       </SectionCard>
     );
   }

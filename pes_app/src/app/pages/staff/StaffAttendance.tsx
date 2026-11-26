@@ -27,6 +27,7 @@ import { cn } from "../../components/ui/utils";
 import { departmentByCourseCode } from "../../../lib/departments";
 import { OfferingPicker } from "../../components/staff/OfferingPicker";
 import { LectureRegister } from "../../components/attendance/LectureRegister";
+import { CheckinReview } from "../../components/attendance/CheckinReview";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../context/AuthContext";
 import { describeBatch } from "../../../lib/batch";
@@ -79,6 +80,10 @@ export default function StaffAttendance() {
   const [offerings, setOfferings] = useState<TeachingOffering[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [date, setDate] = useState(today());
+  /** Bumped when a register closes, so the sign-in review catches up. */
+  const [reviewKey, setReviewKey] = useState(0);
+  // Bumped when the sheet is saved: its register can no longer be reopened.
+  const [registerKey, setRegisterKey] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
   const [recordedDates, setRecordedDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,6 +245,7 @@ export default function StaffAttendance() {
     // Reload first, then confirm, so the toast describes the sheet as it
     // now stands.
     await loadSheet(selected.offering_id, date);
+    setRegisterKey((k) => k + 1);
     toast.success("Attendance saved", {
       description: `${result.data} student${result.data === 1 ? "" : "s"} on ${date}.`,
     });
@@ -393,8 +399,18 @@ export default function StaffAttendance() {
           offeringId={selected.offering_id}
           courseLabel={selected.course_code}
           lectureDate={date}
-          onClosed={() => loadSheet(selected.offering_id, date)}
+          refreshKey={registerKey}
+          onClosed={() => {
+            loadSheet(selected.offering_id, date);
+            setReviewKey((k) => k + 1);
+          }}
         />
+      )}
+
+      {/* The day's sign-ins that look unusual, from the anomaly model. Below
+          the register, above the sheet: what to check before marking. */}
+      {selected && (
+        <CheckinReview offeringId={selected.offering_id} lectureDate={date} refreshKey={reviewKey} />
       )}
 
       {selected && (

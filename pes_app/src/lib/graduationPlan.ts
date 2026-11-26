@@ -335,6 +335,18 @@ export function classTargets(
   });
 }
 
+/**
+ * The CGPA once the planned semesters are done: the record (with edits and
+ * guesses) plus each planned semester's open credits at its planned SGPA.
+ * Semesters without a plan are not counted, as they are not on the record.
+ */
+export function projectedCgpa(standing: Standing, open: OpenSemester[]): number {
+  const planned = open.filter((s) => s.planned !== null && s.openCredits > 0);
+  const credits = standing.credits + planned.reduce((n, s) => n + s.openCredits, 0);
+  const points = standing.points + planned.reduce((n, s) => n + (s.planned ?? 0) * s.openCredits, 0);
+  return credits > 0 ? round2(points / credits) : standing.cgpa;
+}
+
 /** The best CGPA still possible: an A+ in every open credit. */
 export function bestPossibleCgpa(standing: Standing, open: OpenSemester[]): number {
   const openCredits = open.reduce((n, s) => n + s.openCredits, 0);

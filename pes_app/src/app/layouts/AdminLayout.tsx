@@ -14,6 +14,7 @@ import {
   Megaphone,
   Layers,
   UsersRound,
+  Settings,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -79,6 +80,7 @@ export default function AdminLayout() {
       }}
       bottomNavigation={[
         { name: "My Profile", href: "/admin/profile", icon: UserRound },
+        { name: "Settings", href: "/admin/settings", icon: Settings },
       ]}
       userName={student?.name ?? "Admin"}
       userAvatarUrl={student?.avatar_url}

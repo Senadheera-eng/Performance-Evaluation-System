@@ -1,6 +1,6 @@
 # Database migrations
 
-The 276 migrations in this folder, numbered in the order they were applied.
+The 285 migrations in this folder, numbered in the order they were applied.
 
 The files keep their timestamp names on purpose. The live database records each
 migration it has run by that timestamp (`supabase_migrations.schema_migrations`),
@@ -288,3 +288,12 @@ New migrations are added to the end of this list.
 | 274 | 2026-10-28 | The semester notice works its sgpa in numeric | [`20261028205242_the_semester_notice_works_its_sgpa_in_numeric.sql`](20261028205242_the_semester_notice_works_its_sgpa_in_numeric.sql) |
 | 275 | 2026-10-29 | An open enrolment window can be extended | [`20261029033624_an_open_enrolment_window_can_be_extended.sql`](20261029033624_an_open_enrolment_window_can_be_extended.sql) |
 | 276 | 2026-10-30 | Unused empty tables (timetables, feedback), courses.lecturer_name and the student_gpa_summary view go, with no data lost | [`20261030104834_unused_empty_tables_a_column_and_a_view_go.sql`](20261030104834_unused_empty_tables_a_column_and_a_view_go.sql) |
+| 277 | 2026-11-02 | An extended feedback round tells its students | [`20261102050939_an_extended_feedback_round_tells_its_students.sql`](20261102050939_an_extended_feedback_round_tells_its_students.sql) |
+| 278 | 2026-11-02 | A round the super admin created is the super admin's | [`20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql`](20261102180816_a_round_the_super_admin_created_is_the_super_admins.sql) |
+| 279 | 2026-11-02 | Grade predictions, and the model behind them | [`20261102185644_grade_predictions_and_the_model_behind_them.sql`](20261102185644_grade_predictions_and_the_model_behind_them.sql) |
+| 280 | 2026-11-02 | Early-warning levels, and a student's own forecast | [`20261102190702_early_warning_levels_and_a_students_own_forecast.sql`](20261102190702_early_warning_levels_and_a_students_own_forecast.sql) |
+| 281 | 2026-11-02 | A course graded later is not forecast now | [`20261102200501_a_course_graded_later_is_not_forecast_now.sql`](20261102200501_a_course_graded_later_is_not_forecast_now.sql) |
+| 282 | 2026-11-03 | Sign-ins worth a second look | [`20261103041134_sign_ins_worth_a_second_look.sql`](20261103041134_sign_ins_worth_a_second_look.sql) |
+| 283 | 2026-11-03 | A sign-in kilometres away is always listed | [`20261103041416_a_sign_in_kilometres_away_is_always_listed.sql`](20261103041416_a_sign_in_kilometres_away_is_always_listed.sql) |
+| 284 | 2026-11-03 | A closed register can be reopened until its attendance is saved | [`20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql`](20261103092322_a_closed_register_can_be_reopened_until_its_attendance_is_saved.sql) |
+| 285 | 2026-11-03 | Two students signed in from one phone | [`20261103094409_two_students_signed_in_from_one_phone.sql`](20261103094409_two_students_signed_in_from_one_phone.sql) |

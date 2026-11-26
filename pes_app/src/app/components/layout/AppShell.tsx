@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useLocation, useOutlet } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
@@ -157,26 +157,19 @@ export function AppShell({
 
   /* ---------------------------------------------------------------- */
 
-  const NavButton = ({
-    item,
-    iconOnly,
-    scope,
-    onNavigate,
-  }: {
-    item: ShellNavItem;
-    iconOnly: boolean;
-    /** Which copy of the menu: the desktop rail or the phone drawer. */
-    scope: string;
-    onNavigate?: () => void;
-  }) => {
+  /* The menu is drawn by plain functions, not components declared in here.
+     A component declared inside AppShell is a new type on every render, so
+     each page change made React throw the whole menu away and build a fresh
+     one: the menu jumped back to the top, and the active pill could not
+     slide. Called as functions, the same elements are kept and updated. */
+
+  /** One menu item. `scope` says which copy of the menu: the desktop rail or the phone drawer. */
+  const navButton = (item: ShellNavItem, iconOnly: boolean, scope: string) => {
     const active = isActive(item.href);
     const button = (
       <button
         type="button"
-        onClick={() => {
-          navigate(item.href);
-          onNavigate?.();
-        }}
+        onClick={() => navigate(item.href)}
         aria-current={active ? "page" : undefined}
         // Collapsed, the icon is the only child and it is aria-hidden, which
         // leaves the button with no accessible name at all.
@@ -258,7 +251,7 @@ export function AppShell({
     );
   };
 
-  const SidebarBody = ({ iconOnly, scope }: { iconOnly: boolean; scope: string }) => (
+  const sidebarBody = (iconOnly: boolean, scope: string) => (
     <div className="flex flex-col h-full min-h-0">
       <div
         className={cn(
@@ -311,7 +304,7 @@ export function AppShell({
                     {item.group}
                   </p>
                 ))}
-              <NavButton item={item} iconOnly={iconOnly} scope={scope} />
+              {navButton(item, iconOnly, scope)}
             </div>
           );
         })}
@@ -319,7 +312,7 @@ export function AppShell({
 
       <div className="px-2.5 py-2.5 border-t border-sidebar-border space-y-1">
         {bottomNavigation.map((item) => (
-          <NavButton key={item.href} item={item} iconOnly={iconOnly} scope={scope} />
+          <Fragment key={item.href}>{navButton(item, iconOnly, scope)}</Fragment>
         ))}
         {iconOnly ? (
           <Tooltip>
@@ -400,7 +393,7 @@ export function AppShell({
         transition={{ duration: reduce ? 0 : 0.22, ease: [0.4, 0, 0.2, 1] }}
         className="hidden lg:flex lg:fixed lg:inset-y-0 lg:flex-col bg-sidebar border-r border-sidebar-border z-40"
       >
-        <SidebarBody iconOnly={collapsed} scope="rail" />
+        {sidebarBody(collapsed, "rail")}
       </motion.aside>
 
       {/* Mobile drawer */}
@@ -436,7 +429,7 @@ export function AppShell({
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
-              <SidebarBody iconOnly={false} scope="drawer" />
+              {sidebarBody(false, "drawer")}
             </motion.aside>
           </>
         )}

@@ -2,8 +2,8 @@
 kicker: Study Guide 6 of 7
 title: Code Structure
 subtitle: How the React application is organised, and why
-intro: Guides 1 to 5 describe what the system does and how the database enforces it. This one opens the application itself: how a page is reached, where its data comes from, which shared pieces every screen is built from, and the conventions that keep 213 files readable. Read it before changing the code.
-updated: Updated 30 October 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
+intro: Guides 1 to 5 describe what the system does and how the database enforces it. This one opens the application itself: how a page is reached, where its data comes from, which shared pieces every screen is built from, and the conventions that keep 219 files readable. Read it before changing the code.
+updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 30 October 2026
 footer: PES Study Guide
 ---
 
@@ -67,7 +67,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 | `layout/` | AppShell (the frame), NotificationBell, BrandLoader (the crest with a turning ring) and RouteFallback. |
 | `account/` | ChangePasswordDialog, and FirstSignInPassword, which a student with a temporary password sees before anything else. |
 | `admin/`, `batches/`, `users/` | The admin dialogs: change a student's intake, correct a grade, the question editor, intake / departments / remove-batch dialogs, add a user. |
-| `attendance/`, `results/`, `enrollment/`, `courses/`, `minors/`, `feedback/`, `mentor/`, `notices/`, `planner/`, `dashboard/`, `staff/`, `chat/` | Pieces for one feature each: the QR sign-in and calendar, the results import, the semester baskets and minor selection, the course editor, the minor study plan editor, the Likert grid, the mentor chat, the notice card, the CGPA path chart, the insights panel, the feedback report, the assistant's markdown. |
+| `attendance/`, `results/`, `enrollment/`, `courses/`, `minors/`, `feedback/`, `mentor/`, `notices/`, `planner/`, `forecast/`, `dashboard/`, `staff/`, `chat/` | Pieces for one feature each: the QR sign-in, the calendar and the sign-ins to review, the results import, the semester baskets and minor selection, the course editor, the minor study plan editor, the Likert grid, the mentor chat, the notice card, the CGPA path chart, the grade-forecast cards, the insights panel, the feedback report, the assistant's markdown. |
 | `figma/` | ImageWithFallback, a leftover of the Figma Make template the project began from. |
 | `ProtectedRoute.tsx` | The route guard (section 3.2). |
 
@@ -86,7 +86,7 @@ One file per screen. The student pages sit at the top; the other two portals hav
 
 ## 2.5 src/lib
 
-35 modules, no JSX. The services wrap database calls; the rest are calculations and file formats.
+37 modules, no JSX. The services wrap database calls; the rest are calculations and file formats.
 
 <!-- widths: 30,70 -->
 | Module | Job |
@@ -101,6 +101,8 @@ One file per screen. The student pages sit at the top; the other two portals hav
 | `accounts.ts`, `accountGuard.ts` | Calls to the `account` Edge Function; the forced sign-out of a deactivated account. |
 | `batches.ts`, `batchIntake.ts` | Calls to `manage-batches`; reading an intake spreadsheet and writing a batch's records out. |
 | `graduationPlan.ts`, `splitCourses.ts`, `plannerScenarios.ts` | The planner's arithmetic, courses taught over two semesters, saved scenarios. |
+| `gradeForecast.ts` | The machine-learning forecasts: a student's own, a mentor's early warnings, one student's in full, and how the model did when it was checked. |
+| `checkinReview.ts` | The attendance anomaly model's list for one lecture: the flagged sign-ins with their reasons, and how the model did against the rules when it was tested. |
 | `minors.ts`, `minorPlan.ts` | A department's minors and their study plans. |
 | `attendanceMath.ts`, `attendanceRegister.ts`, `studentAttendance.ts` | Percentages and tiers; the office's register; a student's attendance per delivery. |
 | `resultsWorkbook.ts`, `resultSheetPdf.ts`, `feedbackReportPdf.ts` | The Excel results workbook (out and back in), the faculty's result sheet PDF, the feedback report PDF. |
@@ -221,9 +223,9 @@ Every colour, radius, shadow and duration is a CSS variable in `src/styles/theme
 | Shape | `--radius-card`, `--radius-control`; elevation `sm`, `md`, `lg`. |
 | Motion | `--motion-fast`, `--motion-base`, `--motion-slow`, `--motion-ease`. |
 
-**The main colour.** A student can choose PES's main colour under Settings, Appearance: crimson (the default), blue, indigo, violet, teal or graphite. Choosing one puts `data-main-colour` on `<html>`, and a block in `theme.css` for that colour replaces `--primary`, its 50–900 scale, `--ring`, `--chart-1`, the sidebar's two and the band's `--hero-from` and `--hero-to`, with a lighter shade under `.dark`. Nothing else changes: status and department colours keep their own tokens, so a failing grade is red whatever is chosen. The choice is kept in the browser, like the theme, not in the database. Two things stay crimson on purpose: the sign-in page, which is the faculty's front door, and the results PDF.
+**The main colour.** Everyone can choose PES's main colour under Settings, Appearance — students at `/app/settings`, lecturers and heads at `/staff/settings`, admins at `/admin/settings`. The choices are crimson (the default), blue, indigo, violet, teal or graphite. All three pages use one component, `components/account/AppearanceCard.tsx`, which also holds the light, dark and auto choice; the staff and admin page (`pages/AccountSettings.tsx`) adds links to the person's profile and notifications. Choosing one puts `data-main-colour` on `<html>`, and a block in `theme.css` for that colour replaces `--primary`, its 50–900 scale, `--ring`, `--chart-1`, the sidebar's two and the band's `--hero-from` and `--hero-to`, with a lighter shade under `.dark`. Nothing else changes: status and department colours keep their own tokens, so a failing grade is red whatever is chosen. The choice is kept in the browser, like the theme, not in the database. Two things stay crimson on purpose: the sign-in page, which is the faculty's front door, and the results PDF.
 
-To add a colour, add its name to `MAIN_COLOURS` in `ThemeContext.tsx`, a light and a dark block and a `--swatch-*` in `theme.css`, and a label in `Settings.tsx`. Check its light shade carries white text at 4.5:1 and its dark shade reads on the dark card.
+To add a colour, add its name to `MAIN_COLOURS` in `ThemeContext.tsx`, a light and a dark block and a `--swatch-*` in `theme.css`, and a label in `AppearanceCard.tsx`. Check its light shade carries white text at 4.5:1 and its dark shade reads on the dark card.
 
 :::why DEPARTMENT COLOUR IS IDENTITY, NEVER STATUS
 An amber stripe means "Computer Engineering", not "warning". Status keeps its own tokens. `lib/departments.ts` turns a department name or a course code into its classes, and writes every class name out in full, because Tailwind only generates the classes it can find written in the source.

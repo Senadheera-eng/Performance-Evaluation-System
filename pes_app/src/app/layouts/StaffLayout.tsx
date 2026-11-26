@@ -15,6 +15,7 @@ import {
   Presentation,
   Megaphone,
   UserRound,
+  Settings,
 } from "lucide-react";
 import { AppShell, type ShellNavItem } from "../components/layout/AppShell";
 import { useAuth } from "../context/AuthContext";
@@ -103,6 +104,7 @@ export default function StaffLayout() {
       }}
       bottomNavigation={[
         { name: "My Profile", href: "/staff/profile", icon: UserRound },
+        { name: "Settings", href: "/staff/settings", icon: Settings },
       ]}
       userName={student?.name ?? "Lecturer"}
       userAvatarUrl={student?.avatar_url}

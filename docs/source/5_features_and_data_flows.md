@@ -3,7 +3,7 @@ kicker: Study Guide 5 of 7
 title: Features and Data Flows
 subtitle: What each part of the system does, step by step
 intro: This is the practical guide. Each feature is described the same way: who uses it, which pages it lives in, what happens in order, and which rules the system enforces along the way.
-updated: Updated 30 October 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
+updated: Updated 3 November 2026  ·  describes the feature/UI branch on that date  ·  first written 10 September 2026
 footer: PES Study Guide
 ---
 
@@ -26,7 +26,7 @@ Every feature below follows the same four-part shape:
 
 1. The super admin creates an enrolment window for a batch, department and semester, with an opening and closing time and optional instructions. It moves from draft to open. Only the super admin can write windows; a window that never opened can be deleted, and an open one can be extended to a later closing time (since 29 October 2026), which tells the students it covers.
 1. The student opens the Enrollment page. It calls `get_my_enrolment_options()`, which returns every module they may take right now.
-1. The page shows the semester's baskets — the compulsory courses, and each elective basket with the credits it asks for — and, separately, outstanding modules they still owe from an earlier attempt.
+1. The page shows the semester as the Faculty Handbook prints it: a table of course code, title, credit value, category and whether it counts towards the GPA, with the category and GPA cells merged down each basket and a tick box on every course. Under each category it shows, live, how many of the credits it asks for the ticks so far supply. On a phone the same courses are a list headed by each category. Separately, it lists outstanding modules the student still owes from an earlier attempt.
 1. A student in a semester with minors picks their minor from the department's study plan. The page draws the plan's table for that semester and warns, in red, if the minor's mandatory course is left out (`set_my_minor`, `student_minor_plan`).
 1. The student ticks and unticks. Nothing is saved yet; the changes are held in the browser.
 1. They press save. One call to `update_my_enrolment(p_add, p_remove)` applies everything at once, recording each course under the academic year of the semester that offers it.
@@ -66,9 +66,11 @@ A student looking at one mixed list cannot tell which rule applies to which modu
 
 1. The lecturer starts a session. `start_attendance_session()` opens a window for a few minutes, optionally fixed to the lecture hall's coordinates with a radius.
 1. A code appears, and keeps changing. It is computed from the session's secret and the current time slice, so it rotates every few seconds.
-1. Students check in by scanning the QR code or typing the short code. `check_in_with_code()` records it.
+1. Students check in by scanning the QR code or typing the short code. `check_in_to_lecture()` or `check_in_with_code()` records it, with the phone's location if it has one. The phone starts finding its location when the student taps Scan or Type code, and sends the code at most 1.5 seconds after reading it, location or not: the code's age is measured when it arrives, and an old code is one of the signs of a relayed photo (section 3.4).
 1. The lecturer may fire a presence check mid-lecture — a prompt students have about ninety seconds to answer.
-1. The lecturer closes the session. Check-ins become attendance rows.
+1. The lecturer closes the session. Check-ins become attendance rows: present for everyone who signed in, absent for the rest.
+1. **Closed too soon?** Until the sheet below is saved, the lecturer can reopen the same register the same day (`reopen_attendance_session()`): everyone already signed in stays signed in, the class is told it is open again, and closing it again adds the newcomers. Closing only ever turns an absence into a presence.
+1. **Saving the sheet settles the lecture** (`note_attendance_saved()`). From then on its register stays closed and anyone else is marked by hand: closing it again would write the register's sign-ins back over a mark the lecturer changed, such as a flagged sign-in marked absent.
 
 :::why WHY THE CODE ROTATES
 A fixed code could be photographed and sent to a friend sitting at home. A code that changes every few seconds is useless by the time it arrives. The code is calculated rather than stored, so reading the database would not help either. The optional location radius closes the same hole from a different direction.
@@ -100,6 +102,23 @@ Marking a class of forty used to mean forty sequential requests. Worse, it was n
 - A percentage is counted per delivery. A student repeating a course has one register per attempt, and only the attempt being sat now decides eligibility.
 - A lecturer and the department office mark the same register. Both write the offering with every row, so a mark entered on either screen appears on both.
 - An approved medical certificate rewrites the affected rows to excused automatically.
+
+## 3.4 Sign-ins to review
+
+**Who:** the course's lecturer (and its head of department, department admin and the super admin). **Where:** `components/attendance/CheckinReview.tsx` and `lib/checkinReview.ts`, under the lecture's register on StaffAttendance; the model is trained outside the app, by `ml/attendance_anomaly.py`.
+
+The rotating code stops a photo that arrives late, but a friend in the hall can still relay one at once, switch to the absent student's account on their own phone, or carry a spare phone. The second machine-learning feature, added on 3 November 2026, looks for the traces those leave.
+
+1. **When the lecturer picks a course and date**, the page calls `get_checkin_review(offering, date)`. The database works out eight signals for every live sign-in of that lecture (how old the code was, how far the phone was from the hall, location withheld by a phone that usually sends it, a student's first sign-in from a device, a device that has signed in other students, presence checks missed afterwards, a login to PES just before signing, and another student's sign-in from the same network and browser moments earlier), scores each sign-in with the stored Isolation Forest, and returns the ones at or above the threshold, made 1 km or more away, or whose browser then tried to sign in another student.
+1. **The card** lists them, most unusual first, each with the reasons in plain words ("Signed in 16.2 km from the lecture", "Missed 2 of 2 presence checks after signing in") and a Review badge. When nothing stands out it says so in one line; when the lecture had no live sign-ins, or no model is loaded, it does not appear.
+1. **When the lecturer closes the register**, the card checks again, so presence checks answered or missed in the last minutes count.
+1. **The lecturer decides.** A flag marks nobody absent and changes no row: if they find a proxy, they correct the register as before.
+
+:::why WHY A MODEL, AND WHY ONLY A LIST
+Each signal on its own has innocent causes — indoor GPS drifts, people deny location, phones get replaced, a flat battery misses a check. Flagging every sign-in far from the hall or without a location would list nearly seven honest students a lecture; the model, which looks for unusual combinations, lists one every two lectures and catches nine in ten friends switching accounts on their own phone. That is a useful prompt and a poor verdict, so it is shown only to the course's staff and never acted on by itself.
+:::
+
+> The figures come from simulated lectures, because PES has recorded only a handful of real live sign-ins; the Attendance Anomaly Detection guide sets out the assumptions and the results. On the real sign-ins so far, the one made 16.2 km from its lecture is listed and the one 268 m away is not.
 
 # 4. Results
 
@@ -149,10 +168,11 @@ A department or lecturer can download a sheet as an Excel workbook, fill in the 
 
 ## 5.1 The flow
 
-1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none.
+1. A round is set up, either by the department office, which picks the cohort and courses, or at a lecturer's request. A request starts as draft, pending approval; a round the department created needs none. When creating a round the office picks a semester and, optionally, one course: left at "All courses" the round covers every course of that semester in the department (the list can still be changed before it opens); with a course chosen it covers that course alone, so its students see only that form and the round's answers are that course's. The round's row then says, for example, "CO4204 only".
 1. A department admin approves or rejects a request. `decide_feedback_period()` records the decision and any notes.
 1. While the round is a draft, lecturers shape their course's form. Everyone teaching a course in the round, and the sitting head of department, may add, edit, rename and reorder questions and sections for that course. The first edit gives the course its own copy of the round's template, so one lecturer's change never reaches another course. The department's own questions stay fixed.
 1. The round opens to the students it covers. Opening it is also the release: since 29 August 2026 there is no separate step where the department forwards results course by course.
+1. While it is open, the department office can extend it: **Extend** on the round sets a later closing time (never an earlier one), and its students are told the new closing time in a notification (since 2 November 2026), as well as seeing it on their Feedback page. If the closing time has already passed, a later one lets them answer again, since a round takes answers only between its opening and closing times. A round the super admin created is the super admin's to extend, open and close; a department admin manages the rounds their department created, and sees the super admin's marked "Managed by the Super Admin".
 1. A student fills in the form. They can save a draft first and submit later, if editing is allowed.
 1. Answers are stored as ratings, free text, single choices or multiple choices.
 1. Results appear as answers arrive. A lecturer reads their own courses on the Feedback page and the head of department reads the whole department, but only once the minimum number of responses exists (feedback_min_responses_for_analytics).
@@ -256,6 +276,24 @@ Everything on the What-If tab is a projection. The scenario tables hold guesses,
 When the last GPA course of a student's semester is published, `nudge_semester_complete` writes them a notification: their new SGPA, and the SGPA they now need for the class they are aiming at (or that it is secured, or out of reach). It links to the planner.
 
 > The Dean's List and the gold medal are checks and targets, not awards: the system does not record either. The time limits on completing the degree are not enforced. Both were left for a decision rather than guessed at.
+
+## 8.4 The grade forecast
+
+**Who:** students see their own; mentors see their mentees'. **Where:** `components/forecast/GradeForecast.tsx` and `lib/gradeForecast.ts`; the model itself is trained outside the app, by `ml/train.py`.
+
+The first machine-learning feature, added on 2 November 2026. A random forest trained on the faculty's past results predicts, for each student and each course of the coming semester, the grade band they are likely to get (A+/A, A-/B+, B/B-, C+/C or R/F); from those come a forecast SGPA and the chance of at least one R or F.
+
+1. **Once a semester, outside the app.** The results are exported without names or ids (`ml/export_dataset.sql`), the model is trained and checked on semesters it never saw (`ml/train.py`), and the predictions are loaded through `ml_load_predictions` with a single-use token. Guide 7, section 7 has the steps.
+1. **The student** sees a "Semester 7 forecast" card under the CGPA on Current Standing: the likely band of each course they are enrolled in (before enrolling, each compulsory course of their department), how likely it is, and the forecast SGPA with its usual error. "How this forecast works" says what the model read from their record and how well it did.
+1. **The mentor** sees an Early warnings card at the top of Academic Mentoring: the mentees whose chance of an R or F is above the usual, likeliest first, with the courses to watch. A mentee's own page carries their full forecast.
+
+The levels come from the faculty's own record: 5% of past course grades were an R or F, and 22% of students got at least one in a semester. A mentee is **Watch** from a 25% chance and **High** from 40%; a course is listed to watch from 10%, twice the usual rate.
+
+:::why WHY A STUDENT DOES NOT SEE THE R OR F FIGURES
+"A 44% chance of an R" handed to a student cold can do more harm than good, and the model names the exact band only some of the time. The student is told the course needs attention and pointed to their mentor; the mentor, who can put it in context, sees the figures. The database enforces it, not the page (Guide 4, section 5.11).
+:::
+
+> How good is it? On Semester 6, which it had not seen, the forecast SGPA was off by 0.26 on average, against 0.29 for the student's own average so far, and its early-warning ranking scored an AUC of 0.76 against 0.72. With grades alone and one cohort the margin over simple rules is small; mid-semester, CA and attendance marks are the features to add next. `ml/README.md` and `ml/report/report.md` have the full evaluation.
 
 # 9. The AI Assistant
 
@@ -365,7 +403,7 @@ They are written only by database triggers and a few functions, never by the bro
 | notify_mentor_message, notify_mentor_assigned | The other person in the thread; a student and their new mentor. |
 | notify_medical_submitted, notify_medical_reviewed | The department office; then the student, per module. |
 | notify_enrolment_window | The students a window covers, when it opens or is extended. |
-| notify_feedback_changes | The students a round covers, when it opens; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
+| notify_feedback_changes | The students a round covers, when it opens and when an open round is given a later closing time; the department office, when a lecturer requests a round; that lecturer, when it is approved or not. |
 | notify_draft_form_ready | The lecturers of each course in a draft round ("set up your feedback form"), and the head of department. |
 | notify_course_assigned | A lecturer, when they are assigned to teach an offering. |
 | notify_notice_published, notify_notice_created_published | Everyone a notice is aimed at. |
