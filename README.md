@@ -1,5 +1,7 @@
 # Performance Evaluation System (PES)
 
+[![CI](https://github.com/Senadheera-eng/Performance-Evaluation-System/actions/workflows/ci.yml/badge.svg)](https://github.com/Senadheera-eng/Performance-Evaluation-System/actions/workflows/ci.yml)
+
 > An academic management platform for the Faculty of Engineering, with an AI assistant grounded in the student's own record and the Faculty Handbook
 
 **Data Management Project (CO3554) — Faculty of Engineering, University of Sri Jayewardenepura**  
@@ -226,6 +228,7 @@ cd pes_app
 npm install
 npm run dev        # http://localhost:5173
 npm run typecheck
+npm test           # unit tests (npm run test:watch while developing)
 npm run build
 ```
 
@@ -237,6 +240,30 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 Accounts are created by administrators; there is no self-registration.
+
+---
+
+## Testing and CI
+
+Unit tests use [Vitest](https://vitest.dev) and sit beside the code they test, as `*.test.ts` in `pes_app/src/lib/`. They cover the logic every page relies on: the credit-weighted GPA and the Graduation Planner, attendance tiers and lecture counts, the Faculty Handbook's grade boundaries and mark weights, minor baskets, and how the two machine-learning models' checks are read. They never touch Supabase.
+
+```bash
+cd pes_app
+npm test                 # run once
+npm run test:watch       # re-run on every save
+npm run test:coverage    # with a coverage report in pes_app/coverage/
+```
+
+GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every pull request into `main` or `dev` and on every push to them:
+
+| Check | What it runs |
+| ----- | ------------ |
+| Typecheck | `npm run typecheck` (strict TypeScript) |
+| Unit tests | `vitest run --coverage`, with the coverage table on the run's summary page |
+| Build | `npm run build` (the same build Vercel runs) |
+| **CI passed** | Succeeds only when all three above do |
+
+`main` requires **CI passed** before a pull request can be merged, so nothing reaches production with a failing check.
 
 ---
 
@@ -262,8 +289,11 @@ The study guides in [`docs/`](docs/README.md) describe all of this in depth: sta
 
 | Branch | Purpose                                                            |
 | ------ | ------------------------------------------------------------------ |
-| `dev`  | Day-to-day work; a push here does not deploy                       |
+| `feature/*` | One change at a time; merged into `dev` by pull request        |
+| `dev`  | Integration: everything finished but not yet released; a push here does not deploy |
 | `main` | Production; Vercel builds and deploys it on every push             |
+
+Work flows `feature/*` → `dev` → `main`, always through a pull request, and CI must pass at each step.
 
 Database changes are applied to the live Supabase project and saved under `supabase/migrations/` with the same version, so the repository and the live history stay identical.
 
