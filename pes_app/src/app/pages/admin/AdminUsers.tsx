@@ -8,6 +8,7 @@ import {
   Send,
   Shield,
   UserCheck,
+  UserCog,
   UserPlus,
   Users,
   XCircle,
@@ -44,6 +45,7 @@ import {
   type StatusTone,
 } from "../../components/common";
 import { AddUserDialog } from "../../components/users/AddUserDialog";
+import { ChangeRoleDialog } from "../../components/users/ChangeRoleDialog";
 import { supabase } from "../../../lib/supabase";
 import { describeBatch } from "../../../lib/batch";
 import { departmentByName } from "../../../lib/departments";
@@ -96,6 +98,7 @@ export default function AdminUsers() {
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState(PAGE);
   const [adding, setAdding] = useState(false);
+  const [changingRole, setChangingRole] = useState<{ id: string; name: string } | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -210,7 +213,7 @@ export default function AdminUsers() {
     <div className="space-y-5">
       <PageHeader
         title="Users"
-        description="Add students, lecturers and department admins by email invitation, and deactivate anyone who should no longer sign in. Deactivating keeps all of their records."
+        description="Add students, lecturers and department admins by email invitation, change a member of staff's role, and deactivate anyone who should no longer sign in. Neither a role change nor deactivating removes any of their records."
         actions={
           <Button onClick={() => setAdding(true)}>
             <UserPlus className="mr-1.5 h-4 w-4" aria-hidden="true" />
@@ -247,6 +250,7 @@ export default function AdminUsers() {
             { value: "student", label: "Students", count: counts.student ?? 0 },
             { value: "lecturer", label: "Lecturers", count: counts.lecturer ?? 0 },
             { value: "dept_admin", label: "Dept. Admins", count: counts.dept_admin ?? 0 },
+            { value: "super_admin", label: "Super Admins", count: counts.super_admin ?? 0 },
           ]}
         />
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
@@ -284,6 +288,15 @@ export default function AdminUsers() {
               const dept = u.department ? departmentByName(u.department) : null;
               const s = STATE[u.state];
               const key = u.user_id ?? `${u.kind}-${u.detail.lecturer_id ?? u.email}`;
+              // A Super Admin's own account is changed by another Super Admin;
+              // their access is otherwise managed outside this list.
+              const canChangeRole =
+                u.kind !== "student" &&
+                !!u.user_id &&
+                u.user_id !== me?.id &&
+                u.state !== "deactivated" &&
+                u.state !== "no_account";
+              const manageable = u.kind !== "super_admin";
               return (
                 <li key={key} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40">
                   <PersonAvatar name={u.name} department={u.department} size="md" />
@@ -316,7 +329,7 @@ export default function AdminUsers() {
                                 : ""}
                     </p>
                   </div>
-                  {u.kind !== "super_admin" && (
+                  {(manageable || canChangeRole) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="sm" variant="ghost" aria-label={`Actions for ${u.name}`} disabled={busy}>
@@ -324,7 +337,12 @@ export default function AdminUsers() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {u.state === "no_account" && (
+                        {canChangeRole && u.user_id && (
+                          <DropdownMenuItem onSelect={() => setChangingRole({ id: u.user_id!, name: u.name })}>
+                            <UserCog className="mr-2 h-4 w-4" /> Change role
+                          </DropdownMenuItem>
+                        )}
+                        {manageable && u.state === "no_account" && (
                           <DropdownMenuItem
                             onSelect={() =>
                               run(
@@ -336,7 +354,7 @@ export default function AdminUsers() {
                             <Send className="mr-2 h-4 w-4" /> Invite to PES
                           </DropdownMenuItem>
                         )}
-                        {(u.state === "invited" || u.state === "invite_expired") && (
+                        {manageable && (u.state === "invited" || u.state === "invite_expired") && (
                           <>
                             <DropdownMenuItem
                               onSelect={() => run({ action: "resend_invite", user_id: u.user_id }, `A new invitation was sent to ${u.email}.`)}
@@ -348,7 +366,7 @@ export default function AdminUsers() {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {u.state === "active" && (
+                        {manageable && u.state === "active" && (
                           <DropdownMenuItem
                             className="text-danger-fg focus:text-danger-fg"
                             onSelect={() => setPending({ action: "deactivate", user: u })}
@@ -356,7 +374,7 @@ export default function AdminUsers() {
                             <Ban className="mr-2 h-4 w-4" /> Deactivate
                           </DropdownMenuItem>
                         )}
-                        {u.state === "deactivated" && u.user_id && (
+                        {manageable && u.state === "deactivated" && u.user_id && (
                           <DropdownMenuItem onSelect={() => setPending({ action: "reactivate", user: u })}>
                             <UserCheck className="mr-2 h-4 w-4" /> Reactivate
                           </DropdownMenuItem>
@@ -379,6 +397,16 @@ export default function AdminUsers() {
       </SectionCard>
 
       <AddUserDialog open={adding} onOpenChange={setAdding} onAdded={load} />
+
+      <ChangeRoleDialog
+        user={changingRole}
+        onOpenChange={(open) => !open && setChangingRole(null)}
+        onChanged={(message) => {
+          setChangingRole(null);
+          toast.success(message, { duration: 8_000 });
+          load();
+        }}
+      />
 
       <AlertDialog open={pending !== null} onOpenChange={(open) => !open && !busy && setPending(null)}>
         <AlertDialogContent>
