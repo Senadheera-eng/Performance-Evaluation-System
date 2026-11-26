@@ -1,0 +1,25 @@
+# Dependency review: on a pull request that changes package-lock.json or
+# requirements.txt, fails if the change brings in a dependency with a known
+# high or critical vulnerability. Dependabot keeps what is already there up to
+# date; this stops a new problem from coming in through a pull request.
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
