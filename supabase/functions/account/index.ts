@@ -166,9 +166,11 @@ interface Person {
   lecturerId?: string;
 }
 
+/* A 'former' record is a role the person has moved on from (Users > Change
+   role); it is kept for the records but is no longer who they are. */
 async function personOf(db: SupabaseClient, userId: string): Promise<Person | null> {
   const [{ data: a }, { data: l }, { data: s }] = await Promise.all([
-    db.from("admins").select("role, name").eq("id", userId).maybeSingle(),
+    db.from("admins").select("role, name").eq("id", userId).neq("status", "former").maybeSingle(),
     db.from("lecturers").select("id, name, title").eq("auth_user_id", userId).maybeSingle(),
     db.from("students").select("name").eq("id", userId).maybeSingle(),
   ]);
@@ -184,7 +186,8 @@ async function isDeactivated(db: SupabaseClient, userId: string): Promise<boolea
     db.from("admins").select("status").eq("id", userId).maybeSingle(),
     db.from("lecturers").select("status").eq("auth_user_id", userId).maybeSingle(),
   ]);
-  return !!d || (a && a.status !== "active") || (l && l.status !== "active") || false;
+  // Only 'inactive' is a deactivation; a 'former' record is a past role.
+  return !!d || (a && a.status === "inactive") || (l && l.status === "inactive") || false;
 }
 
 /** Has this account been set up -- a password chosen, or ever signed in?

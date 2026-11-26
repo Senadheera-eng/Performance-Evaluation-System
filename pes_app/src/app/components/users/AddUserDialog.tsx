@@ -12,16 +12,14 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { DepartmentSelect, SegmentedTabs } from "../common";
-import { accountCall, type InviteResult, type UserKind } from "../../../lib/accounts";
+import {
+  accountCall,
+  STAFF_DEPARTMENTS,
+  STUDENT_DEPARTMENTS,
+  type InviteResult,
+  type UserKind,
+} from "../../../lib/accounts";
 import { describeBatch } from "../../../lib/batch";
-
-const STUDENT_DEPARTMENTS = [
-  "Civil Engineering",
-  "Computer Engineering",
-  "Electrical and Electronic Engineering",
-  "Mechanical Engineering",
-];
-const STAFF_DEPARTMENTS = [...STUDENT_DEPARTMENTS, "Interdisciplinary Studies"];
 
 type NewKind = Exclude<UserKind, "super_admin">;
 

@@ -1,12 +1,16 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { Student, StaffContext } from "../../lib/types";
 import { loadSettings } from "../../lib/settings";
 import {
   accountStillActive,
+  compareAccess,
+  currentAccess,
   DEACTIVATED_MESSAGE,
+  expectedAccess,
   rememberSignOutReason,
+  ROLE_CHANGED_MESSAGE,
 } from "../../lib/accountGuard";
 
 interface AuthContextType {
@@ -33,12 +37,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [student, setStudent] = useState<Student | null>(null);
   const [staff, setStaff] = useState<StaffContext | null>(null);
   const [loading, setLoading] = useState(true);
+  // The profile as loaded, for the periodic check below to compare with.
+  const profileRef = useRef<Student | null>(null);
+  useEffect(() => {
+    profileRef.current = student;
+  }, [student]);
 
   /**
    * Resolve the signed-in user against the three identity tables, in the same
    * order the database's own get_my_role() helper uses so the client and RLS
    * can never disagree about who someone is: admins, then lecturers, then
-   * students. Each is normalised into the one Student shape.
+   * students. Each is normalised into the one Student shape. A 'former'
+   * admin record is a role the person has moved on from, so it is skipped.
    */
   const fetchProfile = async (
     userId: string,
@@ -47,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from("admins")
       .select("*")
       .eq("id", userId)
+      .neq("status", "former")
       .maybeSingle();
     if (admin) {
       return {
@@ -150,16 +161,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* A deactivated account is signed out at once, not when its login token
      next expires: checked now, whenever the tab comes back into view, and
-     every five minutes. */
+     every five minutes. The same check signs out someone whose role the
+     Super Admin has changed, and re-reads the profile of someone whose
+     department has changed. */
   useEffect(() => {
     if (!user) return;
     let stopped = false;
-    const check = async () => {
-      if (stopped || (await accountStillActive())) return;
+    const leave = async (reason: string) => {
       stopped = true;
-      rememberSignOutReason(DEACTIVATED_MESSAGE);
+      rememberSignOutReason(reason);
       await supabase.auth.signOut().catch(() => undefined);
       window.location.assign("/");
+    };
+    const check = async () => {
+      if (stopped) return;
+      if (!(await accountStillActive())) return leave(DEACTIVATED_MESSAGE);
+      const change = compareAccess(expectedAccess(profileRef.current), await currentAccess());
+      if (stopped) return;
+      if (change === "role") return leave(ROLE_CHANGED_MESSAGE);
+      if (change === "department") {
+        const { profile, staff: staffContext } = await fetchProfile(user.id);
+        if (stopped) return;
+        setStudent(profile);
+        setStaff(staffContext);
+      }
     };
     check();
     const onVisible = () => {
@@ -189,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from("admins")
       .select("role")
       .eq("id", data.user.id)
+      .neq("status", "former")
       .maybeSingle();
     if (adminData) return { error: null, role: adminData.role };
 

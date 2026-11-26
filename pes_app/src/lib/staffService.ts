@@ -258,6 +258,8 @@ export interface OfferingResultRow {
   gpv: number | null;
   status: "draft" | "submitted" | "published";
   return_notes: string | null;
+  /** The R or F a re-sit grade replaced, if any. */
+  original_grade: string | null;
 }
 
 /**
@@ -272,7 +274,7 @@ export async function getOfferingResults(
   const { data, error } = await supabase
     .from("results")
     .select(
-      "id, student_id, mid_sem_mark, ca_mark, ese_mark, oa_mark, grade, gpv, status, return_notes",
+      "id, student_id, mid_sem_mark, ca_mark, ese_mark, oa_mark, grade, gpv, status, return_notes, original_grade",
     )
     .eq("offering_id", offeringId);
   if (error) return fail("getOfferingResults", error);
