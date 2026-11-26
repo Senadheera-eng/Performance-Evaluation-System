@@ -1,0 +1,49 @@
+# CodeQL code scanning: reads the source for security problems (injection,
+# unsafe use of user input, leaked secrets in code, risky workflow settings)
+# and lists what it finds under the repository's Security tab.
+#
+# This is the "advanced setup". Leave "Default setup" off in Settings >
+# Advanced Security > Code scanning, or the two configurations clash.
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  schedule:
+    # Weekly, so new rules catch problems in code that has not changed.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Nothing here needs compiling, so CodeQL reads the source directly.
+        language: [javascript-typescript, python, actions]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
