@@ -3,8 +3,8 @@
  * Attendance page so every surface (summary cards, calendar, history,
  * warnings) reads from one place instead of re-deriving these numbers.
  *
- * The underlying formulas are untouched — only the presentation around them
- * changed. "Excused" has always counted toward compliance the same way
+ * The formulas are the original page's; the two lecture counts are now worked
+ * in exact arithmetic (see below). "Excused" has always counted toward compliance the same way
  * "present" does, matching how attendance is recorded on the admin side.
  */
 
@@ -55,31 +55,37 @@ export function classifyTier(
   return "excellent";
 }
 
+/*
+ * Both counts below are worked in whole percentage points (80, not 0.8). As
+ * fractions they were off by one: 0.8 and 0.2 are not exact in binary, so
+ * 7 of 10 lectures at 80% gave (8 - 7) / 0.2 = 5.000000000000001, whose
+ * ceiling is 6, when 5 more lectures (12 of 15) already reach 80%. The small
+ * tolerance keeps a fractional threshold, such as 82.5, just as safe.
+ */
+const TOLERANCE = 1e-9;
+
 /**
- * How many more absences the student can afford before dropping below the
- * threshold — identical formula to the original implementation.
+ * How many more absences the student can afford and still be at or above
+ * the threshold.
  */
 export function getAbsencesAllowed(
   compliant: number,
   total: number,
   thresholdPct: number,
 ): number {
-  const t = thresholdPct / 100;
-  return Math.max(0, Math.floor((compliant - t * total) / t));
+  return Math.max(0, Math.floor((100 * compliant - thresholdPct * total) / thresholdPct + TOLERANCE));
 }
 
 /**
  * Lectures the student must attend, with zero further absences, to climb
- * back above the threshold — identical formula to the original
- * implementation (previously only computed inline for the critical alert).
+ * back to the threshold.
  */
 export function getLecturesNeededToRecover(
   compliant: number,
   total: number,
   thresholdPct: number,
 ): number {
-  const t = thresholdPct / 100;
-  return Math.max(0, Math.ceil((t * total - compliant) / (1 - t)));
+  return Math.max(0, Math.ceil((thresholdPct * total - 100 * compliant) / (100 - thresholdPct) - TOLERANCE));
 }
 
 export const TIER_LABEL: Record<AttendanceTier, string> = {
