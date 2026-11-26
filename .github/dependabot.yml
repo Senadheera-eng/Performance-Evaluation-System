@@ -19,11 +19,44 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: deps
+    # A dependency joins the first group that matches it, so the groups of
+    # packages that must move together come before the catch-all.
     groups:
-      # Minor and patch releases together in one pull request; a major
+      # Vitest and its plugins share one version number; updated apart, the
+      # test run breaks (a coverage plugin on 5 with Vitest on 3).
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      # react-router-dom re-exports react-router at the same version.
+      react-router:
+        patterns: ["react-router", "react-router-dom"]
+      # Every other minor and patch release in one pull request; a major
       # release, which may break things, gets a pull request of its own.
       npm-minor-and-patch:
         update-types: [minor, patch]
+    # Major releases of the frameworks the whole app is built on mean code
+    # changes across the app, so they are planned, not proposed weekly.
+    # Minor and patch releases of them still come through.
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tailwindcss/vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@mui/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # The actions the workflows use (checkout, setup-node, CodeQL...).
   - package-ecosystem: github-actions
