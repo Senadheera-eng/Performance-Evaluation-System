@@ -1,0 +1,53 @@
+# Dependabot version updates: a weekly pull request per ecosystem with the
+# newer versions of what the project depends on. They target dev, so each one
+# goes through CI like any other change before it can reach main.
+#
+# Security updates (for a known vulnerability) are switched on separately in
+# Settings > Advanced Security and are raised against main, the default
+# branch, as GitHub requires.
+version: 2
+updates:
+  # The web app.
+  - package-ecosystem: npm
+    directory: /pes_app
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Colombo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+    groups:
+      # Minor and patch releases together in one pull request; a major
+      # release, which may break things, gets a pull request of its own.
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # The actions the workflows use (checkout, setup-node, CodeQL...).
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Colombo
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # The machine-learning scripts.
+  - package-ecosystem: pip
+    directory: /ml
+    target-branch: dev
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: deps
+    groups:
+      ml-python:
+        patterns: ["*"]
